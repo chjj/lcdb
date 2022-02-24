@@ -117,7 +117,7 @@ rdb_filterbuilder_generate_filter(rdb_filterbuilder_t *fb) {
 
     rdb_slice_set(&key, base, length);
 
-    rdb_bloom_add(data, fb->policy, &key, bits);
+    fb->policy->add(fb->policy, data, &key, bits);
   }
 
   data[bytes] = fb->policy->k;
@@ -174,7 +174,7 @@ rdb_filterreader_matches(const rdb_filterreader_t *fr,
 
       rdb_slice_set(&filter, fr->data + start, limit - start);
 
-      return rdb_bloom_match(&filter, key);
+      return fr->policy->match(&filter, key);
     }
 
     if (start == limit) {

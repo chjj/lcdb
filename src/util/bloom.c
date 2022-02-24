@@ -37,6 +37,8 @@ void
 rdb_bloom_init(rdb_bloom_t *bloom, int bits_per_key) {
   /* We intentionally round down to reduce probing cost a little bit. */
   bloom->name = rdb_bloom_name;
+  bloom->add = rdb_bloom_add;
+  bloom->match = rdb_bloom_match;
   bloom->bits_per_key = bits_per_key;
   bloom->k = bits_per_key * 0.69; /* 0.69 =~ ln(2). */
 
@@ -63,8 +65,8 @@ rdb_bloom_size(const rdb_bloom_t *bloom, size_t n) {
 }
 
 void
-rdb_bloom_add(uint8_t *data,
-              const rdb_bloom_t *bloom,
+rdb_bloom_add(const rdb_bloom_t *bloom,
+              uint8_t *data,
               const rdb_slice_t *key,
               size_t bits) {
   /* Use double-hashing to generate a sequence of hash values.

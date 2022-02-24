@@ -22,6 +22,29 @@ typedef struct rdb_bloom_s {
    * passed to methods of this type.
    */
   const char *name;
+
+  /* keys[0,n-1] contains a list of keys (potentially with duplicates)
+   * that are ordered according to the user supplied comparator.
+   * Append a filter that summarizes keys[0,n-1] to *dst.
+   *
+   * Warning: do not change the initial contents of *dst.  Instead,
+   * append the newly constructed filter to *dst.
+   */
+  void (*add)(const struct rdb_bloom_s *bloom,
+              uint8_t *data,
+              const rdb_slice_t *key,
+              size_t bits);
+
+  /* "filter" contains the data appended by a preceding call to
+   * bloom_add() on this class. This method must return true if
+   * the key was in the list of keys passed to bloom_add().
+   *
+   * This method may return true or false if the key was not on the
+   * list, but it should aim to return false with a high probability.
+   */
+  int (*match)(const rdb_slice_t *filter, const rdb_slice_t *key);
+
+  /* Members specific to bloom filter. */
   size_t bits_per_key;
   size_t k;
 } rdb_bloom_t;
@@ -58,18 +81,11 @@ size_t
 rdb_bloom_size(const rdb_bloom_t *bloom, size_t n);
 
 void
-rdb_bloom_add(uint8_t *data,
-              const rdb_bloom_t *bloom,
+rdb_bloom_add(const rdb_bloom_t *bloom,
+              uint8_t *data,
               const rdb_slice_t *key,
               size_t bits);
 
-/* "filter" contains the data appended by a preceding call to
- * bloom_add() on this class. This method must return true if
- * the key was in the list of keys passed to bloom_add().
- *
- * This method may return true or false if the key was not on the
- * list, but it should aim to return false with a high probability.
- */
 int
 rdb_bloom_match(const rdb_slice_t *filter, const rdb_slice_t *key);
 
