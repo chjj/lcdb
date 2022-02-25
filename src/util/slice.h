@@ -39,6 +39,9 @@ rdb_slice_equal(const rdb_slice_t *x, const rdb_slice_t *y);
 int
 rdb_slice_compare(const rdb_slice_t *x, const rdb_slice_t *y);
 
+void
+rdb_slice_eat(rdb_slice_t *z, size_t xn);
+
 size_t
 rdb_slice_size(const rdb_slice_t *x);
 

@@ -4,6 +4,7 @@
  * https://github.com/chjj/rdb
  */
 
+#include <assert.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
@@ -66,6 +67,14 @@ rdb_slice_equal(const rdb_slice_t *x, const rdb_slice_t *y) {
 int
 rdb_slice_compare(const rdb_slice_t *x, const rdb_slice_t *y) {
   return rdb_memcmp4(x->data, x->size, y->data, y->size);
+}
+
+void
+rdb_slice_eat(rdb_slice_t *z, size_t xn) {
+  assert(z->size >= xn);
+
+  z->data += xn;
+  z->size -= xn;
 }
 
 size_t

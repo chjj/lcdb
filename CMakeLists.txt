@@ -52,6 +52,7 @@ list(APPEND rdb_sources # util
                         src/table/two_level_iterator.c
                         # db
                         src/dbformat.c
+                        src/filename.c
                         src/memtable.c
                         src/skiplist.c)
 
