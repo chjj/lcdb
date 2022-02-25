@@ -21,29 +21,28 @@ rdb_atomic_no_empty_translation_unit(void) {
 #include <windows.h>
 
 long
-rdb_atomic_fetch_add(volatile long *object, long operand, int order) {
-  (void)order;
+rdb_atomic__fetch_add(volatile long *object, long operand) {
   return InterlockedExchangeAdd(object, operand);
 }
 
 long
-rdb_atomic_fetch_sub(volatile long *object, long operand, int order) {
-  (void)order;
-  return InterlockedExchangeAdd(object, -operand);
-}
-
-long
-rdb_atomic_load(volatile long *object, int order) {
-  (void)order;
-  MemoryBarrier();
-  return *object;
+rdb_atomic__load(volatile long *object) {
+  return InterlockedCompareExchange(object, 0, 0);
 }
 
 void
-rdb_atomic_store(volatile long *object, long desired, int order) {
-  (void)order;
-  *object = desired;
-  MemoryBarrier();
+rdb_atomic__store(volatile long *object, long desired) {
+  (void)InterlockedExchange(object, desired);
+}
+
+void *
+rdb_atomic__load_ptr(void *volatile *object) {
+  return InterlockedCompareExchangePointer(object, NULL, NULL);
+}
+
+void
+rdb_atomic__store_ptr(void *volatile *object, void *desired) {
+  (void)InterlockedExchangePointer(object, desired);
 }
 
 #else /* !RDB_MSVC_ATOMICS */
@@ -53,34 +52,42 @@ rdb_atomic_store(volatile long *object, long desired, int order) {
 static rdb_mutex_t rdb_atomic_lock = RDB_MUTEX_INITIALIZER;
 
 long
-rdb_atomic_fetch_add(long *object, long operand, int order) {
-  long value;
-  (void)order;
+rdb_atomic__fetch_add(long *object, long operand) {
+  long result;
   rdb_mutex_lock(&rdb_atomic_lock);
-  value = *object;
+  result = *object;
   *object += operand;
   rdb_mutex_unlock(&rdb_atomic_lock);
-  return value;
+  return result;
 }
 
 long
-rdb_atomic_fetch_sub(long *object, long operand, int order) {
-  return rdb_atomic_fetch_add(object, -operand, order);
-}
-
-long
-rdb_atomic_load(long *object, int order) {
-  long value;
-  (void)order;
+rdb_atomic__load(long *object) {
+  long result;
   rdb_mutex_lock(&rdb_atomic_lock);
-  value = *object;
+  result = *object;
   rdb_mutex_unlock(&rdb_atomic_lock);
-  return value;
+  return result;
 }
 
 void
-rdb_atomic_store(long *object, long desired, int order) {
-  (void)order;
+rdb_atomic__store(long *object, long desired) {
+  rdb_mutex_lock(&rdb_atomic_lock);
+  *object = desired;
+  rdb_mutex_unlock(&rdb_atomic_lock);
+}
+
+void *
+rdb_atomic__load_ptr(void **object) {
+  void *result;
+  rdb_mutex_lock(&rdb_atomic_lock);
+  result = *object;
+  rdb_mutex_unlock(&rdb_atomic_lock);
+  return result;
+}
+
+void
+rdb_atomic__store_ptr(void **object, void *desired) {
   rdb_mutex_lock(&rdb_atomic_lock);
   *object = desired;
   rdb_mutex_unlock(&rdb_atomic_lock);
