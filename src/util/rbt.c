@@ -514,7 +514,7 @@ rb_iter_seek_last(rb_iter_t *iter) {
 
 void
 rb_iter_seek_min(rb_iter_t *iter, rb_val_t key) {
-  const rb_node_t *root = iter->root; /* iter->node */
+  const rb_node_t *root = iter->root;
   const rb_node_t *current = NIL;
 
   while (root != NIL) {
@@ -538,7 +538,7 @@ rb_iter_seek_min(rb_iter_t *iter, rb_val_t key) {
 
 void
 rb_iter_seek_max(rb_iter_t *iter, rb_val_t key) {
-  const rb_node_t *root = iter->root; /* iter->node */
+  const rb_node_t *root = iter->root;
   const rb_node_t *current = NIL;
 
   while (root != NIL) {

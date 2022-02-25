@@ -58,4 +58,3 @@ rdb_memcmp4(const void *x, size_t xn, const void *y, size_t yn) {
 
   return 0;
 }
-
