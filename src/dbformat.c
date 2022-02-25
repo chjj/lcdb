@@ -350,6 +350,7 @@ rdb_ifp_match(const rdb_bloom_t *ifp,
               const rdb_slice_t *filter,
               const rdb_slice_t *key) {
   rdb_slice_t k = rdb_extract_user_key(key);
+
   return rdb_bloom_match(ifp->user_policy, filter, &k);
 }
 

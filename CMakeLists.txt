@@ -51,7 +51,8 @@ list(APPEND rdb_sources # util
                         src/table/table_builder.c
                         src/table/two_level_iterator.c
                         # db
-                        src/dbformat.c)
+                        src/dbformat.c
+                        src/skiplist.c)
 
 test_big_endian(RDB_BIGENDIAN)
 
