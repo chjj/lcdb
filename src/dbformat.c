@@ -21,7 +21,7 @@ rdb_extract_user_key(const rdb_slice_t *key) {
 }
 
 /*
- * Parsed Internal Key
+ * ParsedInternalKey
  */
 
 typedef struct rdb_pkey_s {
@@ -42,7 +42,10 @@ rdb_pkey_init(rdb_pkey_t *key,
 }
 
 /* InternalKeyEncodingLength */
-#define rdb_pkey_size(x) ((x)->user_key.size + 8)
+size_t
+rdb_pkey_size(const rdb_pkey_t *x) {
+  return x->user_key.size + 8;
+}
 
 uint8_t *
 rdb_pkey_write(uint8_t *zp, const rdb_pkey_t *x) {
@@ -102,7 +105,7 @@ rdb_pkey_import(rdb_pkey_t *z, const rdb_slice_t *x) {
 }
 
 /*
- * Internal Key
+ * InternalKey
  */
 
 typedef rdb_buffer_t rdb_ikey_t;
@@ -160,7 +163,7 @@ rdb_ikey_import(rdb_ikey_t *z, const rdb_slice_t *x) {
 }
 
 /*
- * Lookup Key
+ * LookupKey
  */
 
 typedef rdb_lkey_s {

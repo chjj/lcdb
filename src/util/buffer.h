@@ -43,6 +43,9 @@ void
 rdb_buffer_copy(rdb_buffer_t *z, const rdb_buffer_t *x);
 
 void
+rdb_buffer_swap(rdb_buffer_t *x, rdb_buffer_t *y);
+
+void
 rdb_buffer_roset(rdb_buffer_t *z, const uint8_t *xp, size_t xn);
 
 void

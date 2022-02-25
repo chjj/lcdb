@@ -97,6 +97,21 @@ rdb_buffer_copy(rdb_buffer_t *z, const rdb_buffer_t *x) {
 }
 
 void
+rdb_buffer_swap(rdb_buffer_t *x, rdb_buffer_t *y) {
+  uint8_t *xp = x->data;
+  size_t xn = x->size;
+  size_t xa = x->alloc;
+
+  x->data = y->data;
+  x->size = y->size;
+  x->alloc = y->alloc;
+
+  y->data = xp;
+  y->size = xn;
+  y->alloc = xa;
+}
+
+void
 rdb_buffer_roset(rdb_buffer_t *z, const uint8_t *xp, size_t xn) {
   z->data = (uint8_t *)xp;
   z->size = xn;
