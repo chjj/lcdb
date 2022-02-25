@@ -10,6 +10,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "atomic.h"
+#include "internal.h"
 #include "types.h"
 
 /*
@@ -46,7 +47,7 @@ void *
 rdb_arena_alloc(rdb_arena_t *arena, size_t size);
 
 /* Allocate memory with the normal alignment guarantees provided by malloc. */
-void *
+RDB_MALLOC void *
 rdb_arena_alloc_aligned(rdb_arena_t *arena, size_t size);
 
 #endif /* RDB_ARENA_H */

@@ -101,7 +101,7 @@ rdb_arena_alloc(rdb_arena_t *arena, size_t size) {
   return rdb_arena_alloc_fallback(arena, size);
 }
 
-void *
+RDB_MALLOC void *
 rdb_arena_alloc_aligned(rdb_arena_t *arena, size_t size) {
   static const int align = sizeof(void *) > 8 ? sizeof(void *) : 8;
   size_t current_mod = (uintptr_t)arena->data & (align - 1);
