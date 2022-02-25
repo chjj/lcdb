@@ -134,4 +134,14 @@ rdb_now_usec(void);
 void
 rdb_sleep_usec(int64_t usec);
 
+/*
+ * Extra
+ */
+
+int
+rdb_write_file(const char *fname, const rdb_slice_t *data, int sync);
+
+int
+rdb_read_file(const char *fname, rdb_buffer_t *data);
+
 #endif /* RDB_ENV_H */
