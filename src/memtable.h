@@ -14,6 +14,7 @@
  */
 
 struct rdb_comparator_s;
+struct rdb_iter_s;
 struct rdb_lkey_s;
 
 typedef struct rdb_memtable_s rdb_memtable_t;
@@ -74,7 +75,7 @@ rdb_memtable_get(rdb_memtable_t *mt,
  * iterator are internal keys encoded by rdb_pkey_export in the
  * src/dbformat.{h,c} module.
  */
-rdb_iter_t *
+struct rdb_iter_s *
 rdb_memiter_create(const rdb_memtable_t *mt);
 
 #endif /* RDB_MEMTABLE_H */
