@@ -87,15 +87,7 @@ typedef rdb_lkey_s {
  */
 
 rdb_slice_t
-rdb_extract_user_key(const rdb_slice_t *key) {
-  rdb_slice_t ret;
-
-  assert(key.size >= 8);
-
-  rdb_slice_set(&ret, key.data, key.size - 8);
-
-  return ret;
-}
+rdb_extract_user_key(const rdb_slice_t *key);
 
 /*
  * ParsedInternalKey
