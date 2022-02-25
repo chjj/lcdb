@@ -24,12 +24,6 @@ rdb_extract_user_key(const rdb_slice_t *key) {
  * ParsedInternalKey
  */
 
-typedef struct rdb_pkey_s {
-  rdb_slice_t user_key;
-  rdb_seqnum_t sequence;
-  enum rdb_value_type type;
-} rdb_pkey_t;
-
 /* ParsedInternalKey() */
 void
 rdb_pkey_init(rdb_pkey_t *key,
@@ -84,10 +78,10 @@ rdb_pkey_read(rdb_pkey_t *z, const uint8_t **xp, size_t *xn) {
   if (type > RDB_TYPE_VALUE)
     return 0;
 
+  rdb_slice_set(&z->user_key, zp, zn);
+
   z->sequence = num >> 8;
   z->type = (enum rdb_value_type)type;
-
-  rdb_slice_set(&z->user_key, zp, zn);
 
   return 1;
 }
@@ -107,8 +101,6 @@ rdb_pkey_import(rdb_pkey_t *z, const rdb_slice_t *x) {
 /*
  * InternalKey
  */
-
-typedef rdb_buffer_t rdb_ikey_t;
 
 /* InternalKey() */
 void
@@ -166,20 +158,6 @@ rdb_ikey_import(rdb_ikey_t *z, const rdb_slice_t *x) {
  * LookupKey
  */
 
-typedef rdb_lkey_s {
-  // We construct a char array of the form:
-  //    klength  varint32               <-- start_
-  //    userkey  char[klength]          <-- kstart_
-  //    tag      uint64
-  //                                    <-- end_
-  // The array is a suitable MemTable key.
-  // The suffix starting with "userkey" can be used as an rdb_ikey_t.
-  const uint8_t *start;
-  const uint8_t *kstart;
-  const uint8_t *end;
-  uint8_t space[200];  // Avoid allocation for short keys
-} rdb_lkey_t;
-
 /* LookupKey() */
 void
 rdb_lkey_init(rdb_lkey_t *lkey,
@@ -201,8 +179,8 @@ rdb_lkey_init(rdb_lkey_t *lkey,
 
   lkey->kstart = zp;
 
-  zp = rdb_raw_write(zp, user_key.data, usize);
-  zp = rdb_fixed64_write(zp, pack_seqtype(s, RDB_VALUE_TYPE_SEEK));
+  zp = rdb_raw_write(zp, user_key->data, usize);
+  zp = rdb_fixed64_write(zp, pack_seqtype(sequence, RDB_VALUE_TYPE_SEEK));
 
   lkey->end = zp;
 }
@@ -242,17 +220,18 @@ rdb_lkey_user_key(const rdb_lkey_t *lkey) {
 }
 
 /*
- * Internal Key Comparator
+ * InternalKeyComparator
  */
 
 static int
 rdb_ikc_compare(const rdb_comparator_t *ikc,
                 const rdb_slice_t *x,
                 const rdb_slice_t *y) {
-  // Order by:
-  //    increasing user key (according to user-supplied comparator)
-  //    decreasing sequence number
-  //    decreasing type (though sequence# should be enough to disambiguate)
+  /* Order by:
+   *    increasing user key (according to user-supplied comparator)
+   *    decreasing sequence number
+   *    decreasing type (though sequence# should be enough to disambiguate)
+   */
   rdb_slice_t xk = rdb_extract_user_key(x);
   rdb_slice_t yk = rdb_extract_user_key(y);
   int r = rdb_compare(ikc->user_comparator, &xk, &yk);
@@ -275,7 +254,7 @@ static void
 rdb_ikc_shortest_separator(const rdb_comparator_t *ikc,
                            rdb_buffer_t *start,
                            const rdb_slice_t *limit) {
-  // Attempt to shorten the user portion of the key
+  /* Attempt to shorten the user portion of the key. */
   const rdb_comparator_t *uc = ikc->user_comparator;
   rdb_slice_t user_start = rdb_extract_user_key(start);
   rdb_slice_t user_limit = rdb_extract_user_key(limit);
@@ -287,9 +266,10 @@ rdb_ikc_shortest_separator(const rdb_comparator_t *ikc,
   rdb_shortest_separator(uc, &tmp, &user_limit);
 
   if (tmp.size < user_start.size && rdb_compare(uc, &user_start, &tmp) < 0) {
-    // User key has become shorter physically, but larger logically.
-    // Tack on the earliest possible number to the shortened user key.
-    rdb_buffer_fixed64(&tmp, pack_seqtype(RDB_MAX_SEQUENCE, RDB_VALUE_TYPE_SEEK));
+    /* User key has become shorter physically, but larger logically. */
+    /* Tack on the earliest possible number to the shortened user key. */
+    rdb_buffer_fixed64(&tmp, pack_seqtype(RDB_MAX_SEQUENCE,
+                                          RDB_VALUE_TYPE_SEEK));
 
     assert(rdb_compare(ikc, start, &tmp) < 0);
     assert(rdb_compare(ikc, &tmp, limit) < 0);
@@ -312,9 +292,10 @@ rdb_ikc_short_successor(const rdb_comparator_t *ikc, rdb_buffer_t *key) {
   rdb_short_successor(uc, &tmp);
 
   if (tmp.size < user_key.size && rdb_compare(uc, &user_key, &tmp) < 0) {
-    // User key has become shorter physically, but larger logically.
-    // Tack on the earliest possible number to the shortened user key.
-    rdb_buffer_fixed64(&tmp, pack_seqtype(RDB_MAX_SEQUENCE, RDB_VALUE_TYPE_SEEK));
+    /* User key has become shorter physically, but larger logically. */
+    /* Tack on the earliest possible number to the shortened user key. */
+    rdb_buffer_fixed64(&tmp, pack_seqtype(RDB_MAX_SEQUENCE,
+                                          RDB_VALUE_TYPE_SEEK));
 
     assert(rdb_compare(ikc, key, &tmp) < 0);
 
@@ -334,7 +315,7 @@ rdb_ikc_init(rdb_comparator_t *ikc, const rdb_comparator_t *user_comparator) {
 }
 
 /*
- * Internal Filter Policy
+ * InternalFilterPolicy
  */
 
 static void
