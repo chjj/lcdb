@@ -51,7 +51,7 @@ typedef struct rdb_bloom_s {
   size_t k;
 
   /* For InternalFilterPolicy. */
-  struct rdb_bloom_s *user_policy;
+  const struct rdb_bloom_s *user_policy;
 } rdb_bloom_t;
 
 /*

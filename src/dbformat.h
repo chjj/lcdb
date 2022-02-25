@@ -1,3 +1,16 @@
+/*!
+ * dbformat.h - db format for rdb
+ * Copyright (c) 2022, Christopher Jeffrey (MIT License).
+ * https://github.com/chjj/rdb
+ */
+
+#ifndef RDB_DBFORMAT_H
+#define RDB_DBFORMAT_H
+
+#include <stddef.h>
+#include <stdint.h>
+
+#include "util/types.h"
 
 /*
  * Constants
@@ -30,19 +43,19 @@
 /* Value types encoded as the last component of internal keys.
    DO NOT CHANGE THESE ENUM VALUES: they are embedded in the on-disk
    data structures. */
-enum rdb_value_type {
+enum rdb_valtype {
   RDB_TYPE_DELETION = 0x0, /* kTypeDeletion */
   RDB_TYPE_VALUE = 0x1 /* kTypeValue */
 };
 
-/* RDB_VALUE_TYPE_SEEK defines the rdb_value_type that should be passed when
+/* RDB_VALTYPE_SEEK defines the rdb_valtype that should be passed when
  * constructing a rdb_pkey_t object for seeking to a particular
  * sequence number (since we sort sequence numbers in decreasing order
  * and the value type is embedded as the low 8 bits in the sequence
  * number in internal keys, we need to use the highest-numbered
- * rdb_value_type, not the lowest).
+ * rdb_valtype, not the lowest).
  */
-#define RDB_VALUE_TYPE_SEEK RDB_TYPE_VALUE /* kValueTypeForSeek */
+#define RDB_VALTYPE_SEEK RDB_TYPE_VALUE /* kValueTypeForSeek */
 
 /* We leave eight bits empty at the bottom so a type and sequence#
    can be packed together into 64-bits. */
@@ -52,20 +65,25 @@ enum rdb_value_type {
  * Types
  */
 
+struct rdb_bloom_s;
+struct rdb_comparator_s;
+
+typedef enum rdb_valtype rdb_valtype_t;
+
 typedef uint64_t rdb_seqnum_t;
 
 /* ParsedInternalKey */
 typedef struct rdb_pkey_s {
   rdb_slice_t user_key;
   rdb_seqnum_t sequence;
-  enum rdb_value_type type;
+  rdb_valtype_t type;
 } rdb_pkey_t;
 
 /* InternalKey */
 typedef rdb_buffer_t rdb_ikey_t;
 
 /* LookupKey */
-typedef rdb_lkey_s {
+typedef struct rdb_lkey_s {
   /* We construct a char array of the form:
    *
    *    klength  varint32               <-- start
@@ -98,7 +116,7 @@ void
 rdb_pkey_init(rdb_pkey_t *key,
               const rdb_slice_t *user_key,
               rdb_seqnum_t sequence,
-              enum rdb_value_type type);
+              rdb_valtype_t type);
 
 /* InternalKeyEncodingLength */
 size_t
@@ -130,7 +148,7 @@ void
 rdb_ikey_init(rdb_ikey_t *ikey,
               const rdb_slice_t *user_key,
               rdb_seqnum_t sequence,
-              enum rdb_value_type type);
+              rdb_valtype_t type);
 
 /* ~InternalKey() */
 void
@@ -190,11 +208,14 @@ rdb_lkey_user_key(const rdb_lkey_t *lkey);
  */
 
 void
-rdb_ikc_init(rdb_comparator_t *ikc, const rdb_comparator_t *user_comparator);
+rdb_ikc_init(struct rdb_comparator_s *ikc,
+             const struct rdb_comparator_s *user_comparator);
 
 /*
  * InternalFilterPolicy
  */
 
 void
-rdb_ifp_init(rdb_bloom_t *bloom, const rdb_bloom_t *user_policy);
+rdb_ifp_init(struct rdb_bloom_s *ifp, const struct rdb_bloom_s *user_policy);
+
+#endif /* RDB_DBFORMAT_H */

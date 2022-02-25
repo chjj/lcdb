@@ -1,11 +1,30 @@
+/*!
+ * dbformat.c - db format for rdb
+ * Copyright (c) 2022, Christopher Jeffrey (MIT License).
+ * https://github.com/chjj/rdb
+ */
+
+#include <assert.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+#include "util/bloom.h"
+#include "util/buffer.h"
+#include "util/coding.h"
+#include "util/comparator.h"
+#include "util/internal.h"
+#include "util/slice.h"
+
+#include "dbformat.h"
+
 /*
  * Helpers
  */
 
 static uint64_t
-pack_seqtype(uint64_t sequence, enum rdb_value_type type) {
+pack_seqtype(uint64_t sequence, rdb_valtype_t type) {
   assert(sequence <= RDB_MAX_SEQUENCE);
-  assert(type <= RDB_VALUE_TYPE_SEEK);
+  assert(type <= RDB_VALTYPE_SEEK);
   return (sequence << 8) | type;
 }
 
@@ -13,9 +32,9 @@ rdb_slice_t
 rdb_extract_user_key(const rdb_slice_t *key) {
   rdb_slice_t ret;
 
-  assert(key.size >= 8);
+  assert(key->size >= 8);
 
-  rdb_slice_set(&ret, key.data, key.size - 8);
+  rdb_slice_set(&ret, key->data, key->size - 8);
 
   return ret;
 }
@@ -29,7 +48,7 @@ void
 rdb_pkey_init(rdb_pkey_t *key,
               const rdb_slice_t *user_key,
               rdb_seqnum_t sequence,
-              enum rdb_value_type type) {
+              rdb_valtype_t type) {
   key->user_key = *user_key;
   key->sequence = sequence;
   key->type = type;
@@ -81,7 +100,7 @@ rdb_pkey_read(rdb_pkey_t *z, const uint8_t **xp, size_t *xn) {
   rdb_slice_set(&z->user_key, zp, zn);
 
   z->sequence = num >> 8;
-  z->type = (enum rdb_value_type)type;
+  z->type = (rdb_valtype_t)type;
 
   return 1;
 }
@@ -107,7 +126,7 @@ void
 rdb_ikey_init(rdb_ikey_t *ikey,
               const rdb_slice_t *user_key,
               rdb_seqnum_t sequence,
-              enum rdb_value_type type) {
+              rdb_valtype_t type) {
   rdb_pkey_t pkey;
 
   rdb_pkey_init(&pkey, user_key, sequence, type);
@@ -180,7 +199,7 @@ rdb_lkey_init(rdb_lkey_t *lkey,
   lkey->kstart = zp;
 
   zp = rdb_raw_write(zp, user_key->data, usize);
-  zp = rdb_fixed64_write(zp, pack_seqtype(sequence, RDB_VALUE_TYPE_SEEK));
+  zp = rdb_fixed64_write(zp, pack_seqtype(sequence, RDB_VALTYPE_SEEK));
 
   lkey->end = zp;
 }
@@ -268,8 +287,7 @@ rdb_ikc_shortest_separator(const rdb_comparator_t *ikc,
   if (tmp.size < user_start.size && rdb_compare(uc, &user_start, &tmp) < 0) {
     /* User key has become shorter physically, but larger logically. */
     /* Tack on the earliest possible number to the shortened user key. */
-    rdb_buffer_fixed64(&tmp, pack_seqtype(RDB_MAX_SEQUENCE,
-                                          RDB_VALUE_TYPE_SEEK));
+    rdb_buffer_fixed64(&tmp, pack_seqtype(RDB_MAX_SEQUENCE, RDB_VALTYPE_SEEK));
 
     assert(rdb_compare(ikc, start, &tmp) < 0);
     assert(rdb_compare(ikc, &tmp, limit) < 0);
@@ -294,8 +312,7 @@ rdb_ikc_short_successor(const rdb_comparator_t *ikc, rdb_buffer_t *key) {
   if (tmp.size < user_key.size && rdb_compare(uc, &user_key, &tmp) < 0) {
     /* User key has become shorter physically, but larger logically. */
     /* Tack on the earliest possible number to the shortened user key. */
-    rdb_buffer_fixed64(&tmp, pack_seqtype(RDB_MAX_SEQUENCE,
-                                          RDB_VALUE_TYPE_SEEK));
+    rdb_buffer_fixed64(&tmp, pack_seqtype(RDB_MAX_SEQUENCE, RDB_VALTYPE_SEEK));
 
     assert(rdb_compare(ikc, key, &tmp) < 0);
 
@@ -319,28 +336,29 @@ rdb_ikc_init(rdb_comparator_t *ikc, const rdb_comparator_t *user_comparator) {
  */
 
 static void
-rdb_ifp_add(const rdb_bloom_t *bloom,
+rdb_ifp_add(const rdb_bloom_t *ifp,
             uint8_t *data,
             const rdb_slice_t *key,
             size_t bits) {
   rdb_slice_t k = rdb_extract_user_key(key);
-  return rdb_bloom_add(bloom->user_policy, data, &k, bits);
+
+  rdb_bloom_add(ifp->user_policy, data, &k, bits);
 }
 
 static int
-rdb_ifp_match(const rdb_bloom_t *bloom,
+rdb_ifp_match(const rdb_bloom_t *ifp,
               const rdb_slice_t *filter,
               const rdb_slice_t *key) {
   rdb_slice_t k = rdb_extract_user_key(key);
-  return rdb_bloom_match(bloom->user_policy, filter, &k);
+  return rdb_bloom_match(ifp->user_policy, filter, &k);
 }
 
 void
-rdb_ifp_init(rdb_bloom_t *bloom, const rdb_bloom_t *user_policy) {
-  bloom->name = user_policy->name;
-  bloom->add = rdb_ifp_add;
-  bloom->match = rdb_ifp_match;
-  bloom->bits_per_key = 0;
-  bloom->k = 0;
-  bloom->user_policy = user_policy;
+rdb_ifp_init(rdb_bloom_t *ifp, const rdb_bloom_t *user_policy) {
+  ifp->name = user_policy->name;
+  ifp->add = rdb_ifp_add;
+  ifp->match = rdb_ifp_match;
+  ifp->bits_per_key = 0;
+  ifp->k = 0;
+  ifp->user_policy = user_policy;
 }
