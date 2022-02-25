@@ -19,12 +19,7 @@
 struct rdb_arena_s;
 struct rdb_comparator_s;
 
-typedef struct rdb_skipnode_s {
-  const uint8_t *key;
-  /* Array of length equal to the node height.
-     next[0] is lowest level link. */
-  rdb_atomic_ptr(struct rdb_skipnode_s) next[1];
-} rdb_skipnode_t;
+typedef struct rdb_skipnode_s rdb_skipnode_t;
 
 typedef struct rdb_skiplist_s {
   /* Immutable after construction. */
