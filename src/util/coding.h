@@ -249,33 +249,6 @@ rdb_varint64_slurp(uint64_t *z, rdb_slice_t *x) {
   return rdb_varint64_read(z, (const uint8_t **)&x->data, &x->size);
 }
 
-RDB_UNUSED static size_t
-rdb_size_size(size_t x) {
-  return rdb_varint32_size(x);
-}
-
-RDB_UNUSED static uint8_t *
-rdb_size_write(uint8_t *zp, size_t x) {
-  return rdb_varint32_write(zp, x);
-}
-
-RDB_UNUSED static int
-rdb_size_read(size_t *z, const uint8_t **xp, size_t *xn) {
-  uint32_t tmp;
-
-  if (!rdb_varint32_read(&tmp, xp, xn))
-    return 0;
-
-  *z = tmp;
-
-  return 1;
-}
-
-RDB_UNUSED static int
-rdb_size_slurp(size_t *z, rdb_slice_t *x) {
-  return rdb_size_read(z, (const uint8_t **)&x->data, &x->size);
-}
-
 RDB_UNUSED static uint8_t *
 rdb_raw_write(uint8_t *zp, const uint8_t *xp, size_t xn) {
   if (xn > 0)

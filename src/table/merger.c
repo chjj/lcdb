@@ -112,7 +112,7 @@ rdb_mergeiter_find_smallest(rdb_mergeiter_t *mi) {
         rdb_slice_t child_key = rdb_wrapiter_key(child);
         rdb_slice_t smallest_key = rdb_wrapiter_key(smallest);
 
-        if (mi->comparator->compare(&child_key, &smallest_key) < 0)
+        if (rdb_compare(mi->comparator, &child_key, &smallest_key) < 0)
           smallest = child;
       }
     }
@@ -136,7 +136,7 @@ rdb_mergeiter_find_largest(rdb_mergeiter_t *mi) {
         rdb_slice_t child_key = rdb_wrapiter_key(child);
         rdb_slice_t largest_key = rdb_wrapiter_key(largest);
 
-        if (mi->comparator->compare(&child_key, &largest_key) > 0)
+        if (rdb_compare(mi->comparator, &child_key, &largest_key) > 0)
           largest = child;
       }
     }
@@ -204,7 +204,7 @@ rdb_mergeiter_next(rdb_mergeiter_t *mi) {
         if (rdb_wrapiter_valid(child)) {
           rdb_slice_t child_key = rdb_wrapiter_key(child);
 
-          if (mi->comparator->compare(&mi_key, &child_key) == 0)
+          if (rdb_compare(mi->comparator, &mi_key, &child_key) == 0)
             rdb_wrapiter_next(child);
         }
       }

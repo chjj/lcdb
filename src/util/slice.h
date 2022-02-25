@@ -57,4 +57,8 @@ rdb_slice_slurp(rdb_slice_t *z, rdb_slice_t *x);
 int
 rdb_slice_import(rdb_slice_t *z, const rdb_slice_t *x);
 
+/* See GetLengthPrefixedSlice in memtable.cc. */
+rdb_slice_t
+rdb_slice_decode(const uint8_t *xp);
+
 #endif /* RDB_SLICE_H */

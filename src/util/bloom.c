@@ -33,42 +33,16 @@ rdb_bloom_destroy(rdb_bloom_t *bloom) {
   rdb_free(bloom);
 }
 
-void
-rdb_bloom_init(rdb_bloom_t *bloom, int bits_per_key) {
-  /* We intentionally round down to reduce probing cost a little bit. */
-  bloom->name = rdb_bloom_name;
-  bloom->add = rdb_bloom_add;
-  bloom->match = rdb_bloom_match;
-  bloom->bits_per_key = bits_per_key;
-  bloom->k = bits_per_key * 0.69; /* 0.69 =~ ln(2). */
-
-  if (bloom->k < 1)
-    bloom->k = 1;
-
-  if (bloom->k > 30)
-    bloom->k = 30;
-}
-
 static uint32_t
 rdb_bloom_hash(const rdb_slice_t *key) {
   return rdb_hash(key->data, key->size, 0xbc9f1d34);
 }
 
-size_t
-rdb_bloom_size(const rdb_bloom_t *bloom, size_t n) {
-  size_t bits = n * bloom->bits_per_key;
-
-  if (bits < 64)
-    bits = 64;
-
-  return (bits + 7) / 8;
-}
-
-void
-rdb_bloom_add(const rdb_bloom_t *bloom,
-              uint8_t *data,
-              const rdb_slice_t *key,
-              size_t bits) {
+static void
+rdb_bloom_add_(const rdb_bloom_t *bloom,
+               uint8_t *data,
+               const rdb_slice_t *key,
+               size_t bits) {
   /* Use double-hashing to generate a sequence of hash values.
      See analysis in [Kirsch,Mitzenmacher 2006]. */
   uint32_t hash = rdb_bloom_hash(key);
@@ -84,12 +58,16 @@ rdb_bloom_add(const rdb_bloom_t *bloom,
   }
 }
 
-int
-rdb_bloom_match(const rdb_slice_t *filter, const rdb_slice_t *key) {
+static int
+rdb_bloom_match_(const rdb_bloom_t *bloom,
+                 const rdb_slice_t *filter,
+                 const rdb_slice_t *key) {
   const uint8_t *data = filter->data;
   size_t len = filter->size;
   uint32_t hash, delta;
   size_t i, bits, k;
+
+  (void)bloom;
 
   if (len < 2)
     return 0;
@@ -119,4 +97,31 @@ rdb_bloom_match(const rdb_slice_t *filter, const rdb_slice_t *key) {
   }
 
   return 1;
+}
+
+void
+rdb_bloom_init(rdb_bloom_t *bloom, int bits_per_key) {
+  /* We intentionally round down to reduce probing cost a little bit. */
+  bloom->name = rdb_bloom_name;
+  bloom->add = rdb_bloom_add_;
+  bloom->match = rdb_bloom_match_;
+  bloom->bits_per_key = bits_per_key;
+  bloom->k = bits_per_key * 0.69; /* 0.69 =~ ln(2). */
+  bloom->user_policy = NULL;
+
+  if (bloom->k < 1)
+    bloom->k = 1;
+
+  if (bloom->k > 30)
+    bloom->k = 30;
+}
+
+size_t
+rdb_bloom_size(const rdb_bloom_t *bloom, size_t n) {
+  size_t bits = n * bloom->bits_per_key;
+
+  if (bits < 64)
+    bits = 64;
+
+  return (bits + 7) / 8;
 }

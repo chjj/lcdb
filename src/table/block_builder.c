@@ -86,13 +86,15 @@ void
 rdb_blockbuilder_add(rdb_blockbuilder_t *bb,
                      const rdb_slice_t *key,
                      const rdb_slice_t *value) {
+  const rdb_comparator_t *comparator = bb->options->comparator;
   rdb_slice_t last = bb->last_key;
   size_t shared, non_shared;
 
   assert(!bb->finished);
   assert(bb->counter <= bb->options->block_restart_interval);
-  assert(rdb_blockbuilder_empty(bb) /* No values yet? */
-         || bb->options->comparator->compare(key, &last) > 0);
+  assert(rdb_blockbuilder_empty(bb) || rdb_compare(comparator, key, &last) > 0);
+
+  (void)comparator;
 
   shared = 0;
 

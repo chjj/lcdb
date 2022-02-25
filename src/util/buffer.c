@@ -199,7 +199,7 @@ rdb_buffer_varint32(rdb_buffer_t *z, uint32_t x) {
 
 void
 rdb_buffer_varint64(rdb_buffer_t *z, uint64_t x) {
-  uint8_t *zp = rdb_buffer_expand(z, 10);
+  uint8_t *zp = rdb_buffer_expand(z, 9);
   size_t xn = rdb_varint64_write(zp, x) - zp;
 
   z->size += xn;
@@ -207,12 +207,12 @@ rdb_buffer_varint64(rdb_buffer_t *z, uint64_t x) {
 
 size_t
 rdb_buffer_size(const rdb_buffer_t *x) {
-  return rdb_size_size(x->size) + x->size;
+  return rdb_varint32_size(x->size) + x->size;
 }
 
 uint8_t *
 rdb_buffer_write(uint8_t *zp, const rdb_buffer_t *x) {
-  zp = rdb_size_write(zp, x->size);
+  zp = rdb_varint32_write(zp, x->size);
   zp = rdb_raw_write(zp, x->data, x->size);
   return zp;
 }
@@ -228,9 +228,9 @@ rdb_buffer_export(rdb_buffer_t *z, const rdb_buffer_t *x) {
 int
 rdb_buffer_read(rdb_buffer_t *z, const uint8_t **xp, size_t *xn) {
   const uint8_t *zp;
-  size_t zn;
+  uint32_t zn;
 
-  if (!rdb_size_read(&zn, xp, xn))
+  if (!rdb_varint32_read(&zn, xp, xn))
     return 0;
 
   if (!rdb_zraw_read(&zp, zn, xp, xn))

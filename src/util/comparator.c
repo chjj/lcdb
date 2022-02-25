@@ -16,11 +16,23 @@
  * Bytewise Comparator
  */
 
+static int
+slice_compare(const rdb_comparator_t *comparator,
+              const rdb_slice_t *x,
+              const rdb_slice_t *y) {
+  (void)comparator;
+  return rdb_slice_compare(x, y);
+}
+
 static void
-find_shortest_separator(rdb_buffer_t *start, const rdb_slice_t *limit) {
+shortest_separator(const rdb_comparator_t *comparator,
+                   rdb_buffer_t *start,
+                   const rdb_slice_t *limit) {
   /* Find length of common prefix. */
   size_t min_length = RDB_MIN(start->size, limit->size);
   size_t diff_index = 0;
+
+  (void)comparator;
 
   while (diff_index < min_length &&
          start->data[diff_index] == limit->data[diff_index]) {
@@ -41,9 +53,11 @@ find_shortest_separator(rdb_buffer_t *start, const rdb_slice_t *limit) {
 }
 
 static void
-find_short_successor(rdb_buffer_t *key) {
+short_successor(const rdb_comparator_t *comparator, rdb_buffer_t *key) {
   /* Find first character that can be incremented. */
   size_t i;
+
+  (void)comparator;
 
   for (i = 0; i < key->size; i++) {
     if (key->data[i] != 0xff) {
@@ -58,9 +72,10 @@ find_short_successor(rdb_buffer_t *key) {
 
 static const rdb_comparator_t bytewise_comparator = {
   /* .name = */ "leveldb.BytewiseComparator",
-  /* .compare = */ rdb_slice_compare,
-  /* .find_shortest_separator = */ find_shortest_separator,
-  /* .find_short_successor = */ find_short_successor
+  /* .compare = */ slice_compare,
+  /* .shortest_separator = */ shortest_separator,
+  /* .short_successor = */ short_successor,
+  /* .user_comparator = */ NULL
 };
 
 /*

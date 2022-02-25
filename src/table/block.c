@@ -140,7 +140,7 @@ static int
 rdb_blockiter_compare(const rdb_blockiter_t *iter,
                       const rdb_slice_t *x,
                       const rdb_slice_t *y) {
-  return iter->comparator->compare(x, y);
+  return rdb_compare(iter->comparator, x, y);
 }
 
 /* Return the offset in iter->data just past the end of the current entry. */

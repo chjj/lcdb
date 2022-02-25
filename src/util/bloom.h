@@ -42,11 +42,16 @@ typedef struct rdb_bloom_s {
    * This method may return true or false if the key was not on the
    * list, but it should aim to return false with a high probability.
    */
-  int (*match)(const rdb_slice_t *filter, const rdb_slice_t *key);
+  int (*match)(const struct rdb_bloom_s *bloom,
+               const rdb_slice_t *filter,
+               const rdb_slice_t *key);
 
   /* Members specific to bloom filter. */
   size_t bits_per_key;
   size_t k;
+
+  /* For InternalFilterPolicy. */
+  struct rdb_bloom_s *user_policy;
 } rdb_bloom_t;
 
 /*
@@ -80,13 +85,10 @@ rdb_bloom_init(rdb_bloom_t *bloom, int bits_per_key);
 size_t
 rdb_bloom_size(const rdb_bloom_t *bloom, size_t n);
 
-void
-rdb_bloom_add(const rdb_bloom_t *bloom,
-              uint8_t *data,
-              const rdb_slice_t *key,
-              size_t bits);
+#define rdb_bloom_add(bloom, data, key, bits) \
+  (bloom)->add(bloom, data, key, bits)
 
-int
-rdb_bloom_match(const rdb_slice_t *filter, const rdb_slice_t *key);
+#define rdb_bloom_match(bloom, filter, key) \
+  (bloom)->match(bloom, filter, key)
 
 #endif /* RDB_BLOOM_H */

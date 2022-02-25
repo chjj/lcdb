@@ -37,7 +37,9 @@ typedef struct rdb_comparator_s {
    *   == 0 iff "a" == "b",
    *   > 0 iff "a" > "b"
    */
-  int (*compare)(const rdb_slice_t *, const rdb_slice_t *);
+  int (*compare)(const struct rdb_comparator_s *,
+                 const rdb_slice_t *,
+                 const rdb_slice_t *);
 
   /* Advanced functions: these are used to reduce the space requirements
      for internal data structures like index blocks. */
@@ -45,13 +47,29 @@ typedef struct rdb_comparator_s {
   /* If *start < limit, changes *start to a short string in [start,limit).
      Simple comparator implementations may return with *start unchanged,
      i.e., an implementation of this method that does nothing is correct. */
-  void (*find_shortest_separator)(rdb_buffer_t *, const rdb_slice_t *);
+  void (*shortest_separator)(const struct rdb_comparator_s *,
+                             rdb_buffer_t *,
+                             const rdb_slice_t *);
 
   /* Changes *key to a short string >= *key.
      Simple comparator implementations may return with *key unchanged,
      i.e., an implementation of this method that does nothing is correct. */
-  void (*find_short_successor)(rdb_buffer_t *);
+  void (*short_successor)(const struct rdb_comparator_s *, rdb_buffer_t *);
+
+  /* For InternalKeyComparator. */
+  const struct rdb_comparator_s *user_comparator;
 } rdb_comparator_t;
+
+/*
+ * Macros
+ */
+
+#define rdb_compare(cmp, x, y) (cmp)->compare(cmp, x, y)
+
+#define rdb_shortest_separator(cmp, start, limit) \
+  (cmp)->shortest_separator(cmp, start, limit)
+
+#define rdb_short_successor(cmp, key) (cmp)->short_successor(cmp, key)
 
 /*
  * Globals

@@ -204,7 +204,7 @@ rdb_tablebuilder_add(rdb_tablebuilder_t *tb,
     return;
 
   if (tb->num_entries > 0)
-    assert(tb->options.comparator->compare(key, &tb->last_key) > 0);
+    assert(rdb_compare(tb->options.comparator, key, &tb->last_key) > 0);
 
   if (tb->pending_index_entry) {
     uint8_t tmp[RDB_BLOCKHANDLE_MAX];
@@ -212,7 +212,7 @@ rdb_tablebuilder_add(rdb_tablebuilder_t *tb,
 
     assert(rdb_blockbuilder_empty(&tb->data_block));
 
-    tb->options.comparator->find_shortest_separator(&tb->last_key, key);
+    rdb_shortest_separator(tb->options.comparator, &tb->last_key, key);
     rdb_buffer_rwset(&handle_encoding, tmp, sizeof(tmp));
     rdb_blockhandle_export(&handle_encoding, &tb->pending_handle);
     rdb_blockbuilder_add(&tb->index_block, &tb->last_key, &handle_encoding);
@@ -314,7 +314,7 @@ rdb_tablebuilder_finish(rdb_tablebuilder_t *tb) {
       uint8_t tmp[RDB_BLOCKHANDLE_MAX];
       rdb_buffer_t handle_encoding;
 
-      tb->options.comparator->find_short_successor(&tb->last_key);
+      rdb_short_successor(tb->options.comparator, &tb->last_key);
       rdb_buffer_rwset(&handle_encoding, tmp, sizeof(tmp));
       rdb_blockhandle_export(&handle_encoding, &tb->pending_handle);
       rdb_blockbuilder_add(&tb->index_block, &tb->last_key, &handle_encoding);
