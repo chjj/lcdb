@@ -268,9 +268,10 @@ rdb_logreader_read_record(rdb_logreader_t *lr,
             it could emit an empty RDB_TYPE_FIRST record at the tail end
             of a block followed by a RDB_TYPE_FULL or RDB_TYPE_FIRST record
             at the beginning of the next block. */
-          if (scratch->size > 0)
+          if (scratch->size > 0) {
             report_corruption(lr, scratch->size,
                               "partial record without end(1)");
+          }
         }
 
         prospective_offset = physical_offset;
@@ -290,9 +291,10 @@ rdb_logreader_read_record(rdb_logreader_t *lr,
              it could emit an empty RDB_TYPE_FIRST record at the tail end
              of a block followed by a RDB_TYPE_FULL or RDB_TYPE_FIRST record
              at the beginning of the next block. */
-          if (scratch->size > 0)
+          if (scratch->size > 0) {
             report_corruption(lr, scratch->size,
                               "partial record without end(2)");
+          }
         }
 
         prospective_offset = physical_offset;

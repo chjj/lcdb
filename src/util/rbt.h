@@ -153,13 +153,13 @@ rb_iter_k(rb_iter_t *iter, rb_val_t *key);
 int
 rb_iter_v(rb_iter_t *iter, rb_val_t *value);
 
-#define rb_iter_iterate(t, it, k, v)        \
+#define rb_iter_iterate(t, it, k, v) \
   for (rb_iter_start(it, t); rb_iter_kv(it, &(k), &(v)); rb_iter_next(it))
 
-#define rb_iter_keys(t, it, k)        \
+#define rb_iter_keys(t, it, k) \
   for (rb_iter_start(it, t); rb_iter_k(it, &(k)); rb_iter_next(it))
 
-#define rb_iter_values(t, it, v)        \
+#define rb_iter_values(t, it, v) \
   for (rb_iter_start(it, t); rb_iter_v(it, &(v)); rb_iter_next(it))
 
 /*
@@ -184,7 +184,7 @@ rb_set64_del(rb_tree_t *tree, uint64_t item);
 int
 rb_set64_k(rb_iter_t *iter, uint64_t *key);
 
-#define rb__set64_keys(t, it, k)        \
+#define rb__set64_keys(t, it, k) \
   for (rb_iter_start(it, t); rb_set64_k(it, &(k)); rb_iter_next(it))
 
 #define rb_set64_iterate(t, k) rb__set64_keys(t, &(t)->iter, k)
@@ -213,7 +213,7 @@ rb_set_del(rb_tree_t *tree, const void *item);
 int
 rb_set_k(rb_iter_t *iter, void **key);
 
-#define rb__set_keys(t, it, k)        \
+#define rb__set_keys(t, it, k) \
   for (rb_iter_start(it, t); rb_set_k(it, &(k)); rb_iter_next(it))
 
 #define rb_set_iterate(t, k) rb__set_keys(t, &(t)->iter, k)

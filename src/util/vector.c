@@ -17,8 +17,8 @@
 void
 rdb_vector_init(rdb_vector_t *z) {
   z->items = NULL;
-  z->alloc = 0;
   z->length = 0;
+  z->alloc = 0;
 }
 
 void
@@ -27,8 +27,8 @@ rdb_vector_clear(rdb_vector_t *z) {
     rdb_free(z->items);
 
   z->items = NULL;
-  z->alloc = 0;
   z->length = 0;
+  z->alloc = 0;
 }
 
 void

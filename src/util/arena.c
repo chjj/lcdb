@@ -104,7 +104,7 @@ rdb_arena_alloc(rdb_arena_t *arena, size_t size) {
 RDB_MALLOC void *
 rdb_arena_alloc_aligned(rdb_arena_t *arena, size_t size) {
   static const int align = sizeof(void *) > 8 ? sizeof(void *) : 8;
-  size_t current_mod = (uintptr_t)arena->data & (align - 1);
+  size_t current_mod = (uintptr_t)((void *)arena->data) & (align - 1);
   size_t slop = (current_mod == 0 ? 0 : align - current_mod);
   size_t needed = size + slop;
   void *result;
