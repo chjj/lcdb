@@ -15,7 +15,8 @@
  * Testing
  */
 
-static int my_cmp(rb_val_t x, rb_val_t y) {
+static int my_cmp(rb_val_t x, rb_val_t y, void *arg) {
+  (void)arg;
   return memcmp(x.p, y.p, 10);
 }
 
@@ -24,7 +25,7 @@ void just_testing(void) {
   void *item;
   rb_val_t k, v;
 
-  rb_set_init(&tree, my_cmp);
+  rb_set_init(&tree, my_cmp, NULL);
 
   rb_set_iterate(&tree, item)
     puts((char *)item);
@@ -41,7 +42,8 @@ void just_testing(void) {
     puts((char *)v.p);
 }
 
-static int my_compare(rb_val_t x, rb_val_t y) {
+static int my_compare(rb_val_t x, rb_val_t y, void *arg) {
+  (void)arg;
   return strcmp(x.p, y.p);
 }
 
@@ -54,7 +56,7 @@ int main(void) {
   void *item;
   int i;
 
-  rb_set_init(&tree, my_compare);
+  rb_set_init(&tree, my_compare, NULL);
 
   for (i = 0; i < 1000; i++) {
     char *s = malloc(20 + 1);

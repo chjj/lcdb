@@ -44,7 +44,8 @@ typedef struct rb_iter_s {
 
 typedef struct rb_tree_s {
   rb_node_t *root;
-  int (*compare)(rb_val_t, rb_val_t);
+  int (*compare)(rb_val_t, rb_val_t, void *);
+  void *arg;
   int unique;
   size_t size;
   rb_iter_t iter;
@@ -62,13 +63,18 @@ rb_node_destroy(rb_node_t *node);
  */
 
 void
-rb_tree_init(rb_tree_t *tree, int (*compare)(rb_val_t, rb_val_t), int unique);
+rb_tree_init(rb_tree_t *tree,
+             int (*compare)(rb_val_t, rb_val_t, void *),
+             void *arg,
+             int unique);
 
 void
 rb_tree_clear(rb_tree_t *tree, void (*clear)(rb_node_t *));
 
 rb_tree_t *
-rb_tree_create(int (*compare)(rb_val_t, rb_val_t), int unique);
+rb_tree_create(int (*compare)(rb_val_t, rb_val_t, void *),
+               void *arg,
+               int unique);
 
 void
 rb_tree_destroy(rb_tree_t *tree, void (*clear)(rb_node_t *));
@@ -188,7 +194,9 @@ rb_set64_k(rb_iter_t *iter, uint64_t *key);
  */
 
 void
-rb_set_init(rb_tree_t *tree, int (*compare)(rb_val_t, rb_val_t));
+rb_set_init(rb_tree_t *tree,
+            int (*compare)(rb_val_t, rb_val_t, void *),
+            void *arg);
 
 void
 rb_set_clear(rb_tree_t *tree, void (*clear)(rb_node_t *));

@@ -58,9 +58,11 @@ file_entry_destroy(file_entry_t *entry) {
 }
 
 static int
-file_entry_compare(rb_value_t x, rb_value_t y) {
+file_entry_compare(rb_val_t x, rb_val_t y, void *arg) {
   file_entry_t *xp = x.ptr;
   file_entry_t *yp = y.ptr;
+
+  (void)arg;
 
   if (xp->level != yp->level)
     return xp->level - yp->level;
@@ -178,7 +180,7 @@ rdb_vedit_init(rdb_vedit_t *edit) {
   edit->has_last_sequence = 0;
 
   rdb_vector_init(&edit->compact_pointers);
-  rb_set_init(&edit->deleted_files, file_entry_compare);
+  rb_set_init(&edit->deleted_files, file_entry_compare, NULL);
   rdb_vector_init(&edit->new_files);
 }
 

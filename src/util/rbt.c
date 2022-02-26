@@ -32,7 +32,7 @@ rb_node_create(rb_val_t key, rb_val_t value) {
   rb_node_t *node = malloc(sizeof(rb_node_t));
 
   if (node == NULL)
-    abort();
+    abort(); /* LCOV_EXCL_LINE */
 
   node->key = key;
   node->value = value;
@@ -149,9 +149,13 @@ rb_node_predecessor(const rb_node_t *x) {
  */
 
 void
-rb_tree_init(rb_tree_t *tree, int (*compare)(rb_val_t, rb_val_t), int unique) {
+rb_tree_init(rb_tree_t *tree,
+             int (*compare)(rb_val_t, rb_val_t, void *),
+             void *arg,
+             int unique) {
   tree->root = NIL;
   tree->compare = compare;
+  tree->arg = arg;
   tree->unique = unique;
   tree->size = 0;
 }
@@ -162,13 +166,15 @@ rb_tree_clear(rb_tree_t *tree, void (*clear)(rb_node_t *)) {
 }
 
 rb_tree_t *
-rb_tree_create(int (*compare)(rb_val_t, rb_val_t), int unique) {
+rb_tree_create(int (*compare)(rb_val_t, rb_val_t, void *),
+               void *arg,
+               int unique) {
   rb_tree_t *tree = malloc(sizeof(rb_tree_t));
 
   if (tree == NULL)
-    abort();
+    abort(); /* LCOV_EXCL_LINE */
 
-  rb_tree_init(tree, compare, unique);
+  rb_tree_init(tree, compare, arg, unique);
 
   return tree;
 }
@@ -388,7 +394,7 @@ rb_tree_search(const rb_tree_t *tree, rb_val_t key) {
   const rb_node_t *current = tree->root;
 
   while (current != NIL) {
-    int cmp = tree->compare(key, current->key);
+    int cmp = tree->compare(key, current->key, tree->arg);
 
     if (cmp == 0)
       return current;
@@ -410,7 +416,7 @@ rb_tree_insert(rb_tree_t *tree, rb_val_t key, rb_val_t value) {
   int left = 0;
 
   while (current != NIL) {
-    int cmp = tree->compare(key, current->key);
+    int cmp = tree->compare(key, current->key, tree->arg);
 
     if (tree->unique && cmp == 0) {
       /* Conflict. Return the node. */
@@ -455,7 +461,7 @@ rb_tree_remove(rb_tree_t *tree, rb_val_t key) {
   rb_node_t *current = tree->root;
 
   while (current != NIL) {
-    int cmp = tree->compare(key, current->key);
+    int cmp = tree->compare(key, current->key, tree->arg);
 
     if (cmp == 0)
       return rb_tree_remove_node(tree, current);
@@ -489,7 +495,7 @@ rb_iter_init(rb_iter_t *iter, const rb_tree_t *tree) {
 
 int
 rb_iter_compare(const rb_iter_t *iter, rb_val_t key) {
-  return iter->tree->compare(iter->node->key, key);
+  return iter->tree->compare(iter->node->key, key, iter->tree->arg);
 }
 
 int
@@ -518,7 +524,7 @@ rb_iter_seek_min(rb_iter_t *iter, rb_val_t key) {
   const rb_node_t *current = NIL;
 
   while (root != NIL) {
-    int cmp = iter->tree->compare(root->key, key);
+    int cmp = iter->tree->compare(root->key, key, iter->tree->arg);
 
     if (cmp == 0) {
       current = root;
@@ -542,7 +548,7 @@ rb_iter_seek_max(rb_iter_t *iter, rb_val_t key) {
   const rb_node_t *current = NIL;
 
   while (root != NIL) {
-    int cmp = iter->tree->compare(root->key, key);
+    int cmp = iter->tree->compare(root->key, key, iter->tree->arg);
 
     if (cmp == 0) {
       current = root;
@@ -638,7 +644,9 @@ rb_iter_v(rb_iter_t *iter, rb_val_t *value) {
  */
 
 static int
-rb_set64_compare(rb_val_t x, rb_val_t y) {
+rb_set64_compare(rb_val_t x, rb_val_t y, void *arg) {
+  (void)arg;
+
   if (x.ui == y.ui)
     return 0;
 
@@ -647,7 +655,7 @@ rb_set64_compare(rb_val_t x, rb_val_t y) {
 
 void
 rb_set64_init(rb_tree_t *tree) {
-  rb_tree_init(tree, rb_set64_compare, 1);
+  rb_tree_init(tree, rb_set64_compare, NULL, 1);
 }
 
 void
@@ -706,8 +714,10 @@ rb_set64_k(rb_iter_t *iter, uint64_t *key) {
  */
 
 void
-rb_set_init(rb_tree_t *tree, int (*compare)(rb_val_t, rb_val_t)) {
-  rb_tree_init(tree, compare, 1);
+rb_set_init(rb_tree_t *tree,
+            int (*compare)(rb_val_t, rb_val_t, void *),
+            void *arg) {
+  rb_tree_init(tree, compare, arg, 1);
 }
 
 void
