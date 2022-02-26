@@ -147,6 +147,11 @@ rdb_ikey_reset(rdb_ikey_t *ikey) {
   rdb_buffer_reset(ikey);
 }
 
+void
+rdb_ikey_copy(rdb_ikey_t *z, const rdb_ikey_t *x) {
+  rdb_buffer_copy(z, x);
+}
+
 /* InternalKey::SetFrom */
 void
 rdb_ikey_set(rdb_ikey_t *ikey, const rdb_pkey_t *pkey) {
@@ -160,18 +165,33 @@ rdb_ikey_user_key(const rdb_ikey_t *ikey) {
   return rdb_extract_user_key(ikey);
 }
 
+void
+rdb_ikey_export(rdb_ikey_t *z, const rdb_ikey_t *x) {
+  rdb_buffer_export(z, x);
+}
+
+#if 0
 /* InternalKey::Encode */
 rdb_slice_t
 rdb_ikey_encode(const rdb_ikey_t *x) {
   return *x;
 }
+#endif
 
+/* See GetInternalKey in version_edit.cc. */
+int
+rdb_ikey_slurp(rdb_ikey_t *z, rdb_slice_t *x) {
+  return rdb_buffer_slurp(z, x);
+}
+
+#if 0
 /* InternalKey::DecodeFrom */
 int
 rdb_ikey_import(rdb_ikey_t *z, const rdb_slice_t *x) {
   rdb_buffer_copy(z, x);
   return z->size != 0;
 }
+#endif
 
 /*
  * LookupKey
