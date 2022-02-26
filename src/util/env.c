@@ -13,7 +13,7 @@
 #include "buffer.h"
 
 int
-rdb_write_file(const char *fname, const rdb_slice_t *data, int sync) {
+rdb_write_file(const char *fname, const rdb_slice_t *data, int should_sync) {
   rdb_wfile_t *file;
   int rc;
 
@@ -22,7 +22,7 @@ rdb_write_file(const char *fname, const rdb_slice_t *data, int sync) {
 
   rc = rdb_wfile_append(file, data);
 
-  if (rc == RDB_OK && sync)
+  if (rc == RDB_OK && should_sync)
     rc = rdb_wfile_sync(file);
 
   if (rc == RDB_OK)

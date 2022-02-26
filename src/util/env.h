@@ -139,7 +139,7 @@ rdb_sleep_usec(int64_t usec);
  */
 
 int
-rdb_write_file(const char *fname, const rdb_slice_t *data, int sync);
+rdb_write_file(const char *fname, const rdb_slice_t *data, int should_sync);
 
 int
 rdb_read_file(const char *fname, rdb_buffer_t *data);
