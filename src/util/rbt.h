@@ -94,9 +94,11 @@ rb_tree_remove(rb_tree_t *tree, rb_val_t key);
 rb_iter_t
 rb_tree_iterator(const rb_tree_t *tree);
 
-#define rb_tree_iterate(t, k, v) rb_iter_iterate(t, &(t)->iter, k, v)
-#define rb_tree_keys(t, k) rb_iter_keys(t, &(t)->iter, k)
-#define rb_tree_values(t, v) rb_iter_values(t, &(t)->iter, v)
+#define rb_tree_iterate(t, k, v) \
+  rb_iter_iterate(t, (rb_iter_t *)&(t)->iter, k, v)
+
+#define rb_tree_keys(t, k) rb_iter_keys(t, (rb_iter_t *)&(t)->iter, k)
+#define rb_tree_values(t, v) rb_iter_values(t, (rb_iter_t *)&(t)->iter, v)
 
 /*
  * Iterator
@@ -187,7 +189,7 @@ rb_set64_k(rb_iter_t *iter, uint64_t *key);
 #define rb__set64_keys(t, it, k) \
   for (rb_iter_start(it, t); rb_set64_k(it, &(k)); rb_iter_next(it))
 
-#define rb_set64_iterate(t, k) rb__set64_keys(t, &(t)->iter, k)
+#define rb_set64_iterate(t, k) rb__set64_keys(t, (rb_iter_t *)&(t)->iter, k)
 
 /*
  * Set
@@ -216,6 +218,6 @@ rb_set_k(rb_iter_t *iter, void **key);
 #define rb__set_keys(t, it, k) \
   for (rb_iter_start(it, t); rb_set_k(it, &(k)); rb_iter_next(it))
 
-#define rb_set_iterate(t, k) rb__set_keys(t, &(t)->iter, k)
+#define rb_set_iterate(t, k) rb__set_keys(t, (rb_iter_t *)&(t)->iter, k)
 
 #endif /* RDB_RBT_H */

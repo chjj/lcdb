@@ -58,6 +58,7 @@ list(APPEND rdb_sources # util
                         src/memtable.c
                         src/skiplist.c
                         src/table_cache.c
+                        src/version_edit.c
                         src/write_batch.c)
 
 test_big_endian(RDB_BIGENDIAN)

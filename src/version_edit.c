@@ -1,3 +1,22 @@
+/*!
+ * version_edit.c - version edit for rdb
+ * Copyright (c) 2022, Christopher Jeffrey (MIT License).
+ * https://github.com/chjj/rdb
+ */
+
+#include <stdint.h>
+#include <stdlib.h>
+
+#include "util/buffer.h"
+#include "util/coding.h"
+#include "util/internal.h"
+#include "util/rbt.h"
+#include "util/slice.h"
+#include "util/vector.h"
+
+#include "dbformat.h"
+#include "version_edit.h"
+
 /*
  * Constants
  */
@@ -26,7 +45,7 @@ ikey_entry_create(int level, const rdb_ikey_t *key) {
 
   entry->level = level;
 
-  rdb_ikey_init(&entry->key);
+  rdb_buffer_init(&entry->key);
   rdb_ikey_copy(&entry->key, key);
 
   return entry;
@@ -59,8 +78,8 @@ file_entry_destroy(file_entry_t *entry) {
 
 static int
 file_entry_compare(rb_val_t x, rb_val_t y, void *arg) {
-  file_entry_t *xp = x.ptr;
-  file_entry_t *yp = y.ptr;
+  file_entry_t *xp = x.p;
+  file_entry_t *yp = y.p;
 
   (void)arg;
 
@@ -75,7 +94,7 @@ file_entry_compare(rb_val_t x, rb_val_t y, void *arg) {
 
 static void
 file_entry_destruct(rb_node_t *node) {
-  file_entry_destroy(node->key.ptr);
+  file_entry_destroy(node->key.p);
 }
 
 /*
@@ -117,7 +136,7 @@ rdb_filemeta_t *
 rdb_filemeta_create(void) {
   rdb_filemeta_t *meta = rdb_malloc(sizeof(rdb_filemeta_t));
   rdb_filemeta_init(meta);
-  return entry;
+  return meta;
 }
 
 void
@@ -128,7 +147,7 @@ rdb_filemeta_destroy(rdb_filemeta_t *meta) {
 
 rdb_filemeta_t *
 rdb_filemeta_clone(const rdb_filemeta_t *meta) {
-  rdb_filemeta_t *out = rdb_filemeta_create(meta);
+  rdb_filemeta_t *out = rdb_filemeta_create();
   rdb_filemeta_copy(out, meta);
   return out;
 }
@@ -140,8 +159,8 @@ rdb_filemeta_init(rdb_filemeta_t *meta) {
   meta->number = 0;
   meta->file_size = 0;
 
-  rdb_ikey_init(&meta->smallest);
-  rdb_ikey_init(&meta->largest);
+  rdb_buffer_init(&meta->smallest);
+  rdb_buffer_init(&meta->largest);
 }
 
 void
@@ -318,7 +337,7 @@ rdb_vedit_export(rdb_buffer_t *dst, const rdb_vedit_t *edit) {
 
   for (i = 0; i < edit->new_files.length; i++) {
     const meta_entry_t *entry = edit->new_files.items[i];
-    const rdb_filemeta_t *meta = entry->meta;
+    const rdb_filemeta_t *meta = &entry->meta;
 
     rdb_buffer_varint32(dst, TAG_NEW_FILE);
     rdb_buffer_varint32(dst, entry->level);
@@ -346,11 +365,11 @@ rdb_level_slurp(int *level, rdb_slice_t *input) {
 
 int
 rdb_vedit_import(rdb_vedit_t *edit, const rdb_slice_t *src) {
-  uint64_t tag, number, file_size;
   rdb_slice_t smallest, largest;
-  rdb_slice_t input = src;
+  uint64_t number, file_size;
+  rdb_slice_t input = *src;
   rdb_slice_t key;
-  int result = 0;
+  uint32_t tag;
   int level;
 
   rdb_vedit_reset(edit);
