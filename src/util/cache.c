@@ -88,8 +88,7 @@ typedef struct rdb_lrutable_s {
 
 static int
 handle_equal(const rdb_lruhandle_t *x, const rdb_slice_t *y) {
-  rdb_slice_t key = rdb_lruhandle_key(x);
-  return rdb_slice_equal(&key, y);
+  return rdb_memcmp4(x->key_data, x->key_length, y->data, y->size);
 }
 
 /* Return a pointer to slot that points to a cache entry that

@@ -21,7 +21,7 @@ slice_compare(const rdb_comparator_t *comparator,
               const rdb_slice_t *x,
               const rdb_slice_t *y) {
   (void)comparator;
-  return rdb_slice_compare(x, y);
+  return rdb_memcmp4(x->data, x->size, y->data, y->size);
 }
 
 static void

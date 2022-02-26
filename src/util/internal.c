@@ -12,6 +12,15 @@
  * Helpers
  */
 
+void
+rdb__internal_no_empty(void);
+
+void
+rdb__internal_no_empty(void) {
+  return;
+}
+
+#if 0
 RDB_MALLOC void *
 rdb_malloc(size_t size) {
   void *ptr = malloc(size);
@@ -42,6 +51,7 @@ rdb_free(void *ptr) {
   free(ptr);
 }
 
+#if 0
 int
 rdb_memcmp4(const void *x, size_t xn, const void *y, size_t yn) {
   size_t n = xn < yn ? xn : yn;
@@ -58,3 +68,23 @@ rdb_memcmp4(const void *x, size_t xn, const void *y, size_t yn) {
 
   return 0;
 }
+#endif
+
+int
+rdb_memcmp4(const void *x, size_t xn, const void *y, size_t yn) {
+  const unsigned char *xp = (const unsigned char *)x;
+  const unsigned char *yp = (const unsigned char *)y;
+  size_t n = xn < yn ? xn : yn;
+  size_t i;
+
+  for (i = 0; i < n; i++) {
+    if (xp[i] != yp[i])
+      return (int)xp[i] - (int)yp[i];
+  }
+
+  if (xn != yn)
+    return xn < yn ? -1 : 1;
+
+  return 0;
+}
+#endif
