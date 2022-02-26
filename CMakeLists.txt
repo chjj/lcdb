@@ -53,6 +53,8 @@ list(APPEND rdb_sources # util
                         # db
                         src/dbformat.c
                         src/filename.c
+                        src/log_reader.c
+                        src/log_writer.c
                         src/memtable.c
                         src/skiplist.c
                         src/write_batch.c)
