@@ -73,6 +73,12 @@ rdb_filemeta_t *
 rdb_filemeta_clone(const rdb_filemeta_t *meta);
 
 void
+rdb_filemeta_ref(rdb_filemeta_t *z);
+
+void
+rdb_filemeta_unref(rdb_filemeta_t *z);
+
+void
 rdb_filemeta_init(rdb_filemeta_t *meta);
 
 void

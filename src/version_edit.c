@@ -153,6 +153,21 @@ rdb_filemeta_clone(const rdb_filemeta_t *meta) {
 }
 
 void
+rdb_filemeta_ref(rdb_filemeta_t *z) {
+  z->refs++;
+}
+
+void
+rdb_filemeta_unref(rdb_filemeta_t *z) {
+  /* assert(z->refs > 0); */
+
+  z->refs--;
+
+  if (z->refs <= 0)
+    rdb_filemeta_destroy(z);
+}
+
+void
 rdb_filemeta_init(rdb_filemeta_t *meta) {
   meta->refs = 0;
   meta->allowed_seeks = (1 << 30);

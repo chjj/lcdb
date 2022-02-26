@@ -22,6 +22,7 @@ struct rdb_rfile_s;
 typedef struct rdb_reporter_s {
   /* Some corruption was detected. "bytes" is the approximate number
      of bytes dropped due to the corruption. */
+  int *status;
   void (*corruption)(struct rdb_reporter_s *reporter, size_t bytes, int status);
 } rdb_reporter_t;
 
