@@ -51,6 +51,20 @@ rdb_free(void *ptr) {
   free(ptr);
 }
 
+int
+rdb_memcmp(const void *x, const void *y, size_t n) {
+  const unsigned char *xp = (const unsigned char *)x;
+  const unsigned char *yp = (const unsigned char *)y;
+  size_t i;
+
+  for (i = 0; i < n; i++) {
+    if (xp[i] != yp[i])
+      return (int)xp[i] - (int)yp[i];
+  }
+
+  return 0;
+}
+
 #if 0
 int
 rdb_memcmp4(const void *x, size_t xn, const void *y, size_t yn) {

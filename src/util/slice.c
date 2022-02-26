@@ -19,6 +19,18 @@
  * Slice
  */
 
+#if 0
+rdb_slice_t
+rdb_slice(const uint8_t *xp, size_t xn) {
+  rdb_slice_t z;
+
+  z.data = (uint8_t *)xp;
+  z.size = xn;
+  z.alloc = 0;
+
+  return z;
+}
+
 void
 rdb_slice_init(rdb_slice_t *z) {
   z->data = NULL;
@@ -39,6 +51,7 @@ rdb_slice_set(rdb_slice_t *z, const uint8_t *xp, size_t xn) {
   z->size = xn;
   z->alloc = 0;
 }
+#endif
 
 void
 rdb_slice_set_str(rdb_slice_t *z, const char *xp) {

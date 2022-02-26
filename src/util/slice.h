@@ -9,11 +9,16 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include "internal.h"
 #include "types.h"
 
 /*
  * Slice
  */
+
+#if 0
+rdb_slice_t
+rdb_slice(const uint8_t *xp, size_t xn);
 
 void
 rdb_slice_init(rdb_slice_t *z);
@@ -23,6 +28,39 @@ rdb_slice_reset(rdb_slice_t *z);
 
 void
 rdb_slice_set(rdb_slice_t *z, const uint8_t *xp, size_t xn);
+#endif
+
+RDB_STATIC rdb_slice_t
+rdb_slice(const uint8_t *xp, size_t xn) {
+  rdb_slice_t z;
+
+  z.data = (uint8_t *)xp;
+  z.size = xn;
+  z.alloc = 0;
+
+  return z;
+}
+
+RDB_STATIC void
+rdb_slice_init(rdb_slice_t *z) {
+  z->data = NULL;
+  z->size = 0;
+  z->alloc = 0;
+}
+
+RDB_STATIC void
+rdb_slice_reset(rdb_slice_t *z) {
+  z->data = NULL;
+  z->size = 0;
+  z->alloc = 0;
+}
+
+RDB_STATIC void
+rdb_slice_set(rdb_slice_t *z, const uint8_t *xp, size_t xn) {
+  z->data = (uint8_t *)xp;
+  z->size = xn;
+  z->alloc = 0;
+}
 
 void
 rdb_slice_set_str(rdb_slice_t *z, const char *xp);

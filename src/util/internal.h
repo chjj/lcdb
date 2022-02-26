@@ -125,6 +125,8 @@
 #  define RDB_EXTENSION
 #endif
 
+#define RDB_STATIC RDB_UNUSED static RDB_INLINE
+
 /*
  * Macros
  */
@@ -148,13 +150,19 @@ void
 rdb_free(void *ptr);
 
 int
+rdb_memcmp(const void *x, const void *y, size_t n);
+
+int
 rdb_memcmp4(const void *x, size_t xn, const void *y, size_t yn);
 #endif
 
-#include <stdlib.h>
-#include <string.h>
+/*
+ * Helpers
+ */
 
-RDB_UNUSED RDB_MALLOC static RDB_INLINE void *
+#include <stdlib.h>
+
+RDB_MALLOC RDB_STATIC void *
 rdb_malloc(size_t size) {
   void *ptr = malloc(size);
 
@@ -164,7 +172,7 @@ rdb_malloc(size_t size) {
   return ptr;
 }
 
-RDB_UNUSED RDB_MALLOC static RDB_INLINE void *
+RDB_MALLOC RDB_STATIC void *
 rdb_realloc(void *ptr, size_t size) {
   ptr = realloc(ptr, size);
 
@@ -174,7 +182,7 @@ rdb_realloc(void *ptr, size_t size) {
   return ptr;
 }
 
-RDB_UNUSED static RDB_INLINE void
+RDB_STATIC void
 rdb_free(void *ptr) {
   if (ptr == NULL) {
     abort(); /* LCOV_EXCL_LINE */
@@ -184,7 +192,21 @@ rdb_free(void *ptr) {
   free(ptr);
 }
 
-RDB_UNUSED static RDB_INLINE int
+RDB_STATIC int
+rdb_memcmp(const void *x, const void *y, size_t n) {
+  const unsigned char *xp = (const unsigned char *)x;
+  const unsigned char *yp = (const unsigned char *)y;
+  size_t i;
+
+  for (i = 0; i < n; i++) {
+    if (xp[i] != yp[i])
+      return (int)xp[i] - (int)yp[i];
+  }
+
+  return 0;
+}
+
+RDB_STATIC int
 rdb_memcmp4(const void *x, size_t xn, const void *y, size_t yn) {
   const unsigned char *xp = (const unsigned char *)x;
   const unsigned char *yp = (const unsigned char *)y;
