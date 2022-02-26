@@ -28,7 +28,9 @@ rdb_slice_init(rdb_slice_t *z) {
 
 void
 rdb_slice_reset(rdb_slice_t *z) {
+  z->data = NULL;
   z->size = 0;
+  z->alloc = 0;
 }
 
 void
