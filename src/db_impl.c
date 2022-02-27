@@ -38,9 +38,12 @@
 #include "log_format.h"
 #include "log_reader.h"
 #include "log_writer.h"
+#include "memtable.h"
+#include "snapshot.h"
 #include "table_cache.h"
 #include "version_edit.h"
 #include "version_set.h"
+#include "write_batch.h"
 
 /*
  * Range
@@ -86,7 +89,7 @@ rdb_manual_init(rdb_manual_t *m, int level) {
   m->begin = NULL;
   m->end = NULL;
 
-  rdb_ikey_init(&m->tmp_storage);
+  rdb_buffer_init(&m->tmp_storage);
 }
 
 static void
@@ -216,8 +219,8 @@ rdb_output_create(uint64_t number) {
   out->number = number;
   out->file_size = 0;
 
-  rdb_ikey_init(&out->smallest);
-  rdb_ikey_init(&out->largest);
+  rdb_buffer_init(&out->smallest);
+  rdb_buffer_init(&out->largest);
 
   return out;
 }
@@ -277,11 +280,6 @@ rdb_cstate_destroy(rdb_cstate_t *state) {
   rdb_free(state);
 }
 
-static void
-rdb_cstate_push(rdb_cstate_t *state, uint64_t number) {
-  rdb_vector_push(&state->outputs, rdb_output_create(number));
-}
-
 static rdb_output_t *
 rdb_cstate_top(rdb_cstate_t *state) {
   return rdb_vector_top(&state->outputs);
@@ -306,6 +304,8 @@ rdb_sanitize_options(const char *dbname,
                      const rdb_dbopt_t *src) {
   rdb_dbopt_t result = *src;
 
+  (void)dbname;
+
   result.comparator = icmp;
   result.filter_policy = (src->filter_policy != NULL) ? ipolicy : NULL;
 
@@ -323,7 +323,7 @@ rdb_sanitize_options(const char *dbname,
 static int
 table_cache_size(const rdb_dbopt_t *sanitized_options) {
   /* Reserve ten files or so for other uses and give the rest to TableCache. */
-  return sanitized_options.max_open_files - non_table_cache_files;
+  return sanitized_options->max_open_files - non_table_cache_files;
 }
 
 /*
@@ -385,6 +385,11 @@ typedef struct rdb_impl_s {
   rdb_cstats_t stats[RDB_NUM_LEVELS];
 } rdb_impl_t;
 
+int
+rdb_impl_write(rdb_impl_t *impl,
+               const rdb_writeopt_t *options,
+               rdb_batch_t *updates);
+
 rdb_impl_t *
 rdb_impl_create(const rdb_dbopt_t *options, const char *dbname) {
   rdb_impl_t *impl = rdb_malloc(sizeof(rdb_impl_t));
@@ -425,8 +430,8 @@ rdb_impl_create(const rdb_dbopt_t *options, const char *dbname) {
   /* impl->dbname = dbname; */
 
   impl->table_cache = rdb_tcache_create(impl->dbname,
-                                        impl->options,
-                                        table_cache_size(impl->options));
+                                        &impl->options,
+                                        table_cache_size(&impl->options));
 
   impl->db_lock = NULL;
 
@@ -434,7 +439,7 @@ rdb_impl_create(const rdb_dbopt_t *options, const char *dbname) {
 
   impl->shutting_down = 0;
 
-  rdb_cond_init(&impl->background_work_finished_signal, &impl->mutex);
+  rdb_cond_init(&impl->background_work_finished_signal);
 
   impl->mem = NULL;
   impl->imm = NULL;
@@ -551,7 +556,7 @@ rdb_impl_new_db(rdb_impl_t *impl) {
     rdb_logwriter_t log;
     rdb_buffer_t record;
 
-    rdb_logwriter_init(&log, file);
+    rdb_logwriter_init(&log, file, 0);
     rdb_buffer_init(&record);
 
     rdb_vedit_export(&record, &new_db);
@@ -584,7 +589,7 @@ rdb_impl_new_db(rdb_impl_t *impl) {
 static void
 rdb_impl_maybe_ignore_error(const rdb_impl_t *impl, int *status) {
   if (*status == RDB_OK || impl->options.paranoid_checks)
-    /* No change needed. */
+    ; /* No change needed. */
   else
     *status = RDB_OK;
 }
@@ -761,7 +766,7 @@ static void
 report_corruption(rdb_reporter_t *report, size_t bytes, int status) {
   (void)bytes;
 
-  if (*report->status != NULL && report->status == RDB_OK)
+  if (report->status != NULL && *report->status == RDB_OK)
     *report->status = status;
 }
 
@@ -859,7 +864,7 @@ rdb_impl_recover_log_file(rdb_impl_t *impl,
   rdb_logreader_clear(&reader);
   rdb_rfile_destroy(file);
 
-  // See if we should keep reusing the last log file.
+  /* See if we should keep reusing the last log file. */
   if (rc == RDB_OK && impl->options.reuse_logs && last_log && compactions == 0) {
     uint64_t lfile_size;
 
@@ -1095,7 +1100,7 @@ rdb_impl_open_compaction_output_file(rdb_impl_t *impl, rdb_cstate_t *compact) {
     rc = rdb_truncfile_create(fname, &compact->outfile);
 
     if (rc == RDB_OK) {
-      compact->builder = rdb_tablebuilder_create(impl->options,
+      compact->builder = rdb_tablebuilder_create(&impl->options,
                                                  compact->outfile);
     }
   } else {
@@ -1109,7 +1114,7 @@ static int
 rdb_impl_finish_compaction_output_file(rdb_impl_t *impl,
                                        rdb_cstate_t *compact,
                                        rdb_iter_t *input) {
-  uint64_t output_number, current_entries current_bytes;
+  uint64_t output_number, current_entries, current_bytes;
   int rc = RDB_OK;
 
   assert(compact != NULL);
@@ -1184,8 +1189,8 @@ rdb_impl_install_compaction_results(rdb_impl_t *impl, rdb_cstate_t *compact) {
     rdb_vedit_add_file(edit, level + 1,
                        out->number,
                        out->file_size,
-                       out->smallest,
-                       out->largest);
+                       &out->smallest,
+                       &out->largest);
   }
 
   return rdb_vset_log_and_apply(impl->versions, edit, &impl->mutex);
@@ -1196,7 +1201,7 @@ rdb_impl_do_compaction_work(rdb_impl_t *impl, rdb_cstate_t *compact) {
   const rdb_comparator_t *ucmp = rdb_impl_user_comparator(impl);
   rdb_seqnum_t last_sequence_for_key = RDB_MAX_SEQUENCE;
   uint64_t start_micros = rdb_now_usec();
-  int64_t imm_micros = 0;  // Micros spent doing impl->imm compactions
+  int64_t imm_micros = 0; /* Micros spent doing impl->imm compactions. */
   rdb_buffer_t user_key;
   int has_user_key = 0;
   rdb_cstats_t stats;
@@ -1452,8 +1457,8 @@ rdb_impl_background_compaction(rdb_impl_t *impl) {
     rdb_vedit_add_file(edit, rdb_compaction_level(c) + 1,
                              f->number,
                              f->file_size,
-                             f->smallest,
-                             f->largest);
+                             &f->smallest,
+                             &f->largest);
 
     rc = rdb_vset_log_and_apply(impl->versions, edit, &impl->mutex);
 
@@ -1502,6 +1507,28 @@ rdb_impl_background_compaction(rdb_impl_t *impl) {
 }
 
 static void
+rdb_impl_background_call(void *db);
+
+static void
+rdb_impl_maybe_schedule_compaction(rdb_impl_t *impl) {
+  /* rdb_mutex_assert_held(&impl->mutex); */
+
+  if (impl->background_compaction_scheduled) {
+    /* Already scheduled. */
+  } else if (rdb_atomic_load(&impl->shutting_down, rdb_order_acquire)) {
+    /* DB is being deleted; no more background compactions. */
+  } else if (impl->bg_error != RDB_OK) {
+    /* Already got an error; no more changes. */
+  } else if (impl->imm == NULL && impl->manual_compaction == NULL &&
+             !rdb_vset_needs_compaction(impl->versions)) {
+    /* No work to be done. */
+  } else {
+    impl->background_compaction_scheduled = 1;
+    rdb_pool_schedule(impl->pool, &rdb_impl_background_call, impl);
+  }
+}
+
+static void
 rdb_impl_background_call(void *db) {
   rdb_impl_t *impl = db;
 
@@ -1528,51 +1555,25 @@ rdb_impl_background_call(void *db) {
   rdb_mutex_unlock(&impl->mutex);
 }
 
-static void
-rdb_impl_maybe_schedule_compaction(rdb_impl_t *impl) {
-  /* rdb_mutex_assert_held(&impl->mutex); */
+int
+rdb_impl_test_compact_memtable(rdb_impl_t *impl) {
+  /* NULL batch means just wait for earlier writes to be done. */
+  int rc = rdb_impl_write(impl, rdb_writeopt_default, NULL);
 
-  if (impl->background_compaction_scheduled) {
-    /* Already scheduled. */
-  } else if (rdb_atomic_load(&impl->shutting_down, rdb_order_acquire)) {
-    /* DB is being deleted; no more background compactions. */
-  } else if (impl->bg_error != RDB_OK) {
-    /* Already got an error; no more changes. */
-  } else if (impl->imm == NULL && impl->manual_compaction == NULL &&
-             !rdb_vset_needs_compaction(impl->versions)) {
-    /* No work to be done. */
-  } else {
-    impl->background_compaction_scheduled = 1;
-    rdb_pool_schedule(impl->pool, &rdb_impl_background_call, impl);
-  }
-}
-
-void
-rdb_impl_compact_range(rdb_impl_t *impl,
-                       const rdb_slice_t *begin,
-                       const rdb_slice_t *end) {
-  int max_level_with_files = 1;
-
-  {
-    rdb_version_t *base;
-    int level;
-
+  if (rc == RDB_OK) {
+    /* Wait until the compaction completes. */
     rdb_mutex_lock(&impl->mutex);
 
-    base = rdb_vset_current(impl->versions);
+    while (impl->imm != NULL && impl->bg_error == RDB_OK)
+      rdb_cond_wait(&impl->background_work_finished_signal, &impl->mutex);
 
-    for (level = 1; level < RDB_NUM_LEVELS; level++) {
-      if (rdb_version_overlap_in_level(base, level, begin, end))
-        max_level_with_files = level;
-    }
+    if (impl->imm != NULL)
+      rc = impl->bg_error;
 
     rdb_mutex_unlock(&impl->mutex);
   }
 
-  rdb_impl_test_compact_memtable(impl);
-
-  for (level = 0; level < max_level_with_files; level++)
-    rdb_impl_test_compact_range(impl, level, begin, end);
+  return rc;
 }
 
 void
@@ -1631,25 +1632,32 @@ rdb_impl_test_compact_range(rdb_impl_t *impl,
   rdb_manual_clear(&manual);
 }
 
-int
-rdb_impl_test_compact_memtable(rdb_impl_t *impl) {
-  /* NULL batch means just wait for earlier writes to be done. */
-  int rc = rdb_impl_write(impl, rdb_writeopt_default, NULL);
+void
+rdb_impl_compact_range(rdb_impl_t *impl,
+                       const rdb_slice_t *begin,
+                       const rdb_slice_t *end) {
+  int max_level_with_files = 1;
+  int level;
 
-  if (rc == RDB_OK) {
-    /* Wait until the compaction completes. */
+  {
+    rdb_version_t *base;
+
     rdb_mutex_lock(&impl->mutex);
 
-    while (impl->imm != NULL && impl->bg_error == RDB_OK)
-      rdb_cond_wait(&impl->background_work_finished_signal, &impl->mutex);
+    base = rdb_vset_current(impl->versions);
 
-    if (impl->imm != NULL)
-      rc = impl->bg_error;
+    for (level = 1; level < RDB_NUM_LEVELS; level++) {
+      if (rdb_version_overlap_in_level(base, level, begin, end))
+        max_level_with_files = level;
+    }
 
     rdb_mutex_unlock(&impl->mutex);
   }
 
-  return rc;
+  rdb_impl_test_compact_memtable(impl);
+
+  for (level = 0; level < max_level_with_files; level++)
+    rdb_impl_test_compact_range(impl, level, begin, end);
 }
 
 typedef struct iter_state_s {
@@ -1887,6 +1895,7 @@ rdb_impl_release_snapshot(rdb_impl_t *impl, const rdb_snapshot_t *snapshot) {
   rdb_mutex_unlock(&impl->mutex);
 }
 
+#if 0
 /* Convenience methods. */
 int
 rdb_impl_put(rdb_impl_t *impl,
@@ -1902,9 +1911,10 @@ rdb_impl_del(rdb_impl_t *impl,
              const rdb_slice_t *key) {
   return rdb_db_del(impl, options, key);
 }
+#endif
 
-// REQUIRES: Writer list must be non-empty
-// REQUIRES: First writer must have a non-null batch
+/* REQUIRES: Writer list must be non-empty. */
+/* REQUIRES: First writer must have a non-null batch. */
 static rdb_batch_t *
 rdb_impl_build_batch_group(rdb_impl_t *impl, rdb_writer_t **last_writer) {
   rdb_writer_t *first = impl->writers.head;
@@ -1967,8 +1977,8 @@ rdb_impl_build_batch_group(rdb_impl_t *impl, rdb_writer_t **last_writer) {
   return result;
 }
 
-// REQUIRES: impl->mutex is held
-// REQUIRES: this thread is currently at the front of the writer queue
+/* REQUIRES: impl->mutex is held. */
+/* REQUIRES: this thread is currently at the front of the writer queue. */
 static int
 rdb_impl_make_room_for_write(rdb_impl_t *impl, int force) {
   size_t write_buffer_size = impl->options.write_buffer_size;
@@ -2004,7 +2014,7 @@ rdb_impl_make_room_for_write(rdb_impl_t *impl, int force) {
       /* We have filled up the current memtable, but the previous
          one is still being compacted, so we wait. */
       rdb_cond_wait(&impl->background_work_finished_signal, &impl->mutex);
-    } else if (L0_FILES >= RDB_L0_STOP_WRITES_TRIGGER)
+    } else if (L0_FILES >= RDB_L0_STOP_WRITES_TRIGGER) {
       /* There are too many level-0 files. */
       rdb_cond_wait(&impl->background_work_finished_signal, &impl->mutex);
     } else {
@@ -2035,7 +2045,7 @@ rdb_impl_make_room_for_write(rdb_impl_t *impl, int force) {
 
       impl->logfile = lfile;
       impl->logfile_number = new_log_number;
-      impl->log = rdb_logwriter_create(lfile);
+      impl->log = rdb_logwriter_create(lfile, 0);
       impl->imm = impl->mem;
 
       rdb_atomic_store(&impl->has_imm, 1, rdb_order_release);
@@ -2065,12 +2075,12 @@ rdb_impl_write(rdb_impl_t *impl,
   rdb_writer_init(&w);
 
   w.batch = updates;
-  w.sync = options.sync;
+  w.sync = options->sync;
   w.done = 0;
 
   rdb_mutex_lock(&impl->mutex);
 
-  rdb_vector_push(&impl->writers, &w);
+  rdb_queue_push(&impl->writers, &w);
 
   while (!w.done && &w != impl->writers.head)
     rdb_cond_wait(&w.cv, &impl->mutex);
@@ -2086,7 +2096,7 @@ rdb_impl_write(rdb_impl_t *impl,
   last_sequence = rdb_vset_last_sequence(impl->versions);
   last_writer = &w;
 
-  if (rc == RDB_OK && updates != NULL) {  // NULL batch is for compactions
+  if (rc == RDB_OK && updates != NULL) {  /* NULL batch is for compactions. */
     rdb_batch_t *write_batch = rdb_impl_build_batch_group(impl, &last_writer);
 
     rdb_batch_set_sequence(write_batch, last_sequence + 1);
@@ -2098,14 +2108,15 @@ rdb_impl_write(rdb_impl_t *impl,
        and protects against concurrent loggers and concurrent writes
        into impl->mem. */
     {
+      rdb_slice_t contents;
       int sync_error = 0;
 
       rdb_mutex_unlock(&impl->mutex);
 
-      rc = rdb_logwriter_add_record(&impl->log,
-                                    rdb_batch_contents(write_batch));
+      contents = rdb_batch_contents(write_batch);
+      rc = rdb_logwriter_add_record(impl->log, &contents);
 
-      if (rc == RDB_OK && options.sync) {
+      if (rc == RDB_OK && options->sync) {
         rc = rdb_wfile_sync(impl->logfile);
 
         if (rc != RDB_OK)
@@ -2202,7 +2213,7 @@ rdb_impl_get_approximate_sizes(rdb_impl_t *impl,
 /* Default implementations of convenience methods that subclasses of DB
    can call if they wish. */
 int
-rdb_db_put(rdb_db_t *db,
+rdb_db_put(rdb_impl_t *db,
            const rdb_writeopt_t *opt,
            const rdb_slice_t *key,
            const rdb_slice_t *value) {
@@ -2220,7 +2231,7 @@ rdb_db_put(rdb_db_t *db,
 }
 
 int
-rdb_db_del(rdb_db_t *db, const rdb_writeopt_t *opt, const rdb_slice_t *key) {
+rdb_db_del(rdb_impl_t *db, const rdb_writeopt_t *opt, const rdb_slice_t *key) {
   rdb_batch_t batch;
   int rc;
 
@@ -2235,7 +2246,7 @@ rdb_db_del(rdb_db_t *db, const rdb_writeopt_t *opt, const rdb_slice_t *key) {
 }
 
 int
-rdb_db_open(const rdb_dbopt_t *options, const char *dbname, rdb_db_t **dbptr) {
+rdb_db_open(const rdb_dbopt_t *options, const char *dbname, rdb_impl_t **dbptr) {
   rdb_impl_t *impl = rdb_impl_create(options, dbname);
   int save_manifest;
   rdb_vedit_t edit;
@@ -2255,7 +2266,7 @@ rdb_db_open(const rdb_dbopt_t *options, const char *dbname, rdb_db_t **dbptr) {
 
   if (rc == RDB_OK && impl->mem == NULL) {
     /* Create new log and a corresponding memtable. */
-    uint64_t new_log_number = impl->versions->NewFileNumber();
+    uint64_t new_log_number = rdb_vset_new_file_number(impl->versions);
     char fname[RDB_PATH_MAX];
     rdb_wfile_t *lfile;
 
@@ -2267,9 +2278,9 @@ rdb_db_open(const rdb_dbopt_t *options, const char *dbname, rdb_db_t **dbptr) {
     if (rc == RDB_OK) {
       rdb_vedit_set_log_number(&edit, new_log_number);
 
-      impl->impl->logfile = lfile;
+      impl->logfile = lfile;
       impl->logfile_number = new_log_number;
-      impl->log = rdb_logwriter_create(lfile);
+      impl->log = rdb_logwriter_create(lfile, 0);
       impl->mem = rdb_memtable_create(&impl->internal_comparator);
 
       rdb_memtable_ref(impl->mem);
