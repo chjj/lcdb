@@ -30,6 +30,18 @@ init_type_crc(uint32_t *type_crc) {
     type_crc[i] = rdb_crc32c_value(&i, 1);
 }
 
+rdb_logwriter_t *
+rdb_logwriter_create(rdb_wfile_t *dest, uint64_t length) {
+  rdb_logwriter_t *lw = rdb_malloc(sizeof(rdb_logwriter_t));
+  rdb_logwriter_init(lw, dest, length);
+  return lw;
+}
+
+void
+rdb_logwriter_destroy(rdb_logwriter_t *lw) {
+  rdb_free(lw);
+}
+
 void
 rdb_logwriter_init(rdb_logwriter_t *lw, rdb_wfile_t *dest, uint64_t length) {
   lw->dest = dest;

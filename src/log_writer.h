@@ -36,6 +36,12 @@ typedef struct rdb_logwriter_s {
  * "*dest" must have initial length "dest_length".
  * "*dest" must remain live while this Writer is in use.
  */
+rdb_logwriter_t *
+rdb_logwriter_create(rdb_wfile_t *dest, uint64_t length);
+
+void
+rdb_logwriter_destroy(rdb_logwriter_t *lw);
+
 void
 rdb_logwriter_init(rdb_logwriter_t *lw,
                    struct rdb_wfile_s *dest,

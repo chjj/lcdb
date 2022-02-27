@@ -5,6 +5,7 @@
  */
 
 #include <assert.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -216,10 +217,7 @@ rdb_parse_filename(rdb_filetype_t *type, uint64_t *num, const char *name) {
 
     *type = RDB_FILE_DESC;
     *num = x;
-  } else {
-    if (!decode_int(&x, &name))
-      return 0;
-
+  } else if (decode_int(&x, &name)) {
     if (strcmp(name, ".log") == 0)
       *type = RDB_FILE_LOG;
     else if (strcmp(name, ".sst") == 0 || strcmp(name, ".ldb") == 0)
@@ -230,7 +228,42 @@ rdb_parse_filename(rdb_filetype_t *type, uint64_t *num, const char *name) {
       return 0;
 
     *num = x;
+  } else {
+    return 0;
   }
+
+  return 1;
+}
+
+int
+rdb_path_join(char *buf, size_t size, ...) {
+  char *zp = buf;
+  size_t zn = 0;
+  const char *xp;
+  va_list ap;
+
+  va_start(ap, size);
+
+  while ((xp = va_arg(ap, const char *))) {
+    zn += strlen(xp) + 1;
+
+    if (zn > size) {
+      va_end(ap);
+      return 0;
+    }
+
+    while (*xp)
+      *zp++ = *xp++;
+
+    *zp++ = '/';
+  }
+
+  if (zn > 0)
+    zp--;
+
+  *zp = '\0';
+
+  va_end(ap);
 
   return 1;
 }
