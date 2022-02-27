@@ -112,8 +112,11 @@ rdb_truncfile_create(const char *filename, rdb_wfile_t **file);
 int
 rdb_appendfile_create(const char *filename, rdb_wfile_t **file);
 
-int
+void
 rdb_wfile_destroy(rdb_wfile_t *file);
+
+int
+rdb_wfile_close(rdb_wfile_t *file);
 
 int
 rdb_wfile_append(rdb_wfile_t *file, const rdb_slice_t *data);

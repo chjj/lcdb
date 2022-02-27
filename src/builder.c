@@ -86,10 +86,9 @@ rdb_build_table(const char *prefix,
       rc = rdb_wfile_sync(file);
 
     if (rc == RDB_OK)
-      rc = rdb_wfile_destroy(file);
-    else
-      rdb_wfile_destroy(file);
+      rc = rdb_wfile_close(file);
 
+    rdb_wfile_destroy(file);
     file = NULL;
 
     if (rc == RDB_OK) {

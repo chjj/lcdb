@@ -602,7 +602,7 @@ rdb_wfile_init(rdb_wfile_t *file, const char *filename, HANDLE file) {
   file->pos = 0;
 }
 
-static int
+int
 rdb_wfile_close(rdb_wfile_t *file) {
   int rc = rdb_wfile_flush(file);
 
@@ -728,11 +728,12 @@ rdb_appendfile_create(const char *filename, rdb_wfile_t **file) {
   return RDB_OK;
 }
 
-int
+void
 rdb_wfile_destroy(rdb_wfile_t *file) {
-  int rc = rdb_wfile_close(file);
+  if (file->handle != INVALID_HANDLE_VALUE)
+    CloseHandle(file->handle);
+
   rdb_free(file);
-  return rc;
 }
 
 /*

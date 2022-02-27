@@ -330,7 +330,7 @@ save_value(void *arg, const rdb_slice_t *ikey, const rdb_slice_t *v) {
     s->state = (pkey.type == RDB_TYPE_VALUE) ? S_FOUND : S_DELETED;
 
     if (s->state == S_FOUND)
-      rdb_buffer_set(s->value, v.data, v.size);
+      rdb_buffer_set(s->value, v->data, v->size);
   }
 }
 
@@ -693,7 +693,7 @@ rdb_version_record_read_sample(rdb_version_t *ver, const rdb_slice_t *ikey) {
 
   /* Must have at least two matches since we want to merge across
      files. But what if we have a single file that contains many
-     overwrites and deletions?  Should we have another mechanism for
+     overwrites and deletions? Should we have another mechanism for
      finding such files? */
   if (state.matches >= 2) {
     /* 1MB cost is about 1 seek (see comment in builder_apply). */
@@ -1114,8 +1114,9 @@ rdb_vset_init(rdb_vset_t *vset,
   vset->prev_log_number = 0;
   vset->descriptor_file = NULL;
   vset->descriptor_log = NULL;
-  vset->dummy_versions = vset;
   vset->current = NULL;
+
+  rdb_version_init(&vset->dummy_versions, vset);
 
   for (level = 0; level < RDB_NUM_LEVELS; level++)
     rdb_buffer_init(&vset->compact_pointer[level]);
@@ -1331,7 +1332,7 @@ rdb_vset_log_and_apply(rdb_vset_t *vset, rdb_vedit_t *edit, rdb_mutex_t *mu) {
 }
 
 static void
-corruption(rdb_reporter_t *reporter, size_t bytes, int status) {
+report_corruption(rdb_reporter_t *reporter, size_t bytes, int status) {
   (void)bytes;
 
   if (*reporter->status == RDB_OK)
@@ -1428,7 +1429,7 @@ rdb_vset_recover(rdb_vset_t *vset, int *save_manifest) {
     rdb_vedit_t edit;
 
     reporter.status = &rc;
-    reporter.corruption = corruption;
+    reporter.corruption = report_corruption;
 
     rdb_logreader_init(&reader, file, &reporter, 1, 0);
     rdb_slice_init(&record);
@@ -2197,7 +2198,9 @@ rdb_vset_compact_range(rdb_vset_t *vset,
  * Compaction
  */
 
-typedef struct rdb_compaction_s {
+typedef struct rdb_compaction_s rdb_compaction_t;
+
+struct rdb_compaction_s {
   int level;
   uint64_t max_output_file_size;
   rdb_version_t *inp_version;
@@ -2221,10 +2224,12 @@ typedef struct rdb_compaction_s {
      higher level than the ones involved in this compaction (i.e. for
      all L >= level_ + 2). */
   size_t level_ptrs[RDB_NUM_LEVELS];
-} rdb_compaction_t;
+};
 
 static void
-rdb_compaction_init(rdb_compaction_t *c, const rdb_dbopt_t *options, int level) {
+rdb_compaction_init(rdb_compaction_t *c,
+                    const rdb_dbopt_t *options,
+                    int level) {
   int i;
 
   cmpct->level = level;

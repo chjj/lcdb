@@ -739,7 +739,7 @@ rdb_wfile_init(rdb_wfile_t *file, const char *filename, int fd) {
   file->pos = 0;
 }
 
-static int
+int
 rdb_wfile_close(rdb_wfile_t *file) {
   int rc = rdb_wfile_flush(file);
 
@@ -874,11 +874,12 @@ rdb_appendfile_create(const char *filename, rdb_wfile_t **file) {
   return rdb_wfile_create(filename, flags, file);
 }
 
-int
+void
 rdb_wfile_destroy(rdb_wfile_t *file) {
-  int rc = rdb_wfile_close(file);
+  if (file->fd >= 0)
+    close(file->fd);
+
   rdb_free(file);
-  return rc;
 }
 
 /*

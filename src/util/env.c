@@ -26,9 +26,9 @@ rdb_write_file(const char *fname, const rdb_slice_t *data, int should_sync) {
     rc = rdb_wfile_sync(file);
 
   if (rc == RDB_OK)
-    rc = rdb_wfile_destroy(file);
-  else
-    rdb_wfile_destroy(file);
+    rc = rdb_wfile_close(file);
+
+  rdb_wfile_destroy(file);
 
   if (rc != RDB_OK)
     rdb_remove_file(fname);
