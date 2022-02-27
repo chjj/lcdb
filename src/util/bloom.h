@@ -91,4 +91,10 @@ rdb_bloom_size(const rdb_bloom_t *bloom, size_t n);
 #define rdb_bloom_match(bloom, filter, key) \
   (bloom)->match(bloom, filter, key)
 
+/*
+ * Globals
+ */
+
+/* RDB_EXTERN */ extern const rdb_bloom_t *rdb_bloom_default;
+
 #endif /* RDB_BLOOM_H */

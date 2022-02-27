@@ -66,12 +66,6 @@
 #define RDB_MMAP_LIMIT (sizeof(void *) >= 8 ? 1000 : 0)
 #define RDB_POSIX_ERROR(rc) ((rc) == ENOENT ? RDB_NOTFOUND : RDB_IOERR)
 
-#if defined(O_CLOEXEC)
-#  define RDB_OPEN_FLAGS O_CLOEXEC
-#else
-#  define RDB_OPEN_FLAGS 0
-#endif
-
 /*
  * Types
  */
@@ -136,16 +130,6 @@ rdb_limiter_release(rdb_limiter_t *lim) {
  */
 
 static void
-rdb_basename(char *basename, const char *filename) {
-  char *slash = strrchr(filename, '/');
-
-  if (slash == NULL)
-    strcpy(basename, filename);
-  else
-    strcpy(basename, slash + 1);
-}
-
-static void
 rdb_dirname(char *dirname, const char *filename) {
   char *slash = strrchr(strcpy(dirname, filename), '/');
 
@@ -167,16 +151,61 @@ rdb_starts_with(const char *xp, const char *yp) {
 
 static int
 rdb_is_manifest(const char *filename) {
-  char basename[RDB_PATH_MAX];
+  char *base = strrchr(filename, '/');
 
-  rdb_basename(basename, filename);
+  if (base == NULL)
+    base = filename;
+  else
+    base += 1;
 
-  return rdb_starts_with(basename, "MANIFEST");
+  return rdb_starts_with(base, "MANIFEST");
 }
 
 /*
  * File Helpers
  */
+
+static int
+rdb_try_open(const char *name, int flags, uint32_t mode) {
+  int fd;
+
+#ifdef O_CLOEXEC
+  if (flags & O_CREAT)
+    fd = open(name, flags | O_CLOEXEC, mode);
+  else
+    fd = open(name, flags | O_CLOEXEC);
+
+  if (fd >= 0 || errno != EINVAL)
+    return fd;
+#endif
+
+  if (flags & O_CREAT)
+    fd = open(name, flags, mode);
+  else
+    fd = open(name, flags);
+
+#if defined(HAVE_FCNTL) && defined(FD_CLOEXEC)
+  if (fd >= 0) {
+    int r = fcntl(fd, F_GETFD);
+
+    if (r != -1)
+      fcntl(fd, F_SETFD, r | FD_CLOEXEC);
+  }
+#endif
+
+  return fd;
+}
+
+static int
+rdb_open(const char *name, int flags, uint32_t mode) {
+  int fd;
+
+  do {
+    fd = rdb_try_open(name, flags, mode);
+  } while (fd < 0 && errno == EINTR);
+
+  return fd;
+}
 
 static int
 rdb_sync_fd(int fd, const char *fd_path) {
@@ -443,7 +472,7 @@ rdb_rename_file(const char *from, const char *to) {
 
 int
 rdb_lock_file(const char *filename, rdb_filelock_t **lock) {
-  int fd = open(filename, O_RDWR | O_CREAT | RDB_OPEN_FLAGS, 0644);
+  int fd = rdb_open(filename, O_RDWR | O_CREAT, 0644);
 
   if (fd < 0)
     return RDB_POSIX_ERROR(errno);
@@ -586,7 +615,7 @@ rdb_rfile_pread(rdb_rfile_t *file,
     return RDB_INVALID;
 
   if (file->fd == -1) {
-    fd = open(file->filename, O_RDONLY | RDB_OPEN_FLAGS);
+    fd = rdb_open(file->filename, O_RDONLY, 0);
 
     if (fd < 0)
       return RDB_POSIX_ERROR(errno);
@@ -642,7 +671,7 @@ rdb_seqfile_create(const char *filename, rdb_rfile_t **file) {
   if (strlen(filename) + 1 > RDB_PATH_MAX)
     return RDB_INVALID;
 
-  fd = open(filename, O_RDONLY | RDB_OPEN_FLAGS);
+  fd = rdb_open(filename, O_RDONLY, 0);
 
   if (fd < 0)
     return RDB_POSIX_ERROR(errno);
@@ -666,7 +695,7 @@ rdb_randfile_create(const char *filename, rdb_rfile_t **file) {
   if (strlen(filename) + 1 > RDB_PATH_MAX)
     return RDB_INVALID;
 
-  fd = open(filename, O_RDONLY | RDB_OPEN_FLAGS);
+  fd = rdb_open(filename, O_RDONLY, 0);
 
   if (fd < 0)
     return RDB_POSIX_ERROR(errno);
@@ -777,7 +806,7 @@ rdb_wfile_sync_dir(rdb_wfile_t *file) {
   if (!file->manifest)
     return RDB_OK;
 
-  fd = open(file->dirname, O_RDONLY | RDB_OPEN_FLAGS);
+  fd = rdb_open(file->dirname, O_RDONLY, 0);
 
   if (fd < 0) {
     rc = RDB_POSIX_ERROR(errno);
@@ -850,7 +879,7 @@ rdb_wfile_create(const char *filename, int flags, rdb_wfile_t **file) {
   if (strlen(filename) + 1 > RDB_PATH_MAX)
     return RDB_INVALID;
 
-  fd = open(filename, flags, 0644);
+  fd = rdb_open(filename, flags, 0644);
 
   if (fd < 0)
     return RDB_POSIX_ERROR(errno);
@@ -864,13 +893,13 @@ rdb_wfile_create(const char *filename, int flags, rdb_wfile_t **file) {
 
 int
 rdb_truncfile_create(const char *filename, rdb_wfile_t **file) {
-  int flags = O_TRUNC | O_WRONLY | O_CREAT | RDB_OPEN_FLAGS;
+  int flags = O_TRUNC | O_WRONLY | O_CREAT;
   return rdb_wfile_create(filename, flags, file);
 }
 
 int
 rdb_appendfile_create(const char *filename, rdb_wfile_t **file) {
-  int flags = O_APPEND | O_WRONLY | O_CREAT | RDB_OPEN_FLAGS;
+  int flags = O_APPEND | O_WRONLY | O_CREAT;
   return rdb_wfile_create(filename, flags, file);
 }
 

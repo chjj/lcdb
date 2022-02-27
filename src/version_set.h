@@ -232,7 +232,7 @@ rdb_vset_manifest_file_number(const rdb_vset_t *vset);
 
 /* Allocate and return a new file number. */
 uint64_t
-rdb_vset_new_file_numbers(rdb_vset_t *vset);
+rdb_vset_new_file_number(rdb_vset_t *vset);
 
 /* Arrange to reuse "file_number" unless a newer file number has
    already been allocated. */

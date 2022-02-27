@@ -12,10 +12,34 @@
 #include "slice.h"
 
 /*
- * Constants
+ * Default
  */
 
-static const char *rdb_bloom_name = "filter.leveldb.BuiltinBloomFilter2";
+static void
+rdb_bloom_add_(const rdb_bloom_t *bloom,
+               uint8_t *data,
+               const rdb_slice_t *key,
+               size_t bits);
+
+static int
+rdb_bloom_match_(const rdb_bloom_t *bloom,
+                 const rdb_slice_t *filter,
+                 const rdb_slice_t *key);
+
+static const rdb_bloom_t bloom_default = {
+  /* .name = */ "filter.leveldb.BuiltinBloomFilter2",
+  /* .add = */ rdb_bloom_add_,
+  /* .match = */ rdb_bloom_match_,
+  /* .bits_per_key = */ 10,
+  /* .k = */ 6, /* (size_t)(10 * 0.69) == 6 */
+  /* .user_policy = */ NULL
+};
+
+/*
+ * Globals
+ */
+
+const rdb_bloom_t *rdb_bloom_default = &bloom_default;
 
 /*
  * Bloom
@@ -102,7 +126,7 @@ rdb_bloom_match_(const rdb_bloom_t *bloom,
 void
 rdb_bloom_init(rdb_bloom_t *bloom, int bits_per_key) {
   /* We intentionally round down to reduce probing cost a little bit. */
-  bloom->name = rdb_bloom_name;
+  bloom->name = bloom_default.name;
   bloom->add = rdb_bloom_add_;
   bloom->match = rdb_bloom_match_;
   bloom->bits_per_key = bits_per_key;

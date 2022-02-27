@@ -42,4 +42,10 @@ rdb_array_resize(rdb_array_t *z, size_t zn);
 void
 rdb_array_copy(rdb_array_t *z, const rdb_array_t *x);
 
+void
+rdb_array_swap(rdb_array_t *x, rdb_array_t *y);
+
+void
+rdb_array_sort(rdb_array_t *z, int (*cmp)(int64_t, int64_t));
+
 #endif /* RDB_ARRAY_H */

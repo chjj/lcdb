@@ -80,3 +80,56 @@ rdb_array_copy(rdb_array_t *z, const rdb_array_t *x) {
   for (i = 0; i < x->length; i++)
     z->items[i] = x->items[i];
 }
+
+void
+rdb_array_swap(rdb_array_t *x, rdb_array_t *y) {
+  rdb_array_t t = *x;
+  *x = *y;
+  *y = t;
+}
+
+/**
+ * Quicksort (faster than libc's qsort -- no memcpy necessary)
+ * https://en.wikipedia.org/wiki/Quicksort#Hoare_partition_scheme
+ */
+
+static void
+rdb_swap(int64_t *items, int i, int j) {
+  int64_t item = items[i];
+
+  items[i] = items[j];
+  items[j] = item;
+}
+
+static int
+rdb_partition(int64_t *items, int lo, int hi, int (*cmp)(int64_t, int64_t)) {
+  int64_t pivot = items[(hi + lo) >> 1];
+  int i = lo - 1;
+  int j = hi + 1;
+
+  for (;;) {
+    do i++; while (cmp(items[i], pivot) < 0);
+    do j--; while (cmp(items[j], pivot) > 0);
+
+    if (i >= j)
+      return j;
+
+    rdb_swap(items, i, j);
+  }
+}
+
+static void
+rdb_qsort(int64_t *items, int lo, int hi, int (*cmp)(int64_t, int64_t)) {
+  if (lo >= 0 && hi >= 0 && lo < hi) {
+    int p = rdb_partition(items, lo, hi, cmp);
+
+    rdb_qsort(items, lo, p, cmp);
+    rdb_qsort(items, p + 1, hi, cmp);
+  }
+}
+
+void
+rdb_array_sort(rdb_array_t *z, int (*cmp)(int64_t, int64_t)) {
+  if (z->length > 1)
+    rdb_qsort(z->items, 0, z->length - 1, cmp);
+}

@@ -1127,7 +1127,7 @@ rdb_vset_manifest_file_number(const rdb_vset_t *vset) {
 }
 
 uint64_t
-rdb_vset_new_file_numbers(rdb_vset_t *vset) {
+rdb_vset_new_file_number(rdb_vset_t *vset) {
   return vset->next_file_number++;
 }
 
@@ -1379,6 +1379,7 @@ read_current_filename(char *path, size_t size, const char *prefix) {
     goto fail;
   }
 
+  /* Could use rdb_path_join. */
   sprintf(path, "%s/%s", prefix, name);
 
 fail:
