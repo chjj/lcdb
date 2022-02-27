@@ -688,120 +688,72 @@ compare_ascending(int64_t x, int64_t y) {
 }
 
 static int
-rdb_impl_recover(rdb_impl_t *impl, rdb_vedit_t *edit, int *save_manifest) {
-  uint64_t min_log, prev_log, number;
-  rdb_seqnum_t max_sequence = 0;
-  char path[RDB_PATH_MAX];
-  char **filenames = NULL;
-  rb_tree_t expected; /* uint64_t */
-  rdb_filetype_t type;
-  rdb_array_t logs;
+rdb_impl_write_level0_table(rdb_impl_t *impl,
+                            rdb_memtable_t *mem,
+                            rdb_vedit_t *edit,
+                            rdb_version_t *base) {
+  uint64_t start_micros;
+  rdb_filemeta_t meta;
+  rdb_cstats_t stats;
+  rdb_iter_t *iter;
   int rc = RDB_OK;
-  int i, len;
+  int level = 0;
 
   /* rdb_mutex_assert_held(&impl->mutex); */
 
-  /* Ignore error from CreateDir since the creation of the DB is
-     committed only when the descriptor is created, and this directory
-     may already exist from a previous failed creation attempt. */
-  rdb_create_dir(impl->dbname);
+  rdb_filemeta_init(&meta);
+  rdb_cstats_init(&stats);
 
-  assert(impl->db_lock == NULL);
+  start_micros = rdb_now_usec();
 
-  if (!rdb_lock_filename(path, sizeof(path), impl->dbname))
-    return RDB_INVALID;
+  meta.number = rdb_vset_new_file_number(impl->versions);
 
-  rc = rdb_lock_file(path, &impl->db_lock);
+  rb_set64_put(&impl->pending_outputs, meta.number);
 
-  if (rc != RDB_OK)
-    return rc;
+  iter = rdb_memiter_create(mem);
 
-  if (!rdb_current_filename(path, sizeof(path), impl->dbname))
-    return RDB_INVALID;
+  {
+    rdb_mutex_unlock(&impl->mutex);
 
-  if (!rdb_file_exists(path)) {
-    if (impl->options.create_if_missing) {
-      rc = rdb_impl_new_db(impl);
+    rc = rdb_build_table(impl->dbname,
+                         &impl->options,
+                         impl->table_cache,
+                         iter,
+                         &meta);
 
-      if (rc != RDB_OK)
-        return rc;
-    } else {
-      return RDB_INVALID; /* "does not exist (create_if_missing is false)" */
+    rdb_mutex_lock(&impl->mutex);
+  }
+
+  rdb_iter_destroy(iter);
+
+  rb_set64_del(&impl->pending_outputs, meta.number);
+
+  /* Note that if file_size is zero, the file has been deleted and
+     should not be added to the manifest. */
+  if (rc == RDB_OK && meta.file_size > 0) {
+    rdb_slice_t min_user_key = rdb_ikey_user_key(&meta.smallest);
+    rdb_slice_t max_user_key = rdb_ikey_user_key(&meta.largest);
+
+    if (base != NULL) {
+      level = rdb_version_pick_level_for_memtable_output(base,
+                                                         &min_user_key,
+                                                         &max_user_key);
     }
-  } else {
-    if (impl->options.error_if_exists)
-      return RDB_INVALID; /* "exists (error_if_exists is true)" */
+
+    rdb_vedit_add_file(edit, level,
+                       meta.number,
+                       meta.file_size,
+                       &meta.smallest,
+                       &meta.largest);
   }
 
-  rc = rdb_vset_recover(impl->versions, save_manifest);
+  stats.micros = rdb_now_usec() - start_micros;
+  stats.bytes_written = meta.file_size;
 
-  if (rc != RDB_OK)
-    return rc;
+  rdb_cstats_add(&impl->stats[level], &stats);
 
-  /* Recover from all newer log files than the ones named in the
-   * descriptor (new log files may have been added by the previous
-   * incarnation without registering them in the descriptor).
-   *
-   * Note that prev_log_number() is no longer used, but we pay
-   * attention to it in case we are recovering a database
-   * produced by an older version of leveldb.
-   */
-  min_log = rdb_vset_log_number(impl->versions);
-  prev_log = rdb_vset_prev_log_number(impl->versions);
+  rdb_filemeta_clear(&meta);
 
-  len = rdb_get_children(impl->dbname, &filenames);
-
-  if (len < 0)
-    return RDB_IOERR;
-
-  rb_set64_init(&expected);
-  rdb_array_init(&logs);
-
-  rdb_vset_add_live_files(impl->versions, &expected);
-
-  for (i = 0; i < len; i++) {
-    if (rdb_parse_filename(&type, &number, filenames[i])) {
-      rb_set64_del(&expected, number);
-
-      if (type == RDB_FILE_LOG && ((number >= min_log) || (number == prev_log)))
-        rdb_array_push(&logs, number);
-    }
-  }
-
-  rdb_free_children(filenames, len);
-
-  if (expected.size != 0) {
-    rc = RDB_CORRUPTION; /* "[expected.size] missing files" */
-    goto fail;
-  }
-
-  /* Recover in the order in which the logs were generated. */
-  rdb_array_sort(&logs, compare_ascending);
-
-  for (i = 0; i < (int)logs.length; i++) {
-    rc = rdb_impl_recover_log_file(impl,
-                                   logs.items[i],
-                                   (i == (int)logs.length - 1),
-                                   save_manifest,
-                                   edit,
-                                   &max_sequence);
-
-    if (rc != RDB_OK)
-      goto fail;
-
-    /* The previous incarnation may not have written any MANIFEST
-       records after allocating this log number. So we manually
-       update the file number allocation counter in VersionSet. */
-    rdb_vset_mark_file_number_used(impl->versions, logs.items[i]);
-  }
-
-  if (rdb_vset_last_sequence(impl->versions) < max_sequence)
-    rdb_vset_set_last_sequence(impl->versions, max_sequence);
-
-  rc = RDB_OK;
-fail:
-  rb_set64_clear(&expected);
-  rdb_array_clear(&logs);
   return rc;
 }
 
@@ -945,73 +897,132 @@ rdb_impl_recover_log_file(rdb_impl_t *impl,
 }
 
 static int
-rdb_impl_write_level0_table(rdb_impl_t *impl,
-                            rdb_memtable_t *mem,
-                            rdb_vedit_t *edit,
-                            rdb_version_t *base) {
-  uint64_t start_micros;
-  rdb_filemeta_t meta;
-  rdb_cstats_t stats;
-  rdb_iter_t *iter;
+rdb_impl_recover(rdb_impl_t *impl, rdb_vedit_t *edit, int *save_manifest) {
+  uint64_t min_log, prev_log, number;
+  rdb_seqnum_t max_sequence = 0;
+  char path[RDB_PATH_MAX];
+  char **filenames = NULL;
+  rb_tree_t expected; /* uint64_t */
+  rdb_filetype_t type;
+  rdb_array_t logs;
   int rc = RDB_OK;
-  int level = 0;
+  int i, len;
 
   /* rdb_mutex_assert_held(&impl->mutex); */
 
-  rdb_filemeta_init(&meta);
-  rdb_cstats_init(&stats);
+  /* Ignore error from CreateDir since the creation of the DB is
+     committed only when the descriptor is created, and this directory
+     may already exist from a previous failed creation attempt. */
+  rdb_create_dir(impl->dbname);
 
-  start_micros = rdb_now_usec();
+  assert(impl->db_lock == NULL);
 
-  meta.number = rdb_vset_new_file_number(impl->versions);
+  if (!rdb_lock_filename(path, sizeof(path), impl->dbname))
+    return RDB_INVALID;
 
-  rb_set64_put(&impl->pending_outputs, meta.number);
+  rc = rdb_lock_file(path, &impl->db_lock);
 
-  iter = rdb_memiter_create(mem);
+  if (rc != RDB_OK)
+    return rc;
 
-  {
-    rdb_mutex_unlock(&impl->mutex);
+  if (!rdb_current_filename(path, sizeof(path), impl->dbname))
+    return RDB_INVALID;
 
-    rc = rdb_build_table(impl->dbname,
-                         &impl->options,
-                         impl->table_cache,
-                         iter,
-                         &meta);
+  if (!rdb_file_exists(path)) {
+    if (impl->options.create_if_missing) {
+      rc = rdb_impl_new_db(impl);
 
-    rdb_mutex_lock(&impl->mutex);
-  }
-
-  rdb_iter_destroy(iter);
-
-  rb_set64_del(&impl->pending_outputs, meta.number);
-
-  /* Note that if file_size is zero, the file has been deleted and
-     should not be added to the manifest. */
-  if (rc == RDB_OK && meta.file_size > 0) {
-    rdb_slice_t min_user_key = rdb_ikey_user_key(&meta.smallest);
-    rdb_slice_t max_user_key = rdb_ikey_user_key(&meta.largest);
-
-    if (base != NULL) {
-      level = rdb_version_pick_level_for_memtable_output(base,
-                                                         &min_user_key,
-                                                         &max_user_key);
+      if (rc != RDB_OK)
+        return rc;
+    } else {
+      return RDB_INVALID; /* "does not exist (create_if_missing is false)" */
     }
-
-    rdb_vedit_add_file(edit, level,
-                       meta.number,
-                       meta.file_size,
-                       &meta.smallest,
-                       &meta.largest);
+  } else {
+    if (impl->options.error_if_exists)
+      return RDB_INVALID; /* "exists (error_if_exists is true)" */
   }
 
-  stats.micros = rdb_now_usec() - start_micros;
-  stats.bytes_written = meta.file_size;
+  rc = rdb_vset_recover(impl->versions, save_manifest);
 
-  rdb_cstats_add(&impl->stats[level], &stats);
+  if (rc != RDB_OK)
+    return rc;
 
-  rdb_filemeta_clear(&meta);
+  /* Recover from all newer log files than the ones named in the
+   * descriptor (new log files may have been added by the previous
+   * incarnation without registering them in the descriptor).
+   *
+   * Note that prev_log_number() is no longer used, but we pay
+   * attention to it in case we are recovering a database
+   * produced by an older version of leveldb.
+   */
+  min_log = rdb_vset_log_number(impl->versions);
+  prev_log = rdb_vset_prev_log_number(impl->versions);
 
+  len = rdb_get_children(impl->dbname, &filenames);
+
+  if (len < 0)
+    return RDB_IOERR;
+
+  rb_set64_init(&expected);
+  rdb_array_init(&logs);
+
+  rdb_vset_add_live_files(impl->versions, &expected);
+
+  for (i = 0; i < len; i++) {
+    if (rdb_parse_filename(&type, &number, filenames[i])) {
+      rb_set64_del(&expected, number);
+
+      if (type == RDB_FILE_LOG && ((number >= min_log) || (number == prev_log)))
+        rdb_array_push(&logs, number);
+    }
+  }
+
+  rdb_free_children(filenames, len);
+
+  if (expected.size != 0) {
+    rc = RDB_CORRUPTION; /* "[expected.size] missing files" */
+    goto fail;
+  }
+
+  /* Recover in the order in which the logs were generated. */
+  rdb_array_sort(&logs, compare_ascending);
+
+  for (i = 0; i < (int)logs.length; i++) {
+    rc = rdb_impl_recover_log_file(impl,
+                                   logs.items[i],
+                                   (i == (int)logs.length - 1),
+                                   save_manifest,
+                                   edit,
+                                   &max_sequence);
+
+    if (rc != RDB_OK)
+      goto fail;
+
+    /* The previous incarnation may not have written any MANIFEST
+       records after allocating this log number. So we manually
+       update the file number allocation counter in VersionSet. */
+    rdb_vset_mark_file_number_used(impl->versions, logs.items[i]);
+  }
+
+  if (rdb_vset_last_sequence(impl->versions) < max_sequence)
+    rdb_vset_set_last_sequence(impl->versions, max_sequence);
+
+  rc = RDB_OK;
+fail:
+  rb_set64_clear(&expected);
+  rdb_array_clear(&logs);
   return rc;
+}
+
+static void
+rdb_impl_record_background_error(rdb_impl_t *impl, int status) {
+  /* rdb_mutex_assert_held(&impl->mutex); */
+
+  if (impl->bg_error == RDB_OK) {
+    impl->bg_error = status;
+
+    rdb_cond_broadcast(&impl->background_work_finished_signal);
+  }
 }
 
 static void
@@ -1056,297 +1067,6 @@ rdb_impl_compact_memtable(rdb_impl_t *impl) {
   }
 
   rdb_vedit_clear(&edit);
-}
-
-void
-rdb_impl_compact_range(rdb_impl_t *impl,
-                       const rdb_slice_t *begin,
-                       const rdb_slice_t *end) {
-  int max_level_with_files = 1;
-
-  {
-    rdb_version_t *base;
-    int level;
-
-    rdb_mutex_lock(&impl->mutex);
-
-    base = rdb_vset_current(impl->versions);
-
-    for (level = 1; level < RDB_NUM_LEVELS; level++) {
-      if (rdb_version_overlap_in_level(base, level, begin, end))
-        max_level_with_files = level;
-    }
-
-    rdb_mutex_unlock(&impl->mutex);
-  }
-
-  rdb_impl_test_compact_memtable(impl);
-
-  for (level = 0; level < max_level_with_files; level++)
-    rdb_impl_test_compact_range(impl, level, begin, end);
-}
-
-void
-rdb_impl_test_compact_range(rdb_impl_t *impl,
-                            int level,
-                            const rdb_slice_t *begin,
-                            const rdb_slice_t *end) {
-  rdb_ikey_t begin_storage, end_storage;
-  rdb_manual_t manual;
-
-  assert(level >= 0);
-  assert(level + 1 < RDB_NUM_LEVELS);
-
-  rdb_manual_init(&manual, level);
-
-  if (begin == NULL) {
-    manual.begin = NULL;
-  } else {
-    rdb_ikey_init(&begin_storage, begin, RDB_MAX_SEQUENCE, RDB_VALTYPE_SEEK);
-    manual.begin = &begin_storage;
-  }
-
-  if (end == NULL) {
-    manual.end = NULL;
-  } else {
-    rdb_ikey_init(&end_storage, end, 0, (rdb_valtype_t)0);
-    manual.end = &end_storage;
-  }
-
-  rdb_mutex_lock(&impl->mutex);
-
-  while (!manual.done
-      && !rdb_atomic_load(&impl->shutting_down, rdb_order_acquire)
-      && impl->bg_error == RDB_OK) {
-    if (impl->manual_compaction == NULL) { /* Idle. */
-      impl->manual_compaction = &manual;
-      rdb_impl_maybe_schedule_compaction(impl);
-    } else { /* Running either my compaction or another compaction. */
-      rdb_cond_wait(&impl->background_work_finished_signal, &impl->mutex);
-    }
-  }
-
-  if (impl->manual_compaction == &manual) {
-    /* Cancel my manual compaction since we aborted early for some reason. */
-    impl->manual_compaction = NULL;
-  }
-
-  rdb_mutex_unlock(&impl->mutex);
-
-  if (begin != NULL)
-    rdb_ikey_clear(&begin_storage);
-
-  if (end != NULL)
-    rdb_ikey_clear(&end_storage);
-
-  rdb_manual_clear(&manual);
-}
-
-int
-rdb_impl_test_compact_memtable(rdb_impl_t *impl) {
-  /* NULL batch means just wait for earlier writes to be done. */
-  int rc = rdb_impl_write(impl, rdb_writeopt_default, NULL);
-
-  if (rc == RDB_OK) {
-    /* Wait until the compaction completes. */
-    rdb_mutex_lock(&impl->mutex);
-
-    while (impl->imm != NULL && impl->bg_error == RDB_OK)
-      rdb_cond_wait(&impl->background_work_finished_signal, &impl->mutex);
-
-    if (impl->imm != NULL)
-      rc = impl->bg_error;
-
-    rdb_mutex_unlock(&impl->mutex);
-  }
-
-  return rc;
-}
-
-static void
-rdb_impl_record_background_error(rdb_impl_t *impl, int status) {
-  /* rdb_mutex_assert_held(&impl->mutex); */
-
-  if (impl->bg_error == RDB_OK) {
-    impl->bg_error = status;
-
-    rdb_cond_broadcast(&impl->background_work_finished_signal);
-  }
-}
-
-static void
-rdb_impl_background_call(rdb_impl_t *impl);
-
-static void
-rdb_impl_bg_work(void *db) {
-  rdb_impl_background_call(db);
-}
-
-static void
-rdb_impl_maybe_schedule_compaction(rdb_impl_t *impl) {
-  /* rdb_mutex_assert_held(&impl->mutex); */
-
-  if (impl->background_compaction_scheduled) {
-    /* Already scheduled. */
-  } else if (rdb_atomic_load(&impl->shutting_down, rdb_order_acquire)) {
-    /* DB is being deleted; no more background compactions. */
-  } else if (impl->bg_error != RDB_OK) {
-    /* Already got an error; no more changes. */
-  } else if (impl->imm == NULL && impl->manual_compaction == NULL &&
-             !rdb_vset_needs_compaction(impl->versions)) {
-    /* No work to be done. */
-  } else {
-    impl->background_compaction_scheduled = 1;
-    rdb_pool_schedule(impl->pool, &rdb_impl_bg_work, impl);
-  }
-}
-
-static void
-rdb_impl_background_call(rdb_impl_t *impl) {
-  rdb_mutex_lock(&impl->mutex);
-
-  assert(impl->background_compaction_scheduled);
-
-  if (rdb_atomic_load(&impl->shutting_down, rdb_order_acquire)) {
-    /* No more background work when shutting down. */
-  } else if (impl->bg_error != RDB_OK) {
-    /* No more background work after a background error. */
-  } else {
-    rdb_impl_background_compaction(impl);
-  }
-
-  impl->background_compaction_scheduled = 0;
-
-  /* Previous compaction may have produced too many files in a level,
-     so reschedule another compaction if needed. */
-  rdb_impl_maybe_schedule_compaction(impl);
-
-  rdb_cond_broadcast(&impl->background_work_finished_signal);
-
-  rdb_mutex_unlock(&impl->mutex);
-}
-
-static void
-rdb_impl_cleanup_compaction(rdb_impl_t *impl, rdb_cstate_t *compact) {
-  size_t i;
-
-  /* rdb_mutex_assert_held(&impl->mutex); */
-
-  if (compact->builder != NULL) {
-    /* May happen if we get a shutdown call in the middle of compaction. */
-    rdb_tablebuilder_abandon(compact->builder);
-    rdb_tablebuilder_destroy(compact->builder);
-  } else {
-    assert(compact->outfile == NULL);
-  }
-
-  if (compact->outfile != NULL)
-    rdb_wfile_destroy(compact->outfile);
-
-  for (i = 0; i < compact->outputs.length; i++) {
-    const rdb_output_t *out = compact->outputs.items[i];
-
-    rb_set64_del(&impl->pending_outputs, out->number);
-  }
-
-  rdb_cstate_destroy(compact);
-}
-
-static void
-rdb_impl_background_compaction(rdb_impl_t *impl) {
-  int is_manual = (impl->manual_compaction != NULL);
-  rdb_slice_t manual_end;
-  rdb_compaction_t *c;
-  int rc = RDB_OK;
-
-  /* rdb_mutex_assert_held(&impl->mutex); */
-
-  if (impl->imm != NULL) {
-    rdb_impl_compact_memtable(impl);
-    return;
-  }
-
-  if (is_manual) {
-    rdb_manual_t *m = impl->manual_compaction;
-
-    c = rdb_vset_compact_range(impl->versions, m->level, m->begin, m->end);
-
-    m->done = (c == NULL);
-
-    if (c != NULL) {
-      int num = rdb_compaction_num_input_files(c, 0);
-
-      /* XXX Can this be a slice? */
-      /* Maybe place directly on tmp_storage. */
-      manual_end = rdb_compaction_input(c, 0, num - 1)->largest;
-    }
-  } else {
-    c = rdb_vset_pick_compaction(impl->versions);
-  }
-
-  if (c == NULL) {
-    /* Nothing to do. */
-  } else if (!is_manual && rdb_compaction_is_trivial_move(c)) {
-    /* Move file to next level. */
-    rdb_vedit_t *edit = rdb_compaction_edit(c);
-    rdb_filemeta_t *f;
-
-    assert(rdb_compaction_num_input_files(c, 0) == 1);
-
-    f = rdb_compaction_input(c, 0, 0);
-
-    rdb_vedit_remove_file(edit, rdb_compaction_level(c), f->number);
-
-    rdb_vedit_add_file(edit, rdb_compaction_level(c) + 1,
-                             f->number,
-                             f->file_size,
-                             f->smallest,
-                             f->largest);
-
-    rc = rdb_vset_log_and_apply(impl->versions, edit, &impl->mutex);
-
-    if (rc != RDB_OK)
-      rdb_impl_record_background_error(impl, rc);
-  } else {
-    rdb_cstate_t *compact = rdb_cstate_create(c);
-
-    rc = rdb_impl_do_compaction_work(impl, compact);
-
-    if (rc != RDB_OK)
-      rdb_impl_record_background_error(impl, rc);
-
-    rdb_impl_cleanup_compaction(impl, compact);
-
-    rdb_compaction_release_inputs(c);
-
-    rdb_impl_remove_obsolete_files(impl);
-  }
-
-  rdb_compaction_destroy(c);
-
-  if (rc == RDB_OK) {
-    /* Done. */
-  } else if (rdb_atomic_load(&impl->shutting_down, rdb_order_acquire)) {
-    /* Ignore compaction errors found during shutting down. */
-  } else {
-    /* Log compaction error. */
-  }
-
-  if (is_manual) {
-    rdb_manual_t *m = impl->manual_compaction;
-
-    if (rc != RDB_OK)
-      m->done = 1;
-
-    if (!m->done) {
-      /* We only compacted part of the requested range. Update *m
-         to the range that is left to be compacted. */
-      rdb_buffer_copy(&m->tmp_storage, &manual_end);
-      m->begin = &m->tmp_storage;
-    }
-
-    impl->manual_compaction = NULL;
-  }
 }
 
 static int
@@ -1658,6 +1378,280 @@ rdb_impl_do_compaction_work(rdb_impl_t *impl, rdb_cstate_t *compact) {
   return rc;
 }
 
+static void
+rdb_impl_cleanup_compaction(rdb_impl_t *impl, rdb_cstate_t *compact) {
+  size_t i;
+
+  /* rdb_mutex_assert_held(&impl->mutex); */
+
+  if (compact->builder != NULL) {
+    /* May happen if we get a shutdown call in the middle of compaction. */
+    rdb_tablebuilder_abandon(compact->builder);
+    rdb_tablebuilder_destroy(compact->builder);
+  } else {
+    assert(compact->outfile == NULL);
+  }
+
+  if (compact->outfile != NULL)
+    rdb_wfile_destroy(compact->outfile);
+
+  for (i = 0; i < compact->outputs.length; i++) {
+    const rdb_output_t *out = compact->outputs.items[i];
+
+    rb_set64_del(&impl->pending_outputs, out->number);
+  }
+
+  rdb_cstate_destroy(compact);
+}
+
+static void
+rdb_impl_background_compaction(rdb_impl_t *impl) {
+  int is_manual = (impl->manual_compaction != NULL);
+  rdb_slice_t manual_end;
+  rdb_compaction_t *c;
+  int rc = RDB_OK;
+
+  /* rdb_mutex_assert_held(&impl->mutex); */
+
+  if (impl->imm != NULL) {
+    rdb_impl_compact_memtable(impl);
+    return;
+  }
+
+  if (is_manual) {
+    rdb_manual_t *m = impl->manual_compaction;
+
+    c = rdb_vset_compact_range(impl->versions, m->level, m->begin, m->end);
+
+    m->done = (c == NULL);
+
+    if (c != NULL) {
+      int num = rdb_compaction_num_input_files(c, 0);
+
+      /* XXX Can this be a slice? */
+      /* Maybe place directly on tmp_storage. */
+      manual_end = rdb_compaction_input(c, 0, num - 1)->largest;
+    }
+  } else {
+    c = rdb_vset_pick_compaction(impl->versions);
+  }
+
+  if (c == NULL) {
+    /* Nothing to do. */
+  } else if (!is_manual && rdb_compaction_is_trivial_move(c)) {
+    /* Move file to next level. */
+    rdb_vedit_t *edit = rdb_compaction_edit(c);
+    rdb_filemeta_t *f;
+
+    assert(rdb_compaction_num_input_files(c, 0) == 1);
+
+    f = rdb_compaction_input(c, 0, 0);
+
+    rdb_vedit_remove_file(edit, rdb_compaction_level(c), f->number);
+
+    rdb_vedit_add_file(edit, rdb_compaction_level(c) + 1,
+                             f->number,
+                             f->file_size,
+                             f->smallest,
+                             f->largest);
+
+    rc = rdb_vset_log_and_apply(impl->versions, edit, &impl->mutex);
+
+    if (rc != RDB_OK)
+      rdb_impl_record_background_error(impl, rc);
+  } else {
+    rdb_cstate_t *compact = rdb_cstate_create(c);
+
+    rc = rdb_impl_do_compaction_work(impl, compact);
+
+    if (rc != RDB_OK)
+      rdb_impl_record_background_error(impl, rc);
+
+    rdb_impl_cleanup_compaction(impl, compact);
+
+    rdb_compaction_release_inputs(c);
+
+    rdb_impl_remove_obsolete_files(impl);
+  }
+
+  rdb_compaction_destroy(c);
+
+  if (rc == RDB_OK) {
+    /* Done. */
+  } else if (rdb_atomic_load(&impl->shutting_down, rdb_order_acquire)) {
+    /* Ignore compaction errors found during shutting down. */
+  } else {
+    /* Log compaction error. */
+  }
+
+  if (is_manual) {
+    rdb_manual_t *m = impl->manual_compaction;
+
+    if (rc != RDB_OK)
+      m->done = 1;
+
+    if (!m->done) {
+      /* We only compacted part of the requested range. Update *m
+         to the range that is left to be compacted. */
+      rdb_buffer_copy(&m->tmp_storage, &manual_end);
+      m->begin = &m->tmp_storage;
+    }
+
+    impl->manual_compaction = NULL;
+  }
+}
+
+static void
+rdb_impl_background_call(void *db) {
+  rdb_impl_t *impl = db;
+
+  rdb_mutex_lock(&impl->mutex);
+
+  assert(impl->background_compaction_scheduled);
+
+  if (rdb_atomic_load(&impl->shutting_down, rdb_order_acquire)) {
+    /* No more background work when shutting down. */
+  } else if (impl->bg_error != RDB_OK) {
+    /* No more background work after a background error. */
+  } else {
+    rdb_impl_background_compaction(impl);
+  }
+
+  impl->background_compaction_scheduled = 0;
+
+  /* Previous compaction may have produced too many files in a level,
+     so reschedule another compaction if needed. */
+  rdb_impl_maybe_schedule_compaction(impl);
+
+  rdb_cond_broadcast(&impl->background_work_finished_signal);
+
+  rdb_mutex_unlock(&impl->mutex);
+}
+
+static void
+rdb_impl_maybe_schedule_compaction(rdb_impl_t *impl) {
+  /* rdb_mutex_assert_held(&impl->mutex); */
+
+  if (impl->background_compaction_scheduled) {
+    /* Already scheduled. */
+  } else if (rdb_atomic_load(&impl->shutting_down, rdb_order_acquire)) {
+    /* DB is being deleted; no more background compactions. */
+  } else if (impl->bg_error != RDB_OK) {
+    /* Already got an error; no more changes. */
+  } else if (impl->imm == NULL && impl->manual_compaction == NULL &&
+             !rdb_vset_needs_compaction(impl->versions)) {
+    /* No work to be done. */
+  } else {
+    impl->background_compaction_scheduled = 1;
+    rdb_pool_schedule(impl->pool, &rdb_impl_background_call, impl);
+  }
+}
+
+void
+rdb_impl_compact_range(rdb_impl_t *impl,
+                       const rdb_slice_t *begin,
+                       const rdb_slice_t *end) {
+  int max_level_with_files = 1;
+
+  {
+    rdb_version_t *base;
+    int level;
+
+    rdb_mutex_lock(&impl->mutex);
+
+    base = rdb_vset_current(impl->versions);
+
+    for (level = 1; level < RDB_NUM_LEVELS; level++) {
+      if (rdb_version_overlap_in_level(base, level, begin, end))
+        max_level_with_files = level;
+    }
+
+    rdb_mutex_unlock(&impl->mutex);
+  }
+
+  rdb_impl_test_compact_memtable(impl);
+
+  for (level = 0; level < max_level_with_files; level++)
+    rdb_impl_test_compact_range(impl, level, begin, end);
+}
+
+void
+rdb_impl_test_compact_range(rdb_impl_t *impl,
+                            int level,
+                            const rdb_slice_t *begin,
+                            const rdb_slice_t *end) {
+  rdb_ikey_t begin_storage, end_storage;
+  rdb_manual_t manual;
+
+  assert(level >= 0);
+  assert(level + 1 < RDB_NUM_LEVELS);
+
+  rdb_manual_init(&manual, level);
+
+  if (begin == NULL) {
+    manual.begin = NULL;
+  } else {
+    rdb_ikey_init(&begin_storage, begin, RDB_MAX_SEQUENCE, RDB_VALTYPE_SEEK);
+    manual.begin = &begin_storage;
+  }
+
+  if (end == NULL) {
+    manual.end = NULL;
+  } else {
+    rdb_ikey_init(&end_storage, end, 0, (rdb_valtype_t)0);
+    manual.end = &end_storage;
+  }
+
+  rdb_mutex_lock(&impl->mutex);
+
+  while (!manual.done
+      && !rdb_atomic_load(&impl->shutting_down, rdb_order_acquire)
+      && impl->bg_error == RDB_OK) {
+    if (impl->manual_compaction == NULL) { /* Idle. */
+      impl->manual_compaction = &manual;
+      rdb_impl_maybe_schedule_compaction(impl);
+    } else { /* Running either my compaction or another compaction. */
+      rdb_cond_wait(&impl->background_work_finished_signal, &impl->mutex);
+    }
+  }
+
+  if (impl->manual_compaction == &manual) {
+    /* Cancel my manual compaction since we aborted early for some reason. */
+    impl->manual_compaction = NULL;
+  }
+
+  rdb_mutex_unlock(&impl->mutex);
+
+  if (begin != NULL)
+    rdb_ikey_clear(&begin_storage);
+
+  if (end != NULL)
+    rdb_ikey_clear(&end_storage);
+
+  rdb_manual_clear(&manual);
+}
+
+int
+rdb_impl_test_compact_memtable(rdb_impl_t *impl) {
+  /* NULL batch means just wait for earlier writes to be done. */
+  int rc = rdb_impl_write(impl, rdb_writeopt_default, NULL);
+
+  if (rc == RDB_OK) {
+    /* Wait until the compaction completes. */
+    rdb_mutex_lock(&impl->mutex);
+
+    while (impl->imm != NULL && impl->bg_error == RDB_OK)
+      rdb_cond_wait(&impl->background_work_finished_signal, &impl->mutex);
+
+    if (impl->imm != NULL)
+      rc = impl->bg_error;
+
+    rdb_mutex_unlock(&impl->mutex);
+  }
+
+  return rc;
+}
+
 typedef struct iter_state_s {
   rdb_mutex_t *mu;
   /* All guarded by mu. */
@@ -1909,107 +1903,6 @@ rdb_impl_del(rdb_impl_t *impl,
   return rdb_db_del(impl, options, key);
 }
 
-int
-rdb_impl_write(rdb_impl_t *impl,
-               const rdb_writeopt_t *options,
-               rdb_batch_t *updates) {
-  rdb_writer_t *last_writer;
-  uint64_t last_sequence;
-  rdb_writer_t w;
-  int rc;
-
-  rdb_writer_init(&w);
-
-  w.batch = updates;
-  w.sync = options.sync;
-  w.done = 0;
-
-  rdb_mutex_lock(&impl->mutex);
-
-  rdb_vector_push(&impl->writers, &w);
-
-  while (!w.done && &w != impl->writers.head)
-    rdb_cond_wait(&w.cv, &impl->mutex);
-
-  if (w.done) {
-    rdb_mutex_unlock(&impl->mutex);
-    rdb_writer_clear(&w);
-    return w.status;
-  }
-
-  /* May temporarily unlock and wait. */
-  rc = rdb_impl_make_room_for_write(impl, updates == NULL);
-  last_sequence = rdb_vset_last_sequence(impl->versions);
-  last_writer = &w;
-
-  if (rc == RDB_OK && updates != NULL) {  // NULL batch is for compactions
-    rdb_batch_t *write_batch = rdb_impl_build_batch_group(impl, &last_writer);
-
-    rdb_batch_set_sequence(write_batch, last_sequence + 1);
-
-    last_sequence += rdb_batch_count(write_batch);
-
-    /* Add to log and apply to memtable.  We can release the lock
-       during this phase since &w is currently responsible for logging
-       and protects against concurrent loggers and concurrent writes
-       into impl->mem. */
-    {
-      int sync_error = 0;
-
-      rdb_mutex_unlock(&impl->mutex);
-
-      rc = rdb_logwriter_add_record(&impl->log,
-                                    rdb_batch_contents(write_batch));
-
-      if (rc == RDB_OK && options.sync) {
-        rc = rdb_wfile_sync(impl->logfile);
-
-        if (rc != RDB_OK)
-          sync_error = 1;
-      }
-
-      if (rc == RDB_OK)
-        rc = rdb_batch_insert_into(write_batch, impl->mem);
-
-      rdb_mutex_lock(&impl->mutex);
-
-      if (sync_error) {
-        /* The state of the log file is indeterminate: the log record we
-           just added may or may not show up when the DB is re-opened.
-           So we force the DB into a mode where all future writes fail. */
-        rdb_impl_record_background_error(impl, rc);
-      }
-    }
-
-    if (write_batch == impl->tmp_batch)
-      rdb_batch_reset(impl->tmp_batch);
-
-    rdb_vset_set_last_sequence(impl->versions, last_sequence);
-  }
-
-  for (;;) {
-    rdb_writer_t *ready = rdb_queue_shift(&impl->writers);
-
-    if (ready != &w) {
-      ready->status = rc;
-      ready->done = 1;
-      rdb_cond_signal(&ready->cv);
-    }
-
-    if (ready == last_writer)
-      break;
-  }
-
-  /* Notify new head of write queue. */
-  if (impl->writers.length > 0)
-    rdb_cond_signal(&impl->writers.head->cv);
-
-  rdb_mutex_unlock(&impl->mutex);
-  rdb_writer_clear(&w);
-
-  return rc;
-}
-
 // REQUIRES: Writer list must be non-empty
 // REQUIRES: First writer must have a non-null batch
 static rdb_batch_t *
@@ -2156,6 +2049,107 @@ rdb_impl_make_room_for_write(rdb_impl_t *impl, int force) {
     }
 #undef L0_FILES
   }
+
+  return rc;
+}
+
+int
+rdb_impl_write(rdb_impl_t *impl,
+               const rdb_writeopt_t *options,
+               rdb_batch_t *updates) {
+  rdb_writer_t *last_writer;
+  uint64_t last_sequence;
+  rdb_writer_t w;
+  int rc;
+
+  rdb_writer_init(&w);
+
+  w.batch = updates;
+  w.sync = options.sync;
+  w.done = 0;
+
+  rdb_mutex_lock(&impl->mutex);
+
+  rdb_vector_push(&impl->writers, &w);
+
+  while (!w.done && &w != impl->writers.head)
+    rdb_cond_wait(&w.cv, &impl->mutex);
+
+  if (w.done) {
+    rdb_mutex_unlock(&impl->mutex);
+    rdb_writer_clear(&w);
+    return w.status;
+  }
+
+  /* May temporarily unlock and wait. */
+  rc = rdb_impl_make_room_for_write(impl, updates == NULL);
+  last_sequence = rdb_vset_last_sequence(impl->versions);
+  last_writer = &w;
+
+  if (rc == RDB_OK && updates != NULL) {  // NULL batch is for compactions
+    rdb_batch_t *write_batch = rdb_impl_build_batch_group(impl, &last_writer);
+
+    rdb_batch_set_sequence(write_batch, last_sequence + 1);
+
+    last_sequence += rdb_batch_count(write_batch);
+
+    /* Add to log and apply to memtable.  We can release the lock
+       during this phase since &w is currently responsible for logging
+       and protects against concurrent loggers and concurrent writes
+       into impl->mem. */
+    {
+      int sync_error = 0;
+
+      rdb_mutex_unlock(&impl->mutex);
+
+      rc = rdb_logwriter_add_record(&impl->log,
+                                    rdb_batch_contents(write_batch));
+
+      if (rc == RDB_OK && options.sync) {
+        rc = rdb_wfile_sync(impl->logfile);
+
+        if (rc != RDB_OK)
+          sync_error = 1;
+      }
+
+      if (rc == RDB_OK)
+        rc = rdb_batch_insert_into(write_batch, impl->mem);
+
+      rdb_mutex_lock(&impl->mutex);
+
+      if (sync_error) {
+        /* The state of the log file is indeterminate: the log record we
+           just added may or may not show up when the DB is re-opened.
+           So we force the DB into a mode where all future writes fail. */
+        rdb_impl_record_background_error(impl, rc);
+      }
+    }
+
+    if (write_batch == impl->tmp_batch)
+      rdb_batch_reset(impl->tmp_batch);
+
+    rdb_vset_set_last_sequence(impl->versions, last_sequence);
+  }
+
+  for (;;) {
+    rdb_writer_t *ready = rdb_queue_shift(&impl->writers);
+
+    if (ready != &w) {
+      ready->status = rc;
+      ready->done = 1;
+      rdb_cond_signal(&ready->cv);
+    }
+
+    if (ready == last_writer)
+      break;
+  }
+
+  /* Notify new head of write queue. */
+  if (impl->writers.length > 0)
+    rdb_cond_signal(&impl->writers.head->cv);
+
+  rdb_mutex_unlock(&impl->mutex);
+  rdb_writer_clear(&w);
 
   return rc;
 }
