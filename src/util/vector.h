@@ -45,6 +45,12 @@ rdb_vector_resize(rdb_vector_t *z, size_t zn);
 void
 rdb_vector_copy(rdb_vector_t *z, const rdb_vector_t *x);
 
+void
+rdb_vector_swap(rdb_vector_t *x, rdb_vector_t *y);
+
+void
+rdb_vector_sort(rdb_vector_t *z, int (*cmp)(void *, void *));
+
 #ifdef __cplusplus
 }
 #endif

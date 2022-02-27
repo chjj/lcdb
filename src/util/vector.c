@@ -79,3 +79,56 @@ rdb_vector_copy(rdb_vector_t *z, const rdb_vector_t *x) {
   for (i = 0; i < x->length; i++)
     z->items[i] = x->items[i];
 }
+
+void
+rdb_vector_swap(rdb_vector_t *x, rdb_vector_t *y) {
+  rdb_vector_t t = *x;
+  *x = *y;
+  *y = t;
+}
+
+/**
+ * Quicksort (faster than libc's qsort -- no memcpy necessary)
+ * https://en.wikipedia.org/wiki/Quicksort#Hoare_partition_scheme
+ */
+
+static void
+rdb_swap(void **items, int i, int j) {
+  void *item = items[i];
+
+  items[i] = items[j];
+  items[j] = item;
+}
+
+static int
+rdb_partition(void **items, int lo, int hi, int (*cmp)(void *, void *)) {
+  void *pivot = items[(hi + lo) >> 1];
+  int i = lo - 1;
+  int j = hi + 1;
+
+  for (;;) {
+    do i++; while (cmp(items[i], pivot) < 0);
+    do j--; while (cmp(items[j], pivot) > 0);
+
+    if (i >= j)
+      return j;
+
+    rdb_swap(items, i, j);
+  }
+}
+
+static void
+rdb_qsort(void **items, int lo, int hi, int (*cmp)(void *, void *)) {
+  if (lo >= 0 && hi >= 0 && lo < hi) {
+    int p = rdb_partition(items, lo, hi, cmp);
+
+    rdb_qsort(items, lo, p, cmp);
+    rdb_qsort(items, p + 1, hi, cmp);
+  }
+}
+
+void
+rdb_vector_sort(rdb_vector_t *z, int (*cmp)(void *, void *)) {
+  if (z->length > 1)
+    rdb_qsort(z->items, 0, z->length - 1, cmp);
+}

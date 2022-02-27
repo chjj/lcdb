@@ -77,14 +77,13 @@ find_file(const rdb_comparator_t *icmp,
     uint32_t mid = (left + right) / 2;
     const rdb_filemeta_t *f = files->items[mid];
 
-    /* icmp.InternalKeyComparator::Compare(&f->largest, key) */
     if (rdb_compare(icmp, &f->largest, key) < 0) {
-      // Key at "mid.largest" is < "target". Therefore all
-      // files at or before "mid" are uninteresting.
+      /* Key at "mid.largest" is < "target". Therefore all
+         files at or before "mid" are uninteresting. */
       left = mid + 1;
     } else {
-      // Key at "mid.largest" is >= "target". Therefore all files
-      // after "mid" are uninteresting.
+      /* Key at "mid.largest" is >= "target". Therefore all files
+         after "mid" are uninteresting. */
       right = mid;
     }
   }
@@ -233,7 +232,7 @@ rdb_numiter_prev(rdb_numiter_t *iter) {
   assert(rdb_numiter_valid(iter));
 
   if (iter->index == 0)
-    iter->index = iter->flist->length;  // Marks as invalid
+    iter->index = iter->flist->length; /* Marks as invalid. */
   else
     iter->index--;
 }
@@ -807,15 +806,15 @@ rdb_version_get_overlapping_inputs(rdb_version_t *ver,
     rdb_slice_t file_limit = rdb_ikey_user_key(&f->largest);
 
     if (begin != NULL && rdb_compare(uc, &file_limit, &user_begin) < 0) {
-      // "f" is completely before specified range; skip it
+      /* "f" is completely before specified range; skip it. */
     } else if (end != NULL && rdb_compare(uc, &file_start, &user_end) > 0) {
-      // "f" is completely after specified range; skip it
+      /* "f" is completely after specified range; skip it. */
     } else {
       rdb_vector_push(inputs, f);
 
       if (level == 0) {
-        // Level-0 files may overlap each other. So check if the newly
-        // added file has expanded the range. If so, restart search.
+        /* Level-0 files may overlap each other. So check if the newly
+           added file has expanded the range. If so, restart search. */
         if (begin != NULL && rdb_compare(uc, &file_start, &user_begin) < 0) {
           user_begin = file_start;
           rdb_vector_reset(inputs);
@@ -924,7 +923,7 @@ builder_clear(builder_t *b) {
   rdb_version_unref(b->base);
 }
 
-// Apply all of the edits in *edit to the current state.
+/* Apply all of the edits in *edit to the current state. */
 static void
 builder_apply(builder_t *b, const rdb_vedit_t *edit) {
   rdb_vset_t *v = b->vset;
@@ -1049,7 +1048,7 @@ builder_maybe_add_file(builder_t *b,
                        rdb_filemeta_t *f) {
   level_state_t *state = &b->levels[level];
 
-  if (rdb_set64_has(&state->deleted_files, f->number)) {
+  if (rb_set64_has(&state->deleted_files, f->number)) {
     /* File is deleted: do nothing. */
   } else {
     rdb_vector_t *files = &v->files[level];
@@ -1767,9 +1766,9 @@ rdb_vset_max_next_level_overlapping_bytes(rdb_vset_t *vset) {
   return result;
 }
 
-// Stores the minimal range that covers all entries in inputs in
-// *smallest, *largest.
-// REQUIRES: inputs is not empty
+/* Stores the minimal range that covers all entries in inputs in
+   *smallest, *largest. */
+/* REQUIRES: inputs is not empty */
 static void
 rdb_vset_get_range(rdb_vset_t *vset,
                    const rdb_vector_t *inputs,
@@ -1800,9 +1799,9 @@ rdb_vset_get_range(rdb_vset_t *vset,
   *largest = *large;
 }
 
-// Stores the minimal range that covers all entries in inputs1 and inputs2
-// in *smallest, *largest.
-// REQUIRES: inputs is not empty
+/* Stores the minimal range that covers all entries in inputs1 and inputs2
+   in *smallest, *largest. */
+/* REQUIRES: inputs is not empty */
 static void
 rdb_vset_get_range2(rdb_vset_t *vset,
                     const rdb_vector_t *inputs1,
@@ -2371,7 +2370,7 @@ rdb_compaction_should_stop_before(rdb_compaction_t *c,
   c->seen_key = 1;
 
   if (c->ol_bytes > max_gp_overlap_bytes(vset->options)) {
-    // Too much overlap for current output; start new output
+    /* Too much overlap for current output; start new output. */
     c->ol_bytes = 0;
     return 1;
   } else {
