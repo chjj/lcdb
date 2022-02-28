@@ -49,8 +49,8 @@ typedef struct rdb_impl_s rdb_impl_t;
 
 int
 rdb_impl_write(rdb_impl_t *impl,
-               const rdb_writeopt_t *options,
-               rdb_batch_t *updates);
+               rdb_batch_t *updates,
+               const rdb_writeopt_t *options);
 
 int
 rdb_impl_test_compact_memtable(rdb_impl_t *impl);
@@ -1820,8 +1820,9 @@ rdb_impl_make_room_for_write(rdb_impl_t *impl, int force) {
  */
 
 int
-rdb_impl_open(const rdb_dbopt_t *options, const char *dbname, rdb_impl_t **dbptr) {
-  rdb_impl_t *impl = rdb_impl_create(options, dbname);
+rdb_impl_open(const char *dbname, const rdb_dbopt_t *options, rdb_impl_t **dbptr) {
+  const rdb_dbopt_t *opt = options ? options : rdb_dbopt_default;
+  rdb_impl_t *impl = rdb_impl_create(opt, dbname);
   int save_manifest;
   rdb_vedit_t edit;
   int rc = RDB_OK;
@@ -1892,35 +1893,11 @@ rdb_impl_close(rdb_impl_t *impl) {
   rdb_impl_destroy(impl);
 }
 
-const rdb_snapshot_t *
-rdb_impl_get_snapshot(rdb_impl_t *impl) {
-  rdb_snapshot_t *snap;
-  rdb_seqnum_t seq;
-
-  rdb_mutex_lock(&impl->mutex);
-
-  seq = rdb_vset_last_sequence(impl->versions);
-  snap = rdb_snaplist_new(&impl->snapshots, seq);
-
-  rdb_mutex_unlock(&impl->mutex);
-
-  return snap;
-}
-
-void
-rdb_impl_release_snapshot(rdb_impl_t *impl, const rdb_snapshot_t *snapshot) {
-  rdb_mutex_lock(&impl->mutex);
-
-  rdb_snaplist_delete(&impl->snapshots, snapshot);
-
-  rdb_mutex_unlock(&impl->mutex);
-}
-
 int
 rdb_impl_get(rdb_impl_t *impl,
-             const rdb_readopt_t *options,
              const rdb_slice_t *key,
-             rdb_buffer_t *value) {
+             rdb_buffer_t *value,
+             const rdb_readopt_t *options) {
   rdb_memtable_t *mem, *imm;
   rdb_version_t *current;
   rdb_seqnum_t snapshot;
@@ -1929,6 +1906,9 @@ rdb_impl_get(rdb_impl_t *impl,
   int rc = RDB_OK;
 
   rdb_mutex_lock(&impl->mutex);
+
+  if (options == NULL)
+    options = rdb_readopt_default;
 
   if (options->snapshot != NULL)
     snapshot = options->snapshot->sequence;
@@ -1986,23 +1966,23 @@ rdb_impl_get(rdb_impl_t *impl,
 
 int
 rdb_impl_has(rdb_impl_t *impl,
-             const rdb_readopt_t *options,
-             const rdb_slice_t *key) {
-  return rdb_impl_get(impl, options, key, NULL);
+             const rdb_slice_t *key,
+             const rdb_readopt_t *options) {
+  return rdb_impl_get(impl, key, NULL, options);
 }
 
 int
 rdb_impl_put(rdb_impl_t *impl,
-             const rdb_writeopt_t *opt,
              const rdb_slice_t *key,
-             const rdb_slice_t *value) {
+             const rdb_slice_t *value,
+             const rdb_writeopt_t *options) {
   rdb_batch_t batch;
   int rc;
 
   rdb_batch_init(&batch);
   rdb_batch_put(&batch, key, value);
 
-  rc = rdb_impl_write(impl, opt, &batch);
+  rc = rdb_impl_write(impl, &batch, options);
 
   rdb_batch_clear(&batch);
 
@@ -2010,14 +1990,14 @@ rdb_impl_put(rdb_impl_t *impl,
 }
 
 int
-rdb_impl_del(rdb_impl_t *impl, const rdb_writeopt_t *opt, const rdb_slice_t *key) {
+rdb_impl_del(rdb_impl_t *impl, const rdb_slice_t *key, const rdb_writeopt_t *options) {
   rdb_batch_t batch;
   int rc;
 
   rdb_batch_init(&batch);
   rdb_batch_del(&batch, key);
 
-  rc = rdb_impl_write(impl, opt, &batch);
+  rc = rdb_impl_write(impl, &batch, options);
 
   rdb_batch_clear(&batch);
 
@@ -2026,12 +2006,15 @@ rdb_impl_del(rdb_impl_t *impl, const rdb_writeopt_t *opt, const rdb_slice_t *key
 
 int
 rdb_impl_write(rdb_impl_t *impl,
-               const rdb_writeopt_t *options,
-               rdb_batch_t *updates) {
+               rdb_batch_t *updates,
+               const rdb_writeopt_t *options) {
   rdb_writer_t *last_writer;
   uint64_t last_sequence;
   rdb_writer_t w;
   int rc;
+
+  if (options == NULL)
+    options = rdb_writeopt_default;
 
   rdb_writer_init(&w);
 
@@ -2126,12 +2109,39 @@ rdb_impl_write(rdb_impl_t *impl,
   return rc;
 }
 
+const rdb_snapshot_t *
+rdb_impl_get_snapshot(rdb_impl_t *impl) {
+  rdb_snapshot_t *snap;
+  rdb_seqnum_t seq;
+
+  rdb_mutex_lock(&impl->mutex);
+
+  seq = rdb_vset_last_sequence(impl->versions);
+  snap = rdb_snaplist_new(&impl->snapshots, seq);
+
+  rdb_mutex_unlock(&impl->mutex);
+
+  return snap;
+}
+
+void
+rdb_impl_release_snapshot(rdb_impl_t *impl, const rdb_snapshot_t *snapshot) {
+  rdb_mutex_lock(&impl->mutex);
+
+  rdb_snaplist_delete(&impl->snapshots, snapshot);
+
+  rdb_mutex_unlock(&impl->mutex);
+}
+
 rdb_iter_t *
 rdb_impl_iterator(rdb_impl_t *impl, const rdb_readopt_t *options) {
   const rdb_comparator_t *ucmp = rdb_impl_user_comparator(impl);
   rdb_seqnum_t latest_snapshot;
   rdb_iter_t *iter;
   uint32_t seed;
+
+  if (options == NULL)
+    options = rdb_iteropt_default;
 
   iter = rdb_impl_internal_iterator(impl, options, &latest_snapshot, &seed);
 
@@ -2289,7 +2299,7 @@ rdb_destroy_db(const char *dbname, const rdb_dbopt_t *options) {
 int
 rdb_impl_test_compact_memtable(rdb_impl_t *impl) {
   /* NULL batch means just wait for earlier writes to be done. */
-  int rc = rdb_impl_write(impl, rdb_writeopt_default, NULL);
+  int rc = rdb_impl_write(impl, NULL, rdb_writeopt_default);
 
   if (rc == RDB_OK) {
     /* Wait until the compaction completes. */

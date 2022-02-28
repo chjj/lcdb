@@ -47,9 +47,20 @@ static const rdb_writeopt_t write_options = {
 };
 
 /*
+ * Iterator Options
+ */
+
+static const rdb_readopt_t iter_options = {
+  /* .verify_checksums = */ 0,
+  /* .fill_cache = */ 0,
+  /* .snapshot = */ NULL
+};
+
+/*
  * Globals
  */
 
 const rdb_dbopt_t *rdb_dbopt_default = &db_options;
 const rdb_readopt_t *rdb_readopt_default = &read_options;
 const rdb_writeopt_t *rdb_writeopt_default = &write_options;
+const rdb_readopt_t *rdb_iteropt_default = &iter_options;
