@@ -137,7 +137,8 @@ rdb_lrutable_resize(rdb_lrutable_t *tbl) {
 
   assert(tbl->elems == count);
 
-  rdb_free(tbl->list);
+  if (tbl->list != NULL)
+    rdb_free(tbl->list);
 
   tbl->list = new_list;
   tbl->length = new_length;
@@ -154,7 +155,8 @@ rdb_lrutable_init(rdb_lrutable_t *tbl) {
 
 static void
 rdb_lrutable_clear(rdb_lrutable_t *tbl) {
-  rdb_free(tbl->list);
+  if (tbl->list != NULL)
+    rdb_free(tbl->list);
 }
 
 static rdb_lruhandle_t *

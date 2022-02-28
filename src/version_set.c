@@ -1093,8 +1093,11 @@ rdb_vset_clear(rdb_vset_t *vset) {
 
   assert(vset->dummy_versions.next == &vset->dummy_versions); /* List must be empty. */
 
-  rdb_logwriter_destroy(vset->descriptor_log);
-  rdb_wfile_destroy(vset->descriptor_file);
+  if (vset->descriptor_log != NULL)
+    rdb_logwriter_destroy(vset->descriptor_log);
+
+  if (vset->descriptor_file != NULL)
+    rdb_wfile_destroy(vset->descriptor_file);
 
   for (level = 0; level < RDB_NUM_LEVELS; level++)
     rdb_buffer_clear(&vset->compact_pointer[level]);
@@ -1449,7 +1452,8 @@ rdb_vset_recover(rdb_vset_t *vset, int *save_manifest) {
       ++read_records;
 
       /* Calls rdb_vedit_reset() internally. */
-      rc = rdb_vedit_import(&edit, &record);
+      if (!rdb_vedit_import(&edit, &record))
+        rc = RDB_CORRUPTION;
 
       if (rc == RDB_OK) {
         if (edit.has_comparator && !slice_equal(&edit.comparator, ucmp->name)) {

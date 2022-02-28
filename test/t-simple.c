@@ -8,9 +8,12 @@
 
 int
 main(void) {
+  rdb_dbopt_t opt = *rdb_dbopt_default;
   rdb_slice_t key, val;
   rdb_t *db;
   int rc;
+
+  opt.create_if_missing = 1;
 
   key.data = (void *)"hello";
   key.size = 5;
@@ -18,7 +21,7 @@ main(void) {
   val.data = (void *)"world";
   val.size = 5;
 
-  rc = rdb_open("tmp", 0, &db);
+  rc = rdb_open("tmp", &opt, &db);
 
   assert(rc == RDB_OK);
 

@@ -428,13 +428,13 @@ rdb_create(const rdb_dbopt_t *options, const char *dbname) {
     db->user_filter_policy = *options->filter_policy;
     rdb_ifp_init(&db->internal_filter_policy, &db->user_filter_policy);
   } else {
-    rdb_ifp_init(&db->internal_filter_policy, NULL);
+    rdb_ifp_init(&db->internal_filter_policy, rdb_bloom_default);
   }
 
   db->options = rdb_sanitize_options(db->dbname,
-                                       &db->internal_comparator,
-                                       &db->internal_filter_policy,
-                                       options);
+                                     &db->internal_comparator,
+                                     &db->internal_filter_policy,
+                                     options);
 
   db->owns_info_log = 0;
 
@@ -447,8 +447,8 @@ rdb_create(const rdb_dbopt_t *options, const char *dbname) {
   /* db->dbname = dbname; */
 
   db->table_cache = rdb_tcache_create(db->dbname,
-                                        &db->options,
-                                        table_cache_size(&db->options));
+                                      &db->options,
+                                      table_cache_size(&db->options));
 
   db->db_lock = NULL;
 
@@ -478,9 +478,9 @@ rdb_create(const rdb_dbopt_t *options, const char *dbname) {
   db->manual_compaction = NULL;
 
   db->versions = rdb_vset_create(db->dbname,
-                                   &db->options,
-                                   db->table_cache,
-                                   &db->internal_comparator);
+                                 &db->options,
+                                 db->table_cache,
+                                 &db->internal_comparator);
 
   db->bg_error = 0;
 
@@ -1008,12 +1008,11 @@ rdb_recover(rdb_t *db, rdb_vedit_t *edit, int *save_manifest) {
   rdb_array_sort(&logs, compare_ascending);
 
   for (i = 0; i < (int)logs.length; i++) {
-    rc = rdb_recover_log_file(db,
-                                   logs.items[i],
-                                   (i == (int)logs.length - 1),
-                                   save_manifest,
-                                   edit,
-                                   &max_sequence);
+    rc = rdb_recover_log_file(db, logs.items[i],
+                                  (i == (int)logs.length - 1),
+                                  save_manifest,
+                                  edit,
+                                  &max_sequence);
 
     if (rc != RDB_OK)
       goto fail;

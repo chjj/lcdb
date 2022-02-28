@@ -87,6 +87,8 @@ static const uint32_t rdb_crc32c_mask_delta = 0xa282ead8;
 
 uint32_t
 rdb_crc32c_extend(uint32_t z, const uint8_t *xp, size_t xn) {
+  z ^= 0xffffffff;
+
   while (xn--)
     z = rdb_crc32c_table[(z ^ *xp++) & 0xff] ^ (z >> 8);
 
