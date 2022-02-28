@@ -90,7 +90,7 @@ endif()
 
 add_library(rdb STATIC ${rdb_sources})
 target_compile_definitions(rdb PRIVATE ${rdb_defines})
-target_compile_options(rdb PRIVATE ${rdb_cflags})
+target_compile_options(rdb PUBLIC ${rdb_cflags})
 target_include_directories(rdb PUBLIC ${PROJECT_SOURCE_DIR}/include)
 target_link_options(rdb INTERFACE ${rdb_ldflags})
 target_link_libraries(rdb PRIVATE ${rdb_libs} pthread)

@@ -178,7 +178,7 @@ rdb_blockiter_init(rdb_blockiter_t *iter,
                    const uint8_t *data,
                    uint32_t restarts,
                    uint32_t num_restarts) {
-  assert(iter->num_restarts > 0);
+  assert(num_restarts > 0);
 
   iter->comparator = comparator;
   iter->data = data;

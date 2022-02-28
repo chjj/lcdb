@@ -61,9 +61,12 @@ rdb_tablebuilder_init(rdb_tablebuilder_t *tb,
   tb->index_block_options = *options;
   tb->file = file;
   tb->offset = 0;
+  tb->status = 0;
 
   rdb_blockbuilder_init(&tb->data_block, &tb->options);
   rdb_blockbuilder_init(&tb->index_block, &tb->index_block_options);
+
+  rdb_buffer_init(&tb->last_key);
 
   tb->num_entries = 0;
   tb->closed = 0;
@@ -86,6 +89,8 @@ rdb_tablebuilder_clear(rdb_tablebuilder_t *tb) {
 
   rdb_blockbuilder_clear(&tb->data_block);
   rdb_blockbuilder_clear(&tb->index_block);
+
+  rdb_buffer_clear(&tb->last_key);
 
   if (tb->filter_block != NULL) {
     rdb_filterbuilder_clear(tb->filter_block);
