@@ -33,6 +33,9 @@ typedef struct rdb_wfile_s rdb_wfile_t;
 void
 rdb_env_init(void);
 
+void
+rdb_env_clear(void);
+
 /*
  * Filesystem
  */

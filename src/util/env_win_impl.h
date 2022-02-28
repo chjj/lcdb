@@ -103,6 +103,11 @@ rdb_env_init(void) {
   return;
 }
 
+void
+rdb_env_clear(void) {
+  return;
+}
+
 /*
  * Filesystem
  */

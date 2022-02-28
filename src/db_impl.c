@@ -415,8 +415,6 @@ rdb_create(const rdb_dbopt_t *options, const char *dbname) {
     return NULL;
   }
 
-  rdb_env_init();
-
   if (options->comparator != NULL) {
     db->user_comparator = *options->comparator;
     rdb_ikc_init(&db->internal_comparator, &db->user_comparator);
@@ -541,6 +539,8 @@ rdb_destroy(rdb_t *db) {
 
   rdb_mutex_destroy(&db->mutex);
   rdb_cond_destroy(&db->background_work_finished_signal);
+
+  rdb_free(db);
 }
 
 static const rdb_comparator_t *
@@ -1780,15 +1780,21 @@ rdb_make_room_for_write(rdb_t *db, int force) {
 int
 rdb_open(const char *dbname, const rdb_dbopt_t *options, rdb_t **dbptr) {
   const rdb_dbopt_t *opt = options ? options : rdb_dbopt_default;
-  rdb_t *db = rdb_create(opt, dbname);
   int save_manifest;
   rdb_vedit_t edit;
   int rc = RDB_OK;
+  rdb_t *db;
 
   *dbptr = NULL;
 
-  if (db == NULL)
+  rdb_env_init();
+
+  db = rdb_create(opt, dbname);
+
+  if (db == NULL) {
+    rdb_env_clear();
     return RDB_INVALID;
+  }
 
   rdb_vedit_init(&edit);
   rdb_mutex_lock(&db->mutex);
@@ -1840,6 +1846,7 @@ rdb_open(const char *dbname, const rdb_dbopt_t *options, rdb_t **dbptr) {
     *dbptr = db;
   } else {
     rdb_destroy(db);
+    rdb_env_clear();
   }
 
   rdb_vedit_clear(&edit);
@@ -1850,6 +1857,7 @@ rdb_open(const char *dbname, const rdb_dbopt_t *options, rdb_t **dbptr) {
 void
 rdb_close(rdb_t *db) {
   rdb_destroy(db);
+  rdb_env_clear();
 }
 
 int
@@ -2216,6 +2224,7 @@ rdb_destroy_db(const char *dbname, const rdb_dbopt_t *options) {
 
   if (len < 0) {
     /* Ignore error in case directory does not exist. */
+    rdb_env_clear();
     return RDB_OK;
   }
 
@@ -2252,6 +2261,7 @@ rdb_destroy_db(const char *dbname, const rdb_dbopt_t *options) {
   }
 
   rdb_free_children(files, len);
+  rdb_env_clear();
 
   return rc;
 }

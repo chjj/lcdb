@@ -295,6 +295,11 @@ rdb_env_init(void) {
 #endif
 }
 
+void
+rdb_env_clear(void) {
+  return;
+}
+
 /*
  * Filesystem
  */

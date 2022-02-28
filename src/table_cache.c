@@ -78,6 +78,7 @@ rdb_tcache_create(const char *prefix, const rdb_dbopt_t *options, int entries) {
 void
 rdb_tcache_destroy(rdb_tcache_t *cache) {
   rdb_lru_destroy(cache->lru);
+  rdb_free(cache);
 }
 
 static int
