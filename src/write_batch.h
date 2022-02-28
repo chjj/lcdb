@@ -10,6 +10,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "util/extern.h"
 #include "util/types.h"
 
 /* Batch holds a collection of updates to apply atomically to a DB.
@@ -57,20 +58,20 @@ typedef struct rdb_batch_s {
  * Batch
  */
 
-rdb_batch_t *
+RDB_EXTERN rdb_batch_t *
 rdb_batch_create(void);
 
-void
+RDB_EXTERN void
 rdb_batch_destroy(rdb_batch_t *batch);
 
-void
+RDB_EXTERN void
 rdb_batch_init(rdb_batch_t *batch);
 
-void
+RDB_EXTERN void
 rdb_batch_clear(rdb_batch_t *batch);
 
 /* Clear all updates buffered in this batch. */
-void
+RDB_EXTERN void
 rdb_batch_reset(rdb_batch_t *batch);
 
 /* The size of the database changes caused by this batch.
@@ -103,13 +104,13 @@ void
 rdb_batch_set_sequence(rdb_batch_t *batch, rdb__seqnum_t seq);
 
 /* Store the mapping "key->value" in the database. */
-void
+RDB_EXTERN void
 rdb_batch_put(rdb_batch_t *batch,
               const rdb_slice_t *key,
               const rdb_slice_t *value);
 
 /* If the database contains a mapping for "key", erase it. Else do nothing. */
-void
+RDB_EXTERN void
 rdb_batch_del(rdb_batch_t *batch, const rdb_slice_t *key);
 
 /* Copies the operations in "src" to this batch.

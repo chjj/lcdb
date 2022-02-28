@@ -9,6 +9,7 @@
 
 #include <stddef.h>
 
+#include "../util/extern.h"
 #include "../util/types.h"
 
 /*
@@ -189,7 +190,7 @@ static const rdb_itertbl_t name ## _table = {                  \
 rdb_iter_t *
 rdb_iter_create(void *ptr, const rdb_itertbl_t *table);
 
-void
+RDB_EXTERN void
 rdb_iter_destroy(rdb_iter_t *iter);
 
 void

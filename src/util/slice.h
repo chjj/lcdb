@@ -9,6 +9,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include "extern.h"
 #include "internal.h"
 #include "types.h"
 
@@ -74,7 +75,7 @@ rdb_slice_hash(const rdb_slice_t *x);
 int
 rdb_slice_equal(const rdb_slice_t *x, const rdb_slice_t *y);
 
-int
+RDB_EXTERN int
 rdb_slice_compare(const rdb_slice_t *x, const rdb_slice_t *y);
 
 void

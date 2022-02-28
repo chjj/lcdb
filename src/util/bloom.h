@@ -9,6 +9,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include "extern.h"
 #include "types.h"
 
 /*
@@ -73,10 +74,10 @@ typedef struct rdb_bloom_s {
  * filter policy (like rdb_bloom_create) that does not ignore
  * trailing spaces in keys.
  */
-rdb_bloom_t *
+RDB_EXTERN rdb_bloom_t *
 rdb_bloom_create(int bits_per_key);
 
-void
+RDB_EXTERN void
 rdb_bloom_destroy(rdb_bloom_t *bloom);
 
 void
@@ -95,6 +96,6 @@ rdb_bloom_size(const rdb_bloom_t *bloom, size_t n);
  * Globals
  */
 
-/* RDB_EXTERN */ extern const rdb_bloom_t *rdb_bloom_default;
+RDB_EXTERN extern const rdb_bloom_t *rdb_bloom_default;
 
 #endif /* RDB_BLOOM_H */

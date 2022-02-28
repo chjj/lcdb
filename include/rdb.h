@@ -11,6 +11,7 @@
 extern "C" {
 #endif
 
+#include <limits.h>
 #include <stddef.h>
 
 /*
@@ -33,10 +34,10 @@ enum rdb_compression {
  * Types
  */
 
-typedef struct rdb_slice_s rdb_batch_t;
+typedef struct rdb_s rdb_t;
+typedef struct rdb_batch_s rdb_batch_t;
 typedef struct rdb_bloom_s rdb_bloom_t;
 typedef struct rdb_comparator_s rdb_comparator_t;
-typedef struct rdb_db_s rdb_db_t;
 typedef struct rdb_dbopt_s rdb_dbopt_t;
 typedef struct rdb_iter_s rdb_iter_t;
 typedef struct rdb_lru_s rdb_lru_t;
@@ -55,9 +56,24 @@ typedef struct rdb_range_s {
   rdb_slice_t limit;
 } rdb_range_t;
 
+#if defined(_WIN32)
+typedef unsigned __int64 rdb_uint64_t;
+#elif ULONG_MAX >> 31 >> 31 >> 1 == 1
+typedef unsigned long rdb_uint64_t;
+#else
+#  ifdef __GNUC__
+__extension__
+#  endif
+typedef unsigned long long rdb_uint64_t;
+#endif
+
 /*
  * Batch
  */
+
+struct rdb_batch_s {
+  rdb_slice_t _rep;
+};
 
 rdb_batch_t *
 rdb_batch_create(void);
@@ -92,6 +108,8 @@ rdb_bloom_create(int bits_per_key);
 void
 rdb_bloom_destroy(rdb_bloom_t *bloom);
 
+extern const rdb_bloom_t *rdb_bloom_default;
+
 /*
  * Cache
  */
@@ -117,6 +135,8 @@ struct rdb_comparator_s {
   void (*short_successor)(const rdb_comparator_t *, rdb_slice_t *);
   const rdb_comparator_t *user_comparator;
 };
+
+extern const rdb_comparator_t *rdb_bytewise_comparator;
 
 /*
  * Database
@@ -162,7 +182,7 @@ rdb_get_property(rdb_t *db, const char *property, char **value);
 void
 rdb_get_approximate_sizes(rdb_t *db, const rdb_range_t *range,
                                      size_t length,
-                                     uint64_t *sizes);
+                                     rdb_uint64_t *sizes);
 
 void
 rdb_compact_range(rdb_t *db, const rdb_slice_t *begin, const rdb_slice_t *end);
@@ -253,6 +273,15 @@ extern const rdb_dbopt_t *rdb_dbopt_default;
 extern const rdb_readopt_t *rdb_readopt_default;
 extern const rdb_writeopt_t *rdb_writeopt_default;
 extern const rdb_readopt_t *rdb_iteropt_default;
+
+/*
+ * Slice
+ */
+
+#define rdb_compare rdb_slice_compare
+
+int
+rdb_compare(const rdb_slice_t *x, const rdb_slice_t *y);
 
 /*
  * Status

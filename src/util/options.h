@@ -8,6 +8,7 @@
 #define RDB_OPTIONS_H
 
 #include <stddef.h>
+#include "extern.h"
 
 /*
  * Types
@@ -197,9 +198,9 @@ typedef struct rdb_writeopt_s {
  * Globals
  */
 
-/* RDB_EXTERN */ extern const rdb_dbopt_t *rdb_dbopt_default;
-/* RDB_EXTERN */ extern const rdb_readopt_t *rdb_readopt_default;
-/* RDB_EXTERN */ extern const rdb_writeopt_t *rdb_writeopt_default;
-/* RDB_EXTERN */ extern const rdb_readopt_t *rdb_iteropt_default;
+RDB_EXTERN extern const rdb_dbopt_t *rdb_dbopt_default;
+RDB_EXTERN extern const rdb_readopt_t *rdb_readopt_default;
+RDB_EXTERN extern const rdb_writeopt_t *rdb_writeopt_default;
+RDB_EXTERN extern const rdb_readopt_t *rdb_iteropt_default;
 
 #endif /* RDB_OPTIONS_H */

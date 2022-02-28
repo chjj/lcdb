@@ -5,20 +5,30 @@
  */
 
 #include <stdlib.h>
+#if 0
 #include <string.h>
 #include "internal.h"
+#endif
+
+#include "extern.h"
 
 /*
  * Helpers
  */
 
-void
-rdb__internal_no_empty(void);
+RDB_EXTERN void
+rdb_free(void *ptr);
 
 void
-rdb__internal_no_empty(void) {
-  return;
+rdb_free(void *ptr) {
+  if (ptr == NULL) {
+    abort(); /* LCOV_EXCL_LINE */
+    return;
+  }
+
+  free(ptr);
 }
+
 
 #if 0
 RDB_MALLOC void *

@@ -7,6 +7,8 @@
 #ifndef RDB_STATUS_H
 #define RDB_STATUS_H
 
+#include "extern.h"
+
 /*
  * Constants
  */
@@ -22,7 +24,7 @@
  * Helpers
  */
 
-const char *
+RDB_EXTERN const char *
 rdb_strerror(int code);
 
 #endif /* RDB_STATUS_H */

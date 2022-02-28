@@ -10,20 +10,19 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "util/bloom.h"
-#include "util/comparator.h"
-#include "util/internal.h"
+#include "util/extern.h"
 #include "util/options.h"
 #include "util/types.h"
-
-#include "snapshot.h"
-#include "write_batch.h"
 
 /*
  * Types
  */
 
+struct rdb_bloom_s;
+struct rdb_batch_s;
+struct rdb_comparator_s;
 struct rdb_iter_s;
+struct rdb_snapshot_s;
 
 typedef struct rdb_s rdb_t;
 
@@ -33,68 +32,67 @@ typedef struct rdb_s rdb_t;
 
 rdb_dbopt_t
 rdb_sanitize_options(const char *dbname,
-                     const rdb_comparator_t *icmp,
-                     const rdb_bloom_t *ipolicy,
+                     const struct rdb_comparator_s *icmp,
+                     const struct rdb_bloom_s *ipolicy,
                      const rdb_dbopt_t *src);
 
 /*
  * API
  */
 
-int
+RDB_EXTERN int
 rdb_open(const char *dbname, const rdb_dbopt_t *options, rdb_t **dbptr);
 
-void
+RDB_EXTERN void
 rdb_close(rdb_t *db);
 
-int
+RDB_EXTERN int
 rdb_get(rdb_t *db, const rdb_slice_t *key,
                    rdb_slice_t *value,
                    const rdb_readopt_t *options);
 
-int
+RDB_EXTERN int
 rdb_has(rdb_t *db, const rdb_slice_t *key, const rdb_readopt_t *options);
 
-int
+RDB_EXTERN int
 rdb_put(rdb_t *db, const rdb_slice_t *key,
                    const rdb_slice_t *value,
                    const rdb_writeopt_t *options);
 
-int
+RDB_EXTERN int
 rdb_del(rdb_t *db, const rdb_slice_t *key, const rdb_writeopt_t *options);
 
-int
-rdb_write(rdb_t *db, rdb_batch_t *updates, const rdb_writeopt_t *options);
+RDB_EXTERN int
+rdb_write(rdb_t *db, struct rdb_batch_s *updates, const rdb_writeopt_t *options);
 
-const rdb_snapshot_t *
+RDB_EXTERN const struct rdb_snapshot_s *
 rdb_get_snapshot(rdb_t *db);
 
-void
-rdb_release_snapshot(rdb_t *db, const rdb_snapshot_t *snapshot);
+RDB_EXTERN void
+rdb_release_snapshot(rdb_t *db, const struct rdb_snapshot_s *snapshot);
 
-struct rdb_iter_s *
+RDB_EXTERN struct rdb_iter_s *
 rdb_iterator(rdb_t *db, const rdb_readopt_t *options);
 
-int
+RDB_EXTERN int
 rdb_get_property(rdb_t *db, const char *property, char **value);
 
-void
+RDB_EXTERN void
 rdb_get_approximate_sizes(rdb_t *db, const rdb_range_t *range,
                                      size_t length,
                                      uint64_t *sizes);
 
-void
-rdb_compact_range(rdb_t *db, const rdb_slice_t *begin,
-                             const rdb_slice_t *end);
+RDB_EXTERN void
+rdb_compact_range(rdb_t *db, const rdb_slice_t *begin, const rdb_slice_t *end);
 
 /*
  * Static
  */
 
-int
+RDB_EXTERN int
 rdb_repair_db(const char *dbname, const rdb_dbopt_t *options);
 
-int
+RDB_EXTERN int
 rdb_destroy_db(const char *dbname, const rdb_dbopt_t *options);
 
 /*

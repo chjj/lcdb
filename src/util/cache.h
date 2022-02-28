@@ -9,6 +9,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include "extern.h"
 #include "types.h"
 
 /*
@@ -26,12 +27,12 @@ typedef struct rdb_lruhandle_s rdb_lruhandle_t;
 
 /* Create a new cache with a fixed size capacity. This implementation
    of Cache uses a least-recently-used eviction policy. */
-rdb_lru_t *
+RDB_EXTERN rdb_lru_t *
 rdb_lru_create(size_t capacity);
 
 /* Destroys all existing entries by calling the "deleter"
    function that was passed to the constructor. */
-void
+RDB_EXTERN void
 rdb_lru_destroy(rdb_lru_t *lru);
 
 /* Insert a mapping from key->value into the cache and assign it

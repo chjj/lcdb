@@ -2161,8 +2161,7 @@ rdb_get_approximate_sizes(rdb_t *db, const rdb_range_t *range,
 }
 
 void
-rdb_compact_range(rdb_t *db, const rdb_slice_t *begin,
-                             const rdb_slice_t *end) {
+rdb_compact_range(rdb_t *db, const rdb_slice_t *begin, const rdb_slice_t *end) {
   int max_level_with_files = 1;
   int level;
 

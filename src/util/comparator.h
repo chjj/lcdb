@@ -7,6 +7,7 @@
 #ifndef RDB_COMPARATOR_H
 #define RDB_COMPARATOR_H
 
+#include "extern.h"
 #include "types.h"
 
 /*
@@ -75,6 +76,6 @@ typedef struct rdb_comparator_s {
  * Globals
  */
 
-/* RDB_EXTERN */ extern const rdb_comparator_t *rdb_bytewise_comparator;
+RDB_EXTERN extern const rdb_comparator_t *rdb_bytewise_comparator;
 
 #endif /* RDB_COMPARATOR_H */
