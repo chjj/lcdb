@@ -163,6 +163,7 @@ rb_tree_init(rb_tree_t *tree,
 void
 rb_tree_clear(rb_tree_t *tree, void (*clear)(rb_node_t *)) {
   rb_node_clear(tree->root, clear);
+  tree->root = NIL;
 }
 
 rb_tree_t *
