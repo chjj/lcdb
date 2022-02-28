@@ -23,7 +23,7 @@ typedef void *RDB_HANDLE;
 typedef struct rdb_cs_s {
   void *pad[6];
 } RDB_CRITICAL_SECTION;
-#else /* !_WIN32 */
+#elif defined(RDB_HAVE_PTHREAD)
 #  include <pthread.h>
 #endif
 
@@ -54,7 +54,7 @@ typedef struct rdb_thread_s {
 #  define RDB_MUTEX_INITIALIZER {0, 0, {0, 0, 0, 0, 0, 0}}
 #endif
 
-#else /* !_WIN32 */
+#elif defined(RDB_HAVE_PTHREAD)
 
 typedef struct rdb_mutex_s {
   pthread_mutex_t handle;
@@ -70,7 +70,23 @@ typedef struct rdb_thread_s {
 
 #define RDB_MUTEX_INITIALIZER { PTHREAD_MUTEX_INITIALIZER }
 
-#endif /* !_WIN32 */
+#else /* !RDB_HAVE_PTHREAD */
+
+typedef struct rdb_mutex_s {
+  void *handle;
+} rdb_mutex_t;
+
+typedef struct rdb_cond_s {
+  void *handle;
+} rdb_cond_t;
+
+typedef struct rdb_thread_s {
+  void *handle;
+} rdb_thread_t;
+
+#define RDB_MUTEX_INITIALIZER {0}
+
+#endif /* !RDB_HAVE_PTHREAD */
 
 /*
  * Mutex

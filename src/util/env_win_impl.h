@@ -79,8 +79,8 @@ rdb_limiter_release(rdb_limiter_t *lim) {
  */
 
 static int
-rdb_convert_error(int code) {
-  if (rc == ERROR_FILE_NOT_FOUND || rc == ERROR_PATH_NOT_FOUND)
+rdb_convert_error(DWORD code) {
+  if (code == ERROR_FILE_NOT_FOUND || code == ERROR_PATH_NOT_FOUND)
     return RDB_NOTFOUND;
 
   return RDB_IOERR;

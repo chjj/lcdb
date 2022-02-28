@@ -454,6 +454,8 @@ rdb_impl_create(const rdb_dbopt_t *options, const char *dbname) {
     return NULL;
   }
 
+  rdb_env_init();
+
   if (options->comparator != NULL) {
     impl->user_comparator = *options->comparator;
     rdb_ikc_init(&impl->internal_comparator, &impl->user_comparator);
@@ -2165,9 +2167,7 @@ rdb_impl_iterator(rdb_impl_t *impl, const rdb_readopt_t *options) {
 }
 
 int
-rdb_impl_get_property(rdb_impl_t *impl,
-                      const rdb_slice_t *property,
-                      char *value) {
+rdb_impl_get_property(rdb_impl_t *impl, const char *property, char **value) {
   (void)impl;
   (void)property;
   (void)value;
@@ -2177,12 +2177,12 @@ rdb_impl_get_property(rdb_impl_t *impl,
 void
 rdb_impl_get_approximate_sizes(rdb_impl_t *impl,
                                const rdb_range_t *range,
-                               int n,
+                               size_t length,
                                uint64_t *sizes) {
   uint64_t start, limit;
   rdb_ikey_t k1, k2;
   rdb_version_t *v;
-  int i;
+  size_t i;
 
   rdb_mutex_lock(&impl->mutex);
 
@@ -2190,7 +2190,7 @@ rdb_impl_get_approximate_sizes(rdb_impl_t *impl,
 
   rdb_version_ref(v);
 
-  for (i = 0; i < n; i++) {
+  for (i = 0; i < length; i++) {
     /* Convert user_key into a corresponding internal key. */
     rdb_ikey_init(&k1, &range[i].start, RDB_MAX_SEQUENCE, RDB_VALTYPE_SEEK);
     rdb_ikey_init(&k2, &range[i].limit, RDB_MAX_SEQUENCE, RDB_VALTYPE_SEEK);

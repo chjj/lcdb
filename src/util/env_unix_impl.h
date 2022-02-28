@@ -37,6 +37,9 @@
 
 #include <dirent.h>
 #include <fcntl.h>
+#ifdef RDB_HAVE_PTHREAD
+#include <pthread.h>
+#endif
 #include <unistd.h>
 
 #if !defined(FD_SETSIZE) && !defined(FD_SET)
@@ -151,7 +154,7 @@ rdb_starts_with(const char *xp, const char *yp) {
 
 static int
 rdb_is_manifest(const char *filename) {
-  char *base = strrchr(filename, '/');
+  const char *base = strrchr(filename, '/');
 
   if (base == NULL)
     base = filename;
@@ -273,9 +276,23 @@ rdb_max_open_files(void) {
  * Environment
  */
 
+static void
+env_init(void) {
+  rdb_limiter_init(&rdb_fd_limiter, rdb_max_open_files());
+}
+
 void
 rdb_env_init(void) {
-  rdb_limiter_init(&rdb_fd_limiter, rdb_max_open_files());
+#if defined(RDB_HAVE_PTHREAD)
+  static pthread_once_t guard = PTHREAD_ONCE_INIT;
+  pthread_once(&guard, env_init);
+#else
+  static int guard = 0;
+  if (guard == 0) {
+    env_init();
+    guard = 1;
+  }
+#endif
 }
 
 /*

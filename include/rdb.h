@@ -11,6 +11,8 @@
 extern "C" {
 #endif
 
+#include <stddef.h>
+
 /*
  * Constants
  */
@@ -119,6 +121,64 @@ struct rdb_comparator_s {
 /*
  * Database
  */
+
+int
+rdb_open(const char *dbname, const rdb_dbopt_t *options, rdb_t **dbptr);
+
+void
+rdb_close(rdb_t *db);
+
+int
+rdb_get(rdb_t *db, const rdb_slice_t *key,
+                   rdb_slice_t *value,
+                   const rdb_readopt_t *options);
+
+int
+rdb_has(rdb_t *db, const rdb_slice_t *key, const rdb_readopt_t *options);
+
+int
+rdb_put(rdb_t *db, const rdb_slice_t *key,
+                   const rdb_slice_t *value,
+                   const rdb_writeopt_t *options);
+
+int
+rdb_del(rdb_t *db, const rdb_slice_t *key, const rdb_writeopt_t *options);
+
+int
+rdb_write(rdb_t *db, rdb_batch_t *updates, const rdb_writeopt_t *options);
+
+const rdb_snapshot_t *
+rdb_get_snapshot(rdb_t *db);
+
+void
+rdb_release_snapshot(rdb_t *db, const rdb_snapshot_t *snapshot);
+
+rdb_iter_t *
+rdb_iterator(rdb_t *db, const rdb_readopt_t *options);
+
+int
+rdb_get_property(rdb_t *db, const char *property, char **value);
+
+void
+rdb_get_approximate_sizes(rdb_t *db, const rdb_range_t *range,
+                                     size_t length,
+                                     uint64_t *sizes);
+
+void
+rdb_compact_range(rdb_t *db, const rdb_slice_t *begin, const rdb_slice_t *end);
+
+int
+rdb_repair_db(const char *dbname, const rdb_dbopt_t *options);
+
+int
+rdb_destroy_db(const char *dbname, const rdb_dbopt_t *options);
+
+/*
+ * Internal
+ */
+
+void
+rdb_free(void *ptr);
 
 /*
  * Iterator

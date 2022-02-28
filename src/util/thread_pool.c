@@ -169,6 +169,7 @@ rdb_pool_destroy(rdb_pool_t *pool) {
 
 void
 rdb_pool_schedule(rdb_pool_t *pool, rdb_work_f *func, void *arg) {
+#if defined(RDB_HAVE_PTHREAD)
   rdb_mutex_lock(&pool->mutex);
 
   if (pool->running == 0) {
@@ -189,6 +190,9 @@ rdb_pool_schedule(rdb_pool_t *pool, rdb_work_f *func, void *arg) {
 
   rdb_cond_signal(&pool->worker);
   rdb_mutex_unlock(&pool->mutex);
+#else
+  func(arg);
+#endif
 }
 
 void

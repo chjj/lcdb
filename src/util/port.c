@@ -6,6 +6,8 @@
 
 #if defined(_WIN32)
 #  include "port_win_impl.h"
-#else
+#elif defined(RDB_HAVE_PTHREAD)
 #  include "port_unix_impl.h"
+#else
+#  include "port_none_impl.h"
 #endif
