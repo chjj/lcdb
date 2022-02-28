@@ -95,7 +95,7 @@ target_include_directories(rdb PUBLIC ${PROJECT_SOURCE_DIR}/include)
 target_link_options(rdb INTERFACE ${rdb_ldflags})
 target_link_libraries(rdb PRIVATE ${rdb_libs} pthread)
 
-set(tests)
+set(tests simple)
 
 foreach(name ${tests})
   add_executable(t-${name} test/t-${name}.c)
