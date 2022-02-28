@@ -10,6 +10,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "extern.h"
 #include "slice.h"
 
 /*
@@ -33,7 +34,7 @@ typedef struct rdb_wfile_s rdb_wfile_t;
 void
 rdb_env_init(void);
 
-void
+RDB_EXTERN void
 rdb_env_clear(void);
 
 /*

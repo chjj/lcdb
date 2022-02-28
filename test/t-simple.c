@@ -7,7 +7,6 @@
 #include <string.h>
 #include <rdb.h>
 
-int rdb_env_init(void);
 int rdb_env_clear(void);
 
 int
@@ -16,8 +15,6 @@ main(void) {
   rdb_slice_t key, val;
   rdb_t *db;
   int rc;
-
-  rdb_env_init();
 
   opt.create_if_missing = 1;
 

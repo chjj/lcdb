@@ -42,7 +42,6 @@ struct rdb_filelock_s {
  * Globals
  */
 
-static int file_inits = 0;
 static rdb_mutex_t file_mutex = RDB_MUTEX_INITIALIZER;
 static rb_tree_t file_map;
 
@@ -264,18 +263,13 @@ rdb_env_init(void) {
   if (file_map.root == NULL)
     rb_map_init(&file_map, by_string, NULL);
 
-  ++file_inits;
-
   rdb_mutex_unlock(&file_mutex);
 }
 
 void
 rdb_env_clear(void) {
   rdb_mutex_lock(&file_mutex);
-
-  if (--file_inits == 0)
-    rb_map_clear(&file_map, cleanup_node);
-
+  rb_map_clear(&file_map, cleanup_node);
   rdb_mutex_unlock(&file_mutex);
 }
 

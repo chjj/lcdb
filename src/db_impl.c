@@ -1791,10 +1791,8 @@ rdb_open(const char *dbname, const rdb_dbopt_t *options, rdb_t **dbptr) {
 
   db = rdb_create(opt, dbname);
 
-  if (db == NULL) {
-    rdb_env_clear();
+  if (db == NULL)
     return RDB_INVALID;
-  }
 
   rdb_vedit_init(&edit);
   rdb_mutex_lock(&db->mutex);
@@ -1846,7 +1844,6 @@ rdb_open(const char *dbname, const rdb_dbopt_t *options, rdb_t **dbptr) {
     *dbptr = db;
   } else {
     rdb_destroy(db);
-    rdb_env_clear();
   }
 
   rdb_vedit_clear(&edit);
@@ -1857,7 +1854,6 @@ rdb_open(const char *dbname, const rdb_dbopt_t *options, rdb_t **dbptr) {
 void
 rdb_close(rdb_t *db) {
   rdb_destroy(db);
-  rdb_env_clear();
 }
 
 int
@@ -2224,7 +2220,6 @@ rdb_destroy_db(const char *dbname, const rdb_dbopt_t *options) {
 
   if (len < 0) {
     /* Ignore error in case directory does not exist. */
-    rdb_env_clear();
     return RDB_OK;
   }
 
@@ -2261,7 +2256,6 @@ rdb_destroy_db(const char *dbname, const rdb_dbopt_t *options) {
   }
 
   rdb_free_children(files, len);
-  rdb_env_clear();
 
   return rc;
 }
