@@ -32,6 +32,7 @@
 #include "util/vector.h"
 
 #include "builder.h"
+#include "db_impl.h"
 #include "db_iter.h"
 #include "dbformat.h"
 #include "filename.h"
@@ -44,46 +45,6 @@
 #include "version_edit.h"
 #include "version_set.h"
 #include "write_batch.h"
-
-typedef struct rdb_impl_s rdb_impl_t;
-
-int
-rdb_impl_write(rdb_impl_t *impl,
-               rdb_batch_t *updates,
-               const rdb_writeopt_t *options);
-
-int
-rdb_impl_test_compact_memtable(rdb_impl_t *impl);
-
-void
-rdb_impl_test_compact_range(rdb_impl_t *impl,
-                            int level,
-                            const rdb_slice_t *begin,
-                            const rdb_slice_t *end);
-
-/*
- * Range
- */
-
-/* A range of keys. */
-typedef struct rdb_range_s {
-  rdb_slice_t start; /* Included in the range. */
-  rdb_slice_t limit; /* Not included in the range. */
-} rdb_range_t;
-
-static void
-rdb_range_init(rdb_range_t *range,
-               const rdb_slice_t *start,
-               const rdb_slice_t *limit) {
-  rdb_slice_init(&range->start);
-  rdb_slice_init(&range->limit);
-
-  if (start != NULL)
-    range->start = *start;
-
-  if (limit != NULL)
-    range->limit = *limit;
-}
 
 /*
  * DBImpl::ManualCompaction
@@ -351,9 +312,9 @@ iter_state_destroy(iter_state_t *state) {
 static const int non_table_cache_files = 10;
 
 /* Fix user-supplied options to be reasonable. */
-#define clip_to_range(ptr, min, max) do { \
-  if (*(ptr) > (max)) *(ptr) = (max);     \
-  if (*(ptr) < (min)) *(ptr) = (min);     \
+#define clip_to_range(val, min, max) do { \
+  if ((val) > (max)) (val) = (max);       \
+  if ((val) < (min)) (val) = (min);       \
 } while (0)
 
 rdb_dbopt_t
@@ -368,10 +329,10 @@ rdb_sanitize_options(const char *dbname,
   result.comparator = icmp;
   result.filter_policy = (src->filter_policy != NULL) ? ipolicy : NULL;
 
-  clip_to_range(&result.max_open_files, 64 + non_table_cache_files, 50000);
-  clip_to_range(&result.write_buffer_size, 64 << 10, 1 << 30);
-  clip_to_range(&result.max_file_size, 1 << 20, 1 << 30);
-  clip_to_range(&result.block_size, 1 << 10, 4 << 20);
+  clip_to_range(result.max_open_files, 64 + non_table_cache_files, 50000);
+  clip_to_range(result.write_buffer_size, 64 << 10, 1 << 30);
+  clip_to_range(result.max_file_size, 1 << 20, 1 << 30);
+  clip_to_range(result.block_size, 1 << 10, 4 << 20);
 
   if (result.block_cache == NULL)
     result.block_cache = rdb_lru_create(8 << 20);
@@ -2257,8 +2218,12 @@ rdb_destroy_db(const char *dbname, const rdb_dbopt_t *options) {
   int rc = RDB_OK;
   int len;
 
+  (void)options;
+
   if (!rdb_lock_filename(lockname, sizeof(lockname), dbname))
     return RDB_INVALID;
+
+  rdb_env_init();
 
   len = rdb_get_children(dbname, &files);
 
