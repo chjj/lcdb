@@ -14,15 +14,26 @@
  * Compat
  */
 
-#if defined(RDB_PORT_INTERNAL)
+#if defined(RDB_NEED_WINDOWS_H)
 #  include <windows.h>
 #  define RDB_HANDLE HANDLE
 #  define RDB_CRITICAL_SECTION CRITICAL_SECTION
 #elif defined(_WIN32)
 typedef void *RDB_HANDLE;
-typedef struct rdb_cs_s {
-  void *pad[6];
+#  pragma pack(push, 8)
+typedef struct RDB_RTL_CRITICAL_SECTION {
+  void *DebugInfo;
+  long LockCount;
+  long RecursionCount;
+  void *OwningThread;
+  void *LockSemaphore;
+#ifdef _WIN64
+  unsigned __int64 SpinCount;
+#else
+  unsigned long SpinCount;
+#endif
 } RDB_CRITICAL_SECTION;
+#  pragma pack(pop)
 #elif defined(RDB_HAVE_PTHREAD)
 #  include <pthread.h>
 #endif
@@ -50,9 +61,7 @@ typedef struct rdb_thread_s {
   RDB_HANDLE handle;
 } rdb_thread_t;
 
-#ifndef RDB_PORT_INTERNAL
-#  define RDB_MUTEX_INITIALIZER {0, 0, {0, 0, 0, 0, 0, 0}}
-#endif
+#define RDB_MUTEX_INITIALIZER {0, 0, {0, 0, 0, 0, 0, 0}}
 
 #elif defined(RDB_HAVE_PTHREAD)
 

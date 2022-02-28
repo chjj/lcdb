@@ -8,7 +8,7 @@
  *   https://github.com/libuv/libuv
  */
 
-#define RDB_PORT_INTERNAL
+#define RDB_NEED_WINDOWS_H
 
 #include <stdlib.h>
 #include <string.h>
