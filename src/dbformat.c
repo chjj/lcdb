@@ -49,7 +49,21 @@ rdb_pkey_init(rdb_pkey_t *key,
               const rdb_slice_t *user_key,
               rdb_seqnum_t sequence,
               rdb_valtype_t type) {
-  key->user_key = *user_key;
+  /* This function is called by DBIter::Seek,
+   * so we try to avoid this in case the user
+   * passed a partially initialized struct.
+   *
+   *   key->user_key = *user_key;
+   *
+   * Partially initialized struct assignment
+   * is supposed to be well-defined[1], but
+   * who knows.
+   *
+   * [1] https://stackoverflow.com/questions/35492055
+   */
+  rdb_slice_set(&key->user_key, user_key->data,
+                                user_key->size);
+
   key->sequence = sequence;
   key->type = type;
 }

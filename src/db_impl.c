@@ -1896,7 +1896,7 @@ rdb_impl_close(rdb_impl_t *impl) {
 int
 rdb_impl_get(rdb_impl_t *impl,
              const rdb_slice_t *key,
-             rdb_buffer_t *value,
+             rdb_slice_t *value,
              const rdb_readopt_t *options) {
   rdb_memtable_t *mem, *imm;
   rdb_version_t *current;
@@ -1905,10 +1905,13 @@ rdb_impl_get(rdb_impl_t *impl,
   rdb_getstats_t stats;
   int rc = RDB_OK;
 
-  rdb_mutex_lock(&impl->mutex);
+  if (value != NULL)
+    rdb_buffer_init(value);
 
   if (options == NULL)
     options = rdb_readopt_default;
+
+  rdb_mutex_lock(&impl->mutex);
 
   if (options->snapshot != NULL)
     snapshot = options->snapshot->sequence;

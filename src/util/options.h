@@ -10,29 +10,6 @@
 #include <stddef.h>
 
 /*
- * Open Flags
- */
-
-#define RDB_CREATE_IF_MISSING (1 << 0)
-#define RDB_ERROR_IF_EXISTS (1 << 1)
-#define RDB_PARANOID_CHECKS (1 << 2)
-#define RDB_COMPRESSION (1 << 3)
-#define RDB_REUSE_LOGS (1 << 4)
-
-/*
- * Read Flags
- */
-
-#define RDB_VERIFY_CHECKSUMS (1 << 0)
-#define RDB_FILL_CACHE (1 << 1)
-
-/*
- * Write Flags
- */
-
-#define RDB_SYNC (1 << 0)
-
-/*
  * Types
  */
 
