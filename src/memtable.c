@@ -160,8 +160,10 @@ rdb_memtable_get(rdb_memtable_t *mt,
 
       switch ((rdb_valtype_t)(tag & 0xff)) {
         case RDB_TYPE_VALUE: {
-          rdb_slice_t val = rdb_slice_decode(okey.data + okey.size + 8);
-          rdb_buffer_copy(value, &val);
+          if (value != NULL) {
+            rdb_slice_t val = rdb_slice_decode(okey.data + okey.size + 8);
+            rdb_buffer_copy(value, &val);
+          }
           return 1;
         }
 

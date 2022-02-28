@@ -362,7 +362,7 @@ save_value(void *arg, const rdb_slice_t *ikey, const rdb_slice_t *v) {
   if (rdb_compare(s->ucmp, &pkey.user_key, &s->user_key) == 0) {
     s->state = (pkey.type == RDB_TYPE_VALUE) ? S_FOUND : S_DELETED;
 
-    if (s->state == S_FOUND)
+    if (s->state == S_FOUND && s->value != NULL)
       rdb_buffer_set(s->value, v->data, v->size);
   }
 }

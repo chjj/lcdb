@@ -45,6 +45,22 @@
 #include "version_set.h"
 #include "write_batch.h"
 
+typedef struct rdb_impl_s rdb_impl_t;
+
+int
+rdb_impl_write(rdb_impl_t *impl,
+               const rdb_writeopt_t *options,
+               rdb_batch_t *updates);
+
+int
+rdb_impl_test_compact_memtable(rdb_impl_t *impl);
+
+void
+rdb_impl_test_compact_range(rdb_impl_t *impl,
+                            int level,
+                            const rdb_slice_t *begin,
+                            const rdb_slice_t *end);
+
 /*
  * Range
  */
@@ -286,6 +302,49 @@ rdb_cstate_top(rdb_cstate_t *state) {
 }
 
 /*
+ * IterState
+ */
+
+typedef struct iter_state_s {
+  rdb_mutex_t *mu;
+  /* All guarded by mu. */
+  rdb_version_t *version;
+  rdb_memtable_t *mem;
+  rdb_memtable_t *imm;
+} iter_state_t;
+
+static iter_state_t *
+iter_state_create(rdb_mutex_t *mutex,
+                  rdb_memtable_t *mem,
+                  rdb_memtable_t *imm,
+                  rdb_version_t *version) {
+  iter_state_t *state = rdb_malloc(sizeof(iter_state_t));
+
+  state->mu = mutex;
+  state->version = version;
+  state->mem = mem;
+  state->imm = imm;
+
+  return state;
+}
+
+static void
+iter_state_destroy(iter_state_t *state) {
+  rdb_mutex_lock(state->mu);
+
+  rdb_memtable_unref(state->mem);
+
+  if (state->imm != NULL)
+    rdb_memtable_unref(state->imm);
+
+  rdb_version_unref(state->version);
+
+  rdb_mutex_unlock(state->mu);
+
+  rdb_free(state);
+}
+
+/*
  * Helpers
  */
 
@@ -330,7 +389,7 @@ table_cache_size(const rdb_dbopt_t *sanitized_options) {
  * DBImpl
  */
 
-typedef struct rdb_impl_s {
+struct rdb_impl_s {
   /* Constant after construction. */
   rdb_comparator_t user_comparator;
   rdb_bloom_t user_filter_policy;
@@ -383,14 +442,9 @@ typedef struct rdb_impl_s {
   int bg_error;
 
   rdb_cstats_t stats[RDB_NUM_LEVELS];
-} rdb_impl_t;
+};
 
-int
-rdb_impl_write(rdb_impl_t *impl,
-               const rdb_writeopt_t *options,
-               rdb_batch_t *updates);
-
-rdb_impl_t *
+static rdb_impl_t *
 rdb_impl_create(const rdb_dbopt_t *options, const char *dbname) {
   rdb_impl_t *impl = rdb_malloc(sizeof(rdb_impl_t));
   int i;
@@ -473,7 +527,7 @@ rdb_impl_create(const rdb_dbopt_t *options, const char *dbname) {
   return impl;
 }
 
-void
+static void
 rdb_impl_destroy(rdb_impl_t *impl) {
   /* Wait for background work to finish. */
   rdb_mutex_lock(&impl->mutex);
@@ -1555,152 +1609,10 @@ rdb_impl_background_call(void *db) {
   rdb_mutex_unlock(&impl->mutex);
 }
 
-int
-rdb_impl_test_compact_memtable(rdb_impl_t *impl) {
-  /* NULL batch means just wait for earlier writes to be done. */
-  int rc = rdb_impl_write(impl, rdb_writeopt_default, NULL);
-
-  if (rc == RDB_OK) {
-    /* Wait until the compaction completes. */
-    rdb_mutex_lock(&impl->mutex);
-
-    while (impl->imm != NULL && impl->bg_error == RDB_OK)
-      rdb_cond_wait(&impl->background_work_finished_signal, &impl->mutex);
-
-    if (impl->imm != NULL)
-      rc = impl->bg_error;
-
-    rdb_mutex_unlock(&impl->mutex);
-  }
-
-  return rc;
-}
-
-void
-rdb_impl_test_compact_range(rdb_impl_t *impl,
-                            int level,
-                            const rdb_slice_t *begin,
-                            const rdb_slice_t *end) {
-  rdb_ikey_t begin_storage, end_storage;
-  rdb_manual_t manual;
-
-  assert(level >= 0);
-  assert(level + 1 < RDB_NUM_LEVELS);
-
-  rdb_manual_init(&manual, level);
-
-  if (begin == NULL) {
-    manual.begin = NULL;
-  } else {
-    rdb_ikey_init(&begin_storage, begin, RDB_MAX_SEQUENCE, RDB_VALTYPE_SEEK);
-    manual.begin = &begin_storage;
-  }
-
-  if (end == NULL) {
-    manual.end = NULL;
-  } else {
-    rdb_ikey_init(&end_storage, end, 0, (rdb_valtype_t)0);
-    manual.end = &end_storage;
-  }
-
-  rdb_mutex_lock(&impl->mutex);
-
-  while (!manual.done
-      && !rdb_atomic_load(&impl->shutting_down, rdb_order_acquire)
-      && impl->bg_error == RDB_OK) {
-    if (impl->manual_compaction == NULL) { /* Idle. */
-      impl->manual_compaction = &manual;
-      rdb_impl_maybe_schedule_compaction(impl);
-    } else { /* Running either my compaction or another compaction. */
-      rdb_cond_wait(&impl->background_work_finished_signal, &impl->mutex);
-    }
-  }
-
-  if (impl->manual_compaction == &manual) {
-    /* Cancel my manual compaction since we aborted early for some reason. */
-    impl->manual_compaction = NULL;
-  }
-
-  rdb_mutex_unlock(&impl->mutex);
-
-  if (begin != NULL)
-    rdb_ikey_clear(&begin_storage);
-
-  if (end != NULL)
-    rdb_ikey_clear(&end_storage);
-
-  rdb_manual_clear(&manual);
-}
-
-void
-rdb_impl_compact_range(rdb_impl_t *impl,
-                       const rdb_slice_t *begin,
-                       const rdb_slice_t *end) {
-  int max_level_with_files = 1;
-  int level;
-
-  {
-    rdb_version_t *base;
-
-    rdb_mutex_lock(&impl->mutex);
-
-    base = rdb_vset_current(impl->versions);
-
-    for (level = 1; level < RDB_NUM_LEVELS; level++) {
-      if (rdb_version_overlap_in_level(base, level, begin, end))
-        max_level_with_files = level;
-    }
-
-    rdb_mutex_unlock(&impl->mutex);
-  }
-
-  rdb_impl_test_compact_memtable(impl);
-
-  for (level = 0; level < max_level_with_files; level++)
-    rdb_impl_test_compact_range(impl, level, begin, end);
-}
-
-typedef struct iter_state_s {
-  rdb_mutex_t *mu;
-  /* All guarded by mu. */
-  rdb_version_t *version;
-  rdb_memtable_t *mem;
-  rdb_memtable_t *imm;
-} iter_state_t;
-
-static iter_state_t *
-iter_state_create(rdb_mutex_t *mutex,
-                  rdb_memtable_t *mem,
-                  rdb_memtable_t *imm,
-                  rdb_version_t *version) {
-  iter_state_t *state = rdb_malloc(sizeof(iter_state_t));
-
-  state->mu = mutex;
-  state->version = version;
-  state->mem = mem;
-  state->imm = imm;
-
-  return state;
-}
-
 static void
 cleanup_iter_state(void *arg1, void *arg2) {
-  iter_state_t *state = (iter_state_t *)arg1;
-
+  iter_state_destroy((iter_state_t *)arg1);
   (void)arg2;
-
-  rdb_mutex_lock(state->mu);
-
-  rdb_memtable_unref(state->mem);
-
-  if (state->imm != NULL)
-    rdb_memtable_unref(state->imm);
-
-  rdb_version_unref(state->version);
-
-  rdb_mutex_unlock(state->mu);
-
-  rdb_free(state);
 }
 
 static rdb_iter_t *
@@ -1752,166 +1664,6 @@ rdb_impl_internal_iterator(rdb_impl_t *impl,
 
   return internal_iter;
 }
-
-rdb_iter_t *
-rdb_impl_test_internal_iterator(rdb_impl_t *impl) {
-  rdb_seqnum_t ignored;
-  uint32_t ignored_seed;
-
-  return rdb_impl_internal_iterator(impl,
-                                    rdb_readopt_default,
-                                    &ignored,
-                                    &ignored_seed);
-}
-
-int64_t
-rdb_impl_test_max_next_level_overlapping_bytes(rdb_impl_t *impl) {
-  int64_t result;
-  rdb_mutex_lock(&impl->mutex);
-  result = rdb_vset_max_next_level_overlapping_bytes(impl->versions);
-  rdb_mutex_unlock(&impl->mutex);
-  return result;
-}
-
-int
-rdb_impl_get(rdb_impl_t *impl,
-             const rdb_readopt_t *options,
-             const rdb_slice_t *key,
-             rdb_buffer_t *value) {
-  rdb_memtable_t *mem, *imm;
-  rdb_version_t *current;
-  rdb_seqnum_t snapshot;
-  int have_stat_update = 0;
-  rdb_getstats_t stats;
-  int rc = RDB_OK;
-
-  rdb_mutex_lock(&impl->mutex);
-
-  if (options->snapshot != NULL)
-    snapshot = options->snapshot->sequence;
-  else
-    snapshot = rdb_vset_last_sequence(impl->versions);
-
-  mem = impl->mem;
-  imm = impl->imm;
-  current = rdb_vset_current(impl->versions);
-
-  rdb_memtable_ref(mem);
-
-  if (imm != NULL)
-    rdb_memtable_ref(imm);
-
-  rdb_version_ref(current);
-
-  /* Unlock while reading from files and memtables. */
-  {
-    rdb_lkey_t lkey;
-
-    rdb_mutex_unlock(&impl->mutex);
-
-    /* First look in the memtable, then in the immutable memtable (if any). */
-    rdb_lkey_init(&lkey, key, snapshot);
-
-    if (rdb_memtable_get(mem, &lkey, value, &rc)) {
-      /* Done. */
-    } else if (imm != NULL && rdb_memtable_get(imm, &lkey, value, &rc)) {
-      /* Done. */
-    } else {
-      rc = rdb_version_get(current, options, &lkey, value, &stats);
-      have_stat_update = 1;
-    }
-
-    rdb_lkey_clear(&lkey);
-
-    rdb_mutex_lock(&impl->mutex);
-  }
-
-  if (have_stat_update && rdb_version_update_stats(current, &stats))
-    rdb_impl_maybe_schedule_compaction(impl);
-
-  rdb_memtable_unref(mem);
-
-  if (imm != NULL)
-    rdb_memtable_unref(imm);
-
-  rdb_version_unref(current);
-
-  rdb_mutex_unlock(&impl->mutex);
-
-  return rc;
-}
-
-rdb_iter_t *
-rdb_impl_iter_create(rdb_impl_t *impl, const rdb_readopt_t *options) {
-  const rdb_comparator_t *ucmp = rdb_impl_user_comparator(impl);
-  rdb_seqnum_t latest_snapshot;
-  rdb_iter_t *iter;
-  uint32_t seed;
-
-  iter = rdb_impl_internal_iterator(impl, options, &latest_snapshot, &seed);
-
-  return rdb_dbiter_create(impl, ucmp, iter,
-                           (options->snapshot != NULL
-                              ? options->snapshot->sequence
-                              : latest_snapshot),
-                           seed);
-}
-
-void
-rdb_impl_record_read_sample(rdb_impl_t *impl, const rdb_slice_t *key) {
-  rdb_version_t *current;
-
-  rdb_mutex_lock(&impl->mutex);
-
-  current = rdb_vset_current(impl->versions);
-
-  if (rdb_version_record_read_sample(current, key))
-    rdb_impl_maybe_schedule_compaction(impl);
-
-  rdb_mutex_unlock(&impl->mutex);
-}
-
-const rdb_snapshot_t *
-rdb_impl_get_snapshot(rdb_impl_t *impl) {
-  rdb_snapshot_t *snap;
-  rdb_seqnum_t seq;
-
-  rdb_mutex_lock(&impl->mutex);
-
-  seq = rdb_vset_last_sequence(impl->versions);
-  snap = rdb_snaplist_new(&impl->snapshots, seq);
-
-  rdb_mutex_unlock(&impl->mutex);
-
-  return snap;
-}
-
-void
-rdb_impl_release_snapshot(rdb_impl_t *impl, const rdb_snapshot_t *snapshot) {
-  rdb_mutex_lock(&impl->mutex);
-
-  rdb_snaplist_delete(&impl->snapshots, snapshot);
-
-  rdb_mutex_unlock(&impl->mutex);
-}
-
-#if 0
-/* Convenience methods. */
-int
-rdb_impl_put(rdb_impl_t *impl,
-             const rdb_writeopt_t *o,
-             const rdb_slice_t *key,
-             const rdb_slice_t *val) {
-  return rdb_db_put(impl, o, key, val);
-}
-
-int
-rdb_impl_del(rdb_impl_t *impl,
-             const rdb_writeopt_t *options,
-             const rdb_slice_t *key) {
-  return rdb_db_del(impl, options, key);
-}
-#endif
 
 /* REQUIRES: Writer list must be non-empty. */
 /* REQUIRES: First writer must have a non-null batch. */
@@ -2063,6 +1815,215 @@ rdb_impl_make_room_for_write(rdb_impl_t *impl, int force) {
   return rc;
 }
 
+/*
+ * API
+ */
+
+int
+rdb_impl_open(const rdb_dbopt_t *options, const char *dbname, rdb_impl_t **dbptr) {
+  rdb_impl_t *impl = rdb_impl_create(options, dbname);
+  int save_manifest;
+  rdb_vedit_t edit;
+  int rc = RDB_OK;
+
+  *dbptr = NULL;
+
+  if (impl == NULL)
+    return RDB_INVALID;
+
+  rdb_vedit_init(&edit);
+  rdb_mutex_lock(&impl->mutex);
+
+  /* Recover handles create_if_missing, error_if_exists. */
+  save_manifest = 0;
+  rc = rdb_impl_recover(impl, &edit, &save_manifest);
+
+  if (rc == RDB_OK && impl->mem == NULL) {
+    /* Create new log and a corresponding memtable. */
+    uint64_t new_log_number = rdb_vset_new_file_number(impl->versions);
+    char fname[RDB_PATH_MAX];
+    rdb_wfile_t *lfile;
+
+    if (!rdb_log_filename(fname, sizeof(fname), impl->dbname, new_log_number))
+      abort(); /* LCOV_EXCL_LINE */
+
+    rc = rdb_truncfile_create(fname, &lfile);
+
+    if (rc == RDB_OK) {
+      rdb_vedit_set_log_number(&edit, new_log_number);
+
+      impl->logfile = lfile;
+      impl->logfile_number = new_log_number;
+      impl->log = rdb_logwriter_create(lfile, 0);
+      impl->mem = rdb_memtable_create(&impl->internal_comparator);
+
+      rdb_memtable_ref(impl->mem);
+    }
+  }
+
+  if (rc == RDB_OK && save_manifest) {
+    rdb_vedit_set_prev_log_number(&edit, 0); /* No older logs needed after recovery. */
+    rdb_vedit_set_log_number(&edit, impl->logfile_number);
+
+    rc = rdb_vset_log_and_apply(impl->versions, &edit, &impl->mutex);
+  }
+
+  if (rc == RDB_OK) {
+    rdb_impl_remove_obsolete_files(impl);
+    rdb_impl_maybe_schedule_compaction(impl);
+  }
+
+  rdb_mutex_unlock(&impl->mutex);
+
+  if (rc == RDB_OK) {
+    assert(impl->mem != NULL);
+    *dbptr = impl;
+  } else {
+    rdb_impl_destroy(impl);
+  }
+
+  rdb_vedit_clear(&edit);
+
+  return rc;
+}
+
+void
+rdb_impl_close(rdb_impl_t *impl) {
+  rdb_impl_destroy(impl);
+}
+
+const rdb_snapshot_t *
+rdb_impl_get_snapshot(rdb_impl_t *impl) {
+  rdb_snapshot_t *snap;
+  rdb_seqnum_t seq;
+
+  rdb_mutex_lock(&impl->mutex);
+
+  seq = rdb_vset_last_sequence(impl->versions);
+  snap = rdb_snaplist_new(&impl->snapshots, seq);
+
+  rdb_mutex_unlock(&impl->mutex);
+
+  return snap;
+}
+
+void
+rdb_impl_release_snapshot(rdb_impl_t *impl, const rdb_snapshot_t *snapshot) {
+  rdb_mutex_lock(&impl->mutex);
+
+  rdb_snaplist_delete(&impl->snapshots, snapshot);
+
+  rdb_mutex_unlock(&impl->mutex);
+}
+
+int
+rdb_impl_get(rdb_impl_t *impl,
+             const rdb_readopt_t *options,
+             const rdb_slice_t *key,
+             rdb_buffer_t *value) {
+  rdb_memtable_t *mem, *imm;
+  rdb_version_t *current;
+  rdb_seqnum_t snapshot;
+  int have_stat_update = 0;
+  rdb_getstats_t stats;
+  int rc = RDB_OK;
+
+  rdb_mutex_lock(&impl->mutex);
+
+  if (options->snapshot != NULL)
+    snapshot = options->snapshot->sequence;
+  else
+    snapshot = rdb_vset_last_sequence(impl->versions);
+
+  mem = impl->mem;
+  imm = impl->imm;
+  current = rdb_vset_current(impl->versions);
+
+  rdb_memtable_ref(mem);
+
+  if (imm != NULL)
+    rdb_memtable_ref(imm);
+
+  rdb_version_ref(current);
+
+  /* Unlock while reading from files and memtables. */
+  {
+    rdb_lkey_t lkey;
+
+    rdb_mutex_unlock(&impl->mutex);
+
+    /* First look in the memtable, then in the immutable memtable (if any). */
+    rdb_lkey_init(&lkey, key, snapshot);
+
+    if (rdb_memtable_get(mem, &lkey, value, &rc)) {
+      /* Done. */
+    } else if (imm != NULL && rdb_memtable_get(imm, &lkey, value, &rc)) {
+      /* Done. */
+    } else {
+      rc = rdb_version_get(current, options, &lkey, value, &stats);
+      have_stat_update = 1;
+    }
+
+    rdb_lkey_clear(&lkey);
+
+    rdb_mutex_lock(&impl->mutex);
+  }
+
+  if (have_stat_update && rdb_version_update_stats(current, &stats))
+    rdb_impl_maybe_schedule_compaction(impl);
+
+  rdb_memtable_unref(mem);
+
+  if (imm != NULL)
+    rdb_memtable_unref(imm);
+
+  rdb_version_unref(current);
+
+  rdb_mutex_unlock(&impl->mutex);
+
+  return rc;
+}
+
+int
+rdb_impl_has(rdb_impl_t *impl,
+             const rdb_readopt_t *options,
+             const rdb_slice_t *key) {
+  return rdb_impl_get(impl, options, key, NULL);
+}
+
+int
+rdb_impl_put(rdb_impl_t *impl,
+             const rdb_writeopt_t *opt,
+             const rdb_slice_t *key,
+             const rdb_slice_t *value) {
+  rdb_batch_t batch;
+  int rc;
+
+  rdb_batch_init(&batch);
+  rdb_batch_put(&batch, key, value);
+
+  rc = rdb_impl_write(impl, opt, &batch);
+
+  rdb_batch_clear(&batch);
+
+  return rc;
+}
+
+int
+rdb_impl_del(rdb_impl_t *impl, const rdb_writeopt_t *opt, const rdb_slice_t *key) {
+  rdb_batch_t batch;
+  int rc;
+
+  rdb_batch_init(&batch);
+  rdb_batch_del(&batch, key);
+
+  rc = rdb_impl_write(impl, opt, &batch);
+
+  rdb_batch_clear(&batch);
+
+  return rc;
+}
+
 int
 rdb_impl_write(rdb_impl_t *impl,
                const rdb_writeopt_t *options,
@@ -2165,6 +2126,22 @@ rdb_impl_write(rdb_impl_t *impl,
   return rc;
 }
 
+rdb_iter_t *
+rdb_impl_iterator(rdb_impl_t *impl, const rdb_readopt_t *options) {
+  const rdb_comparator_t *ucmp = rdb_impl_user_comparator(impl);
+  rdb_seqnum_t latest_snapshot;
+  rdb_iter_t *iter;
+  uint32_t seed;
+
+  iter = rdb_impl_internal_iterator(impl, options, &latest_snapshot, &seed);
+
+  return rdb_dbiter_create(impl, ucmp, iter,
+                           (options->snapshot != NULL
+                              ? options->snapshot->sequence
+                              : latest_snapshot),
+                           seed);
+}
+
 int
 rdb_impl_get_property(rdb_impl_t *impl,
                       const rdb_slice_t *property,
@@ -2210,107 +2187,43 @@ rdb_impl_get_approximate_sizes(rdb_impl_t *impl,
   rdb_mutex_unlock(&impl->mutex);
 }
 
-/* Default implementations of convenience methods that subclasses of DB
-   can call if they wish. */
-int
-rdb_db_put(rdb_impl_t *db,
-           const rdb_writeopt_t *opt,
-           const rdb_slice_t *key,
-           const rdb_slice_t *value) {
-  rdb_batch_t batch;
-  int rc;
+void
+rdb_impl_compact_range(rdb_impl_t *impl,
+                       const rdb_slice_t *begin,
+                       const rdb_slice_t *end) {
+  int max_level_with_files = 1;
+  int level;
 
-  rdb_batch_init(&batch);
-  rdb_batch_put(&batch, key, value);
+  {
+    rdb_version_t *base;
 
-  rc = rdb_impl_write(db, opt, &batch);
+    rdb_mutex_lock(&impl->mutex);
 
-  rdb_batch_clear(&batch);
+    base = rdb_vset_current(impl->versions);
 
-  return rc;
-}
-
-int
-rdb_db_del(rdb_impl_t *db, const rdb_writeopt_t *opt, const rdb_slice_t *key) {
-  rdb_batch_t batch;
-  int rc;
-
-  rdb_batch_init(&batch);
-  rdb_batch_del(&batch, key);
-
-  rc = rdb_impl_write(db, opt, &batch);
-
-  rdb_batch_clear(&batch);
-
-  return rc;
-}
-
-int
-rdb_db_open(const rdb_dbopt_t *options, const char *dbname, rdb_impl_t **dbptr) {
-  rdb_impl_t *impl = rdb_impl_create(options, dbname);
-  int save_manifest;
-  rdb_vedit_t edit;
-  int rc = RDB_OK;
-
-  *dbptr = NULL;
-
-  if (impl == NULL)
-    return RDB_INVALID;
-
-  rdb_vedit_init(&edit);
-  rdb_mutex_lock(&impl->mutex);
-
-  /* Recover handles create_if_missing, error_if_exists. */
-  save_manifest = 0;
-  rc = rdb_impl_recover(impl, &edit, &save_manifest);
-
-  if (rc == RDB_OK && impl->mem == NULL) {
-    /* Create new log and a corresponding memtable. */
-    uint64_t new_log_number = rdb_vset_new_file_number(impl->versions);
-    char fname[RDB_PATH_MAX];
-    rdb_wfile_t *lfile;
-
-    if (!rdb_log_filename(fname, sizeof(fname), impl->dbname, new_log_number))
-      abort(); /* LCOV_EXCL_LINE */
-
-    rc = rdb_truncfile_create(fname, &lfile);
-
-    if (rc == RDB_OK) {
-      rdb_vedit_set_log_number(&edit, new_log_number);
-
-      impl->logfile = lfile;
-      impl->logfile_number = new_log_number;
-      impl->log = rdb_logwriter_create(lfile, 0);
-      impl->mem = rdb_memtable_create(&impl->internal_comparator);
-
-      rdb_memtable_ref(impl->mem);
+    for (level = 1; level < RDB_NUM_LEVELS; level++) {
+      if (rdb_version_overlap_in_level(base, level, begin, end))
+        max_level_with_files = level;
     }
+
+    rdb_mutex_unlock(&impl->mutex);
   }
 
-  if (rc == RDB_OK && save_manifest) {
-    rdb_vedit_set_prev_log_number(&edit, 0); /* No older logs needed after recovery. */
-    rdb_vedit_set_log_number(&edit, impl->logfile_number);
+  rdb_impl_test_compact_memtable(impl);
 
-    rc = rdb_vset_log_and_apply(impl->versions, &edit, &impl->mutex);
-  }
+  for (level = 0; level < max_level_with_files; level++)
+    rdb_impl_test_compact_range(impl, level, begin, end);
+}
 
-  if (rc == RDB_OK) {
-    rdb_impl_remove_obsolete_files(impl);
-    rdb_impl_maybe_schedule_compaction(impl);
-  }
+/*
+ * Static
+ */
 
-  rdb_mutex_unlock(&impl->mutex);
-
-  if (rc == RDB_OK) {
-    assert(impl->mem != NULL);
-    *dbptr = impl;
-  } else {
-    rdb_impl_destroy(impl);
-  }
-
-  rdb_vedit_clear(&edit);
-
-  return rc;
+int
+rdb_repair_db(const char *dbname, const rdb_dbopt_t *options) {
+  (void)dbname;
+  (void)options;
+  return 0;
 }
 
 int
@@ -2367,4 +2280,123 @@ rdb_destroy_db(const char *dbname, const rdb_dbopt_t *options) {
   rdb_free_children(files, len);
 
   return rc;
+}
+
+/*
+ * Testing
+ */
+
+int
+rdb_impl_test_compact_memtable(rdb_impl_t *impl) {
+  /* NULL batch means just wait for earlier writes to be done. */
+  int rc = rdb_impl_write(impl, rdb_writeopt_default, NULL);
+
+  if (rc == RDB_OK) {
+    /* Wait until the compaction completes. */
+    rdb_mutex_lock(&impl->mutex);
+
+    while (impl->imm != NULL && impl->bg_error == RDB_OK)
+      rdb_cond_wait(&impl->background_work_finished_signal, &impl->mutex);
+
+    if (impl->imm != NULL)
+      rc = impl->bg_error;
+
+    rdb_mutex_unlock(&impl->mutex);
+  }
+
+  return rc;
+}
+
+void
+rdb_impl_test_compact_range(rdb_impl_t *impl,
+                            int level,
+                            const rdb_slice_t *begin,
+                            const rdb_slice_t *end) {
+  rdb_ikey_t begin_storage, end_storage;
+  rdb_manual_t manual;
+
+  assert(level >= 0);
+  assert(level + 1 < RDB_NUM_LEVELS);
+
+  rdb_manual_init(&manual, level);
+
+  if (begin == NULL) {
+    manual.begin = NULL;
+  } else {
+    rdb_ikey_init(&begin_storage, begin, RDB_MAX_SEQUENCE, RDB_VALTYPE_SEEK);
+    manual.begin = &begin_storage;
+  }
+
+  if (end == NULL) {
+    manual.end = NULL;
+  } else {
+    rdb_ikey_init(&end_storage, end, 0, (rdb_valtype_t)0);
+    manual.end = &end_storage;
+  }
+
+  rdb_mutex_lock(&impl->mutex);
+
+  while (!manual.done
+      && !rdb_atomic_load(&impl->shutting_down, rdb_order_acquire)
+      && impl->bg_error == RDB_OK) {
+    if (impl->manual_compaction == NULL) { /* Idle. */
+      impl->manual_compaction = &manual;
+      rdb_impl_maybe_schedule_compaction(impl);
+    } else { /* Running either my compaction or another compaction. */
+      rdb_cond_wait(&impl->background_work_finished_signal, &impl->mutex);
+    }
+  }
+
+  if (impl->manual_compaction == &manual) {
+    /* Cancel my manual compaction since we aborted early for some reason. */
+    impl->manual_compaction = NULL;
+  }
+
+  rdb_mutex_unlock(&impl->mutex);
+
+  if (begin != NULL)
+    rdb_ikey_clear(&begin_storage);
+
+  if (end != NULL)
+    rdb_ikey_clear(&end_storage);
+
+  rdb_manual_clear(&manual);
+}
+
+rdb_iter_t *
+rdb_impl_test_internal_iterator(rdb_impl_t *impl) {
+  rdb_seqnum_t ignored;
+  uint32_t ignored_seed;
+
+  return rdb_impl_internal_iterator(impl,
+                                    rdb_readopt_default,
+                                    &ignored,
+                                    &ignored_seed);
+}
+
+int64_t
+rdb_impl_test_max_next_level_overlapping_bytes(rdb_impl_t *impl) {
+  int64_t result;
+  rdb_mutex_lock(&impl->mutex);
+  result = rdb_vset_max_next_level_overlapping_bytes(impl->versions);
+  rdb_mutex_unlock(&impl->mutex);
+  return result;
+}
+
+/*
+ * Internal
+ */
+
+void
+rdb_impl_record_read_sample(rdb_impl_t *impl, const rdb_slice_t *key) {
+  rdb_version_t *current;
+
+  rdb_mutex_lock(&impl->mutex);
+
+  current = rdb_vset_current(impl->versions);
+
+  if (rdb_version_record_read_sample(current, key))
+    rdb_impl_maybe_schedule_compaction(impl);
+
+  rdb_mutex_unlock(&impl->mutex);
 }
