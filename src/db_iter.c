@@ -45,7 +45,7 @@ enum rdb_direction { RDB_FORWARD, RDB_REVERSE };
    representation into a single entry while accounting for sequence
    numbers, deletion markers, overwrites, etc. */
 typedef struct rdb_dbiter_s {
-  rdb_impl_t *db;
+  rdb_t *db;
   const rdb_comparator_t *ucmp;
   rdb_iter_t *iter;
   rdb_seqnum_t sequence;
@@ -77,7 +77,7 @@ parse_key(rdb_dbiter_t *iter, rdb_pkey_t *ikey) {
 
   while (iter->bytes_until_read_sampling < bytes_read) {
     iter->bytes_until_read_sampling += random_compaction_period(iter);
-    rdb_impl_record_read_sample(iter->db, &k);
+    rdb_record_read_sample(iter->db, &k);
   }
 
   assert(iter->bytes_until_read_sampling >= bytes_read);
@@ -198,7 +198,7 @@ find_prev_user_entry(rdb_dbiter_t *iter) {
 
 static void
 rdb_dbiter_init(rdb_dbiter_t *iter,
-                rdb_impl_t *db,
+                rdb_t *db,
                 const rdb_comparator_t *ucmp,
                 rdb_iter_t *internal_iter,
                 rdb_seqnum_t sequence,
@@ -384,7 +384,7 @@ rdb_dbiter_seek_last(rdb_dbiter_t *iter) {
 RDB_ITERATOR_FUNCTIONS(rdb_dbiter);
 
 rdb_iter_t *
-rdb_dbiter_create(rdb_impl_t *db,
+rdb_dbiter_create(rdb_t *db,
                   const rdb_comparator_t *user_comparator,
                   rdb_iter_t *internal_iter,
                   rdb_seqnum_t sequence,

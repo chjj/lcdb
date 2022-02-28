@@ -25,7 +25,7 @@
 
 struct rdb_iter_s;
 
-typedef struct rdb_impl_s rdb_impl_t;
+typedef struct rdb_s rdb_t;
 
 /*
  * Helpers
@@ -42,58 +42,50 @@ rdb_sanitize_options(const char *dbname,
  */
 
 int
-rdb_impl_open(const char *dbname, const rdb_dbopt_t *options, rdb_impl_t **dbptr);
+rdb_open(const char *dbname, const rdb_dbopt_t *options, rdb_t **dbptr);
 
 void
-rdb_impl_close(rdb_impl_t *impl);
+rdb_close(rdb_t *db);
 
 int
-rdb_impl_get(rdb_impl_t *impl,
-             const rdb_slice_t *key,
-             rdb_slice_t *value,
-             const rdb_readopt_t *options);
+rdb_get(rdb_t *db, const rdb_slice_t *key,
+                   rdb_slice_t *value,
+                   const rdb_readopt_t *options);
 
 int
-rdb_impl_has(rdb_impl_t *impl,
-             const rdb_slice_t *key,
-             const rdb_readopt_t *options);
+rdb_has(rdb_t *db, const rdb_slice_t *key, const rdb_readopt_t *options);
 
 int
-rdb_impl_put(rdb_impl_t *impl,
-             const rdb_slice_t *key,
-             const rdb_slice_t *value,
-             const rdb_writeopt_t *options);
+rdb_put(rdb_t *db, const rdb_slice_t *key,
+                   const rdb_slice_t *value,
+                   const rdb_writeopt_t *options);
 
 int
-rdb_impl_del(rdb_impl_t *impl, const rdb_slice_t *key, const rdb_writeopt_t *options);
+rdb_del(rdb_t *db, const rdb_slice_t *key, const rdb_writeopt_t *options);
 
 int
-rdb_impl_write(rdb_impl_t *impl,
-               rdb_batch_t *updates,
-               const rdb_writeopt_t *options);
+rdb_write(rdb_t *db, rdb_batch_t *updates, const rdb_writeopt_t *options);
 
 const rdb_snapshot_t *
-rdb_impl_get_snapshot(rdb_impl_t *impl);
+rdb_get_snapshot(rdb_t *db);
 
 void
-rdb_impl_release_snapshot(rdb_impl_t *impl, const rdb_snapshot_t *snapshot);
+rdb_release_snapshot(rdb_t *db, const rdb_snapshot_t *snapshot);
 
 struct rdb_iter_s *
-rdb_impl_iterator(rdb_impl_t *impl, const rdb_readopt_t *options);
+rdb_iterator(rdb_t *db, const rdb_readopt_t *options);
 
 int
-rdb_impl_get_property(rdb_impl_t *impl, const char *property, char **value);
+rdb_get_property(rdb_t *db, const char *property, char **value);
 
 void
-rdb_impl_get_approximate_sizes(rdb_impl_t *impl,
-                               const rdb_range_t *range,
-                               size_t length,
-                               uint64_t *sizes);
+rdb_get_approximate_sizes(rdb_t *db, const rdb_range_t *range,
+                                     size_t length,
+                                     uint64_t *sizes);
 
 void
-rdb_impl_compact_range(rdb_impl_t *impl,
-                       const rdb_slice_t *begin,
-                       const rdb_slice_t *end);
+rdb_compact_range(rdb_t *db, const rdb_slice_t *begin,
+                             const rdb_slice_t *end);
 
 /*
  * Static
@@ -110,25 +102,24 @@ rdb_destroy_db(const char *dbname, const rdb_dbopt_t *options);
  */
 
 int
-rdb_impl_test_compact_memtable(rdb_impl_t *impl);
+rdb_test_compact_memtable(rdb_t *db);
 
 void
-rdb_impl_test_compact_range(rdb_impl_t *impl,
-                            int level,
-                            const rdb_slice_t *begin,
-                            const rdb_slice_t *end);
+rdb_test_compact_range(rdb_t *db, int level,
+                                  const rdb_slice_t *begin,
+                                  const rdb_slice_t *end);
 
 struct rdb_iter_s *
-rdb_impl_test_internal_iterator(rdb_impl_t *impl);
+rdb_test_internal_iterator(rdb_t *db);
 
 int64_t
-rdb_impl_test_max_next_level_overlapping_bytes(rdb_impl_t *impl);
+rdb_test_max_next_level_overlapping_bytes(rdb_t *db);
 
 /*
  * Internal
  */
 
 void
-rdb_impl_record_read_sample(rdb_impl_t *impl, const rdb_slice_t *key);
+rdb_record_read_sample(rdb_t *db, const rdb_slice_t *key);
 
 #endif /* RDB_DB_IMPL_H */
