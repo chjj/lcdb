@@ -43,7 +43,7 @@ typedef struct rdb_snapshot_s rdb_snapshot_t;
 typedef struct rdb_writeopt_s rdb_writeopt_t;
 
 typedef struct rdb_slice_s {
-  uint8_t *data;
+  void *data;
   size_t size;
   size_t _alloc;
 } rdb_slice_t;

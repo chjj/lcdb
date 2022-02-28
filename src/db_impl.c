@@ -1964,6 +1964,15 @@ rdb_impl_get(rdb_impl_t *impl,
 
   rdb_mutex_unlock(&impl->mutex);
 
+  if (value != NULL) {
+    if (rc == RDB_OK) {
+      if (value->alloc == 0)
+        rdb_buffer_grow(value, 1);
+    } else {
+      rdb_buffer_clear(value);
+    }
+  }
+
   return rc;
 }
 
