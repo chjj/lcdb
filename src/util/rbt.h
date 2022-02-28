@@ -147,13 +147,13 @@ int
 rb_iter_start(rb_iter_t *iter, const rb_tree_t *tree);
 
 int
-rb_iter_kv(rb_iter_t *iter, rb_val_t *key, rb_val_t *value);
+rb_iter_kv(const rb_iter_t *iter, rb_val_t *key, rb_val_t *value);
 
 int
-rb_iter_k(rb_iter_t *iter, rb_val_t *key);
+rb_iter_k(const rb_iter_t *iter, rb_val_t *key);
 
 int
-rb_iter_v(rb_iter_t *iter, rb_val_t *value);
+rb_iter_v(const rb_iter_t *iter, rb_val_t *value);
 
 #define rb_iter_iterate(t, it, k, v) \
   for (rb_iter_start(it, t); rb_iter_kv(it, &(k), &(v)); rb_iter_next(it))
@@ -165,31 +165,50 @@ rb_iter_v(rb_iter_t *iter, rb_val_t *value);
   for (rb_iter_start(it, t); rb_iter_v(it, &(v)); rb_iter_next(it))
 
 /*
- * Set64
+ * Map
  */
 
 void
-rb_set64_init(rb_tree_t *tree);
+rb_map_init(rb_tree_t *tree,
+            int (*compare)(rb_val_t, rb_val_t, void *),
+            void *arg);
 
 void
-rb_set64_clear(rb_tree_t *tree);
+rb_map_clear(rb_tree_t *tree, void (*clear)(rb_node_t *));
+
+void *
+rb_map_get(const rb_tree_t *tree, const void *key);
 
 int
-rb_set64_has(rb_tree_t *tree, uint64_t item);
+rb_map_has(const rb_tree_t *tree, const void *key);
 
 int
-rb_set64_put(rb_tree_t *tree, uint64_t item);
+rb_map_put(rb_tree_t *tree, const void *key, const void *value);
+
+rb_node_t *
+rb_map_del(rb_tree_t *tree, const void *key);
 
 int
-rb_set64_del(rb_tree_t *tree, uint64_t item);
+rb_map_kv(const rb_iter_t *iter, void **key, void **value);
 
 int
-rb_set64_k(rb_iter_t *iter, uint64_t *key);
+rb_map_k(const rb_iter_t *iter, void **key);
 
-#define rb__set64_keys(t, it, k) \
-  for (rb_iter_start(it, t); rb_set64_k(it, &(k)); rb_iter_next(it))
+int
+rb_map_v(const rb_iter_t *iter, void **value);
 
-#define rb_set64_iterate(t, k) rb__set64_keys(t, (rb_iter_t *)&(t)->iter, k)
+#define rb_map__iter(t, it, k, v) \
+  for (rb_iter_start(it, t); rb_map_kv(it, &(k), &(v)); rb_iter_next(it))
+
+#define rb_map__keys(t, it, k) \
+  for (rb_iter_start(it, t); rb_map_k(it, &(k)); rb_iter_next(it))
+
+#define rb_map__values(t, it, v) \
+  for (rb_iter_start(it, t); rb_map_v(it, &(v)); rb_iter_next(it))
+
+#define rb_map_iterate(t, k, v) rb_map__iter(t, (rb_iter_t *)&(t)->iter, k, v)
+#define rb_map_keys(t, k) rb_map__keys(t, (rb_iter_t *)&(t)->iter, k)
+#define rb_map_values(t, v) rb_map__values(t, (rb_iter_t *)&(t)->iter, v)
 
 /*
  * Set
@@ -204,7 +223,7 @@ void
 rb_set_clear(rb_tree_t *tree, void (*clear)(rb_node_t *));
 
 int
-rb_set_has(rb_tree_t *tree, const void *item);
+rb_set_has(const rb_tree_t *tree, const void *item);
 
 int
 rb_set_put(rb_tree_t *tree, const void *item);
@@ -213,11 +232,38 @@ void *
 rb_set_del(rb_tree_t *tree, const void *item);
 
 int
-rb_set_k(rb_iter_t *iter, void **key);
+rb_set_k(const rb_iter_t *iter, void **key);
 
 #define rb__set_keys(t, it, k) \
   for (rb_iter_start(it, t); rb_set_k(it, &(k)); rb_iter_next(it))
 
 #define rb_set_iterate(t, k) rb__set_keys(t, (rb_iter_t *)&(t)->iter, k)
+
+/*
+ * Set64
+ */
+
+void
+rb_set64_init(rb_tree_t *tree);
+
+void
+rb_set64_clear(rb_tree_t *tree);
+
+int
+rb_set64_has(const rb_tree_t *tree, uint64_t item);
+
+int
+rb_set64_put(rb_tree_t *tree, uint64_t item);
+
+int
+rb_set64_del(rb_tree_t *tree, uint64_t item);
+
+int
+rb_set64_k(const rb_iter_t *iter, uint64_t *key);
+
+#define rb__set64_keys(t, it, k) \
+  for (rb_iter_start(it, t); rb_set64_k(it, &(k)); rb_iter_next(it))
+
+#define rb_set64_iterate(t, k) rb__set64_keys(t, (rb_iter_t *)&(t)->iter, k)
 
 #endif /* RDB_RBT_H */

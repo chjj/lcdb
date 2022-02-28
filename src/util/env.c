@@ -4,7 +4,9 @@
  * https://github.com/chjj/rdb
  */
 
-#if defined(_WIN32)
+#if defined(RDB_MEMENV)
+#  include "env_mem_impl.h"
+#elif defined(_WIN32)
 #  include "env_win_impl.h"
 #else
 #  include "env_unix_impl.h"

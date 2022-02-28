@@ -66,6 +66,7 @@ list(APPEND rdb_sources # util
 
 list(APPEND rdb_defines RDB_BUILD)
 list(APPEND rdb_defines RDB_HAVE_PTHREAD)
+list(APPEND rdb_defines RDB_MEMENV)
 
 test_big_endian(RDB_BIGENDIAN)
 

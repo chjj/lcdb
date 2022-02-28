@@ -45,8 +45,7 @@ typedef struct RDB_RTL_CRITICAL_SECTION {
 #if defined(_WIN32)
 
 typedef struct rdb_mutex_s {
-  int initialized;
-  RDB_HANDLE event;
+  volatile long state;
   RDB_CRITICAL_SECTION handle;
 } rdb_mutex_t;
 
@@ -61,7 +60,7 @@ typedef struct rdb_thread_s {
   RDB_HANDLE handle;
 } rdb_thread_t;
 
-#define RDB_MUTEX_INITIALIZER {0, 0, {0, 0, 0, 0, 0, 0}}
+#define RDB_MUTEX_INITIALIZER {0, {0, 0, 0, 0, 0, 0}}
 
 #elif defined(RDB_HAVE_PTHREAD)
 

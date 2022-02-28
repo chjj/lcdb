@@ -417,13 +417,13 @@ rdb_get_children(const char *path, char ***out) {
   return i;
 fail:
   for (j = 0; j < i; j++)
-    free(list[j]);
+    rdb_free(list[j]);
 
   if (list != NULL)
-    free(list);
+    rdb_free(list);
 
   if (name != NULL)
-    free(name);
+    rdb_free(name);
 
   if (dir != NULL)
     closedir(dir);
@@ -438,9 +438,9 @@ rdb_free_children(char **list, int len) {
   int i;
 
   for (i = 0; i < len; i++)
-    free(list[i]);
+    rdb_free(list[i]);
 
-  free(list);
+  rdb_free(list);
 }
 
 int
@@ -755,11 +755,10 @@ rdb_randfile_create(const char *filename, rdb_rfile_t **file) {
 #endif
 }
 
-int
+void
 rdb_rfile_destroy(rdb_rfile_t *file) {
-  int rc = rdb_rfile_close(file);
+  rdb_rfile_close(file);
   rdb_free(file);
-  return rc;
 }
 
 /*

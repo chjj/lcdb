@@ -10,6 +10,7 @@
 
 #define RDB_NEED_WINDOWS_H
 
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 /* #include <windows.h> */
@@ -31,37 +32,25 @@ typedef struct rdb_args_s {
 
 static void
 rdb_mutex_tryinit(rdb_mutex_t *mtx) {
-  HANDLE created, existing;
+  /* Logic from libsodium/core.c */
+  long state;
 
-  if (mtx->initialized == 0) {
-    created = CreateEventA(NULL, 1, 0, NULL);
+  while ((state = InterlockedCompareExchange(&mtx->state, 1, 0)) == 1)
+    Sleep(0);
 
-    if (created == NULL)
+  if (state == 0) {
+    InitializeCriticalSection(&mtx->handle);
+
+    if (InterlockedExchange(&mtx->state, 2) != 1)
       abort(); /* LCOV_EXCL_LINE */
-
-    existing = InterlockedCompareExchangePointer(&mtx->event, created, NULL);
-
-    if (existing == NULL) {
-      InitializeCriticalSection(&mtx->lock);
-
-      if (!SetEvent(created))
-        abort(); /* LCOV_EXCL_LINE */
-
-      mtx->initialized = 1;
-    } else {
-      CloseHandle(created);
-
-      if (WaitForSingleObject(existing, INFINITE) != WAIT_OBJECT_0)
-        abort(); /* LCOV_EXCL_LINE */
-    }
+  } else {
+    assert(state == 2);
   }
 }
 
 void
 rdb_mutex_init(rdb_mutex_t *mtx) {
-  mtx->initialized = 1;
-  mtx->event = NULL;
-
+  mtx->state = 2;
   InitializeCriticalSection(&mtx->handle);
 }
 
@@ -150,6 +139,9 @@ rdb_cond_wait(rdb_cond_t *cond, rdb_mutex_t *mtx) {
 
   result = WaitForMultipleObjects(2, handles, FALSE, INFINITE);
 
+  if (result != WAIT_OBJECT_0 && result != WAIT_OBJECT_0 + 1)
+    abort(); /* LCOV_EXCL_LINE */
+
   EnterCriticalSection(&cond->lock);
   cond->waiters--;
   last_waiter = (result == WAIT_OBJECT_0 + 1 && cond->waiters == 0);
@@ -159,9 +151,6 @@ rdb_cond_wait(rdb_cond_t *cond, rdb_mutex_t *mtx) {
     ResetEvent(cond->broadcast);
 
   EnterCriticalSection(&mtx->handle);
-
-  if (result != WAIT_OBJECT_0 && result != WAIT_OBJECT_0 + 1)
-    abort(); /* LCOV_EXCL_LINE */
 }
 
 /*
