@@ -553,6 +553,9 @@ newest_first(void *x, void *y) {
   const rdb_filemeta_t *a = x;
   const rdb_filemeta_t *b = y;
 
+  if (a->number == b->number)
+    return 0;
+
   return a->number < b->number ? 1 : -1;
 }
 

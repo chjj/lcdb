@@ -704,6 +704,9 @@ rdb_remove_obsolete_files(rdb_t *db) {
 
 static int
 compare_ascending(int64_t x, int64_t y) {
+  if (x == y)
+    return 0;
+
   return x < y ? -1 : 1;
 }
 
