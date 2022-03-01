@@ -34,6 +34,10 @@ typedef struct rb_node_s {
   struct rb_node_s *right;
 } rb_node_t;
 
+typedef int rb_cmp_f(rb_val_t, rb_val_t, void *);
+typedef void rb_clear_f(rb_node_t *);
+typedef void rb_copy_f(rb_node_t *, const rb_node_t *);
+
 struct rb_tree_s;
 
 typedef struct rb_iter_s {
@@ -44,12 +48,16 @@ typedef struct rb_iter_s {
 
 typedef struct rb_tree_s {
   rb_node_t *root;
-  int (*compare)(rb_val_t, rb_val_t, void *);
+  rb_cmp_f *compare;
   void *arg;
   int unique;
   size_t size;
   rb_iter_t iter;
 } rb_tree_t;
+
+typedef rb_tree_t rb_map_t;
+typedef rb_tree_t rb_set_t;
+typedef rb_tree_t rb_set64_t;
 
 /*
  * Node
@@ -63,33 +71,24 @@ rb_node_destroy(rb_node_t *node);
  */
 
 void
-rb_tree_init(rb_tree_t *tree,
-             int (*compare)(rb_val_t, rb_val_t, void *),
-             void *arg,
-             int unique);
+rb_tree_init(rb_tree_t *tree, rb_cmp_f *compare, void *arg, int unique);
 
 void
-rb_tree_clear(rb_tree_t *tree, void (*clear)(rb_node_t *));
+rb_tree_clear(rb_tree_t *tree, rb_clear_f *clear);
 
-rb_tree_t *
-rb_tree_create(int (*compare)(rb_val_t, rb_val_t, void *),
-               void *arg,
-               int unique);
+#define rb_tree_reset rb_tree_clear
 
 void
-rb_tree_destroy(rb_tree_t *tree, void (*clear)(rb_node_t *));
-
-void
-rb_tree_reset(rb_tree_t *tree, void (*clear)(rb_node_t *));
+rb_tree_copy(rb_tree_t *z, const rb_tree_t *x, rb_copy_f *copy);
 
 const rb_node_t *
-rb_tree_search(const rb_tree_t *tree, rb_val_t key);
+rb_tree_get(const rb_tree_t *tree, rb_val_t key);
 
 rb_node_t *
-rb_tree_insert(rb_tree_t *tree, rb_val_t key, rb_val_t value);
+rb_tree_put(rb_tree_t *tree, rb_val_t key, rb_val_t value);
 
 rb_node_t *
-rb_tree_remove(rb_tree_t *tree, rb_val_t key);
+rb_tree_del(rb_tree_t *tree, rb_val_t key);
 
 rb_iter_t
 rb_tree_iterator(const rb_tree_t *tree);
@@ -137,11 +136,8 @@ rb_iter_prev(rb_iter_t *iter);
 int
 rb_iter_next(rb_iter_t *iter);
 
-rb_val_t
-rb_iter_key(const rb_iter_t *iter);
-
-rb_val_t
-rb_iter_value(const rb_iter_t *iter);
+#define rb_iter_key(iter) (iter)->node->key
+#define rb_iter_value(iter) (iter)->node->value
 
 int
 rb_iter_start(rb_iter_t *iter, const rb_tree_t *tree);
@@ -168,13 +164,10 @@ rb_iter_v(const rb_iter_t *iter, rb_val_t *value);
  * Map
  */
 
-void
-rb_map_init(rb_tree_t *tree,
-            int (*compare)(rb_val_t, rb_val_t, void *),
-            void *arg);
-
-void
-rb_map_clear(rb_tree_t *tree, void (*clear)(rb_node_t *));
+#define rb_map_init(tree, compare, arg) rb_tree_init(tree, compare, arg, 1)
+#define rb_map_clear rb_tree_clear
+#define rb_map_reset rb_tree_clear
+#define rb_map_copy rb_tree_copy
 
 void *
 rb_map_get(const rb_tree_t *tree, const void *key);
@@ -214,13 +207,10 @@ rb_map_v(const rb_iter_t *iter, void **value);
  * Set
  */
 
-void
-rb_set_init(rb_tree_t *tree,
-            int (*compare)(rb_val_t, rb_val_t, void *),
-            void *arg);
-
-void
-rb_set_clear(rb_tree_t *tree, void (*clear)(rb_node_t *));
+#define rb_set_init(tree, compare, arg) rb_tree_init(tree, compare, arg, 1)
+#define rb_set_clear rb_tree_clear
+#define rb_set_reset rb_tree_clear
+#define rb_set_copy rb_tree_copy
 
 int
 rb_set_has(const rb_tree_t *tree, const void *item);
@@ -243,11 +233,13 @@ rb_set_k(const rb_iter_t *iter, void **key);
  * Set64
  */
 
-void
-rb_set64_init(rb_tree_t *tree);
+#define rb_set64_init(tree) rb_tree_init(tree, rb_set64_compare, NULL, 1)
+#define rb_set64_clear(tree) rb_tree_clear(tree, NULL)
+#define rb_set64_reset rb_set64_clear
+#define rb_set64_copy(z, x) rb_tree_copy(z, x, NULL)
 
-void
-rb_set64_clear(rb_tree_t *tree);
+int
+rb_set64_compare(rb_val_t x, rb_val_t y, void *arg);
 
 int
 rb_set64_has(const rb_tree_t *tree, uint64_t item);
