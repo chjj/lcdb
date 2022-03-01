@@ -108,8 +108,8 @@ rdb_partition(int64_t *items, int lo, int hi, int (*cmp)(int64_t, int64_t)) {
   int j = hi + 1;
 
   for (;;) {
-    do i++; while (cmp(items[i], pivot) < 0);
-    do j--; while (cmp(items[j], pivot) > 0);
+    do i++; while (i < hi && cmp(items[i], pivot) < 0);
+    do j--; while (j > lo && cmp(items[j], pivot) > 0);
 
     if (i >= j)
       return j;
