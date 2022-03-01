@@ -116,7 +116,7 @@ typedef struct rdb_writer_s {
 
 static void
 rdb_writer_init(rdb_writer_t *w) {
-  w->status = 0;
+  w->status = RDB_OK;
   w->batch = NULL;
   w->sync = 0;
   w->done = 0;
@@ -1423,7 +1423,6 @@ rdb_cleanup_compaction(rdb_t *db, rdb_cstate_t *compact) {
 static void
 rdb_background_compaction(rdb_t *db) {
   int is_manual = (db->manual_compaction != NULL);
-  rdb_slice_t manual_end;
   rdb_compaction_t *c;
   int rc = RDB_OK;
 
@@ -1443,10 +1442,10 @@ rdb_background_compaction(rdb_t *db) {
 
     if (c != NULL) {
       int num = rdb_compaction_num_input_files(c, 0);
+      rdb_filemeta_t *f = rdb_compaction_input(c, 0, num - 1);
 
-      /* XXX Can this be a slice? */
-      /* Maybe place directly on tmp_storage. */
-      manual_end = rdb_compaction_input(c, 0, num - 1)->largest;
+      /* Store for later. */
+      rdb_buffer_copy(&m->tmp_storage, &f->largest);
     }
   } else {
     c = rdb_vset_pick_compaction(db->versions);
@@ -1509,7 +1508,6 @@ rdb_background_compaction(rdb_t *db) {
     if (!m->done) {
       /* We only compacted part of the requested range. Update *m
          to the range that is left to be compacted. */
-      rdb_buffer_copy(&m->tmp_storage, &manual_end);
       m->begin = &m->tmp_storage;
     }
 

@@ -24,7 +24,7 @@ typedef struct rdb_blockbuilder_s {
   rdb_array_t restarts;         /* Restart points (uint32_t). */
   int counter;                  /* Number of entries emitted since restart. */
   int finished;                 /* Has Finish() been called? */
-  rdb_buffer_t last_key; /* XXX */
+  rdb_buffer_t last_key;
 } rdb_blockbuilder_t;
 
 /*

@@ -30,7 +30,7 @@ typedef struct rdb_twoiter_s {
   rdb_wrapiter_t data_iter; /* May be NULL. */
   /* If data_iter is non-null, then "data_block_handle_" holds the
     "index_value" passed to block_function to create the data_iter. */
-  rdb_buffer_t data_block_handle; /* XXX */
+  rdb_buffer_t data_block_handle;
 } rdb_twoiter_t;
 
 static int

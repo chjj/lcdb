@@ -36,7 +36,7 @@ struct rdb_tablebuilder_s {
   int status;
   rdb_blockbuilder_t data_block;
   rdb_blockbuilder_t index_block;
-  rdb_buffer_t last_key; /* XXX */
+  rdb_buffer_t last_key;
   int64_t num_entries;
   int closed; /* Either finish() or abandon() has been called. */
   rdb_filterbuilder_t *filter_block;
@@ -61,7 +61,7 @@ rdb_tablebuilder_init(rdb_tablebuilder_t *tb,
   tb->index_block_options = *options;
   tb->file = file;
   tb->offset = 0;
-  tb->status = 0;
+  tb->status = RDB_OK;
 
   rdb_blockbuilder_init(&tb->data_block, &tb->options);
   rdb_blockbuilder_init(&tb->index_block, &tb->index_block_options);

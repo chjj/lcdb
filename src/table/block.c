@@ -131,7 +131,7 @@ typedef struct rdb_blockiter_s {
   /* current is offset in data of current entry. >= restarts if !valid. */
   uint32_t current;
   uint32_t restart_index; /* Index of restart block in which current falls. */
-  rdb_buffer_t key; /* XXX */
+  rdb_buffer_t key;
   rdb_slice_t value;
   int status;
 } rdb_blockiter_t;

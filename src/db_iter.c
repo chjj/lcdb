@@ -207,7 +207,7 @@ rdb_dbiter_init(rdb_dbiter_t *iter,
   iter->ucmp = ucmp;
   iter->iter = internal_iter;
   iter->sequence = sequence;
-  iter->status = 0;
+  iter->status = RDB_OK;
 
   rdb_buffer_init(&iter->saved_key);
   rdb_buffer_init(&iter->saved_value);

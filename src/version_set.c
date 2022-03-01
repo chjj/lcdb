@@ -631,7 +631,7 @@ rdb_version_get(rdb_version_t *ver,
   stats->seek_file = NULL;
   stats->seek_file_level = -1;
 
-  state.status = 0;
+  state.status = RDB_OK;
   state.found = 0;
   state.stats = stats;
   state.last_file_read = NULL;
@@ -835,11 +835,9 @@ rdb_version_get_overlapping_inputs(rdb_version_t *ver,
 /* A helper class so we can efficiently apply a whole sequence
    of edits to a particular state without creating intermediate
    versions that contain full copies of the intermediate state. */
-typedef rb_set_t file_set_t;
-
 typedef struct level_state_s {
   rb_set64_t deleted_files;
-  file_set_t added_files; /* rdb_filemeta_t * */
+  rb_set_t added_files; /* rdb_filemeta_t * */
 } level_state_t;
 
 typedef struct builder_s {
@@ -885,7 +883,6 @@ builder_init(builder_t *b, rdb_vset_t *vset, rdb_version_t *base) {
   for (level = 0; level < RDB_NUM_LEVELS; level++) {
     level_state_t *state = &b->levels[level];
 
-    /* XXX Should deleted_files be a non-unique set? */
     rb_set64_init(&state->deleted_files);
     rb_set_init(&state->added_files, file_set_compare, &b->vset->icmp);
   }
@@ -1002,7 +999,7 @@ builder_save_to(builder_t *b, rdb_version_t *v) {
     /* Merge the set of added files with the set of pre-existing files. */
     /* Drop any deleted files. Store the result in *v. */
     const rdb_vector_t *base_files = &b->base->files[level];
-    const file_set_t *added_files = &b->levels[level].added_files;
+    const rb_set_t *added_files = &b->levels[level].added_files;
     size_t i = 0;
     void *item;
 
