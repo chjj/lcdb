@@ -19,7 +19,8 @@
  * Slice
  */
 
-#if 0
+#undef rdb_slice
+
 rdb_slice_t
 rdb_slice(const uint8_t *xp, size_t xn) {
   rdb_slice_t z;
@@ -31,6 +32,12 @@ rdb_slice(const uint8_t *xp, size_t xn) {
   return z;
 }
 
+rdb_slice_t
+rdb_string(const char *xp) {
+  return rdb_slice((const uint8_t *)xp, strlen(xp));
+}
+
+#if 0
 void
 rdb_slice_init(rdb_slice_t *z) {
   z->data = NULL;

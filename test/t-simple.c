@@ -11,35 +11,42 @@ int rdb_env_clear(void);
 
 int
 main(void) {
+  rdb_slice_t exp = rdb_string("world 999");
   rdb_dbopt_t opt = *rdb_dbopt_default;
   rdb_slice_t key, val;
+  char key_buf[64];
+  char val_buf[64];
   rdb_t *db;
-  int rc;
+  int i, rc;
 
   opt.create_if_missing = 1;
-
-  key.data = (void *)"hello";
-  key.size = 5;
-
-  val.data = (void *)"world";
-  val.size = 5;
 
   rc = rdb_open("tmp", &opt, &db);
 
   assert(rc == RDB_OK);
 
-  rc = rdb_put(db, &key, &val, 0);
+  for (i = 0; i < 1000; i++) {
+    sprintf(key_buf, "hello %d", rand());
+    sprintf(val_buf, "world %d", i);
 
-  assert(rc == RDB_OK);
+    key = rdb_string(key_buf);
+    val = rdb_string(val_buf);
 
-  val.data = NULL;
-  val.size = 0;
+    rc = rdb_put(db, &key, &val, 0);
+
+    assert(rc == RDB_OK);
+  }
+
+  val = rdb_slice(0, 0);
 
   rc = rdb_get(db, &key, &val, 0);
 
   assert(rc == RDB_OK);
-  assert(val.size == 5);
-  assert(memcmp(val.data, "world", 5) == 0);
+  assert(rdb_compare(&val, &exp) == 0);
+  /*
+  assert(val.size == 9);
+  assert(memcmp(val.data, "world 999", 9) == 0);
+  */
 
   rdb_free(val.data);
 
@@ -50,14 +57,16 @@ main(void) {
 
     assert(rc == RDB_OK);
 
-    val.data = NULL;
-    val.size = 0;
+    val = rdb_slice(0, 0);
 
     rc = rdb_get(db, &key, &val, 0);
 
     assert(rc == RDB_OK);
-    assert(val.size == 5);
-    assert(memcmp(val.data, "world", 5) == 0);
+    assert(rdb_compare(&val, &exp) == 0);
+    /*
+    assert(val.size == 9);
+    assert(memcmp(val.data, "world 999", 9) == 0);
+    */
 
     rdb_free(val.data);
 

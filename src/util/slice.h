@@ -17,6 +17,12 @@
  * Slice
  */
 
+RDB_EXTERN rdb_slice_t
+rdb_slice(const uint8_t *xp, size_t xn);
+
+RDB_EXTERN rdb_slice_t
+rdb_string(const char *xp);
+
 #if 0
 rdb_slice_t
 rdb_slice(const uint8_t *xp, size_t xn);
@@ -30,6 +36,8 @@ rdb_slice_reset(rdb_slice_t *z);
 void
 rdb_slice_set(rdb_slice_t *z, const uint8_t *xp, size_t xn);
 #endif
+
+#define rdb_slice rdb__slice
 
 RDB_STATIC rdb_slice_t
 rdb_slice(const uint8_t *xp, size_t xn) {

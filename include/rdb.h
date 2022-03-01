@@ -278,6 +278,12 @@ extern const rdb_readopt_t *rdb_iteropt_default;
  * Slice
  */
 
+rdb_slice_t
+rdb_slice(const void *xp, size_t xn);
+
+rdb_slice_t
+rdb_string(const char *xp);
+
 #define rdb_compare rdb_slice_compare
 
 int
