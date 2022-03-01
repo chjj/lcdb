@@ -387,7 +387,7 @@ struct rdb_s {
 
   /* Set of table files to protect from deletion because they are
      part of ongoing compactions. */
-  rb_tree_t pending_outputs; /* uint64_t */
+  rb_set64_t pending_outputs;
 
   /* Thread pool. */
   rdb_pool_t *pool;
@@ -613,11 +613,11 @@ rdb_maybe_ignore_error(const rdb_t *db, int *status) {
 
 static void
 rdb_remove_obsolete_files(rdb_t *db) {
-  rb_tree_t live; /* uint64_t */
   char path[RDB_PATH_MAX];
   char **filenames = NULL;
   rdb_vector_t to_delete;
   rdb_filetype_t type;
+  rb_set64_t live;
   uint64_t number;
   int i, len;
 
@@ -633,9 +633,7 @@ rdb_remove_obsolete_files(rdb_t *db) {
   rdb_vector_init(&to_delete);
 
   /* Make a set of all of the live files. */
-  /* rb_tree_copy(&live, &db->pending_outputs); */
-  rb_set64_iterate(&db->pending_outputs, number)
-    rb_set64_put(&live, number);
+  rb_set64_copy(&live, &db->pending_outputs);
 
   rdb_vset_add_live_files(db->versions, &live);
 
@@ -922,7 +920,7 @@ rdb_recover(rdb_t *db, rdb_vedit_t *edit, int *save_manifest) {
   rdb_seqnum_t max_sequence = 0;
   char path[RDB_PATH_MAX];
   char **filenames = NULL;
-  rb_tree_t expected; /* uint64_t */
+  rb_set64_t expected;
   rdb_filetype_t type;
   rdb_array_t logs;
   int rc = RDB_OK;

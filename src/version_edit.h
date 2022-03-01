@@ -40,7 +40,7 @@ typedef struct rdb_vedit_s {
   int has_next_file_number;
   int has_last_sequence;
   rdb_vector_t compact_pointers; /* ikey_entry_t */
-  rb_tree_t deleted_files;       /* file_entry_t */
+  rb_set_t deleted_files;        /* file_entry_t */
   rdb_vector_t new_files;        /* meta_entry_t */
 } rdb_vedit_t;
 

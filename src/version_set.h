@@ -291,7 +291,7 @@ rdb_vset_approximate_offset_of(rdb_vset_t *vset,
 /* Add all files listed in any live version to *live.
    May also mutate some internal state. */
 void
-rdb_vset_add_live_files(rdb_vset_t *vset, rb_tree_t *live);
+rdb_vset_add_live_files(rdb_vset_t *vset, rb_set64_t *live);
 
 /* Return the combined file size of all files at the specified level. */
 int64_t

@@ -835,10 +835,10 @@ rdb_version_get_overlapping_inputs(rdb_version_t *ver,
 /* A helper class so we can efficiently apply a whole sequence
    of edits to a particular state without creating intermediate
    versions that contain full copies of the intermediate state. */
-typedef rb_tree_t file_set_t; /* void * */
+typedef rb_set_t file_set_t;
 
 typedef struct level_state_s {
-  rb_tree_t deleted_files; /* uint64_t */
+  rb_set64_t deleted_files;
   file_set_t added_files; /* rdb_filemeta_t * */
 } level_state_t;
 
@@ -1684,7 +1684,7 @@ rdb_vset_approximate_offset_of(rdb_vset_t *vset,
 }
 
 void
-rdb_vset_add_live_files(rdb_vset_t *vset, rb_tree_t *live) {
+rdb_vset_add_live_files(rdb_vset_t *vset, rb_set64_t *live) {
   rdb_version_t *list = &vset->dummy_versions;
   rdb_version_t *v;
   int level;

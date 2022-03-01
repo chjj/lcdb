@@ -43,7 +43,7 @@ struct rdb_filelock_s {
  */
 
 static rdb_mutex_t file_mutex = RDB_MUTEX_INITIALIZER;
-static rb_tree_t file_map;
+static rb_map_t file_map;
 
 /*
  * Helpers
