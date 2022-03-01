@@ -12,6 +12,7 @@
 #include "coding.h"
 #include "hash.h"
 #include "internal.h"
+#include "memcmp.h"
 
 /*
  * Buffer

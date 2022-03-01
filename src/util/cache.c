@@ -11,6 +11,7 @@
 #include "cache.h"
 #include "hash.h"
 #include "internal.h"
+#include "memcmp.h"
 #include "port.h"
 #include "slice.h"
 

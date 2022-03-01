@@ -31,7 +31,7 @@ rdb_build_table(const char *prefix,
                 rdb_iter_t *iter,
                 rdb_filemeta_t *meta) {
   char fname[RDB_PATH_MAX];
-  int rc;
+  int rc = RDB_OK;
 
   meta->file_size = 0;
 

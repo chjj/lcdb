@@ -10,6 +10,7 @@
 #include "buffer.h"
 #include "comparator.h"
 #include "internal.h"
+#include "memcmp.h"
 #include "slice.h"
 
 /*

@@ -1,13 +1,14 @@
 /*!
- * internal.h - internal utils for mako
- * Copyright (c) 2020, Christopher Jeffrey (MIT License).
- * https://github.com/chjj/mako
+ * internal.h - internal utils for rdb
+ * Copyright (c) 2022, Christopher Jeffrey (MIT License).
+ * https://github.com/chjj/rdb
  */
 
 #ifndef RDB_INTERNAL_H
 #define RDB_INTERNAL_H
 
 #include <stddef.h>
+#include "extern.h"
 
 /*
  * Language Standard
@@ -139,89 +140,13 @@
  * Helpers
  */
 
-#if 0
 RDB_MALLOC void *
 rdb_malloc(size_t size);
 
 RDB_MALLOC void *
 rdb_realloc(void *ptr, size_t size);
 
-void
+RDB_EXTERN void
 rdb_free(void *ptr);
-
-int
-rdb_memcmp(const void *x, const void *y, size_t n);
-
-int
-rdb_memcmp4(const void *x, size_t xn, const void *y, size_t yn);
-#endif
-
-/*
- * Helpers
- */
-
-#include <stdlib.h>
-
-RDB_MALLOC RDB_STATIC void *
-rdb_malloc(size_t size) {
-  void *ptr = malloc(size);
-
-  if (ptr == NULL)
-    abort(); /* LCOV_EXCL_LINE */
-
-  return ptr;
-}
-
-RDB_MALLOC RDB_STATIC void *
-rdb_realloc(void *ptr, size_t size) {
-  ptr = realloc(ptr, size);
-
-  if (ptr == NULL)
-    abort(); /* LCOV_EXCL_LINE */
-
-  return ptr;
-}
-
-RDB_STATIC void
-rdb_free(void *ptr) {
-  if (ptr == NULL) {
-    abort(); /* LCOV_EXCL_LINE */
-    return;
-  }
-
-  free(ptr);
-}
-
-RDB_STATIC int
-rdb_memcmp(const void *x, const void *y, size_t n) {
-  const unsigned char *xp = (const unsigned char *)x;
-  const unsigned char *yp = (const unsigned char *)y;
-  size_t i;
-
-  for (i = 0; i < n; i++) {
-    if (xp[i] != yp[i])
-      return (int)xp[i] - (int)yp[i];
-  }
-
-  return 0;
-}
-
-RDB_STATIC int
-rdb_memcmp4(const void *x, size_t xn, const void *y, size_t yn) {
-  const unsigned char *xp = (const unsigned char *)x;
-  const unsigned char *yp = (const unsigned char *)y;
-  size_t n = xn < yn ? xn : yn;
-  size_t i;
-
-  for (i = 0; i < n; i++) {
-    if (xp[i] != yp[i])
-      return (int)xp[i] - (int)yp[i];
-  }
-
-  if (xn != yn)
-    return xn < yn ? -1 : 1;
-
-  return 0;
-}
 
 #endif /* RDB_INTERNAL_H */
