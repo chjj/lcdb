@@ -43,6 +43,8 @@ rdb_wrapiter_init(rdb_wrapiter_t *wrap, rdb_iter_t *iter) {
   wrap->iter = iter;
   wrap->valid = 0;
 
+  rdb_slice_init(&wrap->key);
+
   if (wrap->iter != NULL)
     rdb_wrapiter_update(wrap);
 }
@@ -61,10 +63,9 @@ rdb_wrapiter_set(rdb_wrapiter_t *wrap, rdb_iter_t *iter) {
     rdb_iter_destroy(wrap->iter);
 
   wrap->iter = iter;
+  wrap->valid = 0;
 
-  if (wrap->iter == NULL)
-    wrap->valid = 0;
-  else
+  if (wrap->iter != NULL)
     rdb_wrapiter_update(wrap);
 }
 
