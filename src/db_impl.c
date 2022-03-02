@@ -687,7 +687,7 @@ rdb_remove_obsolete_files(rdb_t *db) {
   for (i = 0; i < (int)to_delete.length; i++) {
     const char *filename = to_delete.items[i];
 
-    if (!rdb_path_join(path, sizeof(path), db->dbname, filename, NULL))
+    if (!rdb_path_join(path, sizeof(path), db->dbname, filename))
       continue;
 
     rdb_remove_file(path);
@@ -2319,7 +2319,7 @@ rdb_destroy_db(const char *dbname, const rdb_dbopt_t *options) {
       if (type == RDB_FILE_LOCK)
         continue; /* Lock file will be deleted at end. */
 
-      if (!rdb_path_join(path, sizeof(path), dbname, name, NULL)) {
+      if (!rdb_path_join(path, sizeof(path), dbname, name)) {
         rc = RDB_INVALID;
         continue;
       }

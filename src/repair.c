@@ -231,24 +231,24 @@ archive_file(const char *fname) {
 
   assert(strlen(fname) + 1 <= sizeof(dir));
 
-  slash = strrchr(strcpy(dir, fname), '/');
+  slash = strrchr(strcpy(dir, fname), RDB_PATH_SEP);
 
   if (slash == NULL)
     strcpy(dir, ".");
   else
     *slash = '\0';
 
-  if (!rdb_path_join(newdir, sizeof(newdir), dir, "lost", NULL))
+  if (!rdb_path_join(newdir, sizeof(newdir), dir, "lost"))
     abort(); /* LCOV_EXCL_LINE */
 
-  base = strrchr(fname, '/');
+  base = strrchr(fname, RDB_PATH_SEP);
 
   if (base == NULL)
     base = (char *)fname;
   else
     base += 1;
 
-  if (!rdb_path_join(newfile, sizeof(newfile), newdir, base, NULL))
+  if (!rdb_path_join(newfile, sizeof(newfile), newdir, base))
     abort(); /* LCOV_EXCL_LINE */
 
   rdb_create_dir(newdir); /* Ignore error. */
@@ -656,6 +656,8 @@ int
 rdb_repair_db(const char *dbname, const rdb_dbopt_t *options) {
   rdb_repair_t rep;
   int rc;
+
+  rdb_env_init();
 
   if (!repair_init(&rep, dbname, options))
     return RDB_INVALID;

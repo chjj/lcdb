@@ -5,7 +5,6 @@
  */
 
 #include <assert.h>
-#include <stdarg.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -20,22 +19,6 @@
 /*
  * Helpers
  */
-
-static int
-safe_concat(char *zp, size_t zn, const char *xp, const char *yp) {
-  if (strlen(xp) + strlen(yp) + 1 > zn)
-    return 0;
-
-  while (*xp)
-    *zp++ = *xp++;
-
-  while (*yp)
-    *zp++ = *yp++;
-
-  *zp = '\0';
-
-  return 1;
-}
 
 int
 starts_with(const char *xp, const char *yp) {
@@ -118,9 +101,9 @@ make_filename(char *buf,
 
   encode_int(id, num, 6);
 
-  sprintf(tmp, "/%s.%s", id, ext);
+  sprintf(tmp, "%s.%s", id, ext);
 
-  return safe_concat(buf, size, prefix, tmp);
+  return rdb_path_join(buf, size, prefix, tmp);
 }
 
 /*
@@ -154,19 +137,19 @@ rdb_desc_filename(char *buf, size_t size, const char *prefix, uint64_t num) {
 
   encode_int(id, num, 6);
 
-  sprintf(tmp, "/MANIFEST-%s", id);
+  sprintf(tmp, "MANIFEST-%s", id);
 
-  return safe_concat(buf, size, prefix, tmp);
+  return rdb_path_join(buf, size, prefix, tmp);
 }
 
 int
 rdb_current_filename(char *buf, size_t size, const char *prefix) {
-  return safe_concat(buf, size, prefix, "/CURRENT");
+  return rdb_path_join(buf, size, prefix, "CURRENT");
 }
 
 int
 rdb_lock_filename(char *buf, size_t size, const char *prefix) {
-  return safe_concat(buf, size, prefix, "/LOCK");
+  return rdb_path_join(buf, size, prefix, "LOCK");
 }
 
 int
@@ -177,12 +160,12 @@ rdb_temp_filename(char *buf, size_t size, const char *prefix, uint64_t num) {
 
 int
 rdb_info_filename(char *buf, size_t size, const char *prefix) {
-  return safe_concat(buf, size, prefix, "/LOG");
+  return rdb_path_join(buf, size, prefix, "LOG");
 }
 
 int
 rdb_oldinfo_filename(char *buf, size_t size, const char *prefix) {
-  return safe_concat(buf, size, prefix, "/LOG.old");
+  return rdb_path_join(buf, size, prefix, "LOG.old");
 }
 
 /* Owned filenames have the form:
@@ -231,39 +214,6 @@ rdb_parse_filename(rdb_filetype_t *type, uint64_t *num, const char *name) {
   } else {
     return 0;
   }
-
-  return 1;
-}
-
-int
-rdb_path_join(char *buf, size_t size, ...) {
-  char *zp = buf;
-  size_t zn = 0;
-  const char *xp;
-  va_list ap;
-
-  va_start(ap, size);
-
-  while ((xp = va_arg(ap, const char *))) {
-    zn += strlen(xp) + 1;
-
-    if (zn > size) {
-      va_end(ap);
-      return 0;
-    }
-
-    while (*xp)
-      *zp++ = *xp++;
-
-    *zp++ = '/';
-  }
-
-  if (zn > 0)
-    zp--;
-
-  *zp = '\0';
-
-  va_end(ap);
 
   return 1;
 }

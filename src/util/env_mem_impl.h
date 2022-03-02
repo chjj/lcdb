@@ -286,6 +286,17 @@ rdb_path_absolute(char *buf, size_t size, const char *name) {
 
   memcpy(buf, name, len + 1);
 
+#ifdef _WIN32
+  {
+    size_t i;
+
+    for (i = 0; i < len; i++) {
+      if (buf[i] == '/')
+        buf[i] = '\\';
+    }
+  }
+#endif
+
   return 1;
 }
 
@@ -304,8 +315,13 @@ rdb_get_children(const char *path, char ***out) {
   rdb_vector_t names;
   void *key;
 
+#if defined(_WIN32)
+  while (plen > 0 && (path[plen - 1] == '/' || path[plen - 1] == '\\')
+    plen -= 1;
+#else
   while (plen > 0 && path[plen - 1] == '/')
     plen -= 1;
+#endif
 
   rdb_vector_init(&names);
 

@@ -99,10 +99,6 @@ rdb_oldinfo_filename(char *buf, size_t size, const char *prefix);
 int
 rdb_parse_filename(rdb_filetype_t *type, uint64_t *num, const char *name);
 
-/* Join path components. */
-int
-rdb_path_join(char *buf, size_t size, ...);
-
 /* Make the CURRENT file point to the descriptor file with the
    specified number. */
 int

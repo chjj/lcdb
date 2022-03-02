@@ -115,9 +115,15 @@ rdb_env_clear(void) {
 int
 rdb_path_absolute(char *buf, size_t size, const char *name) {
   DWORD len = GetFullPathNameA(name, size, buf, NULL);
+  DWORD i;
 
   if (len < 1 || len >= size)
     return 0;
+
+  for (i = 0; i < len; i++) {
+    if (buf[i] == '/')
+      buf[i] = '\\';
+  }
 
   return 1;
 }

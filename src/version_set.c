@@ -1309,7 +1309,7 @@ rdb_vset_reuse_manifest(rdb_vset_t *vset, const char *dscname) {
   if (!vset->options->reuse_logs)
     return 0;
 
-  dscbase = strrchr(dscname, '/');
+  dscbase = strrchr(dscname, RDB_PATH_SEP);
 
   if (dscbase == NULL)
     dscbase = dscname;
@@ -1377,13 +1377,10 @@ read_current_filename(char *path, size_t size, const char *prefix) {
 
   name[len - 1] = '\0';
 
-  if (strlen(prefix) + len > size) {
+  if (!rdb_path_join(path, size, prefix, name)) {
     rc = RDB_INVALID;
     goto fail;
   }
-
-  /* Could use rdb_path_join. */
-  sprintf(path, "%s/%s", prefix, name);
 
 fail:
   rdb_buffer_clear(&data);
