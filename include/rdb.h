@@ -4,8 +4,8 @@
  * https://github.com/chjj/rdb
  */
 
-#ifndef BTC_RDB_H
-#define BTC_RDB_H
+#ifndef RDB_H
+#define RDB_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -300,4 +300,4 @@ rdb_strerror(int code);
 }
 #endif
 
-#endif /* BTC_RDB_H */
+#endif /* RDB_H */

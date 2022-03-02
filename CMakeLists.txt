@@ -53,6 +53,7 @@ list(APPEND rdb_sources # util
                         src/table/two_level_iterator.c
                         # db
                         src/builder.c
+                        src/c.c
                         src/db_impl.c
                         src/db_iter.c
                         src/dbformat.c
