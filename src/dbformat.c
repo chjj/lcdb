@@ -74,7 +74,7 @@ rdb_pkey_size(const rdb_pkey_t *x) {
   return x->user_key.size + 8;
 }
 
-uint8_t *
+static uint8_t *
 rdb_pkey_write(uint8_t *zp, const rdb_pkey_t *x) {
   zp = rdb_raw_write(zp, x->user_key.data, x->user_key.size);
   zp = rdb_fixed64_write(zp, pack_seqtype(x->sequence, x->type));
@@ -90,6 +90,7 @@ rdb_pkey_export(rdb_buffer_t *z, const rdb_pkey_t *x) {
   z->size += xn;
 }
 
+#if 0
 int
 rdb_pkey_read(rdb_pkey_t *z, const uint8_t **xp, size_t *xn) {
   size_t zn = *xn - 8;
@@ -129,6 +130,32 @@ int
 rdb_pkey_import(rdb_pkey_t *z, const rdb_slice_t *x) {
   rdb_slice_t tmp = *x;
   return rdb_pkey_slurp(z, &tmp);
+}
+#endif
+
+/* ParseInternalKey */
+int
+rdb_pkey_import(rdb_pkey_t *z, const rdb_slice_t *x) {
+  const uint8_t *xp = x->data;
+  size_t xn = x->size;
+  uint64_t num;
+  int type;
+
+  if (xn < 8)
+    return 0;
+
+  num = rdb_fixed64_decode(xp + xn - 8);
+  type = num & 0xff;
+
+  if (type > RDB_TYPE_VALUE)
+    return 0;
+
+  rdb_slice_set(&z->user_key, xp, xn - 8);
+
+  z->sequence = num >> 8;
+  z->type = (rdb_valtype_t)type;
+
+  return 1;
 }
 
 /*
@@ -218,13 +245,10 @@ rdb_lkey_init(rdb_lkey_t *lkey,
               rdb_seqnum_t sequence) {
   size_t usize = user_key->size;
   size_t needed = usize + 13; /* A conservative estimate. */
-  uint8_t *zp;
+  uint8_t *zp = lkey->space;
 
-  if (needed <= sizeof(lkey->space)) {
-    zp = lkey->space;
-  } else {
+  if (needed > sizeof(lkey->space))
     zp = rdb_malloc(needed);
-  }
 
   lkey->start = zp;
 
@@ -293,11 +317,10 @@ rdb_ikc_compare(const rdb_comparator_t *ikc,
     uint64_t xn = rdb_fixed64_decode(x->data + x->size - 8);
     uint64_t yn = rdb_fixed64_decode(y->data + y->size - 8);
 
-    if (xn > yn) {
+    if (xn > yn)
       r = -1;
-    } else if (xn < yn) {
+    else if (xn < yn)
       r = +1;
-    }
   }
 
   return r;

@@ -122,18 +122,22 @@ rdb_pkey_init(rdb_pkey_t *key,
 size_t
 rdb_pkey_size(const rdb_pkey_t *x);
 
+#if 0
 uint8_t *
 rdb_pkey_write(uint8_t *zp, const rdb_pkey_t *x);
+#endif
 
 /* AppendInternalKey */
 void
 rdb_pkey_export(rdb_buffer_t *z, const rdb_pkey_t *x);
 
+#if 0
 int
 rdb_pkey_read(rdb_pkey_t *z, const uint8_t **xp, size_t *xn);
 
 int
 rdb_pkey_slurp(rdb_pkey_t *z, rdb_slice_t *x);
+#endif
 
 /* ParseInternalKey */
 int
