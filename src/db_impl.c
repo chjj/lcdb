@@ -406,11 +406,11 @@ struct rdb_s {
 };
 
 static rdb_t *
-rdb_create(const rdb_dbopt_t *options, const char *dbname) {
+rdb_create(const char *dbname, const rdb_dbopt_t *options) {
   rdb_t *db = rdb_malloc(sizeof(rdb_t));
   int i;
 
-  if (!rdb_path_absolute(db->dbname, sizeof(db->dbname) - 32, dbname)) {
+  if (!rdb_path_absolute(db->dbname, sizeof(db->dbname) - 64, dbname)) {
     rdb_free(db);
     return NULL;
   }
@@ -714,7 +714,7 @@ static int
 rdb_write_level0_table(rdb_t *db, rdb_memtable_t *mem,
                                   rdb_vedit_t *edit,
                                   rdb_version_t *base) {
-  uint64_t start_micros;
+  int64_t start_micros;
   rdb_filemeta_t meta;
   rdb_cstats_t stats;
   rdb_iter_t *iter;
@@ -1214,7 +1214,7 @@ static int
 rdb_do_compaction_work(rdb_t *db, rdb_cstate_t *compact) {
   const rdb_comparator_t *ucmp = rdb_user_comparator(db);
   rdb_seqnum_t last_sequence_for_key = RDB_MAX_SEQUENCE;
-  uint64_t start_micros = rdb_now_usec();
+  int64_t start_micros = rdb_now_usec();
   int64_t imm_micros = 0; /* Micros spent doing db->imm compactions. */
   rdb_buffer_t user_key;
   int has_user_key = 0;
@@ -1256,7 +1256,7 @@ rdb_do_compaction_work(rdb_t *db, rdb_cstate_t *compact) {
 
     /* Prioritize immutable compaction work. */
     if (rdb_atomic_load(&db->has_imm, rdb_order_relaxed)) {
-      uint64_t imm_start = rdb_now_usec();
+      int64_t imm_start = rdb_now_usec();
 
       rdb_mutex_lock(&db->mutex);
 
@@ -1779,7 +1779,7 @@ rdb_make_room_for_write(rdb_t *db, int force) {
 int
 rdb_open(const char *dbname, const rdb_dbopt_t *options, rdb_t **dbptr) {
   const rdb_dbopt_t *opt = options ? options : rdb_dbopt_default;
-  int save_manifest;
+  int save_manifest = 0;
   rdb_vedit_t edit;
   int rc = RDB_OK;
   rdb_t *db;
@@ -1788,7 +1788,7 @@ rdb_open(const char *dbname, const rdb_dbopt_t *options, rdb_t **dbptr) {
 
   rdb_env_init();
 
-  db = rdb_create(opt, dbname);
+  db = rdb_create(dbname, opt);
 
   if (db == NULL)
     return RDB_INVALID;
@@ -1797,7 +1797,6 @@ rdb_open(const char *dbname, const rdb_dbopt_t *options, rdb_t **dbptr) {
   rdb_mutex_lock(&db->mutex);
 
   /* Recover handles create_if_missing, error_if_exists. */
-  save_manifest = 0;
   rc = rdb_recover(db, &edit, &save_manifest);
 
   if (rc == RDB_OK && db->mem == NULL) {
@@ -2122,9 +2121,98 @@ rdb_iterator(rdb_t *db, const rdb_readopt_t *options) {
 
 int
 rdb_get_property(rdb_t *db, const char *property, char **value) {
-  (void)db;
-  (void)property;
-  (void)value;
+  const char *in = property;
+
+  *value = NULL;
+
+  if (!starts_with(in, "leveldb."))
+    return 0;
+
+  in += 8;
+
+  rdb_mutex_lock(&db->mutex);
+
+  if (starts_with(in, "num-files-at-level")) {
+    uint64_t level;
+    int ok;
+
+    in += 18;
+
+    ok = decode_int(&level, &in) && *in == 0;
+
+    if (!ok || level >= RDB_NUM_LEVELS) {
+      rdb_mutex_unlock(&db->mutex);
+      return 0;
+    }
+
+    *value = rdb_malloc(21);
+
+    encode_int(*value, rdb_vset_num_level_files(db->versions, level), 0);
+
+    rdb_mutex_unlock(&db->mutex);
+
+    return 1;
+  }
+
+  if (strcmp(in, "stats") == 0) {
+    rdb_buffer_t val;
+    char buf[200];
+    int level;
+
+    rdb_buffer_init(&val);
+
+    sprintf(buf, "                               Compactions\n"
+                 "Level  Files Size(MB) Time(sec) Read(MB) Write(MB)\n"
+                 "--------------------------------------------------\n");
+
+    rdb_buffer_append_str(&val, buf);
+
+    for (level = 0; level < RDB_NUM_LEVELS; level++) {
+      int files = rdb_vset_num_level_files(db->versions, level);
+      rdb_cstats_t *stats = &db->stats[level];
+
+      if (stats->micros > 0 || files > 0) {
+        int64_t bytes = rdb_vset_num_level_bytes(db->versions, level);
+
+        sprintf(buf, "%3d %8d %8.0f %9.0f %8.0f %9.0f\n",
+                     level, files, bytes / 1048576.0,
+                     stats->micros / 1e6,
+                     stats->bytes_read / 1048576.0,
+                     stats->bytes_written / 1048576.0);
+
+        rdb_buffer_append_str(&val, buf);
+      }
+    }
+
+    rdb_buffer_push(&val, 0);
+
+    *value = (char *)val.data;
+
+    rdb_mutex_unlock(&db->mutex);
+
+    return 1;
+  }
+
+  if (strcmp(in, "approximate-memory-usage") == 0) {
+    size_t total_usage = rdb_lru_total_charge(db->options.block_cache);
+
+    if (db->mem != NULL)
+      total_usage += rdb_memtable_usage(db->mem);
+
+    if (db->imm != NULL)
+      total_usage += rdb_memtable_usage(db->imm);
+
+    *value = rdb_malloc(21);
+
+    encode_int(*value, total_usage, 0);
+
+    rdb_mutex_unlock(&db->mutex);
+
+    return 1;
+  }
+
+  rdb_mutex_unlock(&db->mutex);
+
   return 0;
 }
 

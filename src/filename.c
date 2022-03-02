@@ -37,7 +37,7 @@ safe_concat(char *zp, size_t zn, const char *xp, const char *yp) {
   return 1;
 }
 
-static int
+int
 starts_with(const char *xp, const char *yp) {
   while (*xp && *xp == *yp) {
     xp++;
@@ -59,7 +59,7 @@ size_int(uint64_t x) {
   return n;
 }
 
-static int
+int
 encode_int(char *zp, uint64_t x, int pad) {
   int n = size_int(x);
   int i;
@@ -77,7 +77,7 @@ encode_int(char *zp, uint64_t x, int pad) {
   return n;
 }
 
-static int
+int
 decode_int(uint64_t *z, const char **xp) {
   const char *sp = *xp;
   uint64_t x = 0;

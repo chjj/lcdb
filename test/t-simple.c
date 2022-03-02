@@ -11,9 +11,8 @@ int rdb_env_clear(void);
 
 int
 main(void) {
-  rdb_slice_t exp = rdb_string("world 999999");
   rdb_dbopt_t opt = *rdb_dbopt_default;
-  rdb_slice_t key, val;
+  rdb_slice_t key, val, ret;
   char key_buf[64];
   char val_buf[64];
   rdb_batch_t b;
@@ -59,13 +58,21 @@ main(void) {
     }
 
     {
-      val = rdb_slice(0, 0);
-      rc = rdb_get(db, &key, &val, 0);
+      rc = rdb_get(db, &key, &ret, 0);
 
       assert(rc == RDB_OK);
-      assert(rdb_compare(&val, &exp) == 0);
+      assert(rdb_compare(&ret, &val) == 0);
 
-      rdb_free(val.data);
+      rdb_free(ret.data);
+    }
+
+    {
+      char *prop;
+
+      if (rdb_get_property(db, "leveldb.stats", &prop)) {
+        puts(prop);
+        rdb_free(prop);
+      }
     }
 
     rdb_close(db);
@@ -80,13 +87,13 @@ main(void) {
     assert(rc == RDB_OK);
 
     {
-      val = rdb_slice(0, 0);
-      rc = rdb_get(db, &key, &val, 0);
+      ret = rdb_slice(0, 0);
+      rc = rdb_get(db, &key, &ret, 0);
 
       assert(rc == RDB_OK);
-      assert(rdb_compare(&val, &exp) == 0);
+      assert(rdb_compare(&ret, &val) == 0);
 
-      rdb_free(val.data);
+      rdb_free(ret.data);
     }
 
     {
