@@ -15,6 +15,7 @@
 #include "../util/internal.h"
 #include "../util/options.h"
 #include "../util/slice.h"
+#include "../util/snappy.h"
 #include "../util/status.h"
 
 #include "format.h"
@@ -198,32 +199,61 @@ rdb_read_block(rdb_blockcontents_t *result,
 
     if (crc != actual) {
       rdb_safe_free(buf);
-      return RDB_CORRUPTION;
+      return RDB_CORRUPTION; /* "block checksum mismatch" */
     }
   }
 
-  if (data[n] == RDB_SNAPPY_COMPRESSION) {
-    rdb_safe_free(buf);
-    return RDB_NOSUPPORT;
-  }
+  switch (data[n]) {
+    case RDB_NO_COMPRESSION: {
+      if (data != buf) {
+        /* File implementation gave us pointer to some other data.
+           Use it directly under the assumption that it will be live
+           while the file is open. */
+        rdb_safe_free(buf);
+        rdb_slice_set(&result->data, data, n);
+        result->heap_allocated = 0;
+        result->cachable = 0; /* Do not double-cache. */
+      } else {
+        rdb_slice_set(&result->data, buf, n);
+        result->heap_allocated = 1;
+        result->cachable = 1;
+      }
 
-  if (data[n] != RDB_NO_COMPRESSION) {
-    rdb_safe_free(buf);
-    return RDB_CORRUPTION;
-  }
+      /* Ok. */
+      break;
+    }
 
-  if (data != buf) {
-    /* File implementation gave us pointer to some other data.
-       Use it directly under the assumption that it will be live
-       while the file is open. */
-    rdb_safe_free(buf);
-    rdb_slice_set(&result->data, data, n);
-    result->heap_allocated = 0;
-    result->cachable = 0; /* Do not double-cache. */
-  } else {
-    rdb_slice_set(&result->data, buf, n);
-    result->heap_allocated = 1;
-    result->cachable = 1;
+    case RDB_SNAPPY_COMPRESSION: {
+      int ulength = rdb_snappy_decode_size(data, n);
+      uint8_t *ubuf;
+
+      if (ulength < 0) {
+        rdb_safe_free(buf);
+        return RDB_CORRUPTION; /* "corrupted compressed block contents" */
+      }
+
+      ubuf = rdb_malloc(ulength);
+
+      if (!rdb_snappy_decode(ubuf, data, n)) {
+        rdb_safe_free(buf);
+        rdb_free(ubuf);
+        return RDB_CORRUPTION; /* "corrupted compressed block contents" */
+      }
+
+      rdb_safe_free(buf);
+
+      rdb_slice_set(&result->data, ubuf, ulength);
+
+      result->heap_allocated = 1;
+      result->cachable = 1;
+
+      break;
+    }
+
+    default: {
+      rdb_safe_free(buf);
+      return RDB_CORRUPTION; /* "bad block type" */
+    }
   }
 
   return RDB_OK;

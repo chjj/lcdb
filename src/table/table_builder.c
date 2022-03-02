@@ -17,6 +17,7 @@
 #include "../util/internal.h"
 #include "../util/options.h"
 #include "../util/slice.h"
+#include "../util/snappy.h"
 #include "../util/status.h"
 
 #include "block_builder.h"
@@ -51,6 +52,7 @@ struct rdb_tablebuilder_s {
   /* Invariant: tb->pending_index_entry is true only if data_block is empty. */
   int pending_index_entry;
   rdb_blockhandle_t pending_handle; /* Handle to add to index block. */
+  rdb_buffer_t compressed_output;
 };
 
 static void
@@ -73,6 +75,9 @@ rdb_tablebuilder_init(rdb_tablebuilder_t *tb,
   tb->filter_block = NULL;
   tb->pending_index_entry = 0;
 
+  rdb_blockhandle_init(&tb->pending_handle);
+  rdb_buffer_init(&tb->compressed_output);
+
   tb->index_block_options.block_restart_interval = 1;
 
   if (options->filter_policy != NULL) {
@@ -91,6 +96,7 @@ rdb_tablebuilder_clear(rdb_tablebuilder_t *tb) {
   rdb_blockbuilder_clear(&tb->index_block);
 
   rdb_buffer_clear(&tb->last_key);
+  rdb_buffer_clear(&tb->compressed_output);
 
   if (tb->filter_block != NULL) {
     rdb_filterbuilder_clear(tb->filter_block);
@@ -184,15 +190,43 @@ rdb_tablebuilder_write_block(rdb_tablebuilder_t *tb,
   type = tb->options.compression;
 
   switch (type) {
-    case RDB_NO_COMPRESSION:
+    case RDB_NO_COMPRESSION: {
       block_contents = raw;
       break;
-    default:
-      abort();
+    }
+
+    case RDB_SNAPPY_COMPRESSION: {
+      rdb_buffer_t *compressed = &tb->compressed_output;
+      int size = rdb_snappy_encode_size(raw.size);
+
+      assert(size >= 0);
+
+      rdb_buffer_grow(compressed, size);
+
+      compressed->size = rdb_snappy_encode(compressed->data,
+                                           raw.data, raw.size);
+
+      if (compressed->size < raw.size - (raw.size / 8)) {
+        block_contents = *compressed;
+      } else {
+        /* Snappy not supported, or compressed less than
+           12.5%, so just store uncompressed form. */
+        block_contents = raw;
+        type = RDB_NO_COMPRESSION;
+      }
+
       break;
+    }
+
+    default: {
+      abort(); /* LCOV_EXCL_LINE */
+      break;
+    }
   }
 
   rdb_tablebuilder_write_raw_block(tb, &block_contents, type, handle);
+
+  /* rdb_buffer_reset(&tb->compressed_output); */
 
   rdb_blockbuilder_reset(block);
 }
