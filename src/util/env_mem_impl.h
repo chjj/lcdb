@@ -325,6 +325,7 @@ rdb_get_children(const char *path, char ***out) {
 #endif
 
   rdb_vector_init(&names);
+  rdb_vector_grow(&names, 1);
 
   rdb_mutex_lock(&file_mutex);
 
