@@ -1,5 +1,5 @@
 /*!
- * db_impl.c - database implementation for rdb
+ * repair.c - database repairing for rdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
  * https://github.com/chjj/rdb
  */
