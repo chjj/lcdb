@@ -39,6 +39,7 @@ typedef struct rdb_batch_s rdb_batch_t;
 typedef struct rdb_bloom_s rdb_bloom_t;
 typedef struct rdb_comparator_s rdb_comparator_t;
 typedef struct rdb_dbopt_s rdb_dbopt_t;
+typedef struct rdb_handler_s rdb_handler_t;
 typedef struct rdb_iter_s rdb_iter_t;
 typedef struct rdb_lru_s rdb_lru_t;
 typedef struct rdb_readopt_s rdb_readopt_t;
@@ -71,6 +72,18 @@ typedef unsigned long long rdb_uint64_t;
  * Batch
  */
 
+struct rdb_handler_s {
+  void *state;
+  rdb_uint64_t number;
+
+  void (*put)(struct rdb_handler_s *handler,
+              const rdb_slice_t *key,
+              const rdb_slice_t *value);
+
+  void (*del)(struct rdb_handler_s *handler,
+              const rdb_slice_t *key);
+};
+
 struct rdb_batch_s {
   rdb_slice_t _rep;
 };
@@ -97,6 +110,12 @@ rdb_batch_put(rdb_batch_t *batch,
 
 void
 rdb_batch_del(rdb_batch_t *batch, const rdb_slice_t *key);
+
+int
+rdb_batch_iterate(const rdb_batch_t *batch, rdb_handler_t *handler);
+
+void
+rdb_batch_append(rdb_batch_t *dst, const rdb_batch_t *src);
 
 /*
  * Bloom

@@ -181,31 +181,31 @@ static void
 memtable_put(rdb_handler_t *handler,
              const rdb_slice_t *key,
              const rdb_slice_t *value) {
-  rdb_memtable_t *table = handler->ptr;
-  rdb_seqnum_t seq = handler->ui;
+  rdb_memtable_t *table = handler->state;
+  rdb_seqnum_t seq = handler->number;
 
   rdb_memtable_add(table, seq, RDB_TYPE_VALUE, key, value);
 
-  handler->ui++;
+  handler->number++;
 }
 
 static void
 memtable_del(rdb_handler_t *handler, const rdb_slice_t *key) {
   static const rdb_slice_t value = {NULL, 0, 0};
-  rdb_memtable_t *table = handler->ptr;
-  rdb_seqnum_t seq = handler->ui;
+  rdb_memtable_t *table = handler->state;
+  rdb_seqnum_t seq = handler->number;
 
   rdb_memtable_add(table, seq, RDB_TYPE_DELETION, key, &value);
 
-  handler->ui++;
+  handler->number++;
 }
 
 int
 rdb_batch_insert_into(const rdb_batch_t *batch, rdb_memtable_t *table) {
   rdb_handler_t handler;
 
-  handler.ptr = table;
-  handler.ui = rdb_batch_sequence(batch);
+  handler.state = table;
+  handler.number = rdb_batch_sequence(batch);
   handler.put = memtable_put;
   handler.del = memtable_del;
 

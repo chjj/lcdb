@@ -39,8 +39,8 @@ struct rdb_memtable_s;
 typedef uint64_t rdb__seqnum_t;
 
 typedef struct rdb_handler_s {
-  void *ptr;
-  uint64_t ui;
+  void *state;
+  uint64_t number;
 
   void (*put)(struct rdb_handler_s *handler,
               const rdb_slice_t *key,
@@ -83,7 +83,7 @@ size_t
 rdb_batch_approximate_size(const rdb_batch_t *batch);
 
 /* Support for iterating over the contents of a batch. */
-int
+RDB_EXTERN int
 rdb_batch_iterate(const rdb_batch_t *batch, rdb_handler_t *handler);
 
 /* Return the number of entries in the batch. */
@@ -119,7 +119,7 @@ rdb_batch_del(rdb_batch_t *batch, const rdb_slice_t *key);
  * than calling iterate() over the source batch with a Handler that replicates
  * the operations into this batch.
  */
-void
+RDB_EXTERN void
 rdb_batch_append(rdb_batch_t *dst, const rdb_batch_t *src);
 
 int

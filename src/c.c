@@ -337,7 +337,7 @@ leveldb_writebatch_delete(leveldb_writebatch_t *b,
 
 static void
 handle_put(rdb_handler_t *h, const rdb_slice_t *key, const rdb_slice_t *value) {
-  iterate_opts_t *opt = h->ptr;
+  iterate_opts_t *opt = h->state;
 
   opt->put(opt->state, (const char *)key->data, key->size,
                        (const char *)value->data, value->size);
@@ -345,7 +345,7 @@ handle_put(rdb_handler_t *h, const rdb_slice_t *key, const rdb_slice_t *value) {
 
 static void
 handle_del(rdb_handler_t *h, const rdb_slice_t *key) {
-  iterate_opts_t *opt = h->ptr;
+  iterate_opts_t *opt = h->state;
 
   opt->del(opt->state, (const char *)key->data, key->size);
 }
@@ -362,8 +362,7 @@ leveldb_writebatch_iterate(const leveldb_writebatch_t *b, void *state,
   opt.put = put;
   opt.del = del;
 
-  handler.ptr = &opt;
-  handler.ui = 0;
+  handler.state = &opt;
   handler.put = handle_put;
   handler.del = handle_del;
 
