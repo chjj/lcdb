@@ -11,26 +11,28 @@
 #include "cache.h"
 #include "hash.h"
 #include "internal.h"
-#include "memcmp.h"
 #include "port.h"
 #include "slice.h"
 
 /* LRU cache implementation
  *
  * Cache entries have an "in_cache" boolean indicating whether the cache has a
- * reference on the entry.  The only ways that this can become false without the
- * entry being passed to its "deleter" are via Erase(), via Insert() when
+ * reference on the entry. The only ways that this can become false without the
+ * entry being passed to its "deleter" are via erase(), via insert() when
  * an element with a duplicate key is inserted, or on destruction of the cache.
  *
- * The cache keeps two linked lists of items in the cache.  All items in the
- * cache are in one list or the other, and never both.  Items still referenced
- * by clients but erased from the cache are in neither list.  The lists are:
- * - in-use:  contains the items currently referenced by clients, in no
- *   particular order.  (This list is used for invariant checking.  If we
+ * The cache keeps two linked lists of items in the cache. All items in the
+ * cache are in one list or the other, and never both. Items still referenced
+ * by clients but erased from the cache are in neither list. The lists are:
+ *
+ * - in-use: contains the items currently referenced by clients, in no
+ *   particular order. (This list is used for invariant checking. If we
  *   removed the check, elements that would otherwise be on this list could be
  *   left as disconnected singleton lists.)
- * - LRU:  contains the items not currently referenced by clients, in LRU order
- * Elements are moved between these lists by the Ref() and Unref() methods,
+ *
+ * - LRU: contains the items not currently referenced by clients, in LRU order
+ *
+ * Elements are moved between these lists by the ref() and unref() methods,
  * when they detect an element in the cache acquiring or losing its only
  * external reference.
  */
@@ -46,7 +48,7 @@
  * LRU Handle
  */
 
-/* An entry is a variable length heap-allocated structure.  Entries
+/* An entry is a variable length heap-allocated structure. Entries
    are kept in a circular doubly linked list ordered by access time. */
 struct rdb_lruhandle_s {
   void *value;
@@ -56,10 +58,10 @@ struct rdb_lruhandle_s {
   struct rdb_lruhandle_s *prev;
   size_t charge;
   size_t key_length;
-  int in_cache;      /* Whether entry is in the cache. */
-  uint32_t refs;     /* References, including cache reference, if present. */
-  uint32_t hash;     /* Hash of key(); used for fast sharding and comparisons */
-  unsigned char key_data[1];  /* Beginning of key */
+  int in_cache;        /* Whether entry is in the cache. */
+  uint32_t refs;       /* References, including cache reference, if present. */
+  uint32_t hash;       /* Hash of key(); used for fast sharding & comparisons */
+  uint8_t key_data[1]; /* Beginning of key. */
 };
 
 static rdb_slice_t
@@ -69,16 +71,21 @@ rdb_lruhandle_key(const rdb_lruhandle_t *handle) {
   return key;
 }
 
+static int
+handle_equal(const rdb_lruhandle_t *x, const rdb_slice_t *y) {
+  if (x->key_length != y->size)
+    return 0;
+
+  if (x->key_length == 0)
+    return 1;
+
+  return memcmp(x->key_data, y->data, y->size) == 0;
+}
+
 /*
  * LRU Table
  */
 
-/* We provide our own simple hash table since it removes a whole bunch
- * of porting hacks and is also faster than some of the built-in hash
- * table implementations in some of the compiler/runtime combinations
- * we have tested. E.g., readrandom speeds up by ~5% over the g++
- * 4.4.3's builtin hashtable.
- */
 typedef struct rdb_lrutable_s {
   /* The table consists of an array of buckets where each bucket is
      a linked list of cache entries that hash into the bucket. */
@@ -86,11 +93,6 @@ typedef struct rdb_lrutable_s {
   uint32_t elems;
   rdb_lruhandle_t **list;
 } rdb_lrutable_t;
-
-static int
-handle_equal(const rdb_lruhandle_t *x, const rdb_slice_t *y) {
-  return rdb_memcmp4(x->key_data, x->key_length, y->data, y->size);
-}
 
 /* Return a pointer to slot that points to a cache entry that
  * matches key/hash. If there is no such cache entry, return a
@@ -218,7 +220,7 @@ typedef struct rdb_shard_s {
   size_t usage;
 
   /* Dummy head of LRU list. */
-  /* lru.prev is newest entry, lru.next is oldest entry. */
+  /* list.prev is newest entry, list.next is oldest entry. */
   /* Entries have refs==1 and in_cache==1. */
   rdb_lruhandle_t list;
 
@@ -265,11 +267,16 @@ rdb_shard_ref(rdb_shard_t *lru, rdb_lruhandle_t *e) {
 static void
 rdb_shard_unref(rdb_shard_t *lru, rdb_lruhandle_t *e) {
   assert(e->refs > 0);
+
   e->refs--;
+
   if (e->refs == 0) { /* Deallocate. */
     rdb_slice_t key = rdb_lruhandle_key(e);
+
     assert(!e->in_cache);
+
     e->deleter(&key, e->value);
+
     rdb_free(e);
   } else if (e->in_cache && e->refs == 1) {
     /* No longer in use; move to lru->list. */
@@ -301,7 +308,8 @@ static void
 rdb_shard_clear(rdb_shard_t *lru) {
   rdb_lruhandle_t *e, *next;
 
-  assert(lru->in_use.next == &lru->in_use); /* Error if caller has an unreleased handle */
+  assert(lru->in_use.next == &lru->in_use); /* Error if caller has
+                                               an unreleased handle */
 
   for (e = lru->list.next; e != &lru->list; e = next) {
     next = e->next;
@@ -349,11 +357,16 @@ static int
 rdb_shard_finish_erase(rdb_shard_t *lru, rdb_lruhandle_t *e) {
   if (e != NULL) {
     assert(e->in_cache);
+
     rdb_shard_remove(e);
+
     e->in_cache = 0;
+
     lru->usage -= e->charge;
+
     rdb_shard_unref(lru, e);
   }
+
   return e != NULL;
 }
 
@@ -400,18 +413,18 @@ rdb_shard_insert(rdb_shard_t *lru,
   e->key_length = key->size;
   e->hash = hash;
   e->in_cache = 0;
-  e->refs = 1; /* for the returned handle. */
+  e->refs = 1; /* For the returned handle. */
 
   memcpy(e->key_data, key->data, key->size);
 
   if (lru->capacity > 0) {
-    e->refs++; /* for the cache's reference. */
+    e->refs++; /* For the cache's reference. */
     e->in_cache = 1;
     rdb_shard_append(&lru->in_use, e);
     lru->usage += charge;
     rdb_shard_finish_erase(lru, rdb_lrutable_insert(&lru->table, e));
-  } else { /* don't cache. (lru->capacity==0 is supported and turns off caching.) */
-    /* next is read by key() in an assert, so it must be initialized */
+  } else { /* Don't cache (capacity==0 is supported and turns off caching). */
+    /* next is read by key() in an assert, so it must be initialized. */
     e->next = NULL;
   }
 
