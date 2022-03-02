@@ -10,7 +10,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
+/*
+ * Hash
+ */
+
 uint32_t
-rdb_hash(const uint8_t *data, size_t n, uint32_t seed);
+rdb_hash(const uint8_t *data, size_t size, uint32_t seed);
 
 #endif /* RDB_HASH_H */
