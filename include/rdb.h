@@ -217,6 +217,13 @@ int
 rdb_destroy_db(const char *dbname, const rdb_dbopt_t *options);
 
 /*
+ * Filesystem
+ */
+
+int
+rdb_test_directory(char *result, size_t size);
+
+/*
  * Internal
  */
 

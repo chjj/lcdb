@@ -84,7 +84,7 @@ rdb_lock_file(const char *filename, rdb_filelock_t **lock);
 int
 rdb_unlock_file(rdb_filelock_t *lock);
 
-int
+RDB_EXTERN int
 rdb_test_directory(char *result, size_t size);
 
 /*
