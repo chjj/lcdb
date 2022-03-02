@@ -936,7 +936,7 @@ rdb_wfile_destroy(rdb_wfile_t *file) {
  * Time
  */
 
-uint64_t
+int64_t
 rdb_now_usec(void) {
   struct timeval tv;
 
