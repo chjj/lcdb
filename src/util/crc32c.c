@@ -16,7 +16,7 @@
  * Constants
  */
 
-static const uint32_t k_byte_ext_table[256] = {
+static const uint32_t byte_ext_table[256] = {
   0x00000000, 0xf26b8303, 0xe13b70f7, 0x1350f3f4, 0xc79a971f, 0x35f1141c,
   0x26a1e7e8, 0xd4ca64eb, 0x8ad958cf, 0x78b2dbcc, 0x6be22838, 0x9989ab3b,
   0x4d43cfd0, 0xbf284cd3, 0xac78bf27, 0x5e133c24, 0x105ec76f, 0xe235446c,
@@ -62,7 +62,7 @@ static const uint32_t k_byte_ext_table[256] = {
   0xbe2da0a5, 0x4c4623a6, 0x5f16d052, 0xad7d5351
 };
 
-static const uint32_t k_stride_ext_table_0[256] = {
+static const uint32_t stride_ext_table_0[256] = {
   0x00000000, 0x30d23865, 0x61a470ca, 0x517648af, 0xc348e194, 0xf39ad9f1,
   0xa2ec915e, 0x923ea93b, 0x837db5d9, 0xb3af8dbc, 0xe2d9c513, 0xd20bfd76,
   0x4035544d, 0x70e76c28, 0x21912487, 0x11431ce2, 0x03171d43, 0x33c52526,
@@ -108,7 +108,7 @@ static const uint32_t k_stride_ext_table_0[256] = {
   0x51e8ec9c, 0x613ad4f9, 0x304c9c56, 0x009ea433
 };
 
-static const uint32_t k_stride_ext_table_1[256] = {
+static const uint32_t stride_ext_table_1[256] = {
   0x00000000, 0x54075546, 0xa80eaa8c, 0xfc09ffca, 0x55f123e9, 0x01f676af,
   0xfdff8965, 0xa9f8dc23, 0xabe247d2, 0xffe51294, 0x03eced5e, 0x57ebb818,
   0xfe13643b, 0xaa14317d, 0x561dceb7, 0x021a9bf1, 0x5228f955, 0x062fac13,
@@ -154,7 +154,7 @@ static const uint32_t k_stride_ext_table_1[256] = {
   0xdfbadb2b, 0x8bbd8e6d, 0x77b471a7, 0x23b324e1
 };
 
-static const uint32_t k_stride_ext_table_2[256] = {
+static const uint32_t stride_ext_table_2[256] = {
   0x00000000, 0x678efd01, 0xcf1dfa02, 0xa8930703, 0x9bd782f5, 0xfc597ff4,
   0x54ca78f7, 0x334485f6, 0x3243731b, 0x55cd8e1a, 0xfd5e8919, 0x9ad07418,
   0xa994f1ee, 0xce1a0cef, 0x66890bec, 0x0107f6ed, 0x6486e636, 0x03081b37,
@@ -200,7 +200,7 @@ static const uint32_t k_stride_ext_table_2[256] = {
   0xb9eb9f3e, 0xde65623f, 0x76f6653c, 0x1178983d
 };
 
-static const uint32_t k_stride_ext_table_3[256] = {
+static const uint32_t stride_ext_table_3[256] = {
   0x00000000, 0xf20c0dfe, 0xe1f46d0d, 0x13f860f3, 0xc604aceb, 0x3408a115,
   0x27f0c1e6, 0xd5fccc18, 0x89e52f27, 0x7be922d9, 0x6811422a, 0x9a1d4fd4,
   0x4fe183cc, 0xbded8e32, 0xae15eec1, 0x5c19e33f, 0x162628bf, 0xe42a2541,
@@ -247,8 +247,7 @@ static const uint32_t k_stride_ext_table_3[256] = {
 };
 
 /* CRCs are pre- and post- conditioned by xoring with all ones. */
-static const uint32_t crc32c_xor = 0xffffffffU;
-
+static const uint32_t crc32c_xor = 0xffffffff;
 static const uint32_t crc32c_mask_delta = 0xa282ead8;
 
 /*
@@ -275,18 +274,18 @@ rdb_crc32c_extend(uint32_t z, const uint8_t *xp, size_t xn) {
   uint32_t l = z ^ crc32c_xor;
 
 /* Process one byte at a time. */
-#define STEP1 do {                    \
-  int c = (l & 0xff) ^ *p++;          \
-  l = k_byte_ext_table[c] ^ (l >> 8); \
+#define STEP1 do {                  \
+  int c = (l & 0xff) ^ *p++;        \
+  l = byte_ext_table[c] ^ (l >> 8); \
 } while (0)
 
 /* Process one of the 4 strides of 4-byte data. */
-#define STEP4(s) do {                                    \
-  crc##s = rdb_fixed32_decode(p + s * 4) ^               \
-           k_stride_ext_table_3[crc##s & 0xff] ^         \
-           k_stride_ext_table_2[(crc##s >> 8) & 0xff] ^  \
-           k_stride_ext_table_1[(crc##s >> 16) & 0xff] ^ \
-           k_stride_ext_table_0[crc##s >> 24];           \
+#define STEP4(s) do {                                \
+  crc##s = rdb_fixed32_decode(p + s * 4)             \
+         ^ stride_ext_table_3[crc##s & 0xff]         \
+         ^ stride_ext_table_2[(crc##s >> 8) & 0xff]  \
+         ^ stride_ext_table_1[(crc##s >> 16) & 0xff] \
+         ^ stride_ext_table_0[crc##s >> 24];         \
 } while (0)
 
 /* Process a 16-byte swath of 4 strides, each of which has 4 bytes of data. */
@@ -299,13 +298,13 @@ rdb_crc32c_extend(uint32_t z, const uint8_t *xp, size_t xn) {
 } while (0)
 
 /* Process 4 bytes that were already loaded into a word. */
-#define STEP4W(w) do {                         \
-  w ^= l;                                      \
-                                               \
-  for (i = 0; i < 4; i++)                      \
-    w = (w >> 8) ^ k_byte_ext_table[w & 0xff]; \
-                                               \
-  l = w;                                       \
+#define STEP4W(w) do {                       \
+  w ^= l;                                    \
+                                             \
+  for (i = 0; i < 4; i++)                    \
+    w = (w >> 8) ^ byte_ext_table[w & 0xff]; \
+                                             \
+  l = w;                                     \
 } while (0)
 
   /* Point x at first 4-byte aligned byte in the buffer.
@@ -363,10 +362,10 @@ rdb_crc32c_extend(uint32_t z, const uint8_t *xp, size_t xn) {
   while (p != e)
     STEP1;
 
-#undef STEP4W
-#undef STEP16
-#undef STEP4
 #undef STEP1
+#undef STEP4
+#undef STEP16
+#undef STEP4W
 
   return l ^ crc32c_xor;
 }
