@@ -49,6 +49,15 @@ typedef unsigned long long rdb_uint64_t;
 #endif
 
 /*
+ * Constants
+ */
+
+enum {
+  leveldb_no_compression = 0,
+  leveldb_snappy_compression = 1
+};
+
+/*
  * Symbol Aliases
  */
 
