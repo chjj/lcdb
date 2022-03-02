@@ -60,6 +60,7 @@ list(APPEND rdb_sources # util
                         src/log_reader.c
                         src/log_writer.c
                         src/memtable.c
+                        src/repair.c
                         src/skiplist.c
                         src/table_cache.c
                         src/version_edit.c

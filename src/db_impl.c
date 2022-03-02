@@ -2281,13 +2281,6 @@ rdb_compact_range(rdb_t *db, const rdb_slice_t *begin, const rdb_slice_t *end) {
  */
 
 int
-rdb_repair_db(const char *dbname, const rdb_dbopt_t *options) {
-  (void)dbname;
-  (void)options;
-  return 0;
-}
-
-int
 rdb_destroy_db(const char *dbname, const rdb_dbopt_t *options) {
   char lockname[RDB_PATH_MAX];
   char path[RDB_PATH_MAX];

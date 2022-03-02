@@ -24,6 +24,8 @@ typedef struct rdb_reporter_s {
      of bytes dropped due to the corruption. */
   const char *fname;
   int *status;
+  void *info_log;
+  uint64_t lognum;
   void (*corruption)(struct rdb_reporter_s *reporter, size_t bytes, int status);
 } rdb_reporter_t;
 
