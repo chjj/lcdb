@@ -26,7 +26,7 @@ typedef struct rdb_readopt_s leveldb_readoptions_t;
 typedef struct rdb_writeopt_s leveldb_writeoptions_t;
 typedef struct rdb_dbopt_s leveldb_options_t;
 typedef struct rdb_lru_s leveldb_cache_t;
-typedef struct leveldb_logger_s leveldb_logger_t;
+typedef struct rdb_logger_s leveldb_logger_t;
 typedef struct leveldb_comparator_s leveldb_comparator_t;
 typedef struct leveldb_filterpolicy_s leveldb_filterpolicy_t;
 typedef struct leveldb_env_s leveldb_env_t;

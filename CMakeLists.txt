@@ -32,6 +32,7 @@ list(APPEND rdb_sources # util
                         src/util/env.c
                         src/util/hash.c
                         src/util/internal.c
+                        src/util/logger.c
                         src/util/options.c
                         src/util/port.c
                         src/util/random.c

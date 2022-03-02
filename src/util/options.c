@@ -17,6 +17,7 @@ static const rdb_dbopt_t db_options = {
   /* .create_if_missing = */ 0,
   /* .error_if_exists = */ 0,
   /* .paranoid_checks = */ 0,
+  /* .info_log = */ NULL,
   /* .write_buffer_size = */ 4 * 1024 * 1024,
   /* .max_open_files = */ 1000,
   /* .block_cache = */ NULL,

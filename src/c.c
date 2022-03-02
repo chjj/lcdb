@@ -39,10 +39,6 @@
  * Types
  */
 
-struct leveldb_logger_s {
-  void *rep;
-};
-
 struct leveldb_comparator_s {
   rdb_comparator_t rep;
   void *state;
@@ -422,8 +418,7 @@ leveldb_options_set_env(leveldb_options_t *opt, leveldb_env_t *env) {
 
 void
 leveldb_options_set_info_log(leveldb_options_t *opt, leveldb_logger_t *l) {
-  (void)opt;
-  (void)l;
+  opt->info_log = l;
 }
 
 void
@@ -654,8 +649,12 @@ leveldb_cache_destroy(leveldb_cache_t *cache) {
 leveldb_env_t *
 leveldb_create_default_env(void) {
   leveldb_env_t *env = rdb_malloc(sizeof(leveldb_env_t));
+
   env->rep = NULL;
   env->is_default = 1;
+
+  rdb_env_init();
+
   return env;
 }
 
@@ -666,8 +665,19 @@ leveldb_env_destroy(leveldb_env_t *env) {
 
 char *
 leveldb_env_get_test_directory(leveldb_env_t *env) {
-  (void)env;
-  return NULL;
+  char *result;
+
+  if (env == NULL)
+    return NULL;
+
+  result = rdb_malloc(RDB_PATH_MAX);
+
+  if (!rdb_test_directory(result, RDB_PATH_MAX)) {
+    rdb_free(result);
+    return NULL;
+  }
+
+  return result;
 }
 
 void

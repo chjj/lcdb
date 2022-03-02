@@ -366,6 +366,31 @@ rdb_unlock_file(rdb_filelock_t *lock) {
   return RDB_OK;
 }
 
+int
+rdb_test_directory(char *result, size_t size) {
+  char path[MAX_PATH];
+  DWORD len, tid;
+
+  len = GetEnvironmentVariableA("TEST_TMPDIR", result, size);
+
+  if (len >= 1 && len < size)
+    return 1;
+
+  if (!GetTempPathA(sizeof(path), path))
+    return 0;
+
+  if (strlen(path) + 12 + 20 + 1 > size)
+    return 0;
+
+  tid = GetCurrentThreadId();
+
+  sprintf(result, "%sleveldbtest-%lu", path, (unsigned long)tid);
+
+  CreateDirectoryA(result, NULL);
+
+  return 1;
+}
+
 /*
  * Readable File
  */
@@ -744,6 +769,25 @@ rdb_wfile_destroy(rdb_wfile_t *file) {
     CloseHandle(file->handle);
 
   rdb_free(file);
+}
+
+/*
+ * Logging
+ */
+
+rdb_logger_t *
+rdb_logger_create(FILE *stream);
+
+int
+rdb_logger_open(const char *filename, rdb_logger_t **result) {
+  FILE *stream = fopen(filename, "wN");
+
+  if (stream == NULL)
+    return RDB_WIN32_ERROR(GetLastError());
+
+  *result = rdb_logger_create(stream);
+
+  return RDB_OK;
 }
 
 /*

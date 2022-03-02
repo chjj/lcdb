@@ -16,6 +16,7 @@
  * Types
  */
 
+struct rdb_logger_s;
 struct rdb_rfile_s;
 
 /* Interface for reporting errors. */
@@ -24,7 +25,7 @@ typedef struct rdb_reporter_s {
      of bytes dropped due to the corruption. */
   const char *fname;
   int *status;
-  void *info_log;
+  struct rdb_logger_s *info_log;
   uint64_t lognum;
   void (*corruption)(struct rdb_reporter_s *reporter, size_t bytes, int status);
 } rdb_reporter_t;

@@ -323,8 +323,7 @@ rdb_sanitize_options(const char *dbname,
                      const rdb_bloom_t *ipolicy,
                      const rdb_dbopt_t *src) {
   rdb_dbopt_t result = *src;
-
-  (void)dbname;
+  int rc = RDB_OK;
 
   result.comparator = icmp;
   result.filter_policy = (src->filter_policy != NULL) ? ipolicy : NULL;
@@ -333,6 +332,30 @@ rdb_sanitize_options(const char *dbname,
   clip_to_range(result.write_buffer_size, 64 << 10, 1 << 30);
   clip_to_range(result.max_file_size, 1 << 20, 1 << 30);
   clip_to_range(result.block_size, 1 << 10, 4 << 20);
+
+  if (result.info_log == NULL) {
+    char info[RDB_PATH_MAX];
+    char old[RDB_PATH_MAX];
+
+    if (!rdb_info_filename(info, sizeof(info), dbname))
+      rc = RDB_INVALID;
+
+    if (!rdb_oldinfo_filename(old, sizeof(old), dbname))
+      rc = RDB_INVALID;
+
+    if (rc == RDB_OK) {
+      /* Open a log file in the same directory as the db. */
+      rdb_create_dir(dbname); /* In case it does not exist. */
+      rdb_rename_file(info, old);
+
+      rc = rdb_logger_open(info, &result.info_log);
+
+      if (rc != RDB_OK) {
+        /* No place suitable for logging.*/
+        result.info_log = NULL;
+      }
+    }
+  }
 
   if (result.block_cache == NULL)
     result.block_cache = rdb_lru_create(8 << 20);
@@ -434,15 +457,10 @@ rdb_create(const char *dbname, const rdb_dbopt_t *options) {
                                      &db->internal_filter_policy,
                                      options);
 
-  db->owns_info_log = 0;
-
-#if 0
   db->owns_info_log = (db->options.info_log != options->info_log);
-#endif
-
   db->owns_cache = (db->options.block_cache != options->block_cache);
 
-  /* db->dbname = dbname; */
+  (void)db->dbname;
 
   db->table_cache = rdb_tcache_create(db->dbname,
                                       &db->options,
@@ -523,10 +541,8 @@ rdb_destroy(rdb_t *db) {
 
   rdb_tcache_destroy(db->table_cache);
 
-#if 0
   if (db->owns_info_log)
-    rdb_infolog_destroy(db->options.info_log);
-#endif
+    rdb_logger_destroy(db->options.info_log);
 
   if (db->owns_cache)
     rdb_lru_destroy(db->options.block_cache);

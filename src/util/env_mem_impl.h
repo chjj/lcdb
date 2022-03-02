@@ -6,6 +6,7 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -447,6 +448,23 @@ rdb_unlock_file(rdb_filelock_t *lock) {
   return RDB_OK;
 }
 
+int
+rdb_test_directory(char *result, size_t size) {
+#if defined(_WIN32)
+  if (size < 8)
+    return 0;
+
+  strcpy(result, "C:\\test");
+#else
+  if (size < 6)
+    return 0;
+
+  strcpy(result, "/test");
+#endif
+
+  return 1;
+}
+
 /*
  * Readable File
  */
@@ -631,6 +649,20 @@ void
 rdb_wfile_destroy(rdb_wfile_t *file) {
   rdb_fstate_unref(file->state);
   rdb_free(file);
+}
+
+/*
+ * Logging
+ */
+
+rdb_logger_t *
+rdb_logger_create(FILE *stream);
+
+int
+rdb_logger_open(const char *filename, rdb_logger_t **result) {
+  (void)filename;
+  *result = rdb_logger_create(NULL);
+  return RDB_OK;
 }
 
 /*

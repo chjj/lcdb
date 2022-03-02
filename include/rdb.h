@@ -41,6 +41,7 @@ typedef struct rdb_comparator_s rdb_comparator_t;
 typedef struct rdb_dbopt_s rdb_dbopt_t;
 typedef struct rdb_handler_s rdb_handler_t;
 typedef struct rdb_iter_s rdb_iter_t;
+typedef struct rdb_logger_s rdb_logger_t;
 typedef struct rdb_lru_s rdb_lru_t;
 typedef struct rdb_readopt_s rdb_readopt_t;
 typedef struct rdb_snapshot_s rdb_snapshot_t;
@@ -262,6 +263,19 @@ void
 rdb_iter_destroy(rdb_iter_t *iter);
 
 /*
+ * Logging
+ */
+
+int
+rdb_logger_open(const char *filename, rdb_logger_t **result);
+
+void
+rdb_logger_destroy(rdb_logger_t *logger);
+
+void
+rdb_log(rdb_logger_t *logger, const char *fmt, ...);
+
+/*
  * Options
  */
 
@@ -270,6 +284,7 @@ struct rdb_dbopt_s {
   int create_if_missing;
   int error_if_exists;
   int paranoid_checks;
+  rdb_logger_t *info_log;
   size_t write_buffer_size;
   int max_open_files;
   rdb_lru_t *block_cache;

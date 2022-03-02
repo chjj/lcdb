@@ -30,6 +30,7 @@
  */
 
 typedef struct rdb_filelock_s rdb_filelock_t;
+typedef struct rdb_logger_s rdb_logger_t;
 typedef struct rdb_rfile_s rdb_rfile_t;
 typedef struct rdb_wfile_s rdb_wfile_t;
 
@@ -82,6 +83,9 @@ rdb_lock_file(const char *filename, rdb_filelock_t **lock);
 
 int
 rdb_unlock_file(rdb_filelock_t *lock);
+
+int
+rdb_test_directory(char *result, size_t size);
 
 /*
  * Readable File
@@ -139,6 +143,19 @@ rdb_wfile_flush(rdb_wfile_t *file);
 
 int
 rdb_wfile_sync(rdb_wfile_t *file);
+
+/*
+ * Logging
+ */
+
+RDB_EXTERN int
+rdb_logger_open(const char *filename, rdb_logger_t **result);
+
+RDB_EXTERN void
+rdb_logger_destroy(rdb_logger_t *logger);
+
+RDB_EXTERN void
+rdb_log(rdb_logger_t *logger, const char *fmt, ...);
 
 /*
  * Time

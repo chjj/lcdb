@@ -523,6 +523,29 @@ rdb_unlock_file(rdb_filelock_t *lock) {
   return RDB_OK;
 }
 
+int
+rdb_test_directory(char *result, size_t size) {
+  const char *dir = getenv("TEST_TMPDIR");
+  char tmp[100];
+  size_t len;
+
+  if (dir && dir[0] != '\0') {
+    len = strlen(dir);
+  } else {
+    len = sprintf(tmp, "/tmp/leveldbtest-%d", (int)geteuid());
+    dir = tmp;
+  }
+
+  if (len + 1 > size)
+    return 0;
+
+  memcpy(result, dir, len + 1);
+
+  mkdir(result, 0755);
+
+  return 1;
+}
+
 /*
  * Readable File
  */
@@ -930,6 +953,33 @@ rdb_wfile_destroy(rdb_wfile_t *file) {
     close(file->fd);
 
   rdb_free(file);
+}
+
+/*
+ * Logging
+ */
+
+rdb_logger_t *
+rdb_logger_create(FILE *stream);
+
+int
+rdb_logger_open(const char *filename, rdb_logger_t **result) {
+  int fd = rdb_open(filename, O_APPEND | O_WRONLY | O_CREAT, 0644);
+  FILE *stream;
+
+  if (fd < 0)
+    return RDB_POSIX_ERROR(errno);
+
+  stream = fdopen(fd, "w");
+
+  if (stream == NULL) {
+    close(fd);
+    return RDB_POSIX_ERROR(errno);
+  }
+
+  *result = rdb_logger_create(stream);
+
+  return RDB_OK;
 }
 
 /*

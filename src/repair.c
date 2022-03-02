@@ -98,9 +98,7 @@ typedef struct rdb_repair_s {
   rdb_comparator_t icmp;
   rdb_bloom_t ipolicy;
   rdb_dbopt_t options;
-#if 0
   int owns_info_log;
-#endif
   int owns_cache;
   rdb_tcache_t *table_cache;
   rdb_vedit_t edit;
@@ -131,10 +129,7 @@ repair_init(rdb_repair_t *rep, const char *dbname, const rdb_dbopt_t *options) {
                                       &rep->ipolicy,
                                       options);
 
-#if 0
   rep->owns_info_log = rep->options.info_log != options->info_log;
-#endif
-
   rep->owns_cache = rep->options.block_cache != options->block_cache;
 
   /* table_cache can be small since we expect each table to be opened once. */
@@ -157,10 +152,8 @@ repair_clear(rdb_repair_t *rep) {
 
   rdb_tcache_destroy(rep->table_cache);
 
-#if 0
   if (rep->owns_info_log)
-    rdb_infolog_destroy(rep->options.info_log);
-#endif
+    rdb_logger_destroy(rep->options.info_log);
 
   if (rep->owns_cache)
     rdb_lru_destroy(rep->options.block_cache);
@@ -286,7 +279,7 @@ convert_log_to_table(rdb_repair_t *rep, uint64_t log) {
     return rc;
 
   /* Create the log reader. */
-  /* reporter.info_log = rep->options.info_log; */
+  reporter.info_log = rep->options.info_log;
   reporter.lognum = log;
   reporter.corruption = report_corruption;
 
