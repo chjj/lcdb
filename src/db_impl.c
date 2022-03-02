@@ -480,7 +480,7 @@ rdb_create(const char *dbname, const rdb_dbopt_t *options) {
                                  db->table_cache,
                                  &db->internal_comparator);
 
-  db->bg_error = 0;
+  db->bg_error = RDB_OK;
 
   for (i = 0; i < RDB_NUM_LEVELS; i++)
     rdb_cstats_init(&db->stats[i]);

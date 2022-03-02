@@ -103,6 +103,9 @@ rdb_batch_clear(rdb_batch_t *batch);
 void
 rdb_batch_reset(rdb_batch_t *batch);
 
+size_t
+rdb_batch_approximate_size(const rdb_batch_t *batch);
+
 void
 rdb_batch_put(rdb_batch_t *batch,
               const rdb_slice_t *key,

@@ -79,7 +79,7 @@ rdb_batch_reset(rdb_batch_t *batch);
  * This number is tied to implementation details, and may change across
  * releases. It is intended for usage metrics.
  */
-size_t
+RDB_EXTERN size_t
 rdb_batch_approximate_size(const rdb_batch_t *batch);
 
 /* Support for iterating over the contents of a batch. */
