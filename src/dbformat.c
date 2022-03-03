@@ -144,19 +144,8 @@ rdb_ikey_clear(rdb_ikey_t *ikey) {
 }
 
 void
-rdb_ikey_reset(rdb_ikey_t *ikey) {
-  rdb_buffer_reset(ikey);
-}
-
-void
 rdb_ikey_copy(rdb_ikey_t *z, const rdb_ikey_t *x) {
   rdb_buffer_copy(z, x);
-}
-
-void
-rdb_ikey_set(rdb_ikey_t *ikey, const rdb_pkey_t *pkey) {
-  rdb_buffer_reset(ikey);
-  rdb_pkey_export(ikey, pkey);
 }
 
 rdb_slice_t
@@ -167,11 +156,6 @@ rdb_ikey_user_key(const rdb_ikey_t *ikey) {
 void
 rdb_ikey_export(rdb_ikey_t *z, const rdb_ikey_t *x) {
   rdb_buffer_export(z, x);
-}
-
-int
-rdb_ikey_slurp(rdb_ikey_t *z, rdb_slice_t *x) {
-  return rdb_buffer_slurp(z, x);
 }
 
 void

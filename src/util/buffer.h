@@ -102,12 +102,14 @@ rdb_buffer_size(const rdb_buffer_t *x);
 uint8_t *
 rdb_buffer_write(uint8_t *zp, const rdb_buffer_t *x);
 
+/* PutLengthPrefixedSlice */
 void
 rdb_buffer_export(rdb_buffer_t *z, const rdb_buffer_t *x);
 
 int
 rdb_buffer_read(rdb_buffer_t *z, const uint8_t **xp, size_t *xn);
 
+/* See GetInternalKey in version_edit.cc. */
 int
 rdb_buffer_slurp(rdb_buffer_t *z, rdb_slice_t *x);
 
