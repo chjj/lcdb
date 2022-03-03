@@ -111,7 +111,6 @@ rdb_extract_user_key(const rdb_slice_t *key);
  * ParsedInternalKey
  */
 
-/* ParsedInternalKey() */
 void
 rdb_pkey_init(rdb_pkey_t *key,
               const rdb_slice_t *user_key,
@@ -122,28 +121,14 @@ rdb_pkey_init(rdb_pkey_t *key,
 size_t
 rdb_pkey_size(const rdb_pkey_t *x);
 
-#if 0
-uint8_t *
-rdb_pkey_write(uint8_t *zp, const rdb_pkey_t *x);
-#endif
-
 /* AppendInternalKey */
 void
 rdb_pkey_export(rdb_buffer_t *z, const rdb_pkey_t *x);
-
-#if 0
-int
-rdb_pkey_read(rdb_pkey_t *z, const uint8_t **xp, size_t *xn);
-
-int
-rdb_pkey_slurp(rdb_pkey_t *z, rdb_slice_t *x);
-#endif
 
 /* ParseInternalKey */
 int
 rdb_pkey_import(rdb_pkey_t *z, const rdb_slice_t *x);
 
-/* ParsedInternalKey::DebugString */
 void
 rdb_pkey_debug(rdb_buffer_t *z, const rdb_pkey_t *x);
 
@@ -151,18 +136,15 @@ rdb_pkey_debug(rdb_buffer_t *z, const rdb_pkey_t *x);
  * InternalKey
  */
 
-/* InternalKey() */
 void
 rdb_ikey_init(rdb_ikey_t *ikey,
               const rdb_slice_t *user_key,
               rdb_seqnum_t sequence,
               rdb_valtype_t type);
 
-/* ~InternalKey() */
 void
 rdb_ikey_clear(rdb_ikey_t *ikey);
 
-/* InternalKey::Clear */
 void
 rdb_ikey_reset(rdb_ikey_t *ikey);
 
@@ -173,58 +155,39 @@ rdb_ikey_copy(rdb_ikey_t *z, const rdb_ikey_t *x);
 void
 rdb_ikey_set(rdb_ikey_t *ikey, const rdb_pkey_t *pkey);
 
-/* InternalKey::user_key */
 rdb_slice_t
 rdb_ikey_user_key(const rdb_ikey_t *ikey);
 
 void
 rdb_ikey_export(rdb_ikey_t *z, const rdb_ikey_t *x);
 
-#if 0
-/* InternalKey::Encode */
-rdb_slice_t
-rdb_ikey_encode(const rdb_ikey_t *x);
-#endif
-
 /* See GetInternalKey in version_edit.cc. */
 int
 rdb_ikey_slurp(rdb_ikey_t *z, rdb_slice_t *x);
 
-/* InternalKey::DebugString */
 void
 rdb_ikey_debug(rdb_buffer_t *z, const rdb_ikey_t *x);
-
-#if 0
-/* InternalKey::DecodeFrom */
-int
-rdb_ikey_import(rdb_ikey_t *z, const rdb_slice_t *x);
-#endif
 
 /*
  * LookupKey
  */
 
-/* LookupKey() */
 void
 rdb_lkey_init(rdb_lkey_t *lkey,
               const rdb_slice_t *user_key,
               rdb_seqnum_t sequence);
 
-/* ~LookupKey() */
 void
 rdb_lkey_clear(rdb_lkey_t *lkey);
 
-/* LookupKey::memtable_key() */
 /* Return a key suitable for lookup in a MemTable. */
 rdb_slice_t
 rdb_lkey_memtable_key(const rdb_lkey_t *lkey);
 
-/* LookupKey::internal_key() */
 /* Return an internal key (suitable for passing to an internal iterator) */
 rdb_slice_t
 rdb_lkey_internal_key(const rdb_lkey_t *lkey);
 
-/* LookupKey::user_key() */
 /* Return the user key */
 rdb_slice_t
 rdb_lkey_user_key(const rdb_lkey_t *lkey);

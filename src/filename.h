@@ -25,23 +25,6 @@ typedef enum rdb_filetype {
 } rdb_filetype_t;
 
 /*
- * Helpers
- */
-
-#define starts_with rdb_starts_with
-#define encode_int rdb_encode_int
-#define decode_int rdb_decode_int
-
-int
-starts_with(const char *xp, const char *yp);
-
-int
-encode_int(char *zp, uint64_t x, int pad);
-
-int
-decode_int(uint64_t *z, const char **xp);
-
-/*
  * Filename
  */
 

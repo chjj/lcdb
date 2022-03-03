@@ -38,29 +38,6 @@ rdb_string(const char *xp) {
   return rdb_slice((const uint8_t *)xp, strlen(xp));
 }
 
-#if 0
-void
-rdb_slice_init(rdb_slice_t *z) {
-  z->data = NULL;
-  z->size = 0;
-  z->alloc = 0;
-}
-
-void
-rdb_slice_reset(rdb_slice_t *z) {
-  z->data = NULL;
-  z->size = 0;
-  z->alloc = 0;
-}
-
-void
-rdb_slice_set(rdb_slice_t *z, const uint8_t *xp, size_t xn) {
-  z->data = (uint8_t *)xp;
-  z->size = xn;
-  z->alloc = 0;
-}
-#endif
-
 void
 rdb_slice_set_str(rdb_slice_t *z, const char *xp) {
   rdb_slice_set(z, (const uint8_t *)xp, strlen(xp));
@@ -147,7 +124,6 @@ rdb_slice_import(rdb_slice_t *z, const rdb_slice_t *x) {
   return rdb_slice_slurp(z, &tmp);
 }
 
-/* See GetLengthPrefixedSlice in memtable.cc. */
 rdb_slice_t
 rdb_slice_decode(const uint8_t *xp) {
   uint32_t zn = 0;

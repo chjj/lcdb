@@ -43,7 +43,6 @@ rdb_extract_user_key(const rdb_slice_t *key) {
  * ParsedInternalKey
  */
 
-/* ParsedInternalKey() */
 void
 rdb_pkey_init(rdb_pkey_t *key,
               const rdb_slice_t *user_key,
@@ -68,7 +67,6 @@ rdb_pkey_init(rdb_pkey_t *key,
   key->type = type;
 }
 
-/* InternalKeyEncodingLength */
 size_t
 rdb_pkey_size(const rdb_pkey_t *x) {
   return x->user_key.size + 8;
@@ -81,7 +79,6 @@ rdb_pkey_write(uint8_t *zp, const rdb_pkey_t *x) {
   return zp;
 }
 
-/* AppendInternalKey */
 void
 rdb_pkey_export(rdb_buffer_t *z, const rdb_pkey_t *x) {
   uint8_t *zp = rdb_buffer_expand(z, x->user_key.size + 8);
@@ -90,50 +87,6 @@ rdb_pkey_export(rdb_buffer_t *z, const rdb_pkey_t *x) {
   z->size += xn;
 }
 
-#if 0
-int
-rdb_pkey_read(rdb_pkey_t *z, const uint8_t **xp, size_t *xn) {
-  size_t zn = *xn - 8;
-  const uint8_t *zp;
-  uint64_t num;
-  int type;
-
-  if (*xn < 8)
-    return 0;
-
-  if (!rdb_zraw_read(&zp, zn, xp, xn))
-    return 0;
-
-  if (!rdb_fixed64_read(&num, xp, xn))
-    return 0;
-
-  type = num & 0xff;
-
-  if (type > RDB_TYPE_VALUE)
-    return 0;
-
-  rdb_slice_set(&z->user_key, zp, zn);
-
-  z->sequence = num >> 8;
-  z->type = (rdb_valtype_t)type;
-
-  return 1;
-}
-
-int
-rdb_pkey_slurp(rdb_pkey_t *z, rdb_slice_t *x) {
-  return rdb_pkey_read(z, (const uint8_t **)&x->data, &x->size);
-}
-
-/* ParseInternalKey */
-int
-rdb_pkey_import(rdb_pkey_t *z, const rdb_slice_t *x) {
-  rdb_slice_t tmp = *x;
-  return rdb_pkey_slurp(z, &tmp);
-}
-#endif
-
-/* ParseInternalKey */
 int
 rdb_pkey_import(rdb_pkey_t *z, const rdb_slice_t *x) {
   const uint8_t *xp = x->data;
@@ -158,7 +111,6 @@ rdb_pkey_import(rdb_pkey_t *z, const rdb_slice_t *x) {
   return 1;
 }
 
-/* ParsedInternalKey::DebugString */
 void
 rdb_pkey_debug(rdb_buffer_t *z, const rdb_pkey_t *x) {
   rdb_buffer_push(z, '\'');
@@ -173,7 +125,6 @@ rdb_pkey_debug(rdb_buffer_t *z, const rdb_pkey_t *x) {
  * InternalKey
  */
 
-/* InternalKey() */
 void
 rdb_ikey_init(rdb_ikey_t *ikey,
               const rdb_slice_t *user_key,
@@ -187,13 +138,11 @@ rdb_ikey_init(rdb_ikey_t *ikey,
   rdb_pkey_export(ikey, &pkey);
 }
 
-/* ~InternalKey() */
 void
 rdb_ikey_clear(rdb_ikey_t *ikey) {
   rdb_buffer_clear(ikey);
 }
 
-/* InternalKey::Clear */
 void
 rdb_ikey_reset(rdb_ikey_t *ikey) {
   rdb_buffer_reset(ikey);
@@ -204,14 +153,12 @@ rdb_ikey_copy(rdb_ikey_t *z, const rdb_ikey_t *x) {
   rdb_buffer_copy(z, x);
 }
 
-/* InternalKey::SetFrom */
 void
 rdb_ikey_set(rdb_ikey_t *ikey, const rdb_pkey_t *pkey) {
   rdb_buffer_reset(ikey);
   rdb_pkey_export(ikey, pkey);
 }
 
-/* InternalKey::user_key */
 rdb_slice_t
 rdb_ikey_user_key(const rdb_ikey_t *ikey) {
   return rdb_extract_user_key(ikey);
@@ -222,30 +169,11 @@ rdb_ikey_export(rdb_ikey_t *z, const rdb_ikey_t *x) {
   rdb_buffer_export(z, x);
 }
 
-#if 0
-/* InternalKey::Encode */
-rdb_slice_t
-rdb_ikey_encode(const rdb_ikey_t *x) {
-  return *x;
-}
-#endif
-
-/* See GetInternalKey in version_edit.cc. */
 int
 rdb_ikey_slurp(rdb_ikey_t *z, rdb_slice_t *x) {
   return rdb_buffer_slurp(z, x);
 }
 
-#if 0
-/* InternalKey::DecodeFrom */
-int
-rdb_ikey_import(rdb_ikey_t *z, const rdb_slice_t *x) {
-  rdb_buffer_copy(z, x);
-  return z->size != 0;
-}
-#endif
-
-/* InternalKey::DebugString */
 void
 rdb_ikey_debug(rdb_buffer_t *z, const rdb_ikey_t *x) {
   rdb_pkey_t pkey;
@@ -263,7 +191,6 @@ rdb_ikey_debug(rdb_buffer_t *z, const rdb_ikey_t *x) {
  * LookupKey
  */
 
-/* LookupKey() */
 void
 rdb_lkey_init(rdb_lkey_t *lkey,
               const rdb_slice_t *user_key,
@@ -287,15 +214,12 @@ rdb_lkey_init(rdb_lkey_t *lkey,
   lkey->end = zp;
 }
 
-/* ~LookupKey() */
 void
 rdb_lkey_clear(rdb_lkey_t *lkey) {
   if (lkey->start != lkey->space)
     rdb_free((void *)lkey->start);
 }
 
-/* LookupKey::memtable_key() */
-/* Return a key suitable for lookup in a MemTable. */
 rdb_slice_t
 rdb_lkey_memtable_key(const rdb_lkey_t *lkey) {
   rdb_slice_t ret;
@@ -303,8 +227,6 @@ rdb_lkey_memtable_key(const rdb_lkey_t *lkey) {
   return ret;
 }
 
-/* LookupKey::internal_key() */
-/* Return an internal key (suitable for passing to an internal iterator) */
 rdb_slice_t
 rdb_lkey_internal_key(const rdb_lkey_t *lkey) {
   rdb_slice_t ret;
@@ -312,8 +234,6 @@ rdb_lkey_internal_key(const rdb_lkey_t *lkey) {
   return ret;
 }
 
-/* LookupKey::user_key() */
-/* Return the user key */
 rdb_slice_t
 rdb_lkey_user_key(const rdb_lkey_t *lkey) {
   rdb_slice_t ret;
