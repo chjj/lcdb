@@ -27,6 +27,7 @@ typedef struct rdb_reporter_s {
   int *status;
   struct rdb_logger_s *info_log;
   uint64_t lognum;
+  void *dst; /* FILE */
   void (*corruption)(struct rdb_reporter_s *reporter, size_t bytes, int status);
 } rdb_reporter_t;
 

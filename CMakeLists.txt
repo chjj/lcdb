@@ -58,6 +58,7 @@ list(APPEND rdb_sources # util
                         src/db_impl.c
                         src/db_iter.c
                         src/dbformat.c
+                        src/dumpfile.c
                         src/filename.c
                         src/log_reader.c
                         src/log_writer.c
@@ -71,7 +72,6 @@ list(APPEND rdb_sources # util
 
 list(APPEND rdb_defines RDB_BUILD)
 list(APPEND rdb_defines RDB_HAVE_PTHREAD)
-list(APPEND rdb_defines RDB_MEMENV)
 
 test_big_endian(RDB_BIGENDIAN)
 
