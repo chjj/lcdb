@@ -690,7 +690,7 @@ rdb_repair_db(const char *dbname, const rdb_dbopt_t *options) {
   cmp = convert_comparator(options->comparator);
   opt = convert_dbopt(options, cmp);
 
-  leveldb_destroy_db(opt, dbname, &err);
+  leveldb_repair_db(opt, dbname, &err);
 
   if (cmp != NULL)
     leveldb_comparator_destroy(cmp);
@@ -712,7 +712,7 @@ rdb_destroy_db(const char *dbname, const rdb_dbopt_t *options) {
   cmp = convert_comparator(options->comparator);
   opt = convert_dbopt(options, cmp);
 
-  leveldb_repair_db(opt, dbname, &err);
+  leveldb_destroy_db(opt, dbname, &err);
 
   if (cmp != NULL)
     leveldb_comparator_destroy(cmp);
