@@ -146,7 +146,7 @@ repair_init(rdb_repair_t *rep, const char *dbname, const rdb_dbopt_t *options) {
   return 1;
 }
 
-void
+static void
 repair_clear(rdb_repair_t *rep) {
   size_t i;
 

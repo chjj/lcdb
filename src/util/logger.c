@@ -4,12 +4,13 @@
  * https://github.com/chjj/rdb
  */
 
+#undef HAVE_GETTID
+
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-#undef HAVE_GETTID
+#include <string.h>
 
 #if defined(_WIN32)
 #  include <windows.h>
@@ -24,6 +25,10 @@
 #  include <unistd.h>
 #else
 #  include <unistd.h>
+#endif
+
+#ifdef RDB_HAVE_PTHREAD
+#  include <pthread.h>
 #endif
 
 #include "env.h"
@@ -89,7 +94,7 @@ rdb_logger_destroy(rdb_logger_t *logger) {
 
 void
 rdb_log(rdb_logger_t *logger, const char *fmt, ...) {
-  unsigned long tid;
+  unsigned long tid = 0;
   char date[64];
   va_list ap;
 
@@ -102,6 +107,12 @@ rdb_log(rdb_logger_t *logger, const char *fmt, ...) {
     tid = GetCurrentThreadId();
 #elif defined(HAVE_GETTID)
     tid = syscall(__NR_gettid);
+#elif defined(RDB_HAVE_PTHREAD)
+    {
+      pthread_t thread = pthread_self();
+
+      memcpy(&tid, &thread, RDB_MIN(sizeof(tid), sizeof(thread)));
+    }
 #else
     tid = getpid();
 #endif
