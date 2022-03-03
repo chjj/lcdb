@@ -75,6 +75,15 @@ main(void) {
       }
     }
 
+    {
+      char *prop;
+
+      if (rdb_get_property(db, "leveldb.sstables", &prop)) {
+        puts(prop);
+        rdb_free(prop);
+      }
+    }
+
     rdb_close(db);
   }
 
