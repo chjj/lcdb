@@ -72,7 +72,7 @@ list(APPEND rdb_sources # util
                         src/write_batch.c)
 
 list(APPEND rdb_defines RDB_BUILD)
-list(APPEND rdb_defines RDB_HAVE_PTHREAD)
+list(APPEND rdb_defines RDB_PTHREAD)
 
 test_big_endian(RDB_BIGENDIAN)
 

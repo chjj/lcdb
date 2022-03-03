@@ -27,7 +27,7 @@
 #  include <unistd.h>
 #endif
 
-#ifdef RDB_HAVE_PTHREAD
+#ifdef RDB_PTHREAD
 #  include <pthread.h>
 #endif
 
@@ -107,7 +107,7 @@ rdb_log(rdb_logger_t *logger, const char *fmt, ...) {
     tid = GetCurrentThreadId();
 #elif defined(HAVE_GETTID)
     tid = syscall(__NR_gettid);
-#elif defined(RDB_HAVE_PTHREAD)
+#elif defined(RDB_PTHREAD)
     {
       pthread_t thread = pthread_self();
 

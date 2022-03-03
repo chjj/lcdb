@@ -34,7 +34,7 @@ typedef struct RDB_RTL_CRITICAL_SECTION {
 #endif
 } RDB_CRITICAL_SECTION;
 #  pragma pack(pop)
-#elif defined(RDB_HAVE_PTHREAD)
+#elif defined(RDB_PTHREAD)
 #  include <pthread.h>
 #endif
 
@@ -62,7 +62,7 @@ typedef struct rdb_thread_s {
 
 #define RDB_MUTEX_INITIALIZER {0, {0, 0, 0, 0, 0, 0}}
 
-#elif defined(RDB_HAVE_PTHREAD)
+#elif defined(RDB_PTHREAD)
 
 typedef struct rdb_mutex_s {
   pthread_mutex_t handle;
@@ -78,7 +78,7 @@ typedef struct rdb_thread_s {
 
 #define RDB_MUTEX_INITIALIZER { PTHREAD_MUTEX_INITIALIZER }
 
-#else /* !RDB_HAVE_PTHREAD */
+#else /* !RDB_PTHREAD */
 
 typedef struct rdb_mutex_s {
   void *handle;
@@ -94,7 +94,7 @@ typedef struct rdb_thread_s {
 
 #define RDB_MUTEX_INITIALIZER {0}
 
-#endif /* !RDB_HAVE_PTHREAD */
+#endif /* !RDB_PTHREAD */
 
 /*
  * Mutex

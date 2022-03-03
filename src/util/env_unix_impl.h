@@ -37,7 +37,7 @@
 
 #include <dirent.h>
 #include <fcntl.h>
-#ifdef RDB_HAVE_PTHREAD
+#ifdef RDB_PTHREAD
 #include <pthread.h>
 #endif
 #include <unistd.h>
@@ -283,7 +283,7 @@ env_init(void) {
 
 void
 rdb_env_init(void) {
-#if defined(RDB_HAVE_PTHREAD)
+#if defined(RDB_PTHREAD)
   static pthread_once_t guard = PTHREAD_ONCE_INIT;
   pthread_once(&guard, env_init);
 #else
