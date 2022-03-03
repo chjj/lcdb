@@ -17,9 +17,9 @@
 #include "util/env.h"
 #include "util/internal.h"
 #include "util/options.h"
-#include "util/rbt.h"
 #include "util/slice.h"
 #include "util/status.h"
+#include "util/strutil.h"
 
 #include "dbformat.h"
 #include "dumpfile.h"
@@ -33,98 +33,13 @@
  */
 
 static void
-rdb_buffer_string(rdb_buffer_t *z, const char *x) {
-  rdb_buffer_append_str(z, x);
-}
-
-static void
-rdb_buffer_number(rdb_buffer_t *z, uint64_t x) {
-  uint8_t *zp = rdb_buffer_expand(z, 21);
-
-  z->size += encode_int((char *)zp, x, 0);
-}
-
-static void
-rdb_buffer_escaped(rdb_buffer_t *z, const rdb_slice_t *x) {
-  uint8_t *zp = rdb_buffer_expand(z, x->size * 4 + 1);
-  size_t i;
-
-#define nibble(x) ((x) < 10 ? (x) + '0' : (x) - 10 + 'a')
-
-  for (i = 0; i < x->size; i++) {
-    int ch = x->data[i];
-
-    if (ch >= ' ' && ch <= '~') {
-      *zp++ = ch;
-    } else {
-      *zp++ = '\\';
-      *zp++ = 'x';
-      *zp++ = nibble(ch >> 4);
-      *zp++ = nibble(ch & 15);
-    }
-  }
-
-#undef nibble
-
-  z->size = zp - z->data;
-}
-
-static void
-rdb_pkey_debug(rdb_buffer_t *z, const rdb_pkey_t *x) {
-  rdb_buffer_push(z, '\'');
-  rdb_buffer_escaped(z, &x->user_key);
-  rdb_buffer_string(z, "' @ ");
-  rdb_buffer_number(z, x->sequence);
-  rdb_buffer_string(z, " : ");
-  rdb_buffer_number(z, x->type);
-}
-
-static void
-rdb_ikey_debug(rdb_buffer_t *z, const rdb_ikey_t *x) {
-  rdb_pkey_t pkey;
-
-  if (rdb_pkey_import(&pkey, x)) {
-    rdb_pkey_debug(z, &pkey);
-    return;
-  }
-
-  rdb_buffer_string(z, "(bad)");
-  rdb_buffer_escaped(z, x);
-}
-
-static void
 stream_append(FILE *stream, const rdb_slice_t *x) {
   fwrite(x->data, 1, x->size, stream);
 }
 
-static char *
-get_basename(const char *fname) {
-#if defined(_WIN32)
-  size_t len = strlen(fname);
-
-  while (len > 0) {
-    if (fname[len - 1] == '/' || fname[len - 1] == '\\')
-      break;
-
-    len--;
-  }
-
-  return (char *)fname + len;
-#else
-  const char *base = strrchr(fname, '/');
-
-  if (base == NULL)
-    base = fname;
-  else
-    base += 1;
-
-  return (char *)base;
-#endif
-}
-
 static int
 guess_type(const char *fname, rdb_filetype_t *type) {
-  const char *base = get_basename(fname);
+  const char *base = rdb_basename(fname);
   uint64_t ignored;
 
   return rdb_parse_filename(type, &ignored, base);
@@ -192,9 +107,9 @@ handle_put(rdb_handler_t *h, const rdb_slice_t *key, const rdb_slice_t *value) {
 
   rdb_buffer_init(&r);
   rdb_buffer_string(&r, "  put '");
-  rdb_buffer_escaped(&r, key);
+  rdb_buffer_escape(&r, key);
   rdb_buffer_string(&r, "' '");
-  rdb_buffer_escaped(&r, value);
+  rdb_buffer_escape(&r, value);
   rdb_buffer_string(&r, "'\n");
 
   stream_append(dst, &r);
@@ -208,7 +123,7 @@ handle_del(rdb_handler_t *h, const rdb_slice_t *key) {
 
   rdb_buffer_init(&r);
   rdb_buffer_string(&r, "  del '");
-  rdb_buffer_escaped(&r, key);
+  rdb_buffer_escape(&r, key);
   rdb_buffer_string(&r, "'\n");
 
   stream_append(dst, &r);
@@ -276,8 +191,6 @@ static void
 edit_printer(uint64_t pos, const rdb_slice_t *record, FILE *dst) {
   rdb_vedit_t edit;
   rdb_buffer_t r;
-  void *item;
-  size_t i;
 
   rdb_vedit_init(&edit);
 
@@ -290,69 +203,7 @@ edit_printer(uint64_t pos, const rdb_slice_t *record, FILE *dst) {
     rdb_buffer_string(&r, rdb_strerror(RDB_CORRUPTION));
     rdb_buffer_push(&r, '\n');
   } else {
-    rdb_buffer_string(&r, "VersionEdit {");
-
-    if (edit.has_comparator) {
-      rdb_buffer_string(&r, "\n  Comparator: ");
-      rdb_buffer_append(&r, edit.comparator.data,
-                            edit.comparator.size);
-    }
-
-    if (edit.has_log_number) {
-      rdb_buffer_string(&r, "\n  LogNumber: ");
-      rdb_buffer_number(&r, edit.log_number);
-    }
-
-    if (edit.has_prev_log_number) {
-      rdb_buffer_string(&r, "\n  PrevLogNumber: ");
-      rdb_buffer_number(&r, edit.prev_log_number);
-    }
-
-    if (edit.has_next_file_number) {
-      rdb_buffer_string(&r, "\n  NextFile: ");
-      rdb_buffer_number(&r, edit.next_file_number);
-    }
-
-    if (edit.has_last_sequence) {
-      rdb_buffer_string(&r, "\n  LastSeq: ");
-      rdb_buffer_number(&r, edit.last_sequence);
-    }
-
-    for (i = 0; i < edit.compact_pointers.length; i++) {
-      const ikey_entry_t *entry = edit.compact_pointers.items[i];
-
-      rdb_buffer_string(&r, "\n  CompactPointer: ");
-      rdb_buffer_number(&r, entry->level);
-      rdb_buffer_string(&r, " ");
-      rdb_ikey_debug(&r, &entry->key);
-    }
-
-    rb_set_iterate(&edit.deleted_files, item) {
-      const file_entry_t *entry = item;
-
-      rdb_buffer_string(&r, "\n  RemoveFile: ");
-      rdb_buffer_number(&r, entry->level);
-      rdb_buffer_string(&r, " ");
-      rdb_buffer_number(&r, entry->number);
-    }
-
-    for (i = 0; i < edit.new_files.length; i++) {
-      const meta_entry_t *entry = edit.new_files.items[i];
-      const rdb_filemeta_t *f = &entry->meta;
-
-      rdb_buffer_string(&r, "\n  AddFile: ");
-      rdb_buffer_number(&r, entry->level);
-      rdb_buffer_string(&r, " ");
-      rdb_buffer_number(&r, f->number);
-      rdb_buffer_string(&r, " ");
-      rdb_buffer_number(&r, f->file_size);
-      rdb_buffer_string(&r, " ");
-      rdb_ikey_debug(&r, &f->smallest);
-      rdb_buffer_string(&r, " .. ");
-      rdb_ikey_debug(&r, &f->largest);
-    }
-
-    rdb_buffer_string(&r, "\n}\n");
+    rdb_vedit_debug(&r, &edit);
   }
 
   stream_append(dst, &r);
@@ -414,14 +265,14 @@ dump_table(const char *fname, FILE *dst) {
 
     if (!rdb_pkey_import(&pkey, &key)) {
       rdb_buffer_string(&r, "badkey '");
-      rdb_buffer_escaped(&r, &key);
+      rdb_buffer_escape(&r, &key);
       rdb_buffer_string(&r, "' => '");
-      rdb_buffer_escaped(&r, &val);
+      rdb_buffer_escape(&r, &val);
       rdb_buffer_string(&r, "'\n");
       stream_append(dst, &r);
     } else {
       rdb_buffer_push(&r, '\'');
-      rdb_buffer_escaped(&r, &pkey.user_key);
+      rdb_buffer_escape(&r, &pkey.user_key);
       rdb_buffer_string(&r, "' @ ");
       rdb_buffer_number(&r, pkey.sequence);
       rdb_buffer_string(&r, " : ");
@@ -434,7 +285,7 @@ dump_table(const char *fname, FILE *dst) {
         rdb_buffer_number(&r, pkey.type);
 
       rdb_buffer_string(&r, " => '");
-      rdb_buffer_escaped(&r, &val);
+      rdb_buffer_escape(&r, &val);
       rdb_buffer_string(&r, "'\n");
 
       stream_append(dst, &r);

@@ -158,6 +158,17 @@ rdb_pkey_import(rdb_pkey_t *z, const rdb_slice_t *x) {
   return 1;
 }
 
+/* ParsedInternalKey::DebugString */
+void
+rdb_pkey_debug(rdb_buffer_t *z, const rdb_pkey_t *x) {
+  rdb_buffer_push(z, '\'');
+  rdb_buffer_escape(z, &x->user_key);
+  rdb_buffer_string(z, "' @ ");
+  rdb_buffer_number(z, x->sequence);
+  rdb_buffer_string(z, " : ");
+  rdb_buffer_number(z, x->type);
+}
+
 /*
  * InternalKey
  */
@@ -233,6 +244,20 @@ rdb_ikey_import(rdb_ikey_t *z, const rdb_slice_t *x) {
   return z->size != 0;
 }
 #endif
+
+/* InternalKey::DebugString */
+void
+rdb_ikey_debug(rdb_buffer_t *z, const rdb_ikey_t *x) {
+  rdb_pkey_t pkey;
+
+  if (rdb_pkey_import(&pkey, x)) {
+    rdb_pkey_debug(z, &pkey);
+    return;
+  }
+
+  rdb_buffer_string(z, "(bad)");
+  rdb_buffer_escape(z, x);
+}
 
 /*
  * LookupKey

@@ -143,6 +143,10 @@ rdb_pkey_slurp(rdb_pkey_t *z, rdb_slice_t *x);
 int
 rdb_pkey_import(rdb_pkey_t *z, const rdb_slice_t *x);
 
+/* ParsedInternalKey::DebugString */
+void
+rdb_pkey_debug(rdb_buffer_t *z, const rdb_pkey_t *x);
+
 /*
  * InternalKey
  */
@@ -185,6 +189,10 @@ rdb_ikey_encode(const rdb_ikey_t *x);
 /* See GetInternalKey in version_edit.cc. */
 int
 rdb_ikey_slurp(rdb_ikey_t *z, rdb_slice_t *x);
+
+/* InternalKey::DebugString */
+void
+rdb_ikey_debug(rdb_buffer_t *z, const rdb_ikey_t *x);
 
 #if 0
 /* InternalKey::DecodeFrom */

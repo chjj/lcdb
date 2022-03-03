@@ -19,12 +19,6 @@
 
 #define RDB_PATH_MAX 1024
 
-#if defined(_WIN32)
-#  define RDB_PATH_SEP '\\'
-#else
-#  define RDB_PATH_SEP '/'
-#endif
-
 /*
  * Types
  */
@@ -47,9 +41,6 @@ rdb_env_clear(void);
 /*
  * Filesystem
  */
-
-int
-rdb_path_join(char *zp, size_t zn, const char *xp, const char *yp);
 
 int
 rdb_path_absolute(char *buf, size_t size, const char *name);

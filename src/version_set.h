@@ -209,6 +209,9 @@ rdb_version_get_overlapping_inputs(rdb_version_t *ver,
                                    const rdb_ikey_t *end,
                                    rdb_vector_t *inputs);
 
+void
+rdb_version_debug(rdb_buffer_t *z, const rdb_version_t *x);
+
 /*
  * VersionSet
  */
@@ -280,6 +283,11 @@ rdb_vset_mark_file_number_used(rdb_vset_t *vset, uint64_t number);
 /* Return the number of Table files at the specified level. */
 int
 rdb_vset_num_level_files(const rdb_vset_t *vset, int level);
+
+/* Return a human-readable short (single-line) summary of the number
+   of files per level. Uses *scratch as backing store. */
+const char *
+rdb_vset_level_summary(const rdb_vset_t *vset, char *scratch);
 
 /* Return the approximate offset in the database of the data for
    "key" as of version "v". */

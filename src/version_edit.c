@@ -492,3 +492,72 @@ rdb_vedit_import(rdb_vedit_t *edit, const rdb_slice_t *src) {
 
   return 1;
 }
+
+void
+rdb_vedit_debug(rdb_buffer_t *z, const rdb_vedit_t *edit) {
+  void *item;
+  size_t i;
+
+  rdb_buffer_string(z, "VersionEdit {");
+
+  if (edit->has_comparator) {
+    rdb_buffer_string(z, "\n  Comparator: ");
+    rdb_buffer_concat(z, &edit->comparator);
+  }
+
+  if (edit->has_log_number) {
+    rdb_buffer_string(z, "\n  LogNumber: ");
+    rdb_buffer_number(z, edit->log_number);
+  }
+
+  if (edit->has_prev_log_number) {
+    rdb_buffer_string(z, "\n  PrevLogNumber: ");
+    rdb_buffer_number(z, edit->prev_log_number);
+  }
+
+  if (edit->has_next_file_number) {
+    rdb_buffer_string(z, "\n  NextFile: ");
+    rdb_buffer_number(z, edit->next_file_number);
+  }
+
+  if (edit->has_last_sequence) {
+    rdb_buffer_string(z, "\n  LastSeq: ");
+    rdb_buffer_number(z, edit->last_sequence);
+  }
+
+  for (i = 0; i < edit->compact_pointers.length; i++) {
+    const ikey_entry_t *entry = edit->compact_pointers.items[i];
+
+    rdb_buffer_string(z, "\n  CompactPointer: ");
+    rdb_buffer_number(z, entry->level);
+    rdb_buffer_string(z, " ");
+    rdb_ikey_debug(z, &entry->key);
+  }
+
+  rb_set_iterate(&edit->deleted_files, item) {
+    const file_entry_t *entry = item;
+
+    rdb_buffer_string(z, "\n  RemoveFile: ");
+    rdb_buffer_number(z, entry->level);
+    rdb_buffer_string(z, " ");
+    rdb_buffer_number(z, entry->number);
+  }
+
+  for (i = 0; i < edit->new_files.length; i++) {
+    const meta_entry_t *entry = edit->new_files.items[i];
+    const rdb_filemeta_t *f = &entry->meta;
+
+    rdb_buffer_string(z, "\n  AddFile: ");
+    rdb_buffer_number(z, entry->level);
+    rdb_buffer_string(z, " ");
+    rdb_buffer_number(z, f->number);
+    rdb_buffer_string(z, " ");
+    rdb_buffer_number(z, f->file_size);
+    rdb_buffer_string(z, " ");
+    rdb_ikey_debug(z, &f->smallest);
+    rdb_buffer_string(z, " .. ");
+    rdb_ikey_debug(z, &f->largest);
+  }
+
+  rdb_buffer_string(z, "\n}\n");
+}

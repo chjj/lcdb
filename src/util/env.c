@@ -15,24 +15,6 @@
 #include "buffer.h"
 
 int
-rdb_path_join(char *zp, size_t zn, const char *xp, const char *yp) {
-  if (strlen(xp) + strlen(yp) + 2 > zn)
-    return 0;
-
-  while (*xp)
-    *zp++ = *xp++;
-
-  *zp++ = RDB_PATH_SEP;
-
-  while (*yp)
-    *zp++ = *yp++;
-
-  *zp = '\0';
-
-  return 1;
-}
-
-int
 rdb_write_file(const char *fname, const rdb_slice_t *data, int should_sync) {
   rdb_wfile_t *file;
   int rc;

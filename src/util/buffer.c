@@ -13,6 +13,7 @@
 #include "hash.h"
 #include "internal.h"
 #include "memcmp.h"
+#include "strutil.h"
 
 /*
  * Buffer
@@ -163,8 +164,45 @@ rdb_buffer_append(rdb_buffer_t *z, const uint8_t *xp, size_t xn) {
 }
 
 void
-rdb_buffer_append_str(rdb_buffer_t *z, const char *xp) {
+rdb_buffer_concat(rdb_buffer_t *z, const rdb_slice_t *x) {
+  rdb_buffer_append(z, x->data, x->size);
+}
+
+void
+rdb_buffer_string(rdb_buffer_t *z, const char *xp) {
   rdb_buffer_append(z, (const uint8_t *)xp, strlen(xp));
+}
+
+void
+rdb_buffer_number(rdb_buffer_t *z, uint64_t x) {
+  uint8_t *zp = rdb_buffer_expand(z, 21);
+
+  z->size += rdb_encode_int((char *)zp, x, 0);
+}
+
+void
+rdb_buffer_escape(rdb_buffer_t *z, const rdb_slice_t *x) {
+  uint8_t *zp = rdb_buffer_expand(z, x->size * 4 + 1);
+  size_t i;
+
+#define nibble(x) ((x) < 10 ? (x) + '0' : (x) - 10 + 'a')
+
+  for (i = 0; i < x->size; i++) {
+    int ch = x->data[i];
+
+    if (ch >= ' ' && ch <= '~') {
+      *zp++ = ch;
+    } else {
+      *zp++ = '\\';
+      *zp++ = 'x';
+      *zp++ = nibble(ch >> 4);
+      *zp++ = nibble(ch & 15);
+    }
+  }
+
+#undef nibble
+
+  z->size = zp - z->data;
 }
 
 uint8_t *

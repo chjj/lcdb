@@ -23,6 +23,7 @@
 #include "util/options.h"
 #include "util/slice.h"
 #include "util/status.h"
+#include "util/strutil.h"
 #include "util/vector.h"
 
 #include "builder.h"
@@ -220,29 +221,17 @@ archive_file(rdb_repair_t *rep, const char *fname) {
   char newdir[RDB_PATH_MAX];
   char dir[RDB_PATH_MAX];
   const char *base;
-  char *slash;
   int rc;
 
-  assert(strlen(fname) + 1 <= sizeof(dir));
-
-  slash = strrchr(strcpy(dir, fname), RDB_PATH_SEP);
-
-  if (slash == NULL)
-    strcpy(dir, ".");
-  else
-    *slash = '\0';
-
-  if (!rdb_path_join(newdir, sizeof(newdir), dir, "lost"))
+  if (!rdb_dirname(dir, sizeof(dir), fname))
     abort(); /* LCOV_EXCL_LINE */
 
-  base = strrchr(fname, RDB_PATH_SEP);
+  if (!rdb_join(newdir, sizeof(newdir), dir, "lost"))
+    abort(); /* LCOV_EXCL_LINE */
 
-  if (base == NULL)
-    base = (char *)fname;
-  else
-    base += 1;
+  base = rdb_basename(fname);
 
-  if (!rdb_path_join(newfile, sizeof(newfile), newdir, base))
+  if (!rdb_join(newfile, sizeof(newfile), newdir, base))
     abort(); /* LCOV_EXCL_LINE */
 
   rdb_create_dir(newdir); /* Ignore error. */

@@ -28,6 +28,7 @@
 #include "util/rbt.h"
 #include "util/slice.h"
 #include "util/status.h"
+#include "util/strutil.h"
 #include "util/thread_pool.h"
 #include "util/vector.h"
 
@@ -710,7 +711,7 @@ rdb_remove_obsolete_files(rdb_t *db) {
   for (i = 0; i < (int)to_delete.length; i++) {
     const char *filename = to_delete.items[i];
 
-    if (!rdb_path_join(path, sizeof(path), db->dbname, filename))
+    if (!rdb_join(path, sizeof(path), db->dbname, filename))
       continue;
 
     rdb_remove_file(path);
@@ -1282,6 +1283,7 @@ rdb_do_compaction_work(rdb_t *db, rdb_cstate_t *compact) {
   int rc = RDB_OK;
   int which, level;
   rdb_pkey_t ikey;
+  char tmp[100];
   size_t i;
 
   rdb_log(db->options.info_log, "Compacting %d@%d + %d@%d files",
@@ -1459,7 +1461,8 @@ rdb_do_compaction_work(rdb_t *db, rdb_cstate_t *compact) {
 
   rdb_buffer_clear(&user_key);
 
-  rdb_log(db->options.info_log, "compacted");
+  rdb_log(db->options.info_log, "compacted to: %s",
+          rdb_vset_level_summary(db->versions, tmp));
 
   return rc;
 }
@@ -1529,6 +1532,7 @@ rdb_background_compaction(rdb_t *db) {
     /* Move file to next level. */
     rdb_vedit_t *edit = rdb_compaction_edit(c);
     rdb_filemeta_t *f;
+    char tmp[100];
 
     assert(rdb_compaction_num_input_files(c, 0) == 1);
 
@@ -1547,11 +1551,12 @@ rdb_background_compaction(rdb_t *db) {
     if (rc != RDB_OK)
       rdb_record_background_error(db, rc);
 
-    rdb_log(db->options.info_log, "Moved #%lu to level-%d %lu bytes %s",
+    rdb_log(db->options.info_log, "Moved #%lu to level-%d %lu bytes %s: %s",
                                   (unsigned long)f->number,
                                   rdb_compaction_level(c) + 1,
                                   (unsigned long)f->file_size,
-                                  rdb_strerror(rc));
+                                  rdb_strerror(rc),
+                                  rdb_vset_level_summary(db->versions, tmp));
   } else {
     rdb_cstate_t *compact = rdb_cstate_create(c);
 
@@ -2202,20 +2207,20 @@ rdb_get_property(rdb_t *db, const char *property, char **value) {
 
   *value = NULL;
 
-  if (!starts_with(in, "leveldb."))
+  if (!rdb_starts_with(in, "leveldb."))
     return 0;
 
   in += 8;
 
   rdb_mutex_lock(&db->mutex);
 
-  if (starts_with(in, "num-files-at-level")) {
+  if (rdb_starts_with(in, "num-files-at-level")) {
     uint64_t level;
     int ok;
 
     in += 18;
 
-    ok = decode_int(&level, &in) && *in == 0;
+    ok = rdb_decode_int(&level, &in) && *in == 0;
 
     if (!ok || level >= RDB_NUM_LEVELS) {
       rdb_mutex_unlock(&db->mutex);
@@ -2224,7 +2229,7 @@ rdb_get_property(rdb_t *db, const char *property, char **value) {
 
     *value = rdb_malloc(21);
 
-    encode_int(*value, rdb_vset_num_level_files(db->versions, level), 0);
+    rdb_encode_int(*value, rdb_vset_num_level_files(db->versions, level), 0);
 
     rdb_mutex_unlock(&db->mutex);
 
@@ -2242,7 +2247,7 @@ rdb_get_property(rdb_t *db, const char *property, char **value) {
                  "Level  Files Size(MB) Time(sec) Read(MB) Write(MB)\n"
                  "--------------------------------------------------\n");
 
-    rdb_buffer_append_str(&val, buf);
+    rdb_buffer_string(&val, buf);
 
     for (level = 0; level < RDB_NUM_LEVELS; level++) {
       int files = rdb_vset_num_level_files(db->versions, level);
@@ -2257,10 +2262,24 @@ rdb_get_property(rdb_t *db, const char *property, char **value) {
                      stats->bytes_read / 1048576.0,
                      stats->bytes_written / 1048576.0);
 
-        rdb_buffer_append_str(&val, buf);
+        rdb_buffer_string(&val, buf);
       }
     }
 
+    rdb_buffer_push(&val, 0);
+
+    *value = (char *)val.data;
+
+    rdb_mutex_unlock(&db->mutex);
+
+    return 1;
+  }
+
+  if (strcmp(in, "sstables") == 0) {
+    rdb_buffer_t val;
+
+    rdb_buffer_init(&val);
+    rdb_version_debug(&val, db->versions->current);
     rdb_buffer_push(&val, 0);
 
     *value = (char *)val.data;
@@ -2281,7 +2300,7 @@ rdb_get_property(rdb_t *db, const char *property, char **value) {
 
     *value = rdb_malloc(21);
 
-    encode_int(*value, total_usage, 0);
+    rdb_encode_int(*value, total_usage, 0);
 
     rdb_mutex_unlock(&db->mutex);
 
@@ -2396,7 +2415,7 @@ rdb_destroy_db(const char *dbname, const rdb_dbopt_t *options) {
       if (type == RDB_FILE_LOCK)
         continue; /* Lock file will be deleted at end. */
 
-      if (!rdb_path_join(path, sizeof(path), dbname, name)) {
+      if (!rdb_join(path, sizeof(path), dbname, name)) {
         rc = RDB_INVALID;
         continue;
       }

@@ -24,6 +24,7 @@
 #include "util/rbt.h"
 #include "util/slice.h"
 #include "util/status.h"
+#include "util/strutil.h"
 #include "util/vector.h"
 
 #include "dbformat.h"
@@ -831,6 +832,39 @@ rdb_version_get_overlapping_inputs(rdb_version_t *ver,
   }
 }
 
+void
+rdb_version_debug(rdb_buffer_t *z, const rdb_version_t *x) {
+  int level;
+
+  for (level = 0; level < RDB_NUM_LEVELS; level++) {
+    const rdb_vector_t *files = &x->files[level];
+    size_t i;
+
+    /* E.g.,
+     *   --- level 1 ---
+     *   17:123['a' .. 'd']
+     *   20:43['e' .. 'g']
+     */
+    rdb_buffer_string(z, "--- level ");
+    rdb_buffer_number(z, level);
+    rdb_buffer_string(z, " ---\n");
+
+    for (i = 0; i < files->length; i++) {
+      const rdb_filemeta_t *file = files->items[i++];
+
+      rdb_buffer_push(z, ' ');
+      rdb_buffer_number(z, file->number);
+      rdb_buffer_push(z, ':');
+      rdb_buffer_number(z, file->file_size);
+      rdb_buffer_push(z, '[');
+      rdb_ikey_debug(z, &file->smallest);
+      rdb_buffer_string(z, " .. ");
+      rdb_ikey_debug(z, &file->largest);
+      rdb_buffer_string(z, "]\n");
+    }
+  }
+}
+
 /*
  * VersionSet::Builder
  */
@@ -1314,12 +1348,7 @@ rdb_vset_reuse_manifest(rdb_vset_t *vset, const char *dscname) {
   if (!vset->options->reuse_logs)
     return 0;
 
-  dscbase = strrchr(dscname, RDB_PATH_SEP);
-
-  if (dscbase == NULL)
-    dscbase = dscname;
-  else
-    dscbase += 1;
+  dscbase = rdb_basename(dscname);
 
   if (!rdb_parse_filename(&manifest_type, &manifest_number, dscbase)
       || manifest_type != RDB_FILE_DESC
@@ -1388,7 +1417,7 @@ read_current_filename(char *path, size_t size, const char *prefix) {
 
   name[len - 1] = '\0';
 
-  if (!rdb_path_join(path, size, prefix, name)) {
+  if (!rdb_join(path, size, prefix, name)) {
     rc = RDB_INVALID;
     goto fail;
   }
@@ -1638,6 +1667,25 @@ rdb_vset_num_level_files(const rdb_vset_t *vset, int level) {
   assert(level >= 0);
   assert(level < RDB_NUM_LEVELS);
   return vset->current->files[level].length;
+}
+
+const char *
+rdb_vset_level_summary(const rdb_vset_t *vset, char *scratch) {
+  const rdb_version_t *c = vset->current;
+
+  /* Update code if kNumLevels changes. */
+  STATIC_ASSERT(RDB_NUM_LEVELS == 7);
+
+  sprintf(scratch, "files[ %d %d %d %d %d %d %d ]",
+                   (int)c->files[0].length,
+                   (int)c->files[1].length,
+                   (int)c->files[2].length,
+                   (int)c->files[3].length,
+                   (int)c->files[4].length,
+                   (int)c->files[5].length,
+                   (int)c->files[6].length);
+
+  return scratch;
 }
 
 uint64_t

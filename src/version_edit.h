@@ -141,4 +141,7 @@ rdb_vedit_export(rdb_buffer_t *dst, const rdb_vedit_t *edit);
 int
 rdb_vedit_import(rdb_vedit_t *edit, const rdb_slice_t *src);
 
+void
+rdb_vedit_debug(rdb_buffer_t *z, const rdb_vedit_t *edit);
+
 #endif /* RDB_VERSION_EDIT_H */

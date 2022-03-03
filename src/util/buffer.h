@@ -70,7 +70,16 @@ void
 rdb_buffer_append(rdb_buffer_t *z, const uint8_t *xp, size_t xn);
 
 void
-rdb_buffer_append_str(rdb_buffer_t *z, const char *xp);
+rdb_buffer_concat(rdb_buffer_t *z, const rdb_slice_t *x);
+
+void
+rdb_buffer_string(rdb_buffer_t *z, const char *xp);
+
+void
+rdb_buffer_number(rdb_buffer_t *z, uint64_t x);
+
+void
+rdb_buffer_escape(rdb_buffer_t *z, const rdb_slice_t *x);
 
 uint8_t *
 rdb_buffer_pad(rdb_buffer_t *z, size_t xn);

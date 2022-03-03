@@ -40,6 +40,7 @@ list(APPEND rdb_sources # util
                         src/util/slice.c
                         src/util/snappy.c
                         src/util/status.c
+                        src/util/strutil.c
                         src/util/thread_pool.c
                         src/util/vector.c
                         # table
