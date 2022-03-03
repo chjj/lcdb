@@ -111,6 +111,7 @@ struct rdb_dbopt_s {
   enum rdb_compression compression;
   int reuse_logs;
   rdb_bloom_t *filter_policy;
+  int use_mmap;
 };
 
 struct rdb_handler_s {
@@ -876,7 +877,8 @@ static const rdb_dbopt_t db_options = {
   /* .max_file_size = */ 2 * 1024 * 1024,
   /* .compression = */ RDB_NO_COMPRESSION,
   /* .reuse_logs = */ 0,
-  /* .filter_policy = */ NULL
+  /* .filter_policy = */ NULL,
+  /* .use_mmap = */ 1
 };
 
 static const rdb_readopt_t read_options = {

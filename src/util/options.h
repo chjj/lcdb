@@ -151,6 +151,9 @@ typedef struct rdb_dbopt_s {
    * NewBloomFilterPolicy() here.
    */
   const struct rdb_bloom_s *filter_policy; /* NULL */
+
+  /* Whether to utilize mmap() for random access files. */
+  int use_mmap; /* 1 */
 } rdb_dbopt_t;
 
 /*

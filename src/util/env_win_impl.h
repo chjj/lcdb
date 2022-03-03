@@ -547,7 +547,7 @@ rdb_seqfile_create(const char *filename, rdb_rfile_t **file) {
 }
 
 int
-rdb_randfile_create(const char *filename, rdb_rfile_t **file) {
+rdb_randfile_create(const char *filename, rdb_rfile_t **file, int use_mmap) {
   HANDLE mapping = NULL;
   LARGE_INTEGER size;
   int rc = RDB_OK;
@@ -567,7 +567,7 @@ rdb_randfile_create(const char *filename, rdb_rfile_t **file) {
   if (handle == INVALID_HANDLE_VALUE)
     return RDB_WIN32_ERROR(GetLastError());
 
-  if (!rdb_limiter_acquire(&rdb_mmap_limiter)) {
+  if (!use_mmap || !rdb_limiter_acquire(&rdb_mmap_limiter)) {
     *file = rdb_malloc(sizeof(rdb_rfile_t));
 
     rdb_rfile_init(*file, filename, handle);

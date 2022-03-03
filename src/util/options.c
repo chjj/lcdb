@@ -26,7 +26,8 @@ static const rdb_dbopt_t db_options = {
   /* .max_file_size = */ 2 * 1024 * 1024,
   /* .compression = */ RDB_NO_COMPRESSION,
   /* .reuse_logs = */ 0,
-  /* .filter_policy = */ NULL
+  /* .filter_policy = */ NULL,
+  /* .use_mmap = */ 1
 };
 
 /*

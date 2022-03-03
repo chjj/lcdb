@@ -729,11 +729,12 @@ rdb_seqfile_create(const char *filename, rdb_rfile_t **file) {
 }
 
 int
-rdb_randfile_create(const char *filename, rdb_rfile_t **file) {
+rdb_randfile_create(const char *filename, rdb_rfile_t **file, int use_mmap) {
   uint64_t size;
   int fd, rc;
 
 #ifndef HAVE_MMAP
+  (void)use_mmap;
   (void)rc;
 #endif
 
@@ -746,7 +747,7 @@ rdb_randfile_create(const char *filename, rdb_rfile_t **file) {
     return RDB_POSIX_ERROR(errno);
 
 #ifdef HAVE_MMAP
-  if (!rdb_limiter_acquire(&rdb_mmap_limiter))
+  if (!use_mmap || !rdb_limiter_acquire(&rdb_mmap_limiter))
 #endif
   {
     *file = rdb_malloc(sizeof(rdb_rfile_t));

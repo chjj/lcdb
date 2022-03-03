@@ -97,6 +97,7 @@ find_table(rdb_tcache_t *cache,
   *handle = rdb_lru_lookup(cache->lru, &key);
 
   if (*handle == NULL) {
+    int use_mmap = cache->options->use_mmap;
     char fname[RDB_PATH_MAX];
     rdb_rfile_t *file = NULL;
     rdb_table_t *table = NULL;
@@ -104,13 +105,15 @@ find_table(rdb_tcache_t *cache,
     if (!rdb_table_filename(fname, sizeof(fname), cache->prefix, file_number))
       return RDB_INVALID;
 
-    rc = rdb_randfile_create(fname, &file);
+    rc = rdb_randfile_create(fname, &file, use_mmap);
 
     if (rc != RDB_OK) {
-      if (!rdb_sstable_filename(fname, sizeof(fname), cache->prefix, file_number))
+      if (!rdb_sstable_filename(fname, sizeof(fname), cache->prefix,
+                                                      file_number)) {
         return RDB_INVALID;
+      }
 
-      if (rdb_randfile_create(fname, &file) == RDB_OK)
+      if (rdb_randfile_create(fname, &file, use_mmap) == RDB_OK)
         rc = RDB_OK;
     }
 

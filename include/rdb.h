@@ -301,6 +301,7 @@ struct rdb_dbopt_s {
   enum rdb_compression compression;
   int reuse_logs;
   const rdb_bloom_t *filter_policy;
+  int use_mmap;
 };
 
 struct rdb_readopt_s {

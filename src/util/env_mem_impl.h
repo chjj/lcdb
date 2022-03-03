@@ -550,7 +550,8 @@ rdb_seqfile_create(const char *filename, rdb_rfile_t **file) {
 }
 
 int
-rdb_randfile_create(const char *filename, rdb_rfile_t **file) {
+rdb_randfile_create(const char *filename, rdb_rfile_t **file, int use_mmap) {
+  (void)use_mmap;
   return rdb_seqfile_create(filename, file);
 }
 
