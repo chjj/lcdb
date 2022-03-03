@@ -1398,14 +1398,6 @@ fail:
   return rc;
 }
 
-static int
-slice_equal(const rdb_slice_t *x, const char *y) {
-  if (x->size != strlen(y))
-    return 0;
-
-  return memcmp(y, x->data, x->size) == 0;
-}
-
 int
 rdb_vset_recover(rdb_vset_t *vset, int *save_manifest) {
   const rdb_comparator_t *ucmp = vset->icmp.user_comparator;
@@ -1442,6 +1434,7 @@ rdb_vset_recover(rdb_vset_t *vset, int *save_manifest) {
   builder_init(&builder, vset, vset->current);
 
   {
+    rdb_slice_t name = rdb_string(ucmp->name);
     rdb_reporter_t reporter;
     rdb_logreader_t reader;
     rdb_slice_t record;
@@ -1464,7 +1457,7 @@ rdb_vset_recover(rdb_vset_t *vset, int *save_manifest) {
         rc = RDB_CORRUPTION;
 
       if (rc == RDB_OK) {
-        if (edit.has_comparator && !slice_equal(&edit.comparator, ucmp->name)) {
+        if (edit.has_comparator && !rdb_slice_equal(&edit.comparator, &name)) {
           rc = RDB_INVALID; /* "[edit.comparator] does not match
                                 existing comparator [vset.user_comparator]" */
         }
