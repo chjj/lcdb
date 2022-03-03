@@ -1264,6 +1264,11 @@ rdb_vset_log_and_apply(rdb_vset_t *vset, rdb_vedit_t *edit, rdb_mutex_t *mu) {
       if (rc == RDB_OK)
         rc = rdb_wfile_sync(vset->descriptor_file);
 
+      if (rc != RDB_OK) {
+        rdb_log(vset->options->info_log, "MANIFEST write: %s",
+                                         rdb_strerror(rc));
+      }
+
       rdb_buffer_clear(&record);
     }
 
@@ -1330,9 +1335,15 @@ rdb_vset_reuse_manifest(rdb_vset_t *vset, const char *dscname) {
   rc = rdb_appendfile_create(dscname, &vset->descriptor_file);
 
   if (rc != RDB_OK) {
+    rdb_log(vset->options->info_log, "Reuse MANIFEST: %s",
+                                     rdb_strerror(rc));
+
     assert(vset->descriptor_file == NULL);
+
     return 0;
   }
+
+  rdb_log(vset->options->info_log, "Reusing MANIFEST %s", dscname);
 
   vset->descriptor_log = rdb_logwriter_create(vset->descriptor_file,
                                               manifest_size);
@@ -1527,6 +1538,10 @@ rdb_vset_recover(rdb_vset_t *vset, int *save_manifest) {
     } else {
       *save_manifest = 1;
     }
+  } else {
+    rdb_log(vset->options->info_log,
+            "Error recovering version set with %d records: %s",
+            read_records, rdb_strerror(rc));
   }
 
   builder_clear(&builder);
@@ -2048,7 +2063,7 @@ rdb_vset_setup_other_inputs(rdb_vset_t *vset, rdb_compaction_t *c) {
      changing the number of "level+1" files we pick up. */
   if (c->inputs[1].length > 0) {
     rdb_vector_t expanded0;
-    /* int64_t inputs0_size; */
+    int64_t inputs0_size;
     int64_t inputs1_size;
     int64_t expanded0_size;
 
@@ -2060,7 +2075,7 @@ rdb_vset_setup_other_inputs(rdb_vset_t *vset, rdb_compaction_t *c) {
 
     add_boundary_inputs(&vset->icmp, &vset->current->files[level], &expanded0);
 
-    /* inputs0_size = total_file_size(&c->inputs[0]); */
+    inputs0_size = total_file_size(&c->inputs[0]);
     inputs1_size = total_file_size(&c->inputs[1]);
     expanded0_size = total_file_size(&expanded0);
 
@@ -2085,6 +2100,18 @@ rdb_vset_setup_other_inputs(rdb_vset_t *vset, rdb_compaction_t *c) {
                           &expanded1);
 
       if (expanded1.length == c->inputs[1].length) {
+        rdb_log(vset->options->info_log,
+                "Expanding@%d %d+%d (%ld+%ld bytes) "
+                "to %d+%d (%ld+%ld bytes)", level,
+                (int)c->inputs[0].length,
+                (int)c->inputs[1].length,
+                (long)inputs0_size,
+                (long)inputs1_size,
+                (int)expanded0.length,
+                (int)expanded1.length,
+                (long)expanded0_size,
+                (long)inputs1_size);
+
         smallest = new_start;
         largest = new_limit;
 

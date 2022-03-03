@@ -621,10 +621,13 @@ rdb_new_db(rdb_t *db) {
 
 static void
 rdb_maybe_ignore_error(const rdb_t *db, int *status) {
-  if (*status == RDB_OK || db->options.paranoid_checks)
+  if (*status == RDB_OK || db->options.paranoid_checks) {
     ; /* No change needed. */
-  else
+  } else {
+    rdb_log(db->options.info_log, "Ignoring error %s",
+                                  rdb_strerror(*status));
     *status = RDB_OK;
+  }
 }
 
 static void
@@ -691,6 +694,10 @@ rdb_remove_obsolete_files(rdb_t *db) {
 
         if (type == RDB_FILE_TABLE)
           rdb_tcache_evict(db->table_cache, number);
+
+        rdb_log(db->options.info_log, "Delete type=%d #%lu",
+                                      (signed int)type,
+                                      (unsigned long)number);
       }
     }
   }
@@ -750,6 +757,9 @@ rdb_write_level0_table(rdb_t *db, rdb_memtable_t *mem,
 
   iter = rdb_memiter_create(mem);
 
+  rdb_log(db->options.info_log, "Level-0 table #%lu: started",
+                                (unsigned long)meta.number);
+
   {
     rdb_mutex_unlock(&db->mutex);
 
@@ -761,6 +771,11 @@ rdb_write_level0_table(rdb_t *db, rdb_memtable_t *mem,
 
     rdb_mutex_lock(&db->mutex);
   }
+
+  rdb_log(db->options.info_log, "Level-0 table #%lu: %lu bytes %s",
+                                (unsigned long)meta.number,
+                                (unsigned long)meta.file_size,
+                                rdb_strerror(rc));
 
   rdb_iter_destroy(iter);
 
@@ -797,7 +812,9 @@ rdb_write_level0_table(rdb_t *db, rdb_memtable_t *mem,
 
 static void
 report_corruption(rdb_reporter_t *report, size_t bytes, int status) {
-  (void)bytes;
+  rdb_log(report->info_log, "%s%s: dropping %d bytes; %s",
+          report->status == NULL ? "(ignoring error) " : "",
+          report->fname, (int)bytes, rdb_strerror(status));
 
   if (report->status != NULL && *report->status == RDB_OK)
     *report->status = status;
@@ -836,6 +853,7 @@ rdb_recover_log_file(rdb_t *db, uint64_t log_number,
   /* Create the log reader. */
   reporter.fname = fname;
   reporter.status = (db->options.paranoid_checks ? &rc : NULL);
+  reporter.info_log = db->options.info_log;
   reporter.corruption = report_corruption;
 
   /* We intentionally make the log reader do checksumming even if
@@ -845,6 +863,9 @@ rdb_recover_log_file(rdb_t *db, uint64_t log_number,
   rdb_logreader_init(&reader, file, &reporter, 1, 0);
   rdb_batch_init(&batch);
   rdb_buffer_init(&buf);
+
+  rdb_log(db->options.info_log, "Recovering log #%lu",
+                                (unsigned long)log_number);
 
   /* Read all the records and add to a memtable. */
   while (rdb_logreader_read_record(&reader, &record, &buf) && rc == RDB_OK) {
@@ -906,6 +927,8 @@ rdb_recover_log_file(rdb_t *db, uint64_t log_number,
 
     if (rdb_get_file_size(fname, &lfile_size) == RDB_OK &&
         rdb_appendfile_create(fname, &db->logfile) == RDB_OK) {
+      rdb_log(db->options.info_log, "Reusing old log %s", fname);
+
       db->log = rdb_logwriter_create(db->logfile, lfile_size);
       db->logfile_number = log_number;
 
@@ -967,6 +990,10 @@ rdb_recover(rdb_t *db, rdb_vedit_t *edit, int *save_manifest) {
 
   if (!rdb_file_exists(path)) {
     if (db->options.create_if_missing) {
+      rdb_log(db->options.info_log,
+              "Creating DB %s since it was missing.",
+              db->dbname);
+
       rc = rdb_new_db(db);
 
       if (rc != RDB_OK)
@@ -1195,6 +1222,15 @@ rdb_finish_compaction_output_file(rdb_t *db, rdb_cstate_t *compact,
     rc = rdb_iter_status(iter);
 
     rdb_iter_destroy(iter);
+
+    if (rc == RDB_OK) {
+      rdb_log(db->options.info_log,
+              "Generated table #%lu@%d: %lu keys, %lu bytes",
+              (unsigned long)output_number,
+              rdb_compaction_level(compact->compaction),
+              (unsigned long)current_entries,
+              (unsigned long)current_bytes);
+    }
   }
 
   return rc;
@@ -1207,6 +1243,13 @@ rdb_install_compaction_results(rdb_t *db, rdb_cstate_t *compact) {
   size_t i;
 
   /* rdb_mutex_assert_held(&db->mutex); */
+
+  rdb_log(db->options.info_log, "Compacted %d@%d + %d@%d files => %ld bytes",
+          rdb_compaction_num_input_files(compact->compaction, 0),
+          rdb_compaction_level(compact->compaction) + 0,
+          rdb_compaction_num_input_files(compact->compaction, 1),
+          rdb_compaction_level(compact->compaction) + 1,
+          (long)compact->total_bytes);
 
   /* Add compaction outputs. */
   rdb_compaction_add_input_deletions(compact->compaction, edit);
@@ -1240,6 +1283,12 @@ rdb_do_compaction_work(rdb_t *db, rdb_cstate_t *compact) {
   int which, level;
   rdb_pkey_t ikey;
   size_t i;
+
+  rdb_log(db->options.info_log, "Compacting %d@%d + %d@%d files",
+          rdb_compaction_num_input_files(compact->compaction, 0),
+          rdb_compaction_level(compact->compaction) + 0,
+          rdb_compaction_num_input_files(compact->compaction, 1),
+          rdb_compaction_level(compact->compaction) + 1);
 
   rdb_buffer_init(&user_key);
   rdb_cstats_init(&stats);
@@ -1410,6 +1459,8 @@ rdb_do_compaction_work(rdb_t *db, rdb_cstate_t *compact) {
 
   rdb_buffer_clear(&user_key);
 
+  rdb_log(db->options.info_log, "compacted");
+
   return rc;
 }
 
@@ -1466,6 +1517,8 @@ rdb_background_compaction(rdb_t *db) {
       /* Store for later. */
       rdb_buffer_copy(&m->tmp_storage, &f->largest);
     }
+
+    rdb_log(db->options.info_log, "Manual compaction at level-%d", m->level);
   } else {
     c = rdb_vset_pick_compaction(db->versions);
   }
@@ -1493,6 +1546,12 @@ rdb_background_compaction(rdb_t *db) {
 
     if (rc != RDB_OK)
       rdb_record_background_error(db, rc);
+
+    rdb_log(db->options.info_log, "Moved #%lu to level-%d %lu bytes %s",
+                                  (unsigned long)f->number,
+                                  rdb_compaction_level(c) + 1,
+                                  (unsigned long)f->file_size,
+                                  rdb_strerror(rc));
   } else {
     rdb_cstate_t *compact = rdb_cstate_create(c);
 
@@ -1515,7 +1574,7 @@ rdb_background_compaction(rdb_t *db) {
   } else if (rdb_atomic_load(&db->shutting_down, rdb_order_acquire)) {
     /* Ignore compaction errors found during shutting down. */
   } else {
-    /* Log compaction error. */
+    rdb_log(db->options.info_log, "Compaction error: %s", rdb_strerror(rc));
   }
 
   if (is_manual) {
@@ -1738,9 +1797,11 @@ rdb_make_room_for_write(rdb_t *db, int force) {
     } else if (db->imm != NULL) {
       /* We have filled up the current memtable, but the previous
          one is still being compacted, so we wait. */
+      rdb_log(db->options.info_log, "Current memtable full; waiting...");
       rdb_cond_wait(&db->background_work_finished_signal, &db->mutex);
     } else if (L0_FILES >= RDB_L0_STOP_WRITES_TRIGGER) {
       /* There are too many level-0 files. */
+      rdb_log(db->options.info_log, "Too many L0 files; waiting...");
       rdb_cond_wait(&db->background_work_finished_signal, &db->mutex);
     } else {
       rdb_wfile_t *lfile = NULL;

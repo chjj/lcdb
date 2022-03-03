@@ -210,7 +210,7 @@ find_files(rdb_repair_t *rep) {
 }
 
 static void
-archive_file(const char *fname) {
+archive_file(rdb_repair_t *rep, const char *fname) {
   /* Move into another directory. e.g. for
    *    dir/foo
    * rename to
@@ -221,6 +221,7 @@ archive_file(const char *fname) {
   char dir[RDB_PATH_MAX];
   const char *base;
   char *slash;
+  int rc;
 
   assert(strlen(fname) + 1 <= sizeof(dir));
 
@@ -245,14 +246,19 @@ archive_file(const char *fname) {
     abort(); /* LCOV_EXCL_LINE */
 
   rdb_create_dir(newdir); /* Ignore error. */
-  rdb_rename_file(fname, newfile);
+
+  rc = rdb_rename_file(fname, newfile);
+
+  rdb_log(rep->options.info_log, "Archiving %s: %s", fname, rdb_strerror(rc));
 }
 
 static void
 report_corruption(rdb_reporter_t *reporter, size_t bytes, int status) {
-  (void)reporter;
-  (void)bytes;
-  (void)status;
+  /* We print error messages for corruption, but continue repairing. */
+  rdb_log(reporter->info_log, "Log #%lu: dropping %d bytes; %s",
+                              (unsigned long)reporter->lognum,
+                              (signed int)bytes,
+                              rdb_strerror(status));
 }
 
 static int
@@ -308,10 +314,15 @@ convert_log_to_table(rdb_repair_t *rep, uint64_t log) {
 
     rc = rdb_batch_insert_into(&batch, mem);
 
-    if (rc == RDB_OK)
+    if (rc == RDB_OK) {
       counter += rdb_batch_count(&batch);
-    else
+    } else {
+      rdb_log(rep->options.info_log, "Log #%lu: ignoring %s",
+                                     (unsigned long)log,
+                                     rdb_strerror(rc));
+
       rc = RDB_OK; /* Keep going with rest of file. */
+    }
   }
 
   rdb_batch_clear(&batch);
@@ -345,6 +356,11 @@ convert_log_to_table(rdb_repair_t *rep, uint64_t log) {
 
   rdb_filemeta_clear(&meta);
 
+  rdb_log(rep->options.info_log, "Log #%lu: %d ops saved to Table #%lu %s",
+                                 (unsigned long)log, counter,
+                                 (unsigned long)meta.number,
+                                 rdb_strerror(rc));
+
   return rc;
 }
 
@@ -352,6 +368,7 @@ static void
 convert_logs_to_tables(rdb_repair_t *rep) {
   char fname[RDB_PATH_MAX];
   size_t i;
+  int rc;
 
   for (i = 0; i < rep->logs.length; i++) {
     uint64_t log = rep->logs.items[i];
@@ -359,8 +376,15 @@ convert_logs_to_tables(rdb_repair_t *rep) {
     if (!rdb_log_filename(fname, sizeof(fname), rep->dbname, log))
       abort(); /* LCOV_EXCL_LINE */
 
-    convert_log_to_table(rep, log);
-    archive_file(fname);
+    rc = convert_log_to_table(rep, log);
+
+    if (rc != RDB_OK) {
+      rdb_log(rep->options.info_log, "Log #%lu: ignoring conversion error: %s",
+                                     (unsigned long)rep->logs.items[i],
+                                     rdb_strerror(rc));
+    }
+
+    archive_file(rep, fname);
   }
 }
 
@@ -421,7 +445,7 @@ repair_table(rdb_repair_t *rep, const char *src, rdb_tabinfo_t *t) {
 
   rdb_iter_destroy(iter);
 
-  archive_file(src);
+  archive_file(rep, src);
 
   if (counter == 0) {
     rdb_tablebuilder_abandon(builder); /* Nothing to save. */
@@ -448,6 +472,10 @@ repair_table(rdb_repair_t *rep, const char *src, rdb_tabinfo_t *t) {
     rc = rdb_rename_file(copy, orig);
 
     if (rc == RDB_OK) {
+      rdb_log(rep->options.info_log, "Table #%lu: %d entries repaired",
+                                     (unsigned long)t->meta.number,
+                                     counter);
+
       rdb_vector_push(&rep->tables, t);
       t = NULL;
     }
@@ -488,10 +516,14 @@ scan_table(rdb_repair_t *rep, uint64_t number) {
 
   if (rc != RDB_OK) {
     rdb_table_filename(fname, sizeof(fname), rep->dbname, number);
-    archive_file(fname);
+    archive_file(rep, fname);
 
     rdb_sstable_filename(fname, sizeof(fname), rep->dbname, number);
-    archive_file(fname);
+    archive_file(rep, fname);
+
+    rdb_log(rep->options.info_log, "Table #%lu: dropped: %s",
+                                   (unsigned long)number,
+                                   rdb_strerror(rc));
 
     return;
   }
@@ -510,8 +542,11 @@ scan_table(rdb_repair_t *rep, uint64_t number) {
   for (rdb_iter_seek_first(iter); rdb_iter_valid(iter); rdb_iter_next(iter)) {
     rdb_slice_t key = rdb_iter_key(iter);
 
-    if (!rdb_pkey_import(&parsed, &key))
+    if (!rdb_pkey_import(&parsed, &key)) {
+      rdb_log(rep->options.info_log, "Table #%lu: unparsable key",
+                                     (unsigned long)t->meta.number);
       continue;
+    }
 
     counter++;
 
@@ -530,6 +565,10 @@ scan_table(rdb_repair_t *rep, uint64_t number) {
     rc = rdb_iter_status(iter);
 
   rdb_iter_destroy(iter);
+
+  rdb_log(rep->options.info_log, "Table #%lu: %d entries %s",
+                                 (unsigned long)t->meta.number,
+                                 counter, rdb_strerror(rc));
 
   if (rc == RDB_OK)
     rdb_vector_push(&rep->tables, t);
@@ -613,7 +652,7 @@ write_descriptor(rdb_repair_t *rep) {
       if (!rdb_desc_filename(fname, sizeof(fname), rep->dbname, number))
         abort(); /* LCOV_EXCL_LINE */
 
-      archive_file(fname);
+      archive_file(rep, fname);
     }
 
     /* Install new manifest. */
@@ -640,6 +679,24 @@ repair_run(rdb_repair_t *rep) {
     extract_meta_data(rep);
 
     rc = write_descriptor(rep);
+  }
+
+  if (rc == RDB_OK) {
+    uint64_t bytes = 0;
+    size_t i;
+
+    for (i = 0; i < rep->tables.length; i++) {
+      const rdb_tabinfo_t *t = rep->tables.items[i];
+      bytes += t->meta.file_size;
+    }
+
+    rdb_log(rep->options.info_log,
+            "**** Repaired leveldb %s; "
+            "recovered %d files; %.0f bytes. "
+            "Some data may have been lost. "
+            "****", rep->dbname,
+            (int)rep->tables.length,
+            (double)bytes);
   }
 
   return rc;
