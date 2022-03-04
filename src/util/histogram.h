@@ -7,6 +7,10 @@
 #ifndef HISTOGRAM_H
 #define HISTOGRAM_H
 
+/*
+ * Constants
+ */
+
 #define NUM_BUCKETS 154
 #define MAX_HISTOGRAM (232 + (NUM_BUCKETS * 127) + 1)
 
