@@ -27,7 +27,7 @@
 #  include <unistd.h>
 #endif
 
-#ifdef RDB_PTHREAD
+#if !defined(_WIN32) && defined(RDB_PTHREAD)
 #  include <pthread.h>
 #endif
 
