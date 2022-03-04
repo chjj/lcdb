@@ -51,9 +51,11 @@ struct leveldb_filterpolicy_s {
   rdb_bloom_t rep;
   void *state;
   void (*destructor)(void *);
-  void (*key_add)(void *, char *data,
-                          const char *key, size_t length,
-                          size_t bits);
+  char *(*key_build)(void *,
+                     const char *const *key_array,
+                     const size_t *key_length_array,
+                     int num_keys,
+                     size_t *filter_length);
   uint8_t (*key_match)(void *, const char *key, size_t length,
                                const char *filter, size_t filter_length);
 };
@@ -513,17 +515,32 @@ leveldb_comparator_destroy(leveldb_comparator_t *cmp) {
 }
 
 static void
-bloom_add(const rdb_bloom_t *bloom,
-          uint8_t *data,
-          const rdb_slice_t *key,
-          size_t bits) {
+bloom_build(const rdb_bloom_t *bloom,
+            rdb_buffer_t *dst,
+            const rdb_slice_t *keys,
+            size_t length) {
   leveldb_filterpolicy_t *fp = container_of(bloom,
                                             leveldb_filterpolicy_t,
                                             rep);
 
-  fp->key_add(fp->state, (char *)data,
-                         (const char *)key->data, key->size,
-                         bits);
+  const char **key_ptrs = rdb_malloc(length * sizeof(char *));
+  size_t *key_sizes = rdb_malloc(length * sizeof(size_t));
+  size_t i, size;
+  char *data;
+
+  for (i = 0; i < length; i++) {
+    key_ptrs[i] = (const char *)keys[i].data;
+    key_sizes[i] = keys[i].size;
+  }
+
+  data = fp->key_build(fp->state, key_ptrs, key_sizes, length, &size);
+
+  rdb_buffer_append(dst, (uint8_t *)data, size);
+
+  free(data);
+
+  rdb_free(key_ptrs);
+  rdb_free(key_sizes);
 }
 
 static int
@@ -541,10 +558,11 @@ bloom_match(const rdb_bloom_t *bloom,
 leveldb_filterpolicy_t *
 leveldb_filterpolicy_create(void *state,
                             void (*destructor)(void *),
-                            void (*key_add)(void *, char *data,
-                                                    const char *key,
-                                                    size_t length,
-                                                    size_t bits),
+                            char *(*key_build)(void *,
+                                               const char *const *key_array,
+                                               const size_t *key_length_array,
+                                               int num_keys,
+                                               size_t *filter_length),
                             uint8_t (*key_match)(void *,
                                                  const char *key,
                                                  size_t length,
@@ -556,12 +574,12 @@ leveldb_filterpolicy_create(void *state,
   rdb_bloom_init(&policy->rep, 0);
 
   policy->rep.name = name(state);
-  policy->rep.add = bloom_add;
+  policy->rep.build = bloom_build;
   policy->rep.match = bloom_match;
 
   policy->state = state;
   policy->destructor = destructor;
-  policy->key_add = key_add;
+  policy->key_build = key_build;
   policy->key_match = key_match;
 
   return policy;
@@ -583,7 +601,7 @@ leveldb_filterpolicy_create_bloom(int bits_per_key) {
 
   policy->state = NULL;
   policy->destructor = NULL;
-  policy->key_add = NULL;
+  policy->key_build = NULL;
   policy->key_match = NULL;
 
   return policy;

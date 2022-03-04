@@ -93,8 +93,8 @@ rdb_filterbuilder_finish(rdb_filterbuilder_t *fb) {
 static void
 rdb_filterbuilder_generate_filter(rdb_filterbuilder_t *fb) {
   size_t num_keys = fb->start.length;
-  size_t i, bytes, bits;
-  uint8_t *data;
+  rdb_slice_t *tmp_keys;
+  size_t i;
 
   if (num_keys == 0) {
     /* Fast path if there are no keys for this filter. */
@@ -102,26 +102,23 @@ rdb_filterbuilder_generate_filter(rdb_filterbuilder_t *fb) {
     return;
   }
 
-  /* Generate filter for current set of keys and append to result. */
+  /* Make list of keys from flattened key structure. */
   rdb_array_push(&fb->start, fb->keys.size); /* Simplify length computation. */
-  rdb_array_push(&fb->filter_offsets, fb->result.size);
 
-  bytes = rdb_bloom_size(fb->policy, num_keys);
-  data = rdb_buffer_pad(&fb->result, bytes + 1);
-  bits = bytes * 8;
+  tmp_keys = rdb_malloc(num_keys * sizeof(rdb_slice_t));
 
   for (i = 0; i < num_keys; i++) {
     const uint8_t *base = fb->keys.data + fb->start.items[i];
     size_t length = fb->start.items[i + 1] - fb->start.items[i];
-    rdb_slice_t key;
 
-    rdb_slice_set(&key, base, length);
-
-    rdb_bloom_add(fb->policy, data, &key, bits);
+    rdb_slice_set(&tmp_keys[i], base, length);
   }
 
-  data[bytes] = fb->policy->k;
+  /* Generate filter for current set of keys and append to result. */
+  rdb_array_push(&fb->filter_offsets, fb->result.size);
+  rdb_bloom_build(fb->policy, &fb->result, tmp_keys, num_keys);
 
+  rdb_free(tmp_keys);
   rdb_buffer_reset(&fb->keys);
   rdb_array_reset(&fb->start);
 }

@@ -115,6 +115,11 @@ repair_init(rdb_repair_t *rep, const char *dbname, const rdb_dbopt_t *options) {
   if (!rdb_path_absolute(rep->dbname, sizeof(rep->dbname) - 64, dbname))
     return 0;
 
+  if (options->filter_policy != NULL) {
+    if (strlen(options->filter_policy->name) > 64)
+      return 0;
+  }
+
   if (options->comparator != NULL)
     rdb_ikc_init(&rep->icmp, options->comparator);
   else

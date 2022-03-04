@@ -97,6 +97,7 @@ rdb_table_read_meta(rdb_table_t *table, const rdb_footer_t *footer) {
   rdb_block_t *meta;
   rdb_iter_t *iter;
   rdb_slice_t key;
+  char name[72];
   int rc;
 
   if (table->options.filter_policy == NULL)
@@ -104,6 +105,9 @@ rdb_table_read_meta(rdb_table_t *table, const rdb_footer_t *footer) {
 
   if (table->options.paranoid_checks)
     opt.verify_checksums = 1;
+
+  if (!rdb_bloom_name(name, sizeof(name), table->options.filter_policy))
+    return;
 
   rc = rdb_read_block(&contents,
                       table->file,
@@ -118,7 +122,7 @@ rdb_table_read_meta(rdb_table_t *table, const rdb_footer_t *footer) {
   meta = rdb_block_create(&contents);
   iter = rdb_blockiter_create(meta, rdb_bytewise_comparator);
 
-  rdb_slice_set_str(&key, table->options.filter_policy->name);
+  rdb_slice_set_str(&key, name);
   rdb_iter_seek(iter, &key);
 
   if (rdb_iter_valid(iter)) {

@@ -40,6 +40,7 @@ struct rdb_tablebuilder_s {
   rdb_buffer_t last_key;
   int64_t num_entries;
   int closed; /* Either finish() or abandon() has been called. */
+  rdb_filterbuilder_t filter_block_;
   rdb_filterbuilder_t *filter_block;
 
   /* We do not emit the index entry for a block until we have seen the
@@ -81,7 +82,7 @@ rdb_tablebuilder_init(rdb_tablebuilder_t *tb,
   tb->index_block_options.block_restart_interval = 1;
 
   if (options->filter_policy != NULL) {
-    tb->filter_block = rdb_malloc(sizeof(rdb_filterbuilder_t));
+    tb->filter_block = &tb->filter_block_;
 
     rdb_filterbuilder_init(tb->filter_block, options->filter_policy);
     rdb_filterbuilder_start_block(tb->filter_block, 0);
@@ -98,10 +99,8 @@ rdb_tablebuilder_clear(rdb_tablebuilder_t *tb) {
   rdb_buffer_clear(&tb->last_key);
   rdb_buffer_clear(&tb->compressed_output);
 
-  if (tb->filter_block != NULL) {
+  if (tb->filter_block != NULL)
     rdb_filterbuilder_clear(tb->filter_block);
-    rdb_free(tb->filter_block);
-  }
 }
 
 static int
@@ -335,8 +334,14 @@ rdb_tablebuilder_finish(rdb_tablebuilder_t *tb) {
       uint8_t tmp[RDB_BLOCKHANDLE_MAX];
       rdb_buffer_t handle_encoding;
       rdb_slice_t key;
+      char name[72];
 
-      rdb_slice_set_str(&key, tb->options.filter_policy->name);
+      if (!rdb_bloom_name(name, sizeof(name), tb->options.filter_policy)) {
+        rdb_blockbuilder_clear(&metaindex_block);
+        return RDB_INVALID;
+      }
+
+      rdb_slice_set_str(&key, name);
       rdb_buffer_rwset(&handle_encoding, tmp, sizeof(tmp));
       rdb_blockhandle_export(&handle_encoding, &filter_handle);
       rdb_blockbuilder_add(&metaindex_block, &key, &handle_encoding);

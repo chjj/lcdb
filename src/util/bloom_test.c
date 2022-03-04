@@ -49,7 +49,7 @@ test_small_filter(void) {
   keys[1] = rdb_string("world");
 
   rdb_buffer_init(&filter);
-  rdb_bloom_create_filter(bloom, &filter, keys, 2);
+  rdb_bloom_build(bloom, &filter, keys, 2);
 
   assert(rdb_bloom_match(bloom, &filter, &keys[0]));
   assert(rdb_bloom_match(bloom, &filter, &keys[1]));
@@ -100,7 +100,7 @@ test_varying_lengths(int verbose) {
       keys[i] = bloom_key(i, &bufs[i * 4]);
 
     rdb_buffer_reset(&filter);
-    rdb_bloom_create_filter(bloom, &filter, keys, length);
+    rdb_bloom_build(bloom, &filter, keys, length);
 
     assert(filter.size <= ((size_t)length * 10 / 8) + 40);
 

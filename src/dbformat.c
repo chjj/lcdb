@@ -322,13 +322,18 @@ rdb_ikc_init(rdb_comparator_t *ikc, const rdb_comparator_t *user_comparator) {
  */
 
 static void
-rdb_ifp_add(const rdb_bloom_t *ifp,
-            uint8_t *data,
-            const rdb_slice_t *key,
-            size_t bits) {
-  rdb_slice_t k = rdb_extract_user_key(key);
+rdb_ifp_build(const rdb_bloom_t *ifp,
+              rdb_buffer_t *dst,
+              const rdb_slice_t *keys,
+              size_t length) {
+  rdb_slice_t *ukeys = rdb_malloc(length * sizeof(rdb_slice_t));
+  size_t i;
 
-  rdb_bloom_add(ifp->user_policy, data, &k, bits);
+  for (i = 0; i < length; i++)
+    ukeys[i] = rdb_extract_user_key(&keys[i]);
+
+  rdb_bloom_build(ifp->user_policy, dst, ukeys, length);
+  rdb_free(ukeys);
 }
 
 static int
@@ -343,7 +348,7 @@ rdb_ifp_match(const rdb_bloom_t *ifp,
 void
 rdb_ifp_init(rdb_bloom_t *ifp, const rdb_bloom_t *user_policy) {
   ifp->name = user_policy->name;
-  ifp->add = rdb_ifp_add;
+  ifp->build = rdb_ifp_build;
   ifp->match = rdb_ifp_match;
   ifp->bits_per_key = 0;
   ifp->k = 0;

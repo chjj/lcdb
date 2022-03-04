@@ -31,10 +31,10 @@ typedef struct rdb_bloom_s {
    * Warning: do not change the initial contents of *dst.  Instead,
    * append the newly constructed filter to *dst.
    */
-  void (*add)(const struct rdb_bloom_s *bloom,
-              uint8_t *data,
-              const rdb_slice_t *key,
-              size_t bits);
+  void (*build)(const struct rdb_bloom_s *bloom,
+                rdb_buffer_t *dst,
+                const rdb_slice_t *keys,
+                size_t length);
 
   /* "filter" contains the data appended by a preceding call to
    * bloom_add() on this class. This method must return true if
@@ -83,17 +83,11 @@ rdb_bloom_destroy(rdb_bloom_t *bloom);
 void
 rdb_bloom_init(rdb_bloom_t *bloom, int bits_per_key);
 
-size_t
-rdb_bloom_size(const rdb_bloom_t *bloom, size_t n);
+int
+rdb_bloom_name(char *buf, size_t size, const rdb_bloom_t *bloom);
 
-void
-rdb_bloom_create_filter(const rdb_bloom_t *bloom,
-                        rdb_buffer_t *dst,
-                        const rdb_slice_t *keys,
-                        size_t length);
-
-#define rdb_bloom_add(bloom, data, key, bits) \
-  (bloom)->add(bloom, data, key, bits)
+#define rdb_bloom_build(bloom, dst, keys, length) \
+  (bloom)->build(bloom, dst, keys, length)
 
 #define rdb_bloom_match(bloom, filter, key) \
   (bloom)->match(bloom, filter, key)

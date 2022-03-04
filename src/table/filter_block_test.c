@@ -12,23 +12,23 @@
 #include <string.h>
 
 #include "../util/bloom.h"
+#include "../util/buffer.h"
+#include "../util/coding.h"
 #include "../util/extern.h"
+#include "../util/hash.h"
 #include "../util/slice.h"
 
 #include "filter_block.h"
 
-/* TODO: rewrite bloom filter code to use a create_filter function */
-/* also prepend "filter." automatically */
-#if 0
 /* For testing: emit an array with one hash value per key. */
 static void
-bloom_create_filter(const rdb_bloom_t *bloom,
-                    rdb_buffer_t *dst,
-                    const rdb_slice_t *keys,
-                    size_t length) {
+bloom_build(const rdb_bloom_t *bloom,
+            rdb_buffer_t *dst,
+            const rdb_slice_t *keys,
+            size_t length) {
   size_t zn = length * 4;
-  uint32_t h;
   uint8_t *zp;
+  uint32_t h;
   size_t i;
 
   (void)bloom;
@@ -61,31 +61,30 @@ bloom_match(const rdb_bloom_t *bloom,
 }
 
 static const rdb_bloom_t bloom_test = {
-  /* .name = */ "filter.TestHashFilter",
-  /* .create = */ bloom_create_filter,
+  /* .name = */ "TestHashFilter",
+  /* .build = */ bloom_build,
   /* .match = */ bloom_match,
   /* .bits_per_key = */ 0,
   /* .k = */ 0,
   /* .user_policy = */ NULL
 };
-#endif
 
 static void
-test_empty_builder(void) {
+test_empty_builder(const rdb_bloom_t *policy) {
   static uint8_t expect[] = {0, 0, 0, 0, 11};
   rdb_filterbuilder_t fb;
   rdb_filterreader_t fr;
   rdb_slice_t block;
   rdb_slice_t key;
 
-  rdb_filterbuilder_init(&fb, rdb_bloom_default);
+  rdb_filterbuilder_init(&fb, policy);
 
   block = rdb_filterbuilder_finish(&fb);
 
   assert(block.size == sizeof(expect));
   assert(memcmp(block.data, expect, sizeof(expect)) == 0);
 
-  rdb_filterreader_init(&fr, rdb_bloom_default, &block);
+  rdb_filterreader_init(&fr, policy, &block);
 
   key = rdb_string("foo");
 
@@ -96,13 +95,13 @@ test_empty_builder(void) {
 }
 
 static void
-test_single_chunk(void) {
+test_single_chunk(const rdb_bloom_t *policy) {
   rdb_filterbuilder_t fb;
   rdb_filterreader_t fr;
   rdb_slice_t block;
   rdb_slice_t key;
 
-  rdb_filterbuilder_init(&fb, rdb_bloom_default);
+  rdb_filterbuilder_init(&fb, policy);
   rdb_filterbuilder_start_block(&fb, 100);
 
   key = rdb_string("foo");
@@ -124,7 +123,7 @@ test_single_chunk(void) {
 
   block = rdb_filterbuilder_finish(&fb);
 
-  rdb_filterreader_init(&fr, rdb_bloom_default, &block);
+  rdb_filterreader_init(&fr, policy, &block);
 
   key = rdb_string("foo");
   assert(rdb_filterreader_matches(&fr, 100, &key));
@@ -145,13 +144,13 @@ test_single_chunk(void) {
 }
 
 static void
-test_multi_chunk(void) {
+test_multi_chunk(const rdb_bloom_t *policy) {
   rdb_filterbuilder_t fb;
   rdb_filterreader_t fr;
   rdb_slice_t block;
   rdb_slice_t key;
 
-  rdb_filterbuilder_init(&fb, rdb_bloom_default);
+  rdb_filterbuilder_init(&fb, policy);
 
   /* First filter. */
   rdb_filterbuilder_start_block(&fb, 0);
@@ -177,7 +176,7 @@ test_multi_chunk(void) {
 
   block = rdb_filterbuilder_finish(&fb);
 
-  rdb_filterreader_init(&fr, rdb_bloom_default, &block);
+  rdb_filterreader_init(&fr, policy, &block);
 
   /* Check first filter. */
   key = rdb_string("foo");
@@ -227,8 +226,11 @@ rdb_test_filter_block(void);
 
 int
 rdb_test_filter_block(void) {
-  test_empty_builder();
-  test_single_chunk();
-  test_multi_chunk();
+  test_empty_builder(&bloom_test);
+  test_single_chunk(&bloom_test);
+  test_multi_chunk(&bloom_test);
+  test_empty_builder(rdb_bloom_default);
+  test_single_chunk(rdb_bloom_default);
+  test_multi_chunk(rdb_bloom_default);
   return 0;
 }

@@ -439,6 +439,13 @@ rdb_create(const char *dbname, const rdb_dbopt_t *options) {
     return NULL;
   }
 
+  if (options->filter_policy != NULL) {
+    if (strlen(options->filter_policy->name) > 64) {
+      rdb_free(db);
+      return NULL;
+    }
+  }
+
   if (options->comparator != NULL) {
     db->user_comparator = *options->comparator;
     rdb_ikc_init(&db->internal_comparator, &db->user_comparator);

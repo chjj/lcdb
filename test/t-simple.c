@@ -19,9 +19,12 @@ main(void) {
   rdb_t *db;
   int i, rc;
 
+  rdb_destroy_db("tmp", 0);
+
   {
     opt.create_if_missing = 1;
     opt.error_if_exists = 1;
+    opt.filter_policy = rdb_bloom_default;
 
     rc = rdb_open("tmp", &opt, &db);
 
@@ -31,7 +34,7 @@ main(void) {
       rdb_batch_init(&b);
 
       for (i = 0; i < 1000000; i++) {
-        sprintf(key_buf, "hello %d", rand());
+        sprintf(key_buf, "hello %d padding padding paddi", rand());
         sprintf(val_buf, "world %d", i);
 
         key = rdb_string(key_buf);
