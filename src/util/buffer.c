@@ -245,7 +245,7 @@ rdb_buffer_varint32(rdb_buffer_t *z, uint32_t x) {
 
 void
 rdb_buffer_varint64(rdb_buffer_t *z, uint64_t x) {
-  uint8_t *zp = rdb_buffer_expand(z, 9);
+  uint8_t *zp = rdb_buffer_expand(z, 10);
   size_t xn = rdb_varint64_write(zp, x) - zp;
 
   z->size += xn;

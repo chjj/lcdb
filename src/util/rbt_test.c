@@ -14,9 +14,6 @@
 #include "extern.h"
 #include "rbt.h"
 
-RDB_EXTERN int
-rdb_test_rbt(void);
-
 static int
 my_compare(rb_val_t x, rb_val_t y, void *arg) {
   (void)arg;
@@ -27,6 +24,9 @@ static void
 my_clear(rb_node_t *node) {
   free(node->key.p);
 }
+
+RDB_EXTERN int
+rdb_test_rbt(void);
 
 int
 rdb_test_rbt(void) {

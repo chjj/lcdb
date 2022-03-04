@@ -135,6 +135,14 @@ rdb_dirname(char *buf, size_t size, const char *fname) {
 
     memcpy(buf, fname, pos + 1);
 
+#if defined(_WIN32)
+    while (pos > 1 && (buf[pos - 1] == '/' || buf[pos - 1] == '\\'))
+      pos -= 1;
+#else
+    while (pos > 1 && buf[pos - 1] == '/')
+      pos -= 1;
+#endif
+
     buf[pos] = '\0';
   }
 
