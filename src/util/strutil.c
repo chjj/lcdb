@@ -55,6 +55,8 @@ rdb_encode_int(char *zp, uint64_t x, int pad) {
 
 int
 rdb_decode_int(uint64_t *z, const char **xp) {
+  const int last = '0' + (int)(UINT64_MAX % 10);
+  const uint64_t limit = UINT64_MAX / 10;
   const char *sp = *xp;
   uint64_t x = 0;
   int n = 0;
@@ -66,6 +68,9 @@ rdb_decode_int(uint64_t *z, const char **xp) {
       break;
 
     if (++n > 20)
+      return 0;
+
+    if (x > limit || (x == limit && ch > last))
       return 0;
 
     x *= 10;
