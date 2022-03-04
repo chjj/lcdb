@@ -86,6 +86,12 @@ rdb_bloom_init(rdb_bloom_t *bloom, int bits_per_key);
 size_t
 rdb_bloom_size(const rdb_bloom_t *bloom, size_t n);
 
+void
+rdb_bloom_create_filter(const rdb_bloom_t *bloom,
+                        rdb_buffer_t *dst,
+                        const rdb_slice_t *keys,
+                        size_t length);
+
 #define rdb_bloom_add(bloom, data, key, bits) \
   (bloom)->add(bloom, data, key, bits)
 

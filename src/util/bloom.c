@@ -7,6 +7,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "bloom.h"
+#include "buffer.h"
 #include "hash.h"
 #include "internal.h"
 #include "slice.h"
@@ -142,10 +143,31 @@ rdb_bloom_init(rdb_bloom_t *bloom, int bits_per_key) {
 
 size_t
 rdb_bloom_size(const rdb_bloom_t *bloom, size_t n) {
+  /* Compute bloom filter size (in both bits and bytes). */
   size_t bits = n * bloom->bits_per_key;
 
+  /* For small n, we can see a very high false positive rate.
+     Fix it by enforcing a minimum bloom filter length. */
   if (bits < 64)
     bits = 64;
 
   return (bits + 7) / 8;
+}
+
+void
+rdb_bloom_create_filter(const rdb_bloom_t *bloom,
+                        rdb_buffer_t *dst,
+                        const rdb_slice_t *keys,
+                        size_t length) {
+  size_t bytes = rdb_bloom_size(bloom, length);
+  size_t bits = bytes * 8;
+  uint8_t *data;
+  size_t i;
+
+  data = rdb_buffer_pad(dst, bytes + 1);
+
+  for (i = 0; i < length; i++)
+    bloom->add(bloom, data, &keys[i], bits);
+
+  data[bytes] = bloom->k; /* Remember # of probes in filter. */
 }
