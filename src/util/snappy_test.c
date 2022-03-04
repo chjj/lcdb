@@ -1,12 +1,23 @@
+/*!
+ * snappy_test.c - snappy test for rdb
+ * Copyright (c) 2022, Christopher Jeffrey (MIT License).
+ * https://github.com/chjj/rdb
+ */
+
 #undef NDEBUG
 
 #include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include "extern.h"
 #include "snappy.h"
 
-int main(void) {
+RDB_EXTERN int
+rdb_test_snappy(void);
+
+int
+rdb_test_snappy(void) {
   size_t size = 1 << 20;
   uint8_t *data = malloc(size);
   int rc, encsize, decsize;
@@ -28,7 +39,7 @@ int main(void) {
 
   encsize = snappy_encode(enc, data, size);
 
-  assert(encsize > 0 && encsize != size);
+  assert(encsize > 0 && (size_t)encsize != size);
   assert(encsize == 53203);
 
   decsize = snappy_decode_size(enc, encsize);

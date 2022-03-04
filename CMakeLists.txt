@@ -6,7 +6,8 @@ cmake_minimum_required(VERSION 3.4)
 project(rdb LANGUAGES C)
 
 include(CTest)
-include(TestBigEndian)
+
+option(RDB_TESTS "Build tests" ON)
 
 set(rdb_sources)
 set(rdb_defines)
@@ -41,7 +42,6 @@ list(APPEND rdb_sources # util
                         src/util/snappy.c
                         src/util/status.c
                         src/util/strutil.c
-                        src/util/testutil.c
                         src/util/thread_pool.c
                         src/util/vector.c
                         # table
@@ -72,14 +72,41 @@ list(APPEND rdb_sources # util
                         src/version_set.c
                         src/write_batch.c)
 
+if(RDB_TESTS)
+  list(APPEND rdb_sources # util
+                          src/util/arena_test.c
+                          src/util/bloom_test.c
+                          src/util/cache_test.c
+                          src/util/coding_test.c
+                          src/util/crc32c_test.c
+                          src/util/env_test.c
+                          src/util/hash_test.c
+                          src/util/rbt_test.c
+                          src/util/snappy_test.c
+                          src/util/strutil_test.c
+                          src/util/status_test.c
+                          src/util/testutil.c
+                          # table
+                          src/table/filter_block_test.c
+                          src/table/table_test.c
+                          # db
+                          src/autocompact_test.c
+                          src/c_test.c
+                          src/corruption_test.c
+                          src/dbformat_test.c
+                          src/db_test.c
+                          src/fault_injection_test.c
+                          src/filename_test.c
+                          src/log_test.c
+                          src/recovery_test.c
+                          src/skiplist_test.c
+                          src/version_edit_test.c
+                          src/version_set_test.c
+                          src/write_batch_test.c)
+endif()
+
 list(APPEND rdb_defines RDB_BUILD)
 list(APPEND rdb_defines RDB_PTHREAD)
-
-test_big_endian(RDB_BIGENDIAN)
-
-if(RDB_BIGENDIAN)
-  list(APPEND rdb_defines RDB_BIGENDIAN)
-endif()
 
 if(MSVC)
   list(APPEND rdb_cflags /wd4244 /wd4267)
@@ -101,10 +128,41 @@ target_include_directories(rdb PUBLIC ${PROJECT_SOURCE_DIR}/include)
 target_link_options(rdb INTERFACE ${rdb_ldflags})
 target_link_libraries(rdb PRIVATE ${rdb_libs} pthread)
 
-set(tests simple)
+add_executable(rdbutil src/dbutil.c)
+target_link_libraries(rdbutil PRIVATE rdb)
 
-foreach(name ${tests})
-  add_executable(t-${name} test/t-${name}.c)
-  target_link_libraries(t-${name} PRIVATE rdb)
-  add_test(NAME ${name} COMMAND t-${name})
-endforeach()
+if(RDB_TESTS)
+  set(tests arena
+            autocompact
+            bloom
+            c
+            cache
+            coding
+            corruption
+            crc32c
+            db
+            dbformat
+            env
+            fault_injection
+            filename
+            filter_block
+            hash
+            log
+            rbt
+            recovery
+            simple
+            skiplist
+            snappy
+            status
+            strutil
+            table
+            version_edit
+            version_set
+            write_batch)
+
+  foreach(name ${tests})
+    add_executable(t-${name} test/t-${name}.c)
+    target_link_libraries(t-${name} PRIVATE rdb)
+    add_test(NAME ${name} COMMAND t-${name})
+  endforeach()
+endif()

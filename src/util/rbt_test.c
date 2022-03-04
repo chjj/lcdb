@@ -1,57 +1,35 @@
 /*!
- * rbt_test.c - red-black tree tests for rdb
+ * rbt_test.c - red-black tree test for rdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
  * https://github.com/chjj/rdb
  */
+
+#undef NDEBUG
 
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "extern.h"
 #include "rbt.h"
 
-/*
- * Testing
- */
+RDB_EXTERN int
+rdb_test_rbt(void);
 
-static int my_cmp(rb_val_t x, rb_val_t y, void *arg) {
-  (void)arg;
-  return memcmp(x.p, y.p, 10);
-}
-
-void just_testing(void) {
-  rb_tree_t tree;
-  void *item;
-  rb_val_t k, v;
-
-  rb_set_init(&tree, my_cmp, NULL);
-
-  rb_set_iterate(&tree, item)
-    puts((char *)item);
-
-  rb_tree_iterate(&tree, k, v) {
-    puts((char *)k.p);
-    puts((char *)v.p);
-  }
-
-  rb_tree_keys(&tree, k)
-    puts((char *)k.p);
-
-  rb_tree_values(&tree, v)
-    puts((char *)v.p);
-}
-
-static int my_compare(rb_val_t x, rb_val_t y, void *arg) {
+static int
+my_compare(rb_val_t x, rb_val_t y, void *arg) {
   (void)arg;
   return strcmp(x.p, y.p);
 }
 
-static void my_clear(rb_node_t *node) {
+static void
+my_clear(rb_node_t *node) {
   free(node->key.p);
 }
 
-int main(void) {
+int
+rdb_test_rbt(void) {
   rb_tree_t tree;
   void *item;
   int i;
@@ -90,26 +68,3 @@ int main(void) {
 
   return 0;
 }
-
-#if 0
-int main(void) {
-  size_t total = 0;
-  rb_tree_t tree;
-  uint64_t item;
-  int i;
-
-  rb_set64_init(&tree);
-
-  for (i = 0; i < 1000; i++)
-    total += rb_set64_put(&tree, rand());
-
-  assert(tree.size == total);
-
-  rb_set64_iterate(&tree, item)
-    printf("%d\n", (int)item);
-
-  rb_set64_clear(&tree);
-
-  return 0;
-}
-#endif
