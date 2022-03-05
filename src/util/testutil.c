@@ -4,9 +4,8 @@
  * https://github.com/chjj/rdb
  */
 
-#include <stddef.h>
 #include <stdint.h>
-#include <time.h>
+#include <stdlib.h>
 
 #include "buffer.h"
 #include "random.h"
@@ -18,7 +17,7 @@
 
 uint32_t
 rdb_random_seed(void) {
-  return time(0) & 0x7fffffff;
+  return rand() & 0x7fffffff;
 }
 
 rdb_slice_t *

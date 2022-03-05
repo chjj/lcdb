@@ -211,14 +211,8 @@ test_open_on_read(void) {
   fputs(file_data, f);
   fclose(f);
 
-  /* Open test file some number above the sum of the two limits to force
-     open-on-read behavior of POSIX Env leveldb::RandomAccessFile. */
-  /* https://github.com/google/leveldb/blob/main/util/env_posix.cc#L911 */
-  /* EnvPosixTestHelper::SetReadOnlyFDLimit(4); */
-  /* EnvPosixTestHelper::SetReadOnlyMMapLimit(4); */
-
   for (i = 0; i < num_files; i++)
-    assert(rdb_randfile_create(path, &files[i], 1) == RDB_OK);
+    assert(rdb_randfile_create(path, &files[i], i & 1) == RDB_OK);
 
   for (i = 0; i < num_files; i++) {
     assert(rdb_rfile_pread(files[i], &chunk, &scratch, 1, i) == RDB_OK);

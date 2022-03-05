@@ -22,7 +22,7 @@
  * Constants
  */
 
-static const int CACHE_SIZE = 1000;
+#define CACHE_SIZE 1000
 
 /*
  * Types

@@ -156,7 +156,7 @@ rdb_twoiter_skip_backward(rdb_twoiter_t *iter) {
     rdb_twoiter_init_data_block(iter);
 
     if (iter->data_iter.iter != NULL)
-      rdb_wrapiter_seek_first(&iter->data_iter);
+      rdb_wrapiter_seek_last(&iter->data_iter);
   }
 }
 

@@ -36,6 +36,9 @@ rdb_tablebuilder_create(const struct rdb_dbopt_s *options,
 void
 rdb_tablebuilder_destroy(rdb_tablebuilder_t *tb);
 
+int
+rdb_tablebuilder_ok(const rdb_tablebuilder_t *tb);
+
 /* Change the options used by this builder. Note: only some of the
  * option fields can be changed after construction. If a field is
  * not allowed to change dynamically and its value in the structure

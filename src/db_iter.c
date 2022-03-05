@@ -234,17 +234,24 @@ rdb_dbiter_valid(const rdb_dbiter_t *iter) {
 
 static rdb_slice_t
 rdb_dbiter_key(const rdb_dbiter_t *iter) {
-  rdb_slice_t key = rdb_iter_key(iter->iter);
   assert(iter->valid);
-  return (iter->direction == RDB_FORWARD) ? rdb_extract_user_key(&key)
-                                          : iter->saved_key;
+
+  if (iter->direction == RDB_FORWARD) {
+    rdb_slice_t key = rdb_iter_key(iter->iter);
+    return rdb_extract_user_key(&key);
+  }
+
+  return iter->saved_key;
 }
 
 static rdb_slice_t
 rdb_dbiter_value(const rdb_dbiter_t *iter) {
   assert(iter->valid);
-  return (iter->direction == RDB_FORWARD) ? rdb_iter_value(iter->iter)
-                                          : iter->saved_value;
+
+  if (iter->direction == RDB_FORWARD)
+    return rdb_iter_value(iter->iter);
+
+  return iter->saved_value;
 }
 
 static int

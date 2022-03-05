@@ -103,11 +103,6 @@ rdb_tablebuilder_clear(rdb_tablebuilder_t *tb) {
     rdb_filterbuilder_clear(tb->filter_block);
 }
 
-static int
-rdb_tablebuilder_ok(const rdb_tablebuilder_t *tb) {
-  return tb->status == RDB_OK;
-}
-
 rdb_tablebuilder_t *
 rdb_tablebuilder_create(const rdb_dbopt_t *options, rdb_wfile_t *file) {
   rdb_tablebuilder_t *tb = rdb_malloc(sizeof(rdb_tablebuilder_t));
@@ -119,6 +114,11 @@ void
 rdb_tablebuilder_destroy(rdb_tablebuilder_t *tb) {
   rdb_tablebuilder_clear(tb);
   rdb_free(tb);
+}
+
+int
+rdb_tablebuilder_ok(const rdb_tablebuilder_t *tb) {
+  return tb->status == RDB_OK;
 }
 
 int
