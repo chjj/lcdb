@@ -37,7 +37,7 @@ typedef struct rdb_logwriter_s {
  * "*dest" must remain live while this Writer is in use.
  */
 rdb_logwriter_t *
-rdb_logwriter_create(rdb_wfile_t *dest, uint64_t length);
+rdb_logwriter_create(struct rdb_wfile_s *dest, uint64_t length);
 
 void
 rdb_logwriter_destroy(rdb_logwriter_t *lw);

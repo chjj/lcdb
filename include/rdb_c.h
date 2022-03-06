@@ -33,7 +33,7 @@ typedef struct leveldb_env_s leveldb_env_t;
 
 #if defined(UINT64_MAX)
 typedef uint64_t rdb_uint64_t;
-#elif defined(_WIN32)
+#elif defined(_WIN32) && !defined(__GNUC__)
 typedef unsigned __int64 rdb_uint64_t;
 #elif ULONG_MAX >> 31 >> 31 >> 1 == 1
 typedef unsigned long rdb_uint64_t;
@@ -316,11 +316,11 @@ leveldb_comparator_destroy(leveldb_comparator_t *cmp);
 RDB_EXTERN leveldb_filterpolicy_t *
 leveldb_filterpolicy_create(void *state,
                             void (*destructor)(void *),
-                            char *(*key_build)(void *,
-                                               const char *const *key_array,
-                                               const size_t *key_length_array,
-                                               int num_keys,
-                                               size_t *filter_length),
+                            char *(*create_filter)(void *,
+                                                   const char *const *key_array,
+                                                   const size_t *key_lengths,
+                                                   int num_keys,
+                                                   size_t *filter_length),
                             unsigned char (*key_match)(void *,
                                                        const char *key,
                                                        size_t length,

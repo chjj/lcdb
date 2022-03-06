@@ -13,6 +13,7 @@
 #include "table/iterator.h"
 
 #include "util/comparator.h"
+#include "util/env.h"
 #include "util/internal.h"
 #include "util/options.h"
 #include "util/port.h"

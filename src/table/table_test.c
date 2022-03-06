@@ -150,10 +150,9 @@ cmp_increment(const rdb_comparator_t *cmp, rdb_buffer_t *key) {
 }
 
 /*
- * STLLessThan
+ * RBT Callbacks
  */
 
-/* An STL comparator that uses a Comparator. */
 static int
 map_compare(rb_val_t x, rb_val_t y, void *arg) {
   const rdb_comparator_t *cmp = arg;
@@ -171,18 +170,6 @@ map_clear(rb_node_t *node) {
   rdb_free(node->key.p);
   rdb_free(node->value.p);
 }
-
-/*
- * StringSink
- */
-
-/* Not implemented. */
-
-/*
- * StringSource
- */
-
-/* Not implemented. */
 
 /*
  * Constructor
@@ -416,7 +403,6 @@ typedef struct tablector_s {
   rdb_rfile_t *source;
   rdb_table_t *table;
 } tablector_t;
-
 
 static void
 tablector_init(tablector_t *c) {

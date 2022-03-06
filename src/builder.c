@@ -55,8 +55,9 @@ rdb_build_table(const char *prefix,
 
     key = rdb_iter_key(iter);
 
-    /* meta->smallest.DecodeFrom(key); */
     rdb_ikey_copy(&meta->smallest, &key);
+
+    rdb_slice_reset(&key);
 
     for (; rdb_iter_valid(iter); rdb_iter_next(iter)) {
       key = rdb_iter_key(iter);
@@ -65,10 +66,8 @@ rdb_build_table(const char *prefix,
       rdb_tablebuilder_add(builder, &key, &val);
     }
 
-    if (key.size > 0) {
-      /* meta->largest.DecodeFrom(key); */
+    if (key.size > 0)
       rdb_ikey_copy(&meta->largest, &key);
-    }
 
     /* Finish and check for builder errors. */
     rc = rdb_tablebuilder_finish(builder);
