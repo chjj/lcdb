@@ -60,6 +60,7 @@
 #include "internal.h"
 #include "slice.h"
 #include "status.h"
+#include "strutil.h"
 
 /*
  * Constants
@@ -131,26 +132,6 @@ rdb_limiter_release(rdb_limiter_t *lim) {
 /*
  * Path Helpers
  */
-
-static void
-rdb_dirname(char *dirname, const char *filename) {
-  char *slash = strrchr(strcpy(dirname, filename), '/');
-
-  if (slash == NULL)
-    strcpy(dirname, ".");
-  else
-    *slash = '\0';
-}
-
-static int
-rdb_starts_with(const char *xp, const char *yp) {
-  while (*xp && *xp == *yp) {
-    xp++;
-    yp++;
-  }
-
-  return *yp == 0;
-}
 
 static int
 rdb_is_manifest(const char *filename) {
@@ -806,7 +787,8 @@ static void
 rdb_wfile_init(rdb_wfile_t *file, const char *filename, int fd) {
   strcpy(file->filename, filename);
 
-  rdb_dirname(file->dirname, filename);
+  if (!rdb_dirname(file->dirname, RDB_PATH_MAX, filename))
+    abort(); /* LCOV_EXCL_LINE */
 
   file->fd = fd;
   file->manifest = rdb_is_manifest(filename);

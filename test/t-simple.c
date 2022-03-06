@@ -13,20 +13,23 @@ int
 main(void) {
   rdb_dbopt_t opt = *rdb_dbopt_default;
   rdb_slice_t key, val, ret;
-  char key_buf[64];
-  char val_buf[64];
+  char path[1024];
+  char kbuf[64];
+  char vbuf[64];
   rdb_batch_t b;
   rdb_t *db;
   int i, rc;
 
-  rdb_destroy_db("tmp", 0);
+  assert(rdb_test_filename(path, sizeof(path), "simpledb"));
+
+  rdb_destroy_db(path, 0);
 
   {
     opt.create_if_missing = 1;
     opt.error_if_exists = 1;
     opt.filter_policy = rdb_bloom_default;
 
-    rc = rdb_open("tmp", &opt, &db);
+    rc = rdb_open(path, &opt, &db);
 
     assert(rc == RDB_OK);
 
@@ -34,11 +37,11 @@ main(void) {
       rdb_batch_init(&b);
 
       for (i = 0; i < 1000000; i++) {
-        sprintf(key_buf, "hello %d padding padding paddi", rand());
-        sprintf(val_buf, "world %d", i);
+        sprintf(kbuf, "hello %d padding padding paddi", rand());
+        sprintf(vbuf, "world %d", i);
 
-        key = rdb_string(key_buf);
-        val = rdb_string(val_buf);
+        key = rdb_string(kbuf);
+        val = rdb_string(vbuf);
 
         if (i > 0 && (i % 1000) == 0) {
           rc = rdb_write(db, &b, 0);
@@ -94,7 +97,7 @@ main(void) {
     opt.create_if_missing = 0;
     opt.error_if_exists = 0;
 
-    rc = rdb_open("tmp", &opt, &db);
+    rc = rdb_open(path, &opt, &db);
 
     assert(rc == RDB_OK);
 
@@ -137,6 +140,8 @@ main(void) {
 
     rdb_close(db);
   }
+
+  rdb_destroy_db(path, 0);
 
   rdb_env_clear();
 

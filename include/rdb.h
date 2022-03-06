@@ -58,7 +58,9 @@ typedef struct rdb_range_s {
   rdb_slice_t limit;
 } rdb_range_t;
 
-#if defined(_WIN32)
+#if defined(UINT64_MAX)
+typedef uint64_t rdb_uint64_t;
+#elif defined(_WIN32) && !defined(__GNUC__)
 typedef unsigned __int64 rdb_uint64_t;
 #elif ULONG_MAX >> 31 >> 31 >> 1 == 1
 typedef unsigned long rdb_uint64_t;
@@ -223,6 +225,9 @@ rdb_destroy_db(const char *dbname, const rdb_dbopt_t *options);
 int
 rdb_test_directory(char *result, size_t size);
 
+int
+rdb_test_filename(char *result, size_t size, const char *name);
+
 /*
  * Internal
  */
@@ -323,13 +328,13 @@ extern const rdb_readopt_t *rdb_iteropt_default;
  * Slice
  */
 
+#define rdb_compare rdb_slice_compare
+
 rdb_slice_t
 rdb_slice(const void *xp, size_t xn);
 
 rdb_slice_t
 rdb_string(const char *xp);
-
-#define rdb_compare rdb_slice_compare
 
 int
 rdb_compare(const rdb_slice_t *x, const rdb_slice_t *y);

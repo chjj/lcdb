@@ -14,16 +14,6 @@
  */
 
 int
-rdb_starts_with(const char *xp, const char *yp) {
-  while (*xp && *xp == *yp) {
-    xp++;
-    yp++;
-  }
-
-  return *yp == 0;
-}
-
-int
 rdb_size_int(uint64_t x) {
   int n = 0;
 
@@ -88,6 +78,16 @@ rdb_decode_int(uint64_t *z, const char **xp) {
   return 1;
 }
 
+int
+rdb_starts_with(const char *xp, const char *yp) {
+  while (*xp && *xp == *yp) {
+    xp++;
+    yp++;
+  }
+
+  return *yp == 0;
+}
+
 char *
 rdb_basename(const char *fname) {
 #if defined(_WIN32)
@@ -133,7 +133,8 @@ rdb_dirname(char *buf, size_t size, const char *fname) {
     if (pos + 1 > size)
       return 0;
 
-    memcpy(buf, fname, pos + 1);
+    if (buf != fname)
+      memcpy(buf, fname, pos + 1);
 
 #if defined(_WIN32)
     while (pos > 1 && (buf[pos - 1] == '/' || buf[pos - 1] == '\\'))
@@ -151,11 +152,18 @@ rdb_dirname(char *buf, size_t size, const char *fname) {
 
 int
 rdb_join(char *zp, size_t zn, const char *xp, const char *yp) {
-  if (strlen(xp) + strlen(yp) + 2 > zn)
+  size_t xn = strlen(xp);
+  size_t yn = strlen(yp);
+
+  if (xn + yn + 2 > zn)
     return 0;
 
-  while (*xp)
-    *zp++ = *xp++;
+  if (zp != xp) {
+    while (*xp)
+      *zp++ = *xp++;
+  } else {
+    zp += xn;
+  }
 
 #if defined(_WIN32)
   *zp++ = '\\';

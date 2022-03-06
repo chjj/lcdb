@@ -13,6 +13,7 @@
 #endif
 
 #include "buffer.h"
+#include "strutil.h"
 
 int
 rdb_write_file(const char *fname, const rdb_slice_t *data, int should_sync) {
@@ -65,4 +66,12 @@ rdb_read_file(const char *fname, rdb_buffer_t *data) {
   rdb_rfile_destroy(file);
 
   return rc;
+}
+
+int
+rdb_test_filename(char *result, size_t size, const char *name) {
+  if (!rdb_test_directory(result, size))
+    return 0;
+
+  return rdb_join(result, size, result, name);
 }

@@ -6,6 +6,7 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <leveldb/c.h>
@@ -14,11 +15,15 @@
  * Macros
  */
 
-#if defined(_WIN32)
-#  define RDB_EXTERN __declspec(dllexport)
-#elif defined(__GNUC__) && __GNUC__ >= 4
-#  define RDB_EXTERN __attribute__((visibility("default")))
-#else
+#ifdef RDB_EXPORT
+#  if defined(_WIN32)
+#    define RDB_EXTERN __declspec(dllexport)
+#  elif defined(__GNUC__) && __GNUC__ >= 4
+#    define RDB_EXTERN __attribute__((visibility("default")))
+#  endif
+#endif
+
+#ifndef RDB_EXTERN
 #  define RDB_EXTERN
 #endif
 
@@ -750,6 +755,21 @@ rdb_test_directory(char *result, size_t size) {
   safe_free(path);
 
   return ret;
+}
+
+RDB_EXTERN int
+rdb_test_filename(char *result, size_t size, const char *name) {
+  char path[1024];
+
+  if (!rdb_test_directory(path, sizeof(path)))
+    return 0;
+
+  if (strlen(path) + strlen(name) + 1 > size)
+    return 0;
+
+  sprintf(result, "%s/%s", path, name);
+
+  return 1;
 }
 
 /*

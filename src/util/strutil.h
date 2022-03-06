@@ -15,9 +15,6 @@
  */
 
 int
-rdb_starts_with(const char *xp, const char *yp);
-
-int
 rdb_size_int(uint64_t x);
 
 int
@@ -25,6 +22,9 @@ rdb_encode_int(char *zp, uint64_t x, int pad);
 
 int
 rdb_decode_int(uint64_t *z, const char **xp);
+
+int
+rdb_starts_with(const char *xp, const char *yp);
 
 char *
 rdb_basename(const char *fname);

@@ -78,6 +78,9 @@ rdb_unlock_file(rdb_filelock_t *lock);
 RDB_EXTERN int
 rdb_test_directory(char *result, size_t size);
 
+RDB_EXTERN int
+rdb_test_filename(char *result, size_t size, const char *name);
+
 /*
  * Readable File
  */
