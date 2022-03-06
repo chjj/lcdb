@@ -4,12 +4,22 @@
  * https://github.com/chjj/rdb
  */
 
+#include <stdio.h>
 #include <stdlib.h>
 #include "internal.h"
 
 /*
  * Helpers
  */
+
+RDB_NORETURN void
+rdb_assert_fail(const char *file, int line, const char *expr) {
+  /* LCOV_EXCL_START */
+  fprintf(stderr, "%s:%d: Assertion `%s' failed.\n", file, line, expr);
+  fflush(stderr);
+  abort();
+  /* LCOV_EXCL_STOP */
+}
 
 RDB_MALLOC void *
 rdb_malloc(size_t size) {

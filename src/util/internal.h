@@ -104,6 +104,21 @@
 #  define RDB_INLINE
 #endif
 
+#if RDB_STDC_VERSION >= 201112L
+#  define RDB_NORETURN _Noreturn
+#elif RDB_CPP_VERSION >= 201103L
+#  define RDB_NORETURN [[noreturn]]
+#elif RDB_GNUC_PREREQ(2, 7)
+#  define RDB_NORETURN __attribute__((noreturn))
+#elif defined(_MSC_VER) && _MSC_VER >= 1200
+#  define RDB_NORETURN __declspec(noreturn)
+#elif (defined(__SUNPRO_C) && __SUNPRO_C >= 0x590) \
+   || (defined(__SUNPRO_CC) && __SUNPRO_CC >= 0x590)
+#  define RDB_NORETURN __attribute__((noreturn))
+#else
+#  define RDB_NORETURN
+#endif
+
 #if RDB_STDC_VERSION > 201710L
 #  define RDB_UNUSED [[maybe_unused]]
 #elif RDB_CPP_VERSION >= 201703L
@@ -139,6 +154,9 @@
 /*
  * Helpers
  */
+
+RDB_EXTERN RDB_NORETURN void
+rdb_assert_fail(const char *file, int line, const char *expr);
 
 RDB_MALLOC void *
 rdb_malloc(size_t size);

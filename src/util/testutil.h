@@ -10,6 +10,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "internal.h"
 #include "types.h"
 
 /*
@@ -17,6 +18,17 @@
  */
 
 struct rdb_rand_s;
+
+/*
+ * Assertions
+ */
+
+#undef ASSERT
+
+#define ASSERT(expr) do {                       \
+  if (UNLIKELY(!(expr)))                        \
+    rdb_assert_fail(__FILE__, __LINE__, #expr); \
+} while (0)
 
 /*
  * Test Utils
