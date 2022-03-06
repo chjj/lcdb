@@ -126,15 +126,20 @@ rdb_pkey_debug(rdb_buffer_t *z, const rdb_pkey_t *x) {
  */
 
 void
-rdb_ikey_init(rdb_ikey_t *ikey,
-              const rdb_slice_t *user_key,
-              rdb_seqnum_t sequence,
-              rdb_valtype_t type) {
+rdb_ikey_init(rdb_ikey_t *ikey) {
+  rdb_buffer_init(ikey);
+}
+
+void
+rdb_ikey_set(rdb_ikey_t *ikey,
+             const rdb_slice_t *user_key,
+             rdb_seqnum_t sequence,
+             rdb_valtype_t type) {
   rdb_pkey_t pkey;
 
-  rdb_pkey_init(&pkey, user_key, sequence, type);
+  rdb_buffer_reset(ikey);
 
-  rdb_buffer_init(ikey);
+  rdb_pkey_init(&pkey, user_key, sequence, type);
   rdb_pkey_export(ikey, &pkey);
 }
 

@@ -45,7 +45,7 @@ ikey_entry_create(int level, const rdb_ikey_t *key) {
 
   entry->level = level;
 
-  rdb_buffer_init(&entry->key);
+  rdb_ikey_init(&entry->key);
   rdb_ikey_copy(&entry->key, key);
 
   return entry;
@@ -174,8 +174,8 @@ rdb_filemeta_init(rdb_filemeta_t *meta) {
   meta->number = 0;
   meta->file_size = 0;
 
-  rdb_buffer_init(&meta->smallest);
-  rdb_buffer_init(&meta->largest);
+  rdb_ikey_init(&meta->smallest);
+  rdb_ikey_init(&meta->largest);
 }
 
 void

@@ -187,8 +187,10 @@ some_file_overlaps_range(const rdb_comparator_t *icmp,
     /* Find the earliest possible internal key for smallest_user_key. */
     rdb_ikey_t small_key;
 
-    rdb_ikey_init(&small_key, smallest_user_key, RDB_MAX_SEQUENCE,
-                                                 RDB_VALTYPE_SEEK);
+    rdb_ikey_init(&small_key);
+
+    rdb_ikey_set(&small_key, smallest_user_key, RDB_MAX_SEQUENCE,
+                                                RDB_VALTYPE_SEEK);
 
     index = find_file(icmp, files, &small_key);
 
@@ -748,8 +750,11 @@ rdb_version_pick_level_for_memtable_output(rdb_version_t *ver,
     rdb_ikey_t start, limit;
 
     rdb_vector_init(&overlaps);
-    rdb_ikey_init(&start, small_key, RDB_MAX_SEQUENCE, RDB_VALTYPE_SEEK);
-    rdb_ikey_init(&limit, large_key, 0, (rdb_valtype_t)0);
+    rdb_ikey_init(&start);
+    rdb_ikey_init(&limit);
+
+    rdb_ikey_set(&start, small_key, RDB_MAX_SEQUENCE, RDB_VALTYPE_SEEK);
+    rdb_ikey_set(&limit, large_key, 0, (rdb_valtype_t)0);
 
     while (level < RDB_MAX_MEM_COMPACT_LEVEL) {
       if (rdb_version_overlap_in_level(ver, level + 1, small_key, large_key))

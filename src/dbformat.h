@@ -137,10 +137,13 @@ rdb_pkey_debug(rdb_buffer_t *z, const rdb_pkey_t *x);
  */
 
 void
-rdb_ikey_init(rdb_ikey_t *ikey,
-              const rdb_slice_t *user_key,
-              rdb_seqnum_t sequence,
-              rdb_valtype_t type);
+rdb_ikey_init(rdb_ikey_t *ikey);
+
+void
+rdb_ikey_set(rdb_ikey_t *ikey,
+             const rdb_slice_t *user_key,
+             rdb_seqnum_t sequence,
+             rdb_valtype_t type);
 
 void
 rdb_ikey_clear(rdb_ikey_t *ikey);

@@ -2334,19 +2334,22 @@ rdb_get_approximate_sizes(rdb_t *db, const rdb_range_t *range,
 
   rdb_version_ref(v);
 
+  rdb_ikey_init(&k1);
+  rdb_ikey_init(&k2);
+
   for (i = 0; i < length; i++) {
     /* Convert user_key into a corresponding internal key. */
-    rdb_ikey_init(&k1, &range[i].start, RDB_MAX_SEQUENCE, RDB_VALTYPE_SEEK);
-    rdb_ikey_init(&k2, &range[i].limit, RDB_MAX_SEQUENCE, RDB_VALTYPE_SEEK);
+    rdb_ikey_set(&k1, &range[i].start, RDB_MAX_SEQUENCE, RDB_VALTYPE_SEEK);
+    rdb_ikey_set(&k2, &range[i].limit, RDB_MAX_SEQUENCE, RDB_VALTYPE_SEEK);
 
     start = rdb_vset_approximate_offset_of(db->versions, v, &k1);
     limit = rdb_vset_approximate_offset_of(db->versions, v, &k2);
 
     sizes[i] = (limit >= start ? limit - start : 0);
-
-    rdb_ikey_clear(&k1);
-    rdb_ikey_clear(&k2);
   }
+
+  rdb_ikey_clear(&k1);
+  rdb_ikey_clear(&k2);
 
   rdb_version_unref(v);
 
@@ -2483,14 +2486,16 @@ rdb_test_compact_range(rdb_t *db, int level,
   if (begin == NULL) {
     manual.begin = NULL;
   } else {
-    rdb_ikey_init(&begin_storage, begin, RDB_MAX_SEQUENCE, RDB_VALTYPE_SEEK);
+    rdb_ikey_init(&begin_storage);
+    rdb_ikey_set(&begin_storage, begin, RDB_MAX_SEQUENCE, RDB_VALTYPE_SEEK);
     manual.begin = &begin_storage;
   }
 
   if (end == NULL) {
     manual.end = NULL;
   } else {
-    rdb_ikey_init(&end_storage, end, 0, (rdb_valtype_t)0);
+    rdb_ikey_init(&end_storage);
+    rdb_ikey_set(&end_storage, end, 0, (rdb_valtype_t)0);
     manual.end = &end_storage;
   }
 
