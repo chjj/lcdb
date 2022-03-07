@@ -95,7 +95,6 @@ if(RDB_TESTS)
                           src/corruption_test.c
                           src/dbformat_test.c
                           src/db_test.c
-                          src/fault_injection_test.c
                           src/filename_test.c
                           src/log_test.c
                           src/recovery_test.c
@@ -143,7 +142,6 @@ if(RDB_TESTS)
             db
             dbformat
             env
-            fault_injection
             filename
             filter_block
             hash
