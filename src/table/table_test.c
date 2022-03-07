@@ -42,7 +42,7 @@
  * ReverseKeyComparator
  */
 
-static rdb_buffer_t *
+static void
 slice_reverse(rdb_buffer_t *z, const rdb_slice_t *x) {
   const uint8_t *xp = x->data;
   size_t xn = x->size;
@@ -54,8 +54,6 @@ slice_reverse(rdb_buffer_t *z, const rdb_slice_t *x) {
 
   while (xn--)
     *zp++ = *--xp;
-
-  return z;
 }
 
 static int
@@ -406,8 +404,7 @@ typedef struct tablector_s {
 
 static void
 tablector_init(tablector_t *c) {
-  assert(rdb_test_directory(c->path, sizeof(c->path)));
-  assert(rdb_join(c->path, sizeof(c->path), c->path, "test_table.ldb"));
+  assert(rdb_test_filename(c->path, sizeof(c->path), "test_table.ldb"));
 
   c->source = NULL;
   c->table = NULL;
@@ -682,8 +679,7 @@ dbctor_newdb(dbctor_t *c) {
   char name[RDB_PATH_MAX];
   int rc;
 
-  assert(rdb_test_directory(name, sizeof(name)));
-  assert(rdb_join(name, sizeof(name), name, "table_testdb"));
+  assert(rdb_test_filename(name, sizeof(name), "table_testdb"));
 
   options.comparator = c->cmp;
 
@@ -712,8 +708,7 @@ static void
 dbctor_clear(dbctor_t *c) {
   char name[RDB_PATH_MAX];
 
-  assert(rdb_test_directory(name, sizeof(name)));
-  assert(rdb_join(name, sizeof(name), name, "table_testdb"));
+  assert(rdb_test_filename(name, sizeof(name), "table_testdb"));
 
   rdb_destroy_db(name, 0);
 

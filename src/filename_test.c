@@ -86,53 +86,61 @@ test_construction(void) {
   uint64_t number;
   char fname[1024];
 
+#ifdef _WIN32
+#  define S "\\"
+#else
+#  define S "/"
+#endif
+
   ASSERT(rdb_current_filename(fname, sizeof(fname), "foo"));
-  ASSERT(rdb_starts_with(fname, "foo/"));
+  ASSERT(rdb_starts_with(fname, "foo" S));
   ASSERT(rdb_parse_filename(&type, &number, fname + 4));
   ASSERT(0 == number);
   ASSERT(RDB_FILE_CURRENT == type);
 
   ASSERT(rdb_lock_filename(fname, sizeof(fname), "foo"));
-  ASSERT(rdb_starts_with(fname, "foo/"));
+  ASSERT(rdb_starts_with(fname, "foo" S));
   ASSERT(rdb_parse_filename(&type, &number, fname + 4));
   ASSERT(0 == number);
   ASSERT(RDB_FILE_LOCK == type);
 
   ASSERT(rdb_log_filename(fname, sizeof(fname), "foo", 192));
-  ASSERT(rdb_starts_with(fname, "foo/"));
+  ASSERT(rdb_starts_with(fname, "foo" S));
   ASSERT(rdb_parse_filename(&type, &number, fname + 4));
   ASSERT(192 == number);
   ASSERT(RDB_FILE_LOG == type);
 
   ASSERT(rdb_table_filename(fname, sizeof(fname), "bar", 200));
-  ASSERT(rdb_starts_with(fname, "bar/"));
+  ASSERT(rdb_starts_with(fname, "bar" S));
   ASSERT(rdb_parse_filename(&type, &number, fname + 4));
   ASSERT(200 == number);
   ASSERT(RDB_FILE_TABLE == type);
 
   ASSERT(rdb_desc_filename(fname, sizeof(fname), "bar", 100));
-  ASSERT(rdb_starts_with(fname, "bar/"));
+  ASSERT(rdb_starts_with(fname, "bar" S));
   ASSERT(rdb_parse_filename(&type, &number, fname + 4));
   ASSERT(100 == number);
   ASSERT(RDB_FILE_DESC == type);
 
   ASSERT(rdb_temp_filename(fname, sizeof(fname), "tmp", 999));
-  ASSERT(rdb_starts_with(fname, "tmp/"));
+  ASSERT(rdb_starts_with(fname, "tmp" S));
   ASSERT(rdb_parse_filename(&type, &number, fname + 4));
   ASSERT(999 == number);
   ASSERT(RDB_FILE_TEMP == type);
 
   ASSERT(rdb_info_filename(fname, sizeof(fname), "foo"));
-  ASSERT(rdb_starts_with(fname, "foo/"));
+  ASSERT(rdb_starts_with(fname, "foo" S));
   ASSERT(rdb_parse_filename(&type, &number, fname + 4));
   ASSERT(0 == number);
   ASSERT(RDB_FILE_INFO == type);
 
   ASSERT(rdb_oldinfo_filename(fname, sizeof(fname), "foo"));
-  ASSERT(rdb_starts_with(fname, "foo/"));
+  ASSERT(rdb_starts_with(fname, "foo" S));
   ASSERT(rdb_parse_filename(&type, &number, fname + 4));
   ASSERT(0 == number);
   ASSERT(RDB_FILE_INFO == type);
+
+#undef S
 }
 
 RDB_EXTERN int

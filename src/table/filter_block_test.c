@@ -52,7 +52,9 @@ bloom_match(const rdb_bloom_t *bloom,
 
   (void)bloom;
 
-  for (i = 0; i + 4 <= filter->size; i += 4) {
+  assert((filter->size & 3) == 0);
+
+  for (i = 0; i < filter->size; i += 4) {
     if (h == rdb_fixed32_decode(filter->data + i))
       return 1;
   }

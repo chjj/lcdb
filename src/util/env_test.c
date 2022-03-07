@@ -44,8 +44,7 @@ test_read_write(void) {
 
   rdb_rand_init(&rnd, rdb_random_seed());
 
-  assert(rdb_test_directory(path, sizeof(path)));
-  assert(rdb_join(path, sizeof(path), path, "open_on_read.txt"));
+  assert(rdb_test_filename(path, sizeof(path), "open_on_read.txt"));
   assert(rdb_truncfile_create(path, &wfile) == RDB_OK);
 
   /* Fill a file with data generated via a sequence of randomly sized writes. */
@@ -101,8 +100,7 @@ test_open_non_existent_file(void) {
   char path[RDB_PATH_MAX];
   rdb_rfile_t *rfile;
 
-  assert(rdb_test_directory(path, sizeof(path)));
-  assert(rdb_join(path, sizeof(path), path, "non_existent_file"));
+  assert(rdb_test_filename(path, sizeof(path), "non_existent_file"));
   assert(!rdb_file_exists(path));
   assert(rdb_randfile_create(path, &rfile, 1) == RDB_NOTFOUND);
   assert(rdb_seqfile_create(path, &rfile) == RDB_NOTFOUND);
@@ -117,8 +115,7 @@ test_reopen_writable_file(void) {
 
   rdb_buffer_init(&result);
 
-  assert(rdb_test_directory(path, sizeof(path)));
-  assert(rdb_join(path, sizeof(path), path, "reopen_writable_file.txt"));
+  assert(rdb_test_filename(path, sizeof(path), "reopen_writable_file.txt"));
 
   rdb_remove_file(path);
 
@@ -156,8 +153,7 @@ test_reopen_appendable_file(void) {
 
   rdb_buffer_init(&result);
 
-  assert(rdb_test_directory(path, sizeof(path)));
-  assert(rdb_join(path, sizeof(path), path, "reopen_appendable_file.txt"));
+  assert(rdb_test_filename(path, sizeof(path), "reopen_appendable_file.txt"));
 
   rdb_remove_file(path);
 
@@ -201,8 +197,7 @@ test_open_on_read(void) {
   FILE *f;
   int i;
 
-  assert(rdb_test_directory(path, sizeof(path)));
-  assert(rdb_join(path, sizeof(path), path, "open_on_read.txt"));
+  assert(rdb_test_filename(path, sizeof(path), "open_on_read.txt"));
 
   f = fopen(path, "we");
 
@@ -212,7 +207,7 @@ test_open_on_read(void) {
   fclose(f);
 
   for (i = 0; i < num_files; i++)
-    assert(rdb_randfile_create(path, &files[i], i & 1) == RDB_OK);
+    assert(rdb_randfile_create(path, &files[i], (i & 1)) == RDB_OK);
 
   for (i = 0; i < num_files; i++) {
     assert(rdb_rfile_pread(files[i], &chunk, &scratch, 1, i) == RDB_OK);
@@ -390,10 +385,6 @@ rdb_test_env(void);
 
 int
 rdb_test_env(void) {
-#if defined(_WIN32) || defined(RDB_PTHREAD)
-  rdb_pool_t *pool;
-#endif
-
   rdb_env_init();
 
   test_read_write();
@@ -405,13 +396,15 @@ rdb_test_env(void) {
   rdb_env_clear();
 
 #if defined(_WIN32) || defined(RDB_PTHREAD)
-  pool = rdb_pool_create(1);
+  {
+    rdb_pool_t *pool = rdb_pool_create(1);
 
-  test_run_immediately(pool);
-  test_run_many(pool);
-  test_start_thread();
+    test_run_immediately(pool);
+    test_run_many(pool);
+    test_start_thread();
 
-  rdb_pool_destroy(pool);
+    rdb_pool_destroy(pool);
+  }
 #endif
 
   return 0;
