@@ -15,6 +15,7 @@
 #include "internal.h"
 #include "slice.h"
 #include "status.h"
+#include "strutil.h"
 
 /*
  * Constants
@@ -141,6 +142,7 @@ rdb_get_children(const char *path, char ***out) {
   char buf[RDB_PATH_MAX];
   char **list = NULL;
   char *name = NULL;
+  const char *base;
   size_t size = 8;
   size_t i = 0;
   size_t j;
@@ -160,7 +162,7 @@ rdb_get_children(const char *path, char ***out) {
 
   if (len == 0) {
     buf[len++] = '.';
-    buf[len++] = '/';
+    buf[len++] = '\\';
     buf[len++] = '*';
     buf[len++] = '\0';
   } else if (path[len - 1] == '\\' || path[len - 1] == '/') {
@@ -182,39 +184,18 @@ rdb_get_children(const char *path, char ***out) {
   }
 
   do {
-    if (strcmp(fdata.cFileName, ".") == 0
-        || strcmp(fdata.cFileName, "..") == 0) {
+    base = rdb_basename(fdata.cFileName);
+
+    if (strcmp(base, ".") == 0 || strcmp(base, "..") == 0)
       continue;
-    }
 
-#if 0
-    char base[_MAX_FNAME];
-    char ext[_MAX_EXT];
-
-    if (_splitpath_s(fdata.cFileName,
-                     NULL, 0,
-                     NULL, 0,
-                     base, sizeof(base),
-                     ext, sizeof(ext))) {
-      continue;
-    }
-
-    len = strlen(base) + strlen(ext);
+    len = strlen(base);
     name = (char *)malloc(len + 1);
 
     if (name == NULL)
       goto fail;
 
-    sprintf(name, "%s%s", base, ext);
-#endif
-
-    len = strlen(fdata.cFileName);
-    name = (char *)malloc(len + 1);
-
-    if (name == NULL)
-      goto fail;
-
-    memcpy(name, fdata.cFileName, len + 1);
+    memcpy(name, base, len + 1);
 
     if (i == size) {
       size = (size * 3) / 2;
