@@ -151,19 +151,19 @@ rdb_parse_filename(rdb_filetype_t *type, uint64_t *num, const char *name) {
 
 int
 rdb_set_current_file(const char *prefix, uint64_t desc_number) {
+  char cur[RDB_PATH_MAX];
+  char tmp[RDB_PATH_MAX];
   rdb_slice_t data;
-  char cur[1024];
-  char tmp[1024];
   char man[128];
   char id[32];
   int rc;
 
   assert(desc_number > 0);
 
-  if (!rdb_temp_filename(tmp, 1024, prefix, desc_number))
+  if (!rdb_temp_filename(tmp, sizeof(tmp), prefix, desc_number))
     return RDB_INVALID;
 
-  if (!rdb_current_filename(cur, 1024, prefix))
+  if (!rdb_current_filename(cur, sizeof(cur), prefix))
     return RDB_INVALID;
 
   rdb_encode_int(id, desc_number, 6);

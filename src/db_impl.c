@@ -734,14 +734,6 @@ rdb_remove_obsolete_files(rdb_t *db) {
 }
 
 static int
-compare_ascending(int64_t x, int64_t y) {
-  if (x == y)
-    return 0;
-
-  return x < y ? -1 : 1;
-}
-
-static int
 rdb_write_level0_table(rdb_t *db, rdb_memtable_t *mem,
                                   rdb_vedit_t *edit,
                                   rdb_version_t *base) {
@@ -962,6 +954,14 @@ rdb_recover_log_file(rdb_t *db, uint64_t log_number,
   }
 
   return rc;
+}
+
+static int
+compare_ascending(int64_t x, int64_t y) {
+  if (x == y)
+    return 0;
+
+  return x < y ? -1 : 1;
 }
 
 static int
@@ -1579,7 +1579,8 @@ rdb_background_compaction(rdb_t *db) {
     rdb_remove_obsolete_files(db);
   }
 
-  rdb_compaction_destroy(c);
+  if (c != NULL)
+    rdb_compaction_destroy(c);
 
   if (rc == RDB_OK) {
     /* Done. */

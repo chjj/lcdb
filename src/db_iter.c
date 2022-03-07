@@ -172,7 +172,6 @@ find_prev_user_entry(rdb_dbiter_t *iter) {
           }
 
           rdb_buffer_copy(&iter->saved_key, &ukey);
-
           rdb_buffer_copy(&iter->saved_value, &value);
         }
       }
