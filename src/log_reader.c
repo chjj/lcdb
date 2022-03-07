@@ -50,6 +50,8 @@ rdb_logreader_init(rdb_logreader_t *lr,
                    int checksum,
                    uint64_t initial_offset) {
   lr->file = file;
+  lr->src = NULL; /* For testing. */
+  lr->error = RDB_OK; /* For testing. */
   lr->reporter = reporter;
   lr->checksum = checksum;
   lr->backing_store = rdb_malloc(RDB_BLOCK_SIZE);
@@ -96,10 +98,23 @@ read_physical_record(rdb_logreader_t *lr, rdb_slice_t *result) {
         /* Last read was a full read, so this is a trailer to skip. */
         rdb_slice_reset(&lr->buffer);
 
-        rc = rdb_rfile_read(lr->file,
-                            &lr->buffer,
-                            lr->backing_store,
-                            RDB_BLOCK_SIZE);
+        if (lr->error != RDB_OK) {
+          rc = lr->error;
+        } else if (lr->src != NULL) {
+          size_t nread = RDB_MIN(RDB_BLOCK_SIZE, lr->src->size);
+
+          lr->buffer.data = lr->src->data;
+          lr->buffer.size = nread;
+          lr->src->data += nread;
+          lr->src->size -= nread;
+
+          rc = RDB_OK;
+        } else {
+          rc = rdb_rfile_read(lr->file,
+                              &lr->buffer,
+                              lr->backing_store,
+                              RDB_BLOCK_SIZE);
+        }
 
         lr->end_offset += lr->buffer.size;
 
@@ -209,7 +224,16 @@ skip_to_initial_block(rdb_logreader_t *lr) {
 
   /* Skip to start of first block that can contain the initial record. */
   if (block_start > 0) {
-    int rc = rdb_rfile_skip(lr->file, block_start);
+    int rc = RDB_OK;
+
+    if (lr->src != NULL) {
+      uint64_t nskip = RDB_MIN(block_start, lr->src->size);
+
+      lr->src->data += nskip;
+      lr->src->size -= nskip;
+    } else {
+      rc = rdb_rfile_skip(lr->file, block_start);
+    }
 
     if (rc != RDB_OK) {
       report_drop(lr, block_start, rc);

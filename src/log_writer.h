@@ -19,7 +19,8 @@
 struct rdb_wfile_s;
 
 typedef struct rdb_logwriter_s {
-  struct rdb_wfile_s *dest;
+  struct rdb_wfile_s *file;
+  rdb_buffer_t *dst; /* For testing. */
   int block_offset; /* Current offset in block. */
 
   /* crc32c values for all supported record types. These are
@@ -32,19 +33,19 @@ typedef struct rdb_logwriter_s {
  * LogWriter
  */
 
-/* Create a writer that will append data to "*dest".
- * "*dest" must have initial length "dest_length".
- * "*dest" must remain live while this Writer is in use.
+/* Create a writer that will append data to "*file".
+ * "*file" must have initial length "dest_length".
+ * "*file" must remain live while this Writer is in use.
  */
 rdb_logwriter_t *
-rdb_logwriter_create(struct rdb_wfile_s *dest, uint64_t length);
+rdb_logwriter_create(struct rdb_wfile_s *file, uint64_t length);
 
 void
 rdb_logwriter_destroy(rdb_logwriter_t *lw);
 
 void
 rdb_logwriter_init(rdb_logwriter_t *lw,
-                   struct rdb_wfile_s *dest,
+                   struct rdb_wfile_s *file,
                    uint64_t length);
 
 int

@@ -28,11 +28,14 @@ typedef struct rdb_reporter_s {
   struct rdb_logger_s *info_log;
   uint64_t lognum;
   void *dst; /* FILE */
+  size_t dropped_bytes;
   void (*corruption)(struct rdb_reporter_s *reporter, size_t bytes, int status);
 } rdb_reporter_t;
 
 typedef struct rdb_logreader_s {
   struct rdb_rfile_s *file; /* SequentialFile */
+  rdb_slice_t *src; /* For testing. */
+  int error; /* For testing. */
   rdb_reporter_t *reporter;
   int checksum;
   uint8_t *backing_store;

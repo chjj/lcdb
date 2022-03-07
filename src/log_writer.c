@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include "util/buffer.h"
 #include "util/coding.h"
 #include "util/crc32c.h"
 #include "util/env.h"
@@ -31,9 +32,9 @@ init_type_crc(uint32_t *type_crc) {
 }
 
 rdb_logwriter_t *
-rdb_logwriter_create(rdb_wfile_t *dest, uint64_t length) {
+rdb_logwriter_create(rdb_wfile_t *file, uint64_t length) {
   rdb_logwriter_t *lw = rdb_malloc(sizeof(rdb_logwriter_t));
-  rdb_logwriter_init(lw, dest, length);
+  rdb_logwriter_init(lw, file, length);
   return lw;
 }
 
@@ -43,8 +44,9 @@ rdb_logwriter_destroy(rdb_logwriter_t *lw) {
 }
 
 void
-rdb_logwriter_init(rdb_logwriter_t *lw, rdb_wfile_t *dest, uint64_t length) {
-  lw->dest = dest;
+rdb_logwriter_init(rdb_logwriter_t *lw, rdb_wfile_t *file, uint64_t length) {
+  lw->file = file;
+  lw->dst = NULL; /* For testing. */
   lw->block_offset = length % RDB_BLOCK_SIZE;
   init_type_crc(lw->type_crc);
 }
@@ -56,8 +58,8 @@ emit_physical_record(rdb_logwriter_t *lw,
                      size_t length) {
   uint8_t buf[RDB_HEADER_SIZE];
   rdb_slice_t data;
+  int rc = RDB_OK;
   uint32_t crc;
-  int rc;
 
   assert(length <= 0xffff); /* Must fit in two bytes. */
   assert(lw->block_offset + RDB_HEADER_SIZE + length <= RDB_BLOCK_SIZE);
@@ -73,18 +75,23 @@ emit_physical_record(rdb_logwriter_t *lw,
 
   rdb_fixed32_write(buf, crc);
 
-  /* Write the header and the payload. */
-  rdb_slice_set(&data, buf, RDB_HEADER_SIZE);
+  if (lw->dst != NULL) {
+    rdb_buffer_append(lw->dst, buf, RDB_HEADER_SIZE);
+    rdb_buffer_append(lw->dst, ptr, length);
+  } else {
+    /* Write the header and the payload. */
+    rdb_slice_set(&data, buf, RDB_HEADER_SIZE);
 
-  rc = rdb_wfile_append(lw->dest, &data);
+    rc = rdb_wfile_append(lw->file, &data);
 
-  if (rc == RDB_OK) {
-    rdb_slice_set(&data, ptr, length);
+    if (rc == RDB_OK) {
+      rdb_slice_set(&data, ptr, length);
 
-    rc = rdb_wfile_append(lw->dest, &data);
+      rc = rdb_wfile_append(lw->file, &data);
 
-    if (rc == RDB_OK)
-      rc = rdb_wfile_flush(lw->dest);
+      if (rc == RDB_OK)
+        rc = rdb_wfile_flush(lw->file);
+    }
   }
 
   lw->block_offset += RDB_HEADER_SIZE + length;
@@ -97,8 +104,8 @@ rdb_logwriter_add_record(rdb_logwriter_t *lw, const rdb_slice_t *slice) {
   static const uint8_t zeroes[RDB_HEADER_SIZE] = {0};
   const uint8_t *ptr = slice->data;
   size_t left = slice->size;
+  int rc = RDB_OK;
   int begin = 1;
-  int rc;
 
   /* Fragment the record if necessary and emit it.  Note that if slice
      is empty, we still want to iterate once to emit a single
@@ -118,7 +125,11 @@ rdb_logwriter_add_record(rdb_logwriter_t *lw, const rdb_slice_t *slice) {
         rdb_slice_t padding;
 
         rdb_slice_set(&padding, zeroes, leftover);
-        rdb_wfile_append(lw->dest, &padding);
+
+        if (lw->dst != NULL)
+          rdb_buffer_concat(lw->dst, &padding);
+        else
+          rdb_wfile_append(lw->file, &padding);
       }
 
       lw->block_offset = 0;
