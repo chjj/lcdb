@@ -68,7 +68,8 @@ static const rdb_bloom_t bloom_test = {
   /* .match = */ bloom_match,
   /* .bits_per_key = */ 0,
   /* .k = */ 0,
-  /* .user_policy = */ NULL
+  /* .user_policy = */ NULL,
+  /* .state = */ NULL
 };
 
 static void

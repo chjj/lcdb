@@ -123,7 +123,8 @@ static const rdb_comparator_t reverse_comparator = {
   /* .compare = */ rev_compare,
   /* .shortest_separator = */ rev_shortest_separator,
   /* .short_successor = */ rev_short_successor,
-  /* .user_comparator = */ NULL
+  /* .user_comparator = */ NULL,
+  /* .state = */ NULL
 };
 
 static void

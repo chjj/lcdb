@@ -2,14 +2,17 @@
    Use of this source code is governed by a BSD-style license that can be
    found in the LICENSE file. See the AUTHORS file for names of contributors. */
 
-#include "leveldb/c.h"
-
 #include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-const char* phase = "";
+#include <rdb_c.h>
+
+#include "util/extern.h"
+
+static const char* phase = "";
 
 static void StartPhase(const char* name) {
   fprintf(stderr, "=== Test %s\n", name);
@@ -30,10 +33,10 @@ static void StartPhase(const char* name) {
 
 static void CheckEqual(const char* expected, const char* v, size_t n) {
   if (expected == NULL && v == NULL) {
-    // ok
+    /* ok */
   } else if (expected != NULL && v != NULL && n == strlen(expected) &&
              memcmp(expected, v, n) == 0) {
-    // ok
+    /* ok */
     return;
   } else {
     fprintf(stderr, "%s: expected '%s', got '%s'\n",
@@ -75,7 +78,7 @@ static void CheckIter(leveldb_iterator_t* iter,
   CheckEqual(val, str, len);
 }
 
-// Callback from leveldb_writebatch_iterate()
+/* Callback from leveldb_writebatch_iterate() */
 static void CheckPut(void* ptr,
                      const char* k, size_t klen,
                      const char* v, size_t vlen) {
@@ -94,7 +97,7 @@ static void CheckPut(void* ptr,
   (*state)++;
 }
 
-// Callback from leveldb_writebatch_iterate()
+/* Callback from leveldb_writebatch_iterate() */
 static void CheckDel(void* ptr, const char* k, size_t klen) {
   int* state = (int*) ptr;
   CheckCondition(*state == 2);
@@ -102,12 +105,15 @@ static void CheckDel(void* ptr, const char* k, size_t klen) {
   (*state)++;
 }
 
-static void CmpDestroy(void* arg) { }
+static void CmpDestroy(void* arg) {
+  (void)arg;
+}
 
 static int CmpCompare(void* arg, const char* a, size_t alen,
                       const char* b, size_t blen) {
   int n = (alen < blen) ? alen : blen;
   int r = memcmp(a, b, n);
+  (void)arg;
   if (r == 0) {
     if (alen < blen) r = -1;
     else if (alen > blen) r = +1;
@@ -116,13 +122,17 @@ static int CmpCompare(void* arg, const char* a, size_t alen,
 }
 
 static const char* CmpName(void* arg) {
+  (void)arg;
   return "foo";
 }
 
-// Custom filter policy
+/* Custom filter policy */
 static uint8_t fake_filter_result = 1;
-static void FilterDestroy(void* arg) { }
+static void FilterDestroy(void* arg) {
+  (void)arg;
+}
 static const char* FilterName(void* arg) {
+  (void)arg;
   return "TestFilter";
 }
 static char* FilterCreate(
@@ -130,19 +140,48 @@ static char* FilterCreate(
     const char* const* key_array, const size_t* key_length_array,
     int num_keys,
     size_t* filter_length) {
-  *filter_length = 4;
   char* result = malloc(4);
+  (void)arg;
+  (void)key_array;
+  (void)key_length_array;
+  (void)num_keys;
   memcpy(result, "fake", 4);
+  *filter_length = 4;
   return result;
 }
-uint8_t FilterKeyMatch(void* arg, const char* key, size_t length,
-                       const char* filter, size_t filter_length) {
+static uint8_t FilterKeyMatch(void* arg, const char* key, size_t length,
+                              const char* filter, size_t filter_length) {
+  (void)arg;
+  (void)key;
+  (void)length;
   CheckCondition(filter_length == 4);
   CheckCondition(memcmp(filter, "fake", 4) == 0);
   return fake_filter_result;
 }
 
-int main(int argc, char** argv) {
+static void leveldb_destroy_full(const leveldb_options_t *options,
+                                 const char *dbname) {
+  char *err = NULL;
+  char lost[1024];
+
+  CheckCondition(strlen(dbname) + 6 <= sizeof(lost));
+
+  sprintf(lost, "%s/%s", dbname, "lost");
+
+  leveldb_destroy_db(options, lost, &err);
+  Free(&err);
+
+  leveldb_destroy_db(options, dbname, &err);
+  Free(&err);
+}
+
+RDB_EXTERN int
+rdb_test_c(void);
+
+int
+rdb_env_clear(void);
+
+int rdb_test_c(void) {
   leveldb_t* db;
   leveldb_comparator_t* cmp;
   leveldb_cache_t* cache;
@@ -186,8 +225,7 @@ int main(int argc, char** argv) {
   leveldb_writeoptions_set_sync(woptions, 1);
 
   StartPhase("destroy");
-  leveldb_destroy_db(options, dbname, &err);
-  Free(&err);
+  leveldb_destroy_full(options, dbname);
 
   StartPhase("open_error");
   db = leveldb_open(options, dbname, &err);
@@ -222,12 +260,16 @@ int main(int argc, char** argv) {
   StartPhase("writebatch");
   {
     leveldb_writebatch_t* wb = leveldb_writebatch_create();
+    leveldb_writebatch_t* wb2;
+    int pos;
+
     leveldb_writebatch_put(wb, "foo", 3, "a", 1);
     leveldb_writebatch_clear(wb);
     leveldb_writebatch_put(wb, "bar", 3, "b", 1);
     leveldb_writebatch_put(wb, "box", 3, "c", 1);
 
-    leveldb_writebatch_t* wb2 = leveldb_writebatch_create();
+    wb2 = leveldb_writebatch_create();
+
     leveldb_writebatch_delete(wb2, "bar", 3);
     leveldb_writebatch_append(wb, wb2);
     leveldb_writebatch_destroy(wb2);
@@ -238,7 +280,7 @@ int main(int argc, char** argv) {
     CheckGet(db, roptions, "bar", NULL);
     CheckGet(db, roptions, "box", "c");
 
-    int pos = 0;
+    pos = 0;
     leveldb_writebatch_iterate(wb, &pos, CheckPut, CheckDel);
     CheckCondition(pos == 3);
     leveldb_writebatch_destroy(wb);
@@ -330,9 +372,9 @@ int main(int argc, char** argv) {
 
   StartPhase("filter");
   for (run = 0; run < 2; run++) {
-    // First run uses custom filter, second run uses bloom filter
-    CheckNoError(err);
+    /* First run uses custom filter, second run uses bloom filter */
     leveldb_filterpolicy_t* policy;
+    CheckNoError(err);
     if (run == 0) {
       policy = leveldb_filterpolicy_create(
           NULL, FilterDestroy, FilterCreate, FilterKeyMatch, FilterName);
@@ -340,7 +382,7 @@ int main(int argc, char** argv) {
       policy = leveldb_filterpolicy_create_bloom(10);
     }
 
-    // Create new database
+    /* Create new database */
     leveldb_close(db);
     leveldb_destroy_db(options, dbname, &err);
     leveldb_options_set_filter_policy(options, policy);
@@ -356,7 +398,7 @@ int main(int argc, char** argv) {
     CheckGet(db, roptions, "foo", "foovalue");
     CheckGet(db, roptions, "bar", "barvalue");
     if (phase == 0) {
-      // Must not find value when custom filter returns false
+      /* Must not find value when custom filter returns false */
       fake_filter_result = 0;
       CheckGet(db, roptions, "foo", NULL);
       CheckGet(db, roptions, "bar", NULL);
@@ -370,7 +412,9 @@ int main(int argc, char** argv) {
   }
 
   StartPhase("cleanup");
+
   leveldb_close(db);
+  leveldb_destroy_full(options, dbname);
   leveldb_options_destroy(options);
   leveldb_readoptions_destroy(roptions);
   leveldb_writeoptions_destroy(woptions);
@@ -380,5 +424,8 @@ int main(int argc, char** argv) {
   leveldb_env_destroy(env);
 
   fprintf(stderr, "PASS\n");
+
+  rdb_env_clear();
+
   return 0;
 }

@@ -53,6 +53,9 @@ typedef struct rdb_bloom_s {
 
   /* For InternalFilterPolicy. */
   const struct rdb_bloom_s *user_policy;
+
+  /* Extra state. */
+  void *state;
 } rdb_bloom_t;
 
 /*

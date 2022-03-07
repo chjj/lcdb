@@ -59,6 +59,9 @@ typedef struct rdb_comparator_s {
 
   /* For InternalKeyComparator. */
   const struct rdb_comparator_s *user_comparator;
+
+  /* Extra state. */
+  void *state;
 } rdb_comparator_t;
 
 /*

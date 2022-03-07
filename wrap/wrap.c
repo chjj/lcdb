@@ -99,6 +99,7 @@ struct rdb_comparator_s {
   void (*dummy1)(void);
   void (*dummy2)(void);
   void *dummy3;
+  void *dummy4;
 };
 
 struct rdb_dbopt_s {

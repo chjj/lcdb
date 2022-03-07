@@ -320,6 +320,7 @@ rdb_ikc_init(rdb_comparator_t *ikc, const rdb_comparator_t *user_comparator) {
   ikc->shortest_separator = rdb_ikc_shortest_separator;
   ikc->short_successor = rdb_ikc_short_successor;
   ikc->user_comparator = user_comparator;
+  ikc->state = NULL;
 }
 
 /*
@@ -358,4 +359,5 @@ rdb_ifp_init(rdb_bloom_t *ifp, const rdb_bloom_t *user_policy) {
   ifp->bits_per_key = 0;
   ifp->k = 0;
   ifp->user_policy = user_policy;
+  ifp->state = NULL;
 }

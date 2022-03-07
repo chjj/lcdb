@@ -35,7 +35,8 @@ static const rdb_bloom_t bloom_default = {
   /* .match = */ bloom_match,
   /* .bits_per_key = */ 10,
   /* .k = */ 6, /* (size_t)(10 * 0.69) == 6 */
-  /* .user_policy = */ NULL
+  /* .user_policy = */ NULL,
+  /* .state = */ NULL
 };
 
 /*
@@ -69,6 +70,7 @@ rdb_bloom_init(rdb_bloom_t *bloom, int bits_per_key) {
   bloom->bits_per_key = bits_per_key;
   bloom->k = bits_per_key * 0.69; /* 0.69 =~ ln(2). */
   bloom->user_policy = NULL;
+  bloom->state = NULL;
 
   if (bloom->k < 1)
     bloom->k = 1;

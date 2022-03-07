@@ -159,6 +159,7 @@ struct rdb_comparator_s {
                              const rdb_slice_t *);
   void (*short_successor)(const rdb_comparator_t *, rdb_slice_t *);
   const rdb_comparator_t *user_comparator;
+  void *state;
 };
 
 extern const rdb_comparator_t *rdb_bytewise_comparator;

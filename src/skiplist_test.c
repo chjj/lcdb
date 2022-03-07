@@ -51,7 +51,8 @@ static const rdb_comparator_t integer_comparator = {
   /* .compare = */ integer_compare,
   /* .shortest_separator = */ NULL,
   /* .short_successor = */ NULL,
-  /* .user_comparator = */ NULL
+  /* .user_comparator = */ NULL,
+  /* .state = */ NULL
 };
 
 /*

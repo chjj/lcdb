@@ -29,13 +29,6 @@
 #include <rdb_c.h>
 
 /*
- * Macros
- */
-
-#define container_of(ptr, type, member) \
-  ((type *)((char *)(ptr) - offsetof(type, member)))
-
-/*
  * Types
  */
 
@@ -463,12 +456,10 @@ static int
 slice_compare(const rdb_comparator_t *comparator,
               const rdb_slice_t *x,
               const rdb_slice_t *y) {
-  leveldb_comparator_t *cmp = container_of(comparator,
-                                           leveldb_comparator_t,
-                                           rep);
+  const leveldb_comparator_t *cmp = comparator->state;
 
-  return (*cmp->compare)(cmp->state, (const char *)x->data, x->size,
-                                     (const char *)y->data, y->size);
+  return cmp->compare(cmp->state, (const char *)x->data, x->size,
+                                  (const char *)y->data, y->size);
 }
 
 static void
@@ -499,6 +490,7 @@ leveldb_comparator_create(void *state,
   cmp->rep.shortest_separator = shortest_separator;
   cmp->rep.short_successor = short_successor;
   cmp->rep.user_comparator = NULL;
+  cmp->rep.state = cmp;
 
   cmp->state = state;
   cmp->destructor = destructor;
@@ -520,10 +512,7 @@ bloom_build(const rdb_bloom_t *bloom,
             rdb_buffer_t *dst,
             const rdb_slice_t *keys,
             size_t length) {
-  leveldb_filterpolicy_t *fp = container_of(bloom,
-                                            leveldb_filterpolicy_t,
-                                            rep);
-
+  const leveldb_filterpolicy_t *fp = bloom->state;
   const char **key_ptrs = rdb_malloc(length * sizeof(char *));
   size_t *key_lens = rdb_malloc(length * sizeof(size_t));
   size_t i, size;
@@ -548,9 +537,7 @@ static int
 bloom_match(const rdb_bloom_t *bloom,
             const rdb_slice_t *filter,
             const rdb_slice_t *key) {
-  leveldb_filterpolicy_t *fp = container_of(bloom,
-                                            leveldb_filterpolicy_t,
-                                            rep);
+  const leveldb_filterpolicy_t *fp = bloom->state;
 
   return fp->key_match(fp->state, (const char *)key->data, key->size,
                                   (const char *)filter->data, filter->size);
@@ -577,6 +564,7 @@ leveldb_filterpolicy_create(void *state,
   policy->rep.name = name(state);
   policy->rep.build = bloom_build;
   policy->rep.match = bloom_match;
+  policy->rep.state = policy;
 
   policy->state = state;
   policy->destructor = destructor;

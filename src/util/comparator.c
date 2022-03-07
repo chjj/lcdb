@@ -76,7 +76,8 @@ static const rdb_comparator_t bytewise_comparator = {
   /* .compare = */ slice_compare,
   /* .shortest_separator = */ shortest_separator,
   /* .short_successor = */ short_successor,
-  /* .user_comparator = */ NULL
+  /* .user_comparator = */ NULL,
+  /* .state = */ NULL
 };
 
 /*
