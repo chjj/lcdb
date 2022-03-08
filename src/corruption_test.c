@@ -611,8 +611,6 @@ rdb_test_corruption(void) {
 
   size_t i;
 
-  rdb_env_init();
-
   for (i = 0; i < lengthof(tests); i++) {
     ctest_t t;
 
@@ -622,8 +620,6 @@ rdb_test_corruption(void) {
 
     ctest_clear(&t);
   }
-
-  rdb_env_clear();
 
   return 0;
 }

@@ -191,17 +191,15 @@ test_open_on_read(void) {
   char path[RDB_PATH_MAX];
   rdb_slice_t chunk;
   uint8_t scratch;
-  FILE *f;
   int i;
 
   ASSERT(rdb_test_filename(path, sizeof(path), "open_on_read.txt"));
 
-  f = fopen(path, "we");
+  {
+    rdb_slice_t data = rdb_string(file_data);
 
-  ASSERT(f != NULL);
-
-  fputs(file_data, f);
-  fclose(f);
+    ASSERT(rdb_write_file(path, &data, 0) == RDB_OK);
+  }
 
   for (i = 0; i < num_files; i++)
     ASSERT(rdb_randfile_create(path, &files[i], (i & 1)) == RDB_OK);
@@ -382,15 +380,11 @@ rdb_test_env(void);
 
 int
 rdb_test_env(void) {
-  rdb_env_init();
-
   test_read_write();
   test_open_non_existent_file();
   test_reopen_writable_file();
   test_reopen_appendable_file();
   test_open_on_read();
-
-  rdb_env_clear();
 
 #if defined(_WIN32) || defined(RDB_PTHREAD)
   {

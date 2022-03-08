@@ -96,20 +96,6 @@ rdb_lock_or_unlock(HANDLE handle, int lock) {
 }
 
 /*
- * Environment
- */
-
-void
-rdb_env_init(void) {
-  return;
-}
-
-void
-rdb_env_clear(void) {
-  return;
-}
-
-/*
  * Filesystem
  */
 

@@ -109,7 +109,5 @@ main(void) {
   rdb_close(db);
   rdb_destroy_db(dbpath, 0);
 
-  rdb_env_clear();
-
   return 0;
 }

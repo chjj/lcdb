@@ -36,7 +36,7 @@
 typedef struct rdb_fstate_s rdb_fstate_t;
 
 struct rdb_filelock_s {
-  void *unused;
+  char path[RDB_PATH_MAX];
 };
 
 /*
@@ -44,7 +44,8 @@ struct rdb_filelock_s {
  */
 
 static rdb_mutex_t file_mutex = RDB_MUTEX_INITIALIZER;
-static rb_map_t file_map;
+static rb_map_t file_map_;
+static rb_set_t file_set;
 
 /*
  * Helpers
@@ -63,6 +64,7 @@ rdb_strdup(const char *xp) {
 static const int k_block_size = 8 * 1024;
 
 struct rdb_fstate_s {
+  char path[RDB_PATH_MAX];
   rdb_mutex_t refs_mutex;
   rdb_mutex_t blocks_mutex;
   rdb_vector_t blocks;
@@ -71,8 +73,10 @@ struct rdb_fstate_s {
 };
 
 static rdb_fstate_t *
-rdb_fstate_create(void) {
+rdb_fstate_create(const char *path) {
   rdb_fstate_t *state = rdb_malloc(sizeof(rdb_fstate_t));
+
+  strcpy(state->path, path);
 
   rdb_mutex_init(&state->refs_mutex);
   rdb_mutex_init(&state->blocks_mutex);
@@ -251,28 +255,15 @@ by_string(rb_val_t x, rb_val_t y, void *arg) {
   return strcmp(x.p, y.p);
 }
 
-static void
-cleanup_node(rb_node_t *node) {
-  rdb_free(node->key.p);
-  rdb_fstate_unref(node->value.p);
+static rb_map_t *
+ensure_map(void) {
+  if (file_map_.root == NULL)
+    rb_map_init(&file_map_, by_string, NULL);
+
+  return &file_map_;
 }
 
-void
-rdb_env_init(void) {
-  rdb_mutex_lock(&file_mutex);
-
-  if (file_map.root == NULL)
-    rb_map_init(&file_map, by_string, NULL);
-
-  rdb_mutex_unlock(&file_mutex);
-}
-
-void
-rdb_env_clear(void) {
-  rdb_mutex_lock(&file_mutex);
-  rb_map_clear(&file_map, cleanup_node);
-  rdb_mutex_unlock(&file_mutex);
-}
+#define file_map (*ensure_map())
 
 /*
  * Filesystem
@@ -366,7 +357,6 @@ rdb_delete_file(const char *filename) {
   rb_node_t *node = rb_map_del(&file_map, filename);
 
   if (node != NULL) {
-    rdb_free(node->key.p);
     rdb_fstate_unref(node->value.p);
     rb_node_destroy(node);
     return 1;
@@ -385,7 +375,7 @@ rdb_remove_file(const char *filename) {
 
   rdb_mutex_unlock(&file_mutex);
 
-  return result ? RDB_OK : RDB_IOERR; /* "File not found" */
+  return result ? RDB_OK : RDB_NOTFOUND; /* "File not found" */
 }
 
 int
@@ -413,40 +403,80 @@ rdb_get_file_size(const char *filename, uint64_t *size) {
 
   rdb_mutex_unlock(&file_mutex);
 
-  return state ? RDB_OK : RDB_IOERR; /* "File not found" */
+  return state ? RDB_OK : RDB_NOTFOUND; /* "File not found" */
 }
 
 int
 rdb_rename_file(const char *from, const char *to) {
+  size_t len = strlen(to);
   rb_node_t *node;
+
+  if (len + 1 > RDB_PATH_MAX)
+    return RDB_INVALID;
 
   rdb_mutex_lock(&file_mutex);
 
   node = rb_map_del(&file_map, from);
 
   if (node != NULL) {
+    rdb_fstate_t *state = node->value.p;
+
+    memcpy(state->path, to, len + 1);
+
     rdb_delete_file(to);
-    rb_map_put(&file_map, rdb_strdup(to), node->value.p);
-    rdb_free(node->key.p);
+    rb_map_put(&file_map, state->path, state);
     rb_node_destroy(node);
   }
 
   rdb_mutex_unlock(&file_mutex);
 
-  return node ? RDB_OK : RDB_IOERR; /* "File not found" */
+  return node ? RDB_OK : RDB_NOTFOUND; /* "File not found" */
 }
 
 int
 rdb_lock_file(const char *filename, rdb_filelock_t **lock) {
-  (void)filename;
+  size_t len = strlen(filename);
+
+  if (len + 1 > RDB_PATH_MAX)
+    return RDB_INVALID;
+
+  rdb_mutex_lock(&file_mutex);
+
+  if (file_set.root == NULL)
+    rb_set_init(&file_set, by_string, NULL);
+
+  if (rb_set_has(&file_set, filename)) {
+    rdb_mutex_unlock(&file_mutex);
+    return RDB_IOERR;
+  }
+
   *lock = rdb_malloc(sizeof(rdb_filelock_t));
+
+  memcpy((*lock)->path, filename, len + 1);
+
+  rb_set_put(&file_set, (*lock)->path);
+
+  rdb_mutex_unlock(&file_mutex);
+
   return RDB_OK;
 }
 
 int
 rdb_unlock_file(rdb_filelock_t *lock) {
+  int rc = RDB_IOERR;
+
+  rdb_mutex_lock(&file_mutex);
+
+  if (file_set.root && rb_set_has(&file_set, lock->path)) {
+    rb_set_del(&file_set, lock->path);
+    rc = RDB_OK;
+  }
+
   rdb_free(lock);
-  return RDB_OK;
+
+  rdb_mutex_unlock(&file_mutex);
+
+  return rc;
 }
 
 int
@@ -546,7 +576,7 @@ rdb_seqfile_create(const char *filename, rdb_rfile_t **file) {
 
   rdb_mutex_unlock(&file_mutex);
 
-  return state ? RDB_OK : RDB_IOERR; /* "File not found" */
+  return state ? RDB_OK : RDB_NOTFOUND; /* "File not found" */
 }
 
 int
@@ -605,13 +635,16 @@ int
 rdb_truncfile_create(const char *filename, rdb_wfile_t **file) {
   rdb_fstate_t *state;
 
+  if (strlen(filename) + 1 > RDB_PATH_MAX)
+    return RDB_INVALID;
+
   rdb_mutex_lock(&file_mutex);
 
   state = rb_map_get(&file_map, filename);
 
   if (state == NULL) {
-    state = rdb_fstate_ref(rdb_fstate_create());
-    rb_map_put(&file_map, rdb_strdup(filename), state);
+    state = rdb_fstate_ref(rdb_fstate_create(filename));
+    rb_map_put(&file_map, state->path, state);
   } else {
     rdb_fstate_truncate(state);
   }
@@ -629,13 +662,16 @@ int
 rdb_appendfile_create(const char *filename, rdb_wfile_t **file) {
   rdb_fstate_t *state;
 
+  if (strlen(filename) + 1 > RDB_PATH_MAX)
+    return RDB_INVALID;
+
   rdb_mutex_lock(&file_mutex);
 
   state = rb_map_get(&file_map, filename);
 
   if (state == NULL) {
-    state = rdb_fstate_ref(rdb_fstate_create());
-    rb_map_put(&file_map, rdb_strdup(filename), state);
+    state = rdb_fstate_ref(rdb_fstate_create(filename));
+    rb_map_put(&file_map, state->path, state);
   }
 
   *file = rdb_malloc(sizeof(rdb_wfile_t));

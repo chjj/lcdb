@@ -277,7 +277,7 @@ env_init(void) {
   rdb_limiter_init(&rdb_fd_limiter, rdb_max_open_files());
 }
 
-void
+static void
 rdb_env_init(void) {
 #if defined(RDB_PTHREAD)
   static pthread_once_t guard = PTHREAD_ONCE_INIT;
@@ -289,11 +289,6 @@ rdb_env_init(void) {
     guard = 1;
   }
 #endif
-}
-
-void
-rdb_env_clear(void) {
-  return;
 }
 
 /*
@@ -308,46 +303,32 @@ rdb_path_absolute(char *buf, size_t size, const char *name) {
   if (name[0] != '/')
     return 0;
 
-  if (len == 0 || len + 1 > size)
+  if (len + 1 > size)
     return 0;
 
   memcpy(buf, name, len + 1);
 
   return 1;
 #else
-  size_t len = strlen(name);
-  char tmp[RDB_PATH_MAX];
-  char *cwd;
-
-  if (len == 0 || len + 1 > size)
-    return 0;
+  char cwd[RDB_PATH_MAX];
 
   if (name[0] == '/') {
+    size_t len = strlen(name);
+
+    if (len + 1 > size)
+      return 0;
+
     memcpy(buf, name, len + 1);
+
     return 1;
   }
 
-  if (getcwd(tmp, sizeof(tmp)) == NULL)
+  if (getcwd(cwd, sizeof(cwd)) == NULL)
     return 0;
 
-  tmp[sizeof(tmp) - 1] = '\0';
+  cwd[sizeof(cwd) - 1] = '\0';
 
-  if (strlen(tmp) + len + 2 > size)
-    return 0;
-
-  cwd = tmp;
-
-  while (*cwd)
-    *buf++ = *cwd++;
-
-  *buf++ = '/';
-
-  while (*name)
-    *buf++ = *name++;
-
-  *buf = '\0';
-
-  return 1;
+  return rdb_join(buf, size, cwd, name);
 #endif
 }
 
@@ -783,6 +764,7 @@ rdb_randfile_create(const char *filename, rdb_rfile_t **file, int use_mmap) {
   {
     *file = rdb_malloc(sizeof(rdb_rfile_t));
 
+    rdb_env_init();
     rdb_randfile_init(*file, filename, fd, &rdb_fd_limiter);
 
     return RDB_OK;

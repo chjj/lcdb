@@ -1876,8 +1876,6 @@ rdb_open(const char *dbname, const rdb_dbopt_t *options, rdb_t **dbptr) {
 
   *dbptr = NULL;
 
-  rdb_env_init();
-
   db = rdb_create(dbname, opt);
 
   if (db == NULL)
@@ -2400,8 +2398,6 @@ rdb_destroy_db(const char *dbname, const rdb_dbopt_t *options) {
 
   if (!rdb_lock_filename(lockname, sizeof(lockname), dbname))
     return RDB_INVALID;
-
-  rdb_env_init();
 
   len = rdb_get_children(dbname, &files);
 

@@ -701,8 +701,6 @@ rdb_repair_db(const char *dbname, const rdb_dbopt_t *options) {
   rdb_repair_t rep;
   int rc;
 
-  rdb_env_init();
-
   if (!repair_init(&rep, dbname, options))
     return RDB_INVALID;
 

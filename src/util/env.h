@@ -29,16 +29,6 @@ typedef struct rdb_rfile_s rdb_rfile_t;
 typedef struct rdb_wfile_s rdb_wfile_t;
 
 /*
- * Environment
- */
-
-void
-rdb_env_init(void);
-
-RDB_EXTERN void
-rdb_env_clear(void);
-
-/*
  * Filesystem
  */
 

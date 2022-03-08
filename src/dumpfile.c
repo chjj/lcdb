@@ -319,8 +319,6 @@ rdb_dump_file(const char *fname, FILE *dst) {
   if (!guess_type(fname, &type))
     return RDB_INVALID; /* "[fname]: unknown file type" */
 
-  rdb_env_init();
-
   switch (type) {
     case RDB_FILE_LOG:
       return dump_log(fname, dst);

@@ -201,9 +201,7 @@ rdb_test_autocompact(void);
 
 int
 rdb_test_autocompact(void) {
-  rdb_env_init();
   test_auto_compact_read(AC_COUNT);
   test_auto_compact_read(AC_COUNT / 2);
-  rdb_env_clear();
   return 0;
 }

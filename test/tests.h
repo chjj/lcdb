@@ -25,7 +25,4 @@
 void
 rdb_assert_fail(const char *file, int line, const char *expr);
 
-void
-rdb_env_clear(void);
-
 #endif /* RDB_TESTS_H */

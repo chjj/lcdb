@@ -1482,7 +1482,6 @@ int
 rdb_test_table(void) {
   harness_t h;
 
-  rdb_env_init();
   harness_init(&h);
 
   test_empty(&h);
@@ -1498,7 +1497,6 @@ rdb_test_table(void) {
   test_approximate_offsetof_compressed();
 
   harness_clear(&h);
-  rdb_env_clear();
 
   return 0;
 }

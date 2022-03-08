@@ -145,7 +145,5 @@ main(void) {
 
   rdb_destroy_db(path, 0);
 
-  rdb_env_clear();
-
   return 0;
 }

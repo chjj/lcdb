@@ -178,9 +178,6 @@ static void leveldb_destroy_full(const leveldb_options_t *options,
 RDB_EXTERN int
 rdb_test_c(void);
 
-int
-rdb_env_clear(void);
-
 int rdb_test_c(void) {
   leveldb_t* db;
   leveldb_comparator_t* cmp;
@@ -412,7 +409,6 @@ int rdb_test_c(void) {
   }
 
   StartPhase("cleanup");
-
   leveldb_close(db);
   leveldb_destroy_full(options, dbname);
   leveldb_options_destroy(options);
@@ -424,8 +420,6 @@ int rdb_test_c(void) {
   leveldb_env_destroy(env);
 
   fprintf(stderr, "PASS\n");
-
-  rdb_env_clear();
 
   return 0;
 }

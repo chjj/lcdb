@@ -660,8 +660,6 @@ leveldb_create_default_env(void) {
   env->rep = NULL;
   env->is_default = 1;
 
-  rdb_env_init();
-
   return env;
 }
 

@@ -608,8 +608,6 @@ rdb_test_recovery(void) {
 
   size_t i;
 
-  rdb_env_init();
-
   for (i = 0; i < lengthof(tests); i++) {
     rtest_t t;
 
@@ -619,8 +617,6 @@ rdb_test_recovery(void) {
 
     rtest_clear(&t);
   }
-
-  rdb_env_clear();
 
   return 0;
 }

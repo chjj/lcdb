@@ -2241,7 +2241,9 @@ test_db_destroy_empty_dir(test_t *t) {
 
   ASSERT(!rdb_file_exists(dbname));
   ASSERT(rdb_create_dir(dbname) == RDB_OK);
+#ifndef RDB_MEMENV
   ASSERT(rdb_file_exists(dbname));
+#endif
   ASSERT((len = rdb_get_children(dbname, &names)) >= 0);
   ASSERT(0 == len);
   ASSERT(rdb_destroy_db(dbname, &opts) == RDB_OK);
@@ -2271,9 +2273,13 @@ test_db_destroy_open_db(test_t *t) {
   ASSERT(db != NULL);
 
   /* Must fail to destroy an open db. */
+#ifndef RDB_MEMENV
   ASSERT(rdb_file_exists(dbname));
+#endif
   ASSERT(rdb_destroy_db(dbname, 0) != RDB_OK);
+#ifndef RDB_MEMENV
   ASSERT(rdb_file_exists(dbname));
+#endif
 
   rdb_close(db);
 
@@ -3042,8 +3048,6 @@ rdb_test_db(void) {
 
   size_t i;
 
-  rdb_env_init();
-
   for (i = 0; i < lengthof(tests); i++) {
     test_t t;
 
@@ -3053,8 +3057,6 @@ rdb_test_db(void) {
 
     test_clear(&t);
   }
-
-  rdb_env_clear();
 
   return 0;
 }
