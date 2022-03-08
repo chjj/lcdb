@@ -81,7 +81,7 @@ rb_tree_clear(rb_tree_t *tree, rb_clear_f *clear);
 void
 rb_tree_copy(rb_tree_t *z, const rb_tree_t *x, rb_copy_f *copy);
 
-const rb_node_t *
+rb_node_t *
 rb_tree_get(const rb_tree_t *tree, rb_val_t key);
 
 rb_node_t *

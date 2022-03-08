@@ -397,7 +397,7 @@ rb_tree_remove_node(rb_tree_t *tree, rb_node_t *z) {
   return z;
 }
 
-const rb_node_t *
+rb_node_t *
 rb_tree_get(const rb_tree_t *tree, rb_val_t key) {
   const rb_node_t *current = tree->root;
 
@@ -405,7 +405,7 @@ rb_tree_get(const rb_tree_t *tree, rb_val_t key) {
     int cmp = tree->compare(key, current->key, tree->arg);
 
     if (cmp == 0)
-      return current;
+      return (rb_node_t *)current;
 
     if (cmp < 0)
       current = current->left;
