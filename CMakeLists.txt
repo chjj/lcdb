@@ -145,6 +145,8 @@ if(RDB_TESTS)
             filename
             filter_block
             hash
+            issue178
+            issue200
             log
             rbt
             recovery
