@@ -18,6 +18,7 @@
 #include "util/slice.h"
 #include "util/status.h"
 #include "util/testutil.h"
+#include "util/vector.h"
 
 #include "log_format.h"
 #include "log_reader.h"
@@ -51,8 +52,6 @@ static const uint64_t last_record_offsets[] = {
 
 static const int num_offset_records = lengthof(last_record_offsets);
 
-#define BUFFER_SIZE (300 << 10)
-
 /*
  * LogTest
  */
@@ -66,8 +65,7 @@ typedef struct ltest_s {
   rdb_logwriter_t writer;
   rdb_logreader_t reader;
   rdb_buffer_t scratch;
-  char *strbuf;
-  char *readbuf;
+  rdb_vector_t arena;
 } ltest_t;
 
 static void
@@ -96,18 +94,30 @@ ltest_init(ltest_t *t) {
   t->reader.src = &t->src;
 
   rdb_buffer_init(&t->scratch);
-
-  t->strbuf = rdb_malloc(BUFFER_SIZE);
-  t->readbuf = rdb_malloc(BUFFER_SIZE);
+  rdb_vector_init(&t->arena);
 }
 
 static void
 ltest_clear(ltest_t *t) {
-  rdb_free(t->strbuf);
-  rdb_free(t->readbuf);
+  size_t i;
+
+  for (i = 0; i < t->arena.length; i++)
+    rdb_free(t->arena.items[i]);
+
+  rdb_vector_clear(&t->arena);
   rdb_buffer_clear(&t->scratch);
   rdb_logreader_clear(&t->reader);
   rdb_buffer_clear(&t->dst);
+}
+
+static void
+ltest_reset(ltest_t *t) {
+  size_t i;
+
+  for (i = 0; i < t->arena.length; i++)
+    rdb_free(t->arena.items[i]);
+
+  rdb_vector_reset(&t->arena);
 }
 
 /* Construct a string of the specified length
@@ -117,15 +127,16 @@ ltest_big_string(ltest_t *t, const char *partial, size_t n) {
   rdb_slice_t chunk = rdb_string(partial);
   rdb_buffer_t result;
 
-  ASSERT(n + chunk.size < BUFFER_SIZE);
-
-  rdb_buffer_rwset(&result, (uint8_t *)t->strbuf, BUFFER_SIZE);
+  rdb_buffer_init(&result);
+  rdb_buffer_grow(&result, n + chunk.size + 1);
 
   while (result.size < n)
     rdb_buffer_concat(&result, &chunk);
 
   rdb_buffer_resize(&result, n);
   rdb_buffer_push(&result, 0);
+
+  rdb_vector_push(&t->arena, result.data);
 
   return (char *)result.data;
 }
@@ -167,6 +178,7 @@ ltest_written_bytes(const ltest_t *t) {
 static const char *
 ltest_read(ltest_t *t) {
   rdb_slice_t record;
+  char *result;
 
   if (!t->reading) {
     t->reading = 1;
@@ -176,13 +188,16 @@ ltest_read(ltest_t *t) {
   if (!rdb_logreader_read_record(&t->reader, &record, &t->scratch))
     return "EOF";
 
-  ASSERT(record.size < BUFFER_SIZE);
+  result = rdb_malloc(record.size + 1);
 
-  memcpy(t->readbuf, record.data, record.size);
+  if (record.size > 0)
+    memcpy(result, record.data, record.size);
 
-  t->readbuf[record.size] = '\0';
+  result[record.size] = '\0';
 
-  return t->readbuf;
+  rdb_vector_push(&t->arena, result);
+
+  return result;
 }
 
 static void
@@ -222,22 +237,19 @@ ltest_dropped_bytes(ltest_t *t) {
 
 static void
 ltest_write_initial_offset_log(ltest_t *t) {
-  char *record = rdb_malloc(2 * RDB_BLOCK_SIZE);
   int i;
 
   for (i = 0; i < num_offset_records; i++) {
     size_t len = offset_record_sizes[i];
-
-    ASSERT(len < 2 * RDB_BLOCK_SIZE);
+    char *record = rdb_malloc(len + 1);
 
     memset(record, 'a' + i, len);
 
     record[len] = '\0';
 
     ltest_write(t, record);
+    rdb_free(record);
   }
-
-  rdb_free(record);
 }
 
 static void
@@ -434,13 +446,17 @@ test_log_random_read(ltest_t *t) {
 
   rdb_rand_init(&rnd, 301);
 
-  for (i = 0; i < N; i++)
+  for (i = 0; i < N; i++) {
     ltest_write(t, ltest_rand_string(t, i, &rnd));
+    ltest_reset(t);
+  }
 
   rdb_rand_init(&rnd, 301);
 
-  for (i = 0; i < N; i++)
+  for (i = 0; i < N; i++) {
     ASSERT_EQ(ltest_rand_string(t, i, &rnd), ltest_read(t));
+    ltest_reset(t);
+  }
 
   ASSERT_EQ("EOF", ltest_read(t));
 }

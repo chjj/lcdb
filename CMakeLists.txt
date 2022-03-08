@@ -147,6 +147,7 @@ if(RDB_TESTS)
             hash
             issue178
             issue200
+            issue320
             log
             rbt
             recovery
