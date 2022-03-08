@@ -456,16 +456,16 @@ test_corrupt_sequence_number_recovery(ctest_t *t) {
   ctest_repair(t);
   ctest_reopen(t);
 
-  ASSERT(strcmp("v5", ctest_get(t, "foo")) == 0);
+  ASSERT_EQ("v5", ctest_get(t, "foo"));
 
   /* Write something. If sequence number was not recovered
      properly, it will be hidden by an earlier write. */
   ASSERT(ctest_put(t, "foo", "v6") == RDB_OK);
-  ASSERT(strcmp("v6", ctest_get(t, "foo")) == 0);
+  ASSERT_EQ("v6", ctest_get(t, "foo"));
 
   ctest_reopen(t);
 
-  ASSERT(strcmp("v6", ctest_get(t, "foo")) == 0);
+  ASSERT_EQ("v6", ctest_get(t, "foo"));
 }
 
 static void
@@ -486,7 +486,7 @@ test_corrupt_corrupted_descriptor(ctest_t *t) {
   ctest_repair(t);
   ctest_reopen(t);
 
-  ASSERT(strcmp("hello", ctest_get(t, "foo")) == 0);
+  ASSERT_EQ("hello", ctest_get(t, "foo"));
 }
 
 static void

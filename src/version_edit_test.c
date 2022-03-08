@@ -4,9 +4,6 @@
  * https://github.com/chjj/rdb
  */
 
-#undef NDEBUG
-
-#include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,6 +12,7 @@
 #include "util/extern.h"
 #include "util/internal.h"
 #include "util/slice.h"
+#include "util/testutil.h"
 
 #include "version_edit.h"
 
@@ -29,11 +27,11 @@ encode_and_decode(const rdb_vedit_t *edit) {
 
   rdb_vedit_export(&encoded, edit);
 
-  assert(rdb_vedit_import(&parsed, &encoded));
+  ASSERT(rdb_vedit_import(&parsed, &encoded));
 
   rdb_vedit_export(&encoded2, &parsed);
 
-  assert(rdb_buffer_equal(&encoded, &encoded2));
+  ASSERT(rdb_buffer_equal(&encoded, &encoded2));
 
   rdb_vedit_clear(&parsed);
   rdb_buffer_clear(&encoded2);

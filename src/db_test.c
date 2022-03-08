@@ -50,8 +50,6 @@ rdb_sleep_msec(int64_t ms) {
  * DBTest
  */
 
-#define ASSERT_EQ(x, y) ASSERT(strcmp(x, y) == 0)
-
 /* Sequence of option configurations to try. */
 enum option_config {
   CONFIG_DEFAULT,

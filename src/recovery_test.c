@@ -343,15 +343,15 @@ test_recovery_manifest_reused(rtest_t *t) {
 
   rtest_manifest_filename(t, cur, sizeof(cur));
 
-  ASSERT(strcmp(old, cur) == 0);
-  ASSERT(strcmp("bar", rtest_get(t, "foo")) == 0);
+  ASSERT_EQ(old, cur);
+  ASSERT_EQ("bar", rtest_get(t, "foo"));
 
   rtest_open(t, 0);
 
   rtest_manifest_filename(t, cur, sizeof(cur));
 
-  ASSERT(strcmp(old, cur) == 0);
-  ASSERT(strcmp("bar", rtest_get(t, "foo")) == 0);
+  ASSERT_EQ(old, cur);
+  ASSERT_EQ("bar", rtest_get(t, "foo"));
 }
 
 static void
@@ -392,9 +392,9 @@ test_recovery_large_manifest_compacted(rtest_t *t) {
 
   rtest_manifest_filename(t, cur, sizeof(cur));
 
-  ASSERT(strcmp(old, cur) != 0);
+  ASSERT_NE(old, cur);
   ASSERT(10000 > get_file_size(cur));
-  ASSERT(strcmp("bar", rtest_get(t, "foo")) == 0);
+  ASSERT_EQ("bar", rtest_get(t, "foo"));
 
   strcpy(old, cur);
 
@@ -402,8 +402,8 @@ test_recovery_large_manifest_compacted(rtest_t *t) {
 
   rtest_manifest_filename(t, cur, sizeof(cur));
 
-  ASSERT(strcmp(old, cur) == 0);
-  ASSERT(strcmp("bar", rtest_get(t, "foo")) == 0);
+  ASSERT_EQ(old, cur);
+  ASSERT_EQ("bar", rtest_get(t, "foo"));
 }
 
 static void
@@ -413,11 +413,11 @@ test_recovery_no_log_files(rtest_t *t) {
 
   rtest_open(t, 0);
 
-  ASSERT(strcmp("NOT_FOUND", rtest_get(t, "foo")) == 0);
+  ASSERT_EQ("NOT_FOUND", rtest_get(t, "foo"));
 
   rtest_open(t, 0);
 
-  ASSERT(strcmp("NOT_FOUND", rtest_get(t, "foo")) == 0);
+  ASSERT_EQ("NOT_FOUND", rtest_get(t, "foo"));
 }
 
 static void
@@ -456,13 +456,13 @@ test_recovery_log_file_reuse(rtest_t *t) {
 
     ASSERT(1 == rtest_num_logs(t));
     ASSERT(number == rtest_first_log(t));
-    ASSERT(strcmp("bar", rtest_get(t, "foo")) == 0);
+    ASSERT_EQ("bar", rtest_get(t, "foo"));
 
     rtest_open(t, 0);
 
     ASSERT(1 == rtest_num_logs(t));
     ASSERT(number == rtest_first_log(t));
-    ASSERT(strcmp("bar", rtest_get(t, "foo")) == 0);
+    ASSERT_EQ("bar", rtest_get(t, "foo"));
   }
 }
 
@@ -507,7 +507,7 @@ test_recovery_multiple_memtables(rtest_t *t) {
 
     sprintf(buf, "%050d", i);
 
-    ASSERT(strcmp(buf, rtest_get(t, buf)) == 0);
+    ASSERT_EQ(buf, rtest_get(t, buf));
   }
 }
 
@@ -537,9 +537,9 @@ test_recovery_multiple_log_files(rtest_t *t) {
   new_log = rtest_first_log(t);
 
   ASSERT(old_log + 3 <= new_log);
-  ASSERT(strcmp("bar2", rtest_get(t, "foo")) == 0);
-  ASSERT(strcmp("world", rtest_get(t, "hello")) == 0);
-  ASSERT(strcmp("there", rtest_get(t, "hi")) == 0);
+  ASSERT_EQ("bar2", rtest_get(t, "foo"));
+  ASSERT_EQ("world", rtest_get(t, "hello"));
+  ASSERT_EQ("there", rtest_get(t, "hi"));
 
   /* Test that previous recovery produced recoverable state. */
   rtest_open(t, 0);
@@ -550,9 +550,9 @@ test_recovery_multiple_log_files(rtest_t *t) {
   if (rtest_can_append(t))
     ASSERT(new_log == rtest_first_log(t));
 
-  ASSERT(strcmp("bar2", rtest_get(t, "foo")) == 0);
-  ASSERT(strcmp("world", rtest_get(t, "hello")) == 0);
-  ASSERT(strcmp("there", rtest_get(t, "hi")) == 0);
+  ASSERT_EQ("bar2", rtest_get(t, "foo"));
+  ASSERT_EQ("world", rtest_get(t, "hello"));
+  ASSERT_EQ("there", rtest_get(t, "hi"));
 
   /* Check that introducing an older log
      file does not cause it to be re-read. */
@@ -568,9 +568,9 @@ test_recovery_multiple_log_files(rtest_t *t) {
   if (rtest_can_append(t))
     ASSERT(new_log == rtest_first_log(t));
 
-  ASSERT(strcmp("bar2", rtest_get(t, "foo")) == 0);
-  ASSERT(strcmp("world", rtest_get(t, "hello")) == 0);
-  ASSERT(strcmp("there", rtest_get(t, "hi")) == 0);
+  ASSERT_EQ("bar2", rtest_get(t, "foo"));
+  ASSERT_EQ("world", rtest_get(t, "hello"));
+  ASSERT_EQ("there", rtest_get(t, "hi"));
 }
 
 static void

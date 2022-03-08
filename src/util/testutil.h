@@ -30,6 +30,9 @@ struct rdb_rand_s;
     rdb_assert_fail(__FILE__, __LINE__, #expr); \
 } while (0)
 
+#define ASSERT_EQ(x, y) ASSERT(strcmp(x, y) == 0)
+#define ASSERT_NE(x, y) ASSERT(strcmp(x, y) != 0)
+
 /*
  * Test Utils
  */

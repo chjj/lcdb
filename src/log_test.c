@@ -305,8 +305,6 @@ ltest_check_initial_offset_record(ltest_t *t,
  * Tests
  */
 
-#define ASSERT_EQ(x, y) ASSERT(strcmp(x, y) == 0)
-
 static void
 test_log_empty(ltest_t *t) {
   ASSERT_EQ("EOF", ltest_read(t));

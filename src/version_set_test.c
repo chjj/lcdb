@@ -47,12 +47,6 @@ fftest_clear(fftest_t *t) {
 }
 
 static void
-fftest_reset(fftest_t *t) {
-  fftest_clear(t);
-  fftest_init(t);
-}
-
-static void
 fftest_add4(fftest_t *t,
             const char *smallest,
             const char *largest,
@@ -148,12 +142,6 @@ addtest_clear(addtest_t *t) {
   rdb_vector_clear(&t->all_files);
 }
 
-static void
-addtest_reset(addtest_t *t) {
-  addtest_clear(t);
-  addtest_init(t);
-}
-
 static rdb_filemeta_t *
 addtest_file(addtest_t *t,
             uint64_t number,
@@ -177,8 +165,6 @@ addtest_file(addtest_t *t,
 
 static void
 test_find_file_empty(fftest_t *t) {
-  fftest_reset(t);
-
   ASSERT(0 == fftest_find(t, "foo"));
   ASSERT(!fftest_overlaps(t, "a", "z"));
   ASSERT(!fftest_overlaps(t, NULL, "z"));
@@ -188,8 +174,6 @@ test_find_file_empty(fftest_t *t) {
 
 static void
 test_find_file_single(fftest_t *t) {
-  fftest_reset(t);
-
   fftest_add(t, "p", "q");
 
   ASSERT(0 == fftest_find(t, "a"));
@@ -222,8 +206,6 @@ test_find_file_single(fftest_t *t) {
 
 static void
 test_find_file_multiple(fftest_t *t) {
-  fftest_reset(t);
-
   fftest_add(t, "150", "200");
   fftest_add(t, "200", "250");
   fftest_add(t, "300", "350");
@@ -264,8 +246,6 @@ test_find_file_multiple(fftest_t *t) {
 
 static void
 test_find_file_multiple_null_boundaries(fftest_t *t) {
-  fftest_reset(t);
-
   fftest_add(t, "150", "200");
   fftest_add(t, "200", "250");
   fftest_add(t, "300", "350");
@@ -288,8 +268,6 @@ test_find_file_multiple_null_boundaries(fftest_t *t) {
 
 static void
 test_find_file_overlap_sequence_checks(fftest_t *t) {
-  fftest_reset(t);
-
   fftest_add4(t, "200", "200", 5000, 3000);
 
   ASSERT(!fftest_overlaps(t, "199", "199"));
@@ -301,8 +279,6 @@ test_find_file_overlap_sequence_checks(fftest_t *t) {
 
 static void
 test_find_file_overlapping_files(fftest_t *t) {
-  fftest_reset(t);
-
   fftest_add(t, "150", "600");
   fftest_add(t, "400", "500");
 
@@ -328,8 +304,6 @@ test_find_file_overlapping_files(fftest_t *t) {
 
 static void
 test_boundary_empty_file_sets(addtest_t *t) {
-  addtest_reset(t);
-
   add_boundary_inputs(&t->icmp, &t->level_files, &t->compaction_files);
 
   ASSERT(t->compaction_files.length == 0);
@@ -341,8 +315,6 @@ test_boundary_empty_level_files(addtest_t *t) {
   rdb_slice_t k100 = rdb_string("100");
   rdb_filemeta_t *f1;
   rdb_ikey_t k0, k1;
-
-  addtest_reset(t);
 
   rdb_ikey_init(&k0);
   rdb_ikey_init(&k1);
@@ -369,8 +341,6 @@ test_boundary_empty_compaction_files(addtest_t *t) {
   rdb_slice_t k100 = rdb_string("100");
   rdb_filemeta_t *f1;
   rdb_ikey_t k0, k1;
-
-  addtest_reset(t);
 
   rdb_ikey_init(&k0);
   rdb_ikey_init(&k1);
@@ -399,8 +369,6 @@ test_boundary_no_boundary_files(addtest_t *t) {
   rdb_slice_t k300 = rdb_string("300");
   rdb_filemeta_t *f1, *f2, *f3;
   rdb_ikey_t k0, k1;
-
-  addtest_reset(t);
 
   rdb_ikey_init(&k0);
   rdb_ikey_init(&k1);
@@ -442,8 +410,6 @@ test_boundary_one_boundary_files(addtest_t *t) {
   rdb_filemeta_t *f1, *f2, *f3;
   rdb_ikey_t k0, k1;
 
-  addtest_reset(t);
-
   rdb_ikey_init(&k0);
   rdb_ikey_init(&k1);
 
@@ -483,8 +449,6 @@ test_boundary_two_boundary_files(addtest_t *t) {
   rdb_slice_t k300 = rdb_string("300");
   rdb_filemeta_t *f1, *f2, *f3;
   rdb_ikey_t k0, k1;
-
-  addtest_reset(t);
 
   rdb_ikey_init(&k0);
   rdb_ikey_init(&k1);
@@ -526,8 +490,6 @@ test_boundary_disjoin_file_pointers(addtest_t *t) {
   rdb_slice_t k300 = rdb_string("300");
   rdb_filemeta_t *f1, *f2, *f3, *f4;
   rdb_ikey_t k0, k1;
-
-  addtest_reset(t);
 
   rdb_ikey_init(&k0);
   rdb_ikey_init(&k1);
@@ -578,29 +540,46 @@ rdb_test_version_set(void);
 
 int
 rdb_test_version_set(void) {
-  fftest_t t1;
-  addtest_t t2;
+  static void (*fftests[])(fftest_t *) = {
+    test_find_file_empty,
+    test_find_file_single,
+    test_find_file_multiple,
+    test_find_file_multiple_null_boundaries,
+    test_find_file_overlap_sequence_checks,
+    test_find_file_overlapping_files
+  };
 
-  fftest_init(&t1);
-  addtest_init(&t2);
+  static void (*addtests[])(addtest_t *) = {
+    test_boundary_empty_file_sets,
+    test_boundary_empty_level_files,
+    test_boundary_empty_compaction_files,
+    test_boundary_no_boundary_files,
+    test_boundary_one_boundary_files,
+    test_boundary_two_boundary_files,
+    test_boundary_disjoin_file_pointers
+  };
 
-  test_find_file_empty(&t1);
-  test_find_file_single(&t1);
-  test_find_file_multiple(&t1);
-  test_find_file_multiple_null_boundaries(&t1);
-  test_find_file_overlap_sequence_checks(&t1);
-  test_find_file_overlapping_files(&t1);
+  size_t i;
 
-  test_boundary_empty_file_sets(&t2);
-  test_boundary_empty_level_files(&t2);
-  test_boundary_empty_compaction_files(&t2);
-  test_boundary_no_boundary_files(&t2);
-  test_boundary_one_boundary_files(&t2);
-  test_boundary_two_boundary_files(&t2);
-  test_boundary_disjoin_file_pointers(&t2);
+  for (i = 0; i < lengthof(fftests); i++) {
+    fftest_t t;
 
-  fftest_clear(&t1);
-  addtest_clear(&t2);
+    fftest_init(&t);
+
+    fftests[i](&t);
+
+    fftest_clear(&t);
+  }
+
+  for (i = 0; i < lengthof(addtests); i++) {
+    addtest_t t;
+
+    addtest_init(&t);
+
+    addtests[i](&t);
+
+    addtest_clear(&t);
+  }
 
   return 0;
 }

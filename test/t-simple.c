@@ -1,13 +1,15 @@
-#undef NDEBUG
+/*!
+ * t-simple.c - database test for rdb
+ * Copyright (c) 2022, Christopher Jeffrey (MIT License).
+ * https://github.com/chjj/rdb
+ */
 
-#include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <rdb.h>
-
-int rdb_env_clear(void);
+#include "tests.h"
 
 int
 main(void) {
@@ -20,7 +22,7 @@ main(void) {
   rdb_t *db;
   int i, rc;
 
-  assert(rdb_test_filename(path, sizeof(path), "simpledb"));
+  ASSERT(rdb_test_filename(path, sizeof(path), "simpledb"));
 
   rdb_destroy_db(path, 0);
 
@@ -31,7 +33,7 @@ main(void) {
 
     rc = rdb_open(path, &opt, &db);
 
-    assert(rc == RDB_OK);
+    ASSERT(rc == RDB_OK);
 
     {
       rdb_batch_init(&b);
@@ -46,19 +48,19 @@ main(void) {
         if (i > 0 && (i % 1000) == 0) {
           rc = rdb_write(db, &b, 0);
 
-          assert(rc == RDB_OK);
+          ASSERT(rc == RDB_OK);
 
           rdb_batch_reset(&b);
         }
 
         rdb_batch_put(&b, &key, &val);
 
-        assert(rc == RDB_OK);
+        ASSERT(rc == RDB_OK);
       }
 
       rc = rdb_write(db, &b, 0);
 
-      assert(rc == RDB_OK);
+      ASSERT(rc == RDB_OK);
 
       rdb_batch_clear(&b);
     }
@@ -66,8 +68,8 @@ main(void) {
     {
       rc = rdb_get(db, &key, &ret, 0);
 
-      assert(rc == RDB_OK);
-      assert(rdb_compare(&ret, &val) == 0);
+      ASSERT(rc == RDB_OK);
+      ASSERT(rdb_compare(&ret, &val) == 0);
 
       rdb_free(ret.data);
     }
@@ -99,14 +101,14 @@ main(void) {
 
     rc = rdb_open(path, &opt, &db);
 
-    assert(rc == RDB_OK);
+    ASSERT(rc == RDB_OK);
 
     {
       ret = rdb_slice(0, 0);
       rc = rdb_get(db, &key, &ret, 0);
 
-      assert(rc == RDB_OK);
-      assert(rdb_compare(&ret, &val) == 0);
+      ASSERT(rc == RDB_OK);
+      ASSERT(rdb_compare(&ret, &val) == 0);
 
       rdb_free(ret.data);
     }
@@ -121,19 +123,19 @@ main(void) {
         rdb_slice_t k = rdb_iter_key(it);
         rdb_slice_t v = rdb_iter_value(it);
 
-        assert(k.size >= 7);
-        assert(v.size >= 7);
+        ASSERT(k.size >= 7);
+        ASSERT(v.size >= 7);
 
-        assert(memcmp(k.data, "hello ", 6) == 0);
-        assert(memcmp(v.data, "world ", 6) == 0);
+        ASSERT(memcmp(k.data, "hello ", 6) == 0);
+        ASSERT(memcmp(v.data, "world ", 6) == 0);
 
         rdb_iter_next(it);
 
         total++;
       }
 
-      assert(total >= 999000);
-      assert(rdb_iter_status(it) == RDB_OK);
+      ASSERT(total >= 999000);
+      ASSERT(rdb_iter_status(it) == RDB_OK);
 
       rdb_iter_destroy(it);
     }

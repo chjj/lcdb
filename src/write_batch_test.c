@@ -22,8 +22,6 @@
 #include "memtable.h"
 #include "write_batch.h"
 
-#define ASSERT_EQ(x, y) ASSERT(strcmp(x, y) == 0)
-
 static char *
 print_contents(rdb_batch_t *b) {
   static uint8_t buf[1024];
