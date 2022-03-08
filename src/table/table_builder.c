@@ -196,14 +196,15 @@ rdb_tablebuilder_write_block(rdb_tablebuilder_t *tb,
 
     case RDB_SNAPPY_COMPRESSION: {
       rdb_buffer_t *compressed = &tb->compressed_output;
-      int size = rdb_snappy_encode_size(raw.size);
+      size_t max;
 
-      assert(size >= 0);
+      if (!snappy_encode_size(&max, raw.size))
+        abort(); /* LCOV_EXCL_LINE */
 
-      rdb_buffer_grow(compressed, size);
+      rdb_buffer_grow(compressed, max);
 
-      compressed->size = rdb_snappy_encode(compressed->data,
-                                           raw.data, raw.size);
+      compressed->size = snappy_encode(compressed->data,
+                                       raw.data, raw.size);
 
       if (compressed->size < raw.size - (raw.size / 8)) {
         block_contents = *compressed;

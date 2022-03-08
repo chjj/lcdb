@@ -4,14 +4,14 @@
  * https://github.com/chjj/rdb
  */
 
-#undef NDEBUG
-
-#include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "extern.h"
+#include "internal.h"
 #include "snappy.h"
+#include "testutil.h"
 
 RDB_EXTERN int
 rdb_test_snappy(void);
@@ -19,46 +19,33 @@ rdb_test_snappy(void);
 int
 rdb_test_snappy(void) {
   size_t size = 1 << 20;
-  uint8_t *data = malloc(size);
-  int rc, encsize, decsize;
+  uint8_t *data = rdb_malloc(size);
+  size_t encsize, decsize;
   uint8_t *enc, *dec;
   size_t i;
-
-  assert(data != NULL);
 
   for (i = 0; i < size; i++)
     data[i] = i & 0xff;
 
-  encsize = snappy_encode_size(size);
+  ASSERT(snappy_encode_size(&encsize, size));
 
-  assert(encsize >= 0);
-
-  enc = malloc(encsize);
-
-  assert(enc != NULL);
-
+  enc = rdb_malloc(encsize);
   encsize = snappy_encode(enc, data, size);
 
-  assert(encsize > 0 && (size_t)encsize != size);
-  assert(encsize == 53203);
+  ASSERT(encsize > 0 && encsize < size);
+  ASSERT(encsize == 53203);
 
-  decsize = snappy_decode_size(enc, encsize);
+  ASSERT(snappy_decode_size(&decsize, enc, encsize));
+  ASSERT(decsize == size);
 
-  assert(decsize >= 0);
-  assert((size_t)decsize == size);
+  dec = rdb_malloc(decsize);
 
-  dec = malloc(decsize);
+  ASSERT(snappy_decode(dec, enc, encsize));
+  ASSERT(memcmp(dec, data, size) == 0);
 
-  assert(dec != NULL);
-
-  rc = snappy_decode(dec, enc, encsize);
-
-  assert(rc == 1);
-  assert(memcmp(dec, data, size) == 0);
-
-  free(data);
-  free(enc);
-  free(dec);
+  rdb_free(data);
+  rdb_free(enc);
+  rdb_free(dec);
 
   return 0;
 }

@@ -341,18 +341,20 @@ decode_blocks(uint8_t *zp, size_t zn, const uint8_t *xp, size_t xn) {
  */
 
 int
-snappy_encode_size(size_t xn) {
+snappy_encode_size(size_t *zn, size_t xn) {
   size_t n = xn;
 
   if (n > 0x7fffffff)
-    return -1;
+    return 0;
 
   n = 32 + n + (n / 6);
 
   if (n > 0x7fffffff)
-    return -1;
+    return 0;
 
-  return n;
+  *zn = n;
+
+  return 1;
 }
 
 size_t
@@ -380,16 +382,18 @@ snappy_encode(uint8_t *zp, const uint8_t *xp, size_t xn) {
 }
 
 int
-snappy_decode_size(const uint8_t *xp, size_t xn) {
-  uint32_t zn;
+snappy_decode_size(size_t *zn, const uint8_t *xp, size_t xn) {
+  uint32_t n;
 
-  if (!rdb_varint32_read(&zn, &xp, &xn))
-    return -1;
+  if (!rdb_varint32_read(&n, &xp, &xn))
+    return 0;
 
-  if (zn > 0x7fffffff)
-    return -1;
+  if (n > 0x7fffffff)
+    return 0;
 
-  return zn;
+  *zn = n;
+
+  return 1;
 }
 
 int

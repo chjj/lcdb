@@ -224,17 +224,17 @@ rdb_read_block(rdb_blockcontents_t *result,
     }
 
     case RDB_SNAPPY_COMPRESSION: {
-      int ulength = rdb_snappy_decode_size(data, n);
+      size_t ulength;
       uint8_t *ubuf;
 
-      if (ulength < 0) {
+      if (!snappy_decode_size(&ulength, data, n)) {
         rdb_safe_free(buf);
         return RDB_CORRUPTION; /* "corrupted compressed block contents" */
       }
 
       ubuf = rdb_malloc(ulength);
 
-      if (!rdb_snappy_decode(ubuf, data, n)) {
+      if (!snappy_decode(ubuf, data, n)) {
         rdb_safe_free(buf);
         rdb_free(ubuf);
         return RDB_CORRUPTION; /* "corrupted compressed block contents" */

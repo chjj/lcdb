@@ -20,13 +20,13 @@
 #define snappy_decode rdb_snappy_decode
 
 int
-snappy_encode_size(size_t xn);
+snappy_encode_size(size_t *zn, size_t xn);
 
 size_t
 snappy_encode(uint8_t *zp, const uint8_t *xp, size_t xn);
 
 int
-snappy_decode_size(const uint8_t *xp, size_t xn);
+snappy_decode_size(size_t *zn, const uint8_t *xp, size_t xn);
 
 int
 snappy_decode(uint8_t *zp, const uint8_t *xp, size_t xn);
