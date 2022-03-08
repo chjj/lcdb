@@ -40,7 +40,7 @@ rdb_slice_t *
 rdb_random_key(rdb_buffer_t *dst, rdb_rand_t *rnd, size_t len) {
   /* Make sure to generate a wide variety of characters so we
      test the boundary conditions for short-key optimizations. */
-  static const char test_chars[] = {'\0', '\1', 'a',    'b',    'c',
+  static const char test_chars[] = {'\1', '\2', 'a',    'b',    'c',
                                     'd',  'e',  '\xfd', '\xfe', '\xff'};
   size_t i;
 
