@@ -82,7 +82,7 @@ test_init(test_t *t) {
 
   t->last_options = *rdb_dbopt_default;
   t->last_options.comparator = rdb_bytewise_comparator;
-  /* t->last_options.compression = RDB_SNAPPY_COMPRESSION; */
+  t->last_options.compression = RDB_SNAPPY_COMPRESSION;
 
   t->config = CONFIG_DEFAULT;
   t->policy = rdb_bloom_create(10);
@@ -226,7 +226,7 @@ test_current_options(test_t *t) {
   rdb_dbopt_t options = *rdb_dbopt_default;
 
   options.comparator = rdb_bytewise_comparator;
-  /* options.compression = RDB_SNAPPY_COMPRESSION; */
+  options.compression = RDB_SNAPPY_COMPRESSION;
   options.reuse_logs = 0;
 
   switch (t->config) {

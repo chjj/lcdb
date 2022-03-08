@@ -199,6 +199,7 @@ decode_blocks(uint8_t *zp, size_t zn, const uint8_t *xp, size_t xn) {
   uint8_t *sp = zp;
   uint32_t off = 0;
   uint32_t len = 0;
+  uint32_t i;
 
   while (xn > 0) {
     switch (xp[0] & 0x03) {
@@ -318,10 +319,12 @@ decode_blocks(uint8_t *zp, size_t zn, const uint8_t *xp, size_t xn) {
     if ((size_t)(zp - sp) < off || len > zn)
       return 0;
 
-    if (off >= len)
+    if (off >= len) {
       memcpy(zp, zp - off, len);
-    else
-      memmove(zp, zp - off, len);
+    } else {
+      for (i = 0; i < len; i++)
+        zp[i] = (zp - off)[i];
+    }
 
     zp += len;
     zn -= len;
