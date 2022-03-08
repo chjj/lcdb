@@ -2017,40 +2017,12 @@ test_db_fflush_issue474(test_t *t) {
   }
 }
 
-static int
-slice_compare1(const rdb_comparator_t *comparator,
-               const rdb_slice_t *x,
-               const rdb_slice_t *y) {
-  (void)comparator;
-  return rdb_compare(rdb_bytewise_comparator, x, y);
-}
-
-static void
-shortest_separator1(const rdb_comparator_t *comparator,
-                    rdb_buffer_t *start,
-                    const rdb_slice_t *limit) {
-  (void)comparator;
-  rdb_shortest_separator(rdb_bytewise_comparator, start, limit);
-}
-
-static void
-short_successor1(const rdb_comparator_t *comparator, rdb_buffer_t *key) {
-  (void)comparator;
-  rdb_short_successor(rdb_bytewise_comparator, key);
-}
-
 static void
 test_db_comparator_check(test_t *t) {
-  static const rdb_comparator_t comparator = {
-    /* .name = */ "leveldb.NewComparator",
-    /* .compare = */ slice_compare1,
-    /* .shortest_separator = */ shortest_separator1,
-    /* .short_successor = */ short_successor1,
-    /* .user_comparator = */ NULL,
-    /* .state = */ NULL
-  };
-
+  rdb_comparator_t comparator = *rdb_bytewise_comparator;
   rdb_dbopt_t options = test_current_options(t);
+
+  comparator.name = "leveldb.NewComparator";
 
   options.comparator = &comparator;
 
@@ -2077,24 +2049,24 @@ test_to_number(const rdb_slice_t *x) {
 }
 
 static int
-slice_compare2(const rdb_comparator_t *comparator,
-               const rdb_slice_t *x,
-               const rdb_slice_t *y) {
+slice_compare(const rdb_comparator_t *comparator,
+              const rdb_slice_t *x,
+              const rdb_slice_t *y) {
   (void)comparator;
   return test_to_number(x) - test_to_number(y);
 }
 
 static void
-shortest_separator2(const rdb_comparator_t *comparator,
-                    rdb_buffer_t *start,
-                    const rdb_slice_t *limit) {
+shortest_separator(const rdb_comparator_t *comparator,
+                   rdb_buffer_t *start,
+                   const rdb_slice_t *limit) {
   (void)comparator;
   test_to_number(start); /* Check format */
   test_to_number(limit); /* Check format */
 }
 
 static void
-short_successor2(const rdb_comparator_t *comparator, rdb_buffer_t *key) {
+short_successor(const rdb_comparator_t *comparator, rdb_buffer_t *key) {
   (void)comparator;
   test_to_number(key); /* Check format */
 }
@@ -2103,9 +2075,9 @@ static void
 test_db_custom_comparator(test_t *t) {
   static const rdb_comparator_t comparator = {
     /* .name = */ "test.NumberComparator",
-    /* .compare = */ slice_compare2,
-    /* .shortest_separator = */ shortest_separator2,
-    /* .short_successor = */ short_successor2,
+    /* .compare = */ slice_compare,
+    /* .shortest_separator = */ shortest_separator,
+    /* .short_successor = */ short_successor,
     /* .user_comparator = */ NULL,
     /* .state = */ NULL
   };
@@ -2635,6 +2607,7 @@ mt_thread_body(void *arg) {
       if (rc == RDB_NOTFOUND) {
         /* Key has not yet been written */
       } else {
+        ASSERT(rc == RDB_OK);
         ASSERT(val.size < sizeof(vbuf));
 
         memcpy(vbuf, val.data, val.size);
@@ -2645,7 +2618,6 @@ mt_thread_body(void *arg) {
 
         /* Check that the writer thread counter
            is >= the counter in the value */
-        ASSERT(rc == RDB_OK);
         ASSERT(3 == sscanf(vbuf, "%d.%d.%d", &n, &w, &c));
         ASSERT(n == num);
         ASSERT(w >= 0);
