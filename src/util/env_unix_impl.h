@@ -58,6 +58,8 @@
 #include "atomic.h"
 #include "env.h"
 #include "internal.h"
+#include "port.h"
+#include "rbt.h"
 #include "slice.h"
 #include "status.h"
 #include "strutil.h"
@@ -80,6 +82,7 @@ typedef struct rdb_limiter_s {
 } rdb_limiter_t;
 
 struct rdb_filelock_s {
+  char path[RDB_PATH_MAX];
   int fd;
 };
 
@@ -89,6 +92,8 @@ struct rdb_filelock_s {
 
 static rdb_limiter_t rdb_fd_limiter = {8192, 8192};
 static rdb_limiter_t rdb_mmap_limiter = {RDB_MMAP_LIMIT, RDB_MMAP_LIMIT};
+static rdb_mutex_t file_mutex = RDB_MUTEX_INITIALIZER;
+static rb_set_t file_set;
 
 /*
  * Limiter
@@ -127,6 +132,16 @@ rdb_limiter_release(rdb_limiter_t *lim) {
   assert(old < lim->max_acquires);
 
   (void)old;
+}
+
+/*
+ * Comparator
+ */
+
+static int
+by_string(rb_val_t x, rb_val_t y, void *arg) {
+  (void)arg;
+  return strcmp(x.p, y.p);
 }
 
 /*
@@ -228,11 +243,11 @@ rdb_lock_or_unlock(int fd, int lock) {
   info.l_type = (lock ? F_WRLCK : F_UNLCK);
   info.l_whence = SEEK_SET;
 
-  return fcntl(fd, F_SETLK, &info);
+  return fcntl(fd, F_SETLK, &info) == 0;
 #else
   (void)fd;
   (void)lock;
-  return 0;
+  return 1;
 #endif
 }
 
@@ -475,12 +490,31 @@ rdb_rename_file(const char *from, const char *to) {
 
 int
 rdb_lock_file(const char *filename, rdb_filelock_t **lock) {
-  int fd = rdb_open(filename, O_RDWR | O_CREAT, 0644);
+  size_t len = strlen(filename);
+  int fd;
 
-  if (fd < 0)
+  if (len + 1 > RDB_PATH_MAX)
+    return RDB_INVALID;
+
+  rdb_mutex_lock(&file_mutex);
+
+  if (file_set.root == NULL)
+    rb_set_init(&file_set, by_string, NULL);
+
+  if (rb_set_has(&file_set, filename)) {
+    rdb_mutex_unlock(&file_mutex);
+    return RDB_IOERR;
+  }
+
+  fd = rdb_open(filename, O_RDWR | O_CREAT, 0644);
+
+  if (fd < 0) {
+    rdb_mutex_unlock(&file_mutex);
     return RDB_POSIX_ERROR(errno);
+  }
 
-  if (rdb_lock_or_unlock(fd, 1) == -1) {
+  if (!rdb_lock_or_unlock(fd, 1)) {
+    rdb_mutex_unlock(&file_mutex);
     close(fd);
     return RDB_IOERR;
   }
@@ -489,19 +523,35 @@ rdb_lock_file(const char *filename, rdb_filelock_t **lock) {
 
   (*lock)->fd = fd;
 
+  memcpy((*lock)->path, filename, len + 1);
+
+  rb_set_put(&file_set, (*lock)->path);
+
+  rdb_mutex_unlock(&file_mutex);
+
   return RDB_OK;
 }
 
 int
 rdb_unlock_file(rdb_filelock_t *lock) {
-  if (rdb_lock_or_unlock(lock->fd, 0) == -1)
-    return RDB_IOERR;
+  int ok = 0;
+
+  rdb_mutex_lock(&file_mutex);
+
+  if (file_set.root && rb_set_has(&file_set, lock->path)) {
+    rb_set_del(&file_set, lock->path);
+    ok = 1;
+  }
+
+  ok &= rdb_lock_or_unlock(lock->fd, 0);
 
   close(lock->fd);
 
   rdb_free(lock);
 
-  return RDB_OK;
+  rdb_mutex_unlock(&file_mutex);
+
+  return ok ? RDB_OK : RDB_IOERR;
 }
 
 int

@@ -337,14 +337,13 @@ rdb_lock_file(const char *filename, rdb_filelock_t **lock) {
 
 int
 rdb_unlock_file(rdb_filelock_t *lock) {
-  if (!rdb_lock_or_unlock(lock->handle, 0))
-    return RDB_IOERR;
+  int ok = rdb_lock_or_unlock(lock->handle, 0);
 
   CloseHandle(lock->handle);
 
   rdb_free(lock);
 
-  return RDB_OK;
+  return ok ? RDB_OK : RDB_IOERR;
 }
 
 int

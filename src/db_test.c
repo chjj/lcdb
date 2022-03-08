@@ -346,6 +346,21 @@ test_get(test_t *t, const char *k) {
   return test_get2(t, k, NULL);
 }
 
+static int
+test_has(test_t *t, const char *k) {
+  rdb_slice_t key = rdb_string(k);
+  int rc;
+
+  rc = rdb_has(t->db, &key, 0);
+
+  if (rc == RDB_NOTFOUND)
+    return 0;
+
+  ASSERT(rc == RDB_OK);
+
+  return 1;
+}
+
 static const char *
 iter_status(test_t *t, rdb_iter_t *iter) {
   rdb_slice_t key, val;
@@ -2237,7 +2252,7 @@ test_db_destroy_empty_dir(test_t *t) {
   rdb_free_children(names, len);
 }
 
-RDB_UNUSED static void
+static void
 test_db_destroy_open_db(test_t *t) {
   rdb_dbopt_t opts = *rdb_dbopt_default;
   char dbname[RDB_PATH_MAX];
@@ -2269,7 +2284,7 @@ test_db_destroy_open_db(test_t *t) {
   ASSERT(!rdb_file_exists(dbname));
 }
 
-RDB_UNUSED static void
+static void
 test_db_locking(test_t *t) {
   rdb_dbopt_t opt = test_current_options(t);
   rdb_t *db = NULL;
@@ -2881,12 +2896,14 @@ test_db_randomized(test_t *t) {
         map_put(&map, k, v);
 
         ASSERT(test_put(t, k, v) == RDB_OK);
+        ASSERT(test_has(t, k));
       } else if (p < 90) { /* Delete */
         k = random_key(t, &rnd);
 
         map_del(&map, k);
 
         ASSERT(test_del(t, k) == RDB_OK);
+        ASSERT(!test_has(t, k));
       } else { /* Multi-element batch */
         rdb_batch_init(&b);
 
@@ -3009,9 +3026,9 @@ rdb_test_db(void) {
     test_db_manual_compaction,
     test_db_open_options,
     test_db_destroy_empty_dir,
-#if 0
     test_db_destroy_open_db,
     test_db_locking,
+#if 0
     test_db_no_space,
     test_db_non_writable_filesystem,
     test_db_write_sync_error,
