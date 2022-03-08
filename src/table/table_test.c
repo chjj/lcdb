@@ -407,6 +407,8 @@ static void
 tablector_init(tablector_t *c) {
   assert(rdb_test_filename(c->path, sizeof(c->path), "test_table.ldb"));
 
+  rdb_remove_file(c->path);
+
   c->source = NULL;
   c->table = NULL;
 }
@@ -416,10 +418,10 @@ tablector_clear(tablector_t *c) {
   if (c->table != NULL)
     rdb_table_destroy(c->table);
 
-  if (c->source != NULL) {
+  if (c->source != NULL)
     rdb_rfile_destroy(c->source);
-    rdb_remove_file(c->path);
-  }
+
+  rdb_remove_file(c->path);
 
   c->table = NULL;
   c->source = NULL;
@@ -670,6 +672,7 @@ memctor_create(const rdb_comparator_t *cmp) {
  */
 
 typedef struct dbctor_s {
+  char dbname[RDB_PATH_MAX];
   const rdb_comparator_t *cmp;
   rdb_t *db;
 } dbctor_t;
@@ -677,14 +680,11 @@ typedef struct dbctor_s {
 static void
 dbctor_newdb(dbctor_t *c) {
   rdb_dbopt_t options = *rdb_dbopt_default;
-  char name[RDB_PATH_MAX];
   int rc;
-
-  assert(rdb_test_filename(name, sizeof(name), "table_testdb"));
 
   options.comparator = c->cmp;
 
-  rc = rdb_destroy_db(name, &options);
+  rc = rdb_destroy_db(c->dbname, &options);
 
   assert(rc == RDB_OK);
 
@@ -692,13 +692,15 @@ dbctor_newdb(dbctor_t *c) {
   options.error_if_exists = 1;
   options.write_buffer_size = 10000; /* Something small to force merging. */
 
-  rc = rdb_open(name, &options, &c->db);
+  rc = rdb_open(c->dbname, &options, &c->db);
 
   assert(rc == RDB_OK);
 }
 
 static void
 dbctor_init(dbctor_t *c, const rdb_comparator_t *cmp) {
+  assert(rdb_test_filename(c->dbname, sizeof(c->dbname), "table_testdb"));
+
   c->cmp = cmp;
   c->db = NULL;
 
@@ -707,13 +709,8 @@ dbctor_init(dbctor_t *c, const rdb_comparator_t *cmp) {
 
 static void
 dbctor_clear(dbctor_t *c) {
-  char name[RDB_PATH_MAX];
-
-  assert(rdb_test_filename(name, sizeof(name), "table_testdb"));
-
-  rdb_destroy_db(name, 0);
-
   rdb_close(c->db);
+  rdb_destroy_db(c->dbname, 0);
 }
 
 static int
