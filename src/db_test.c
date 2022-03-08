@@ -2233,6 +2233,8 @@ test_db_destroy_empty_dir(test_t *t) {
   ASSERT(0 == len);
   ASSERT(rdb_destroy_db(dbname, &opts) == RDB_OK);
   ASSERT(!rdb_file_exists(dbname));
+
+  rdb_free_children(names, len);
 }
 
 RDB_UNUSED static void
