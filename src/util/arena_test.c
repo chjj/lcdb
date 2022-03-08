@@ -4,15 +4,14 @@
  * https://github.com/chjj/rdb
  */
 
-#undef NDEBUG
-
-#include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>
+
 #include "arena.h"
 #include "extern.h"
 #include "random.h"
 #include "slice.h"
+#include "testutil.h"
 
 RDB_EXTERN int
 rdb_test_arena(void);
@@ -65,10 +64,10 @@ rdb_test_arena(void) {
 
     allocated[length++] = rdb_slice(r, s);
 
-    assert(rdb_arena_usage(&arena) >= bytes);
+    ASSERT(rdb_arena_usage(&arena) >= bytes);
 
     if (i > N / 10)
-      assert(rdb_arena_usage(&arena) <= bytes * 1.10);
+      ASSERT(rdb_arena_usage(&arena) <= bytes * 1.10);
   }
 
   for (i = 0; i < length; i++) {
@@ -78,7 +77,7 @@ rdb_test_arena(void) {
 
     for (b = 0; b < num_bytes; b++) {
       /* Check the "i"th allocation for the known bit pattern. */
-      assert(((int)p[b] & 0xff) == (i % 256));
+      ASSERT(((int)p[b] & 0xff) == (i % 256));
     }
   }
 

@@ -4,9 +4,6 @@
  * https://github.com/chjj/rdb
  */
 
-#undef NDEBUG
-
-#include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -134,7 +131,7 @@ cmp_increment(const rdb_comparator_t *cmp, rdb_buffer_t *key) {
   } else {
     rdb_buffer_t rev;
 
-    assert(cmp == &reverse_comparator);
+    ASSERT(cmp == &reverse_comparator);
 
     rdb_buffer_init(&rev);
 
@@ -276,7 +273,7 @@ ctor_add(ctor_t *c, const rdb_slice_t *key, const rdb_slice_t *value) {
     rdb_buffer_copy(k, key);
     rdb_buffer_copy(v, value);
 
-    assert(rb_map_put(&c->data, k, v));
+    ASSERT(rb_map_put(&c->data, k, v));
   }
 }
 
@@ -296,14 +293,14 @@ ctor_finish(ctor_t *c, const rdb_dbopt_t *options, rdb_vector_t *keys) {
   void *key;
   int rc;
 
-  assert(keys->length == 0);
+  ASSERT(keys->length == 0);
 
   rb_map_keys(&c->data, key)
     rdb_vector_push(keys, key);
 
   rc = c->table->finish(c->ptr, options, &c->data);
 
-  assert(rc == RDB_OK);
+  ASSERT(rc == RDB_OK);
 }
 
 #define ctor_iterator(ctor) (ctor)->table->iterator((ctor)->ptr)
@@ -372,7 +369,7 @@ blockctor_finish(blockctor_t *c,
 
 static rdb_iter_t *
 blockctor_iterator(const blockctor_t *c) {
-  assert(c->block != NULL);
+  ASSERT(c->block != NULL);
   return rdb_blockiter_create(c->block, c->comparator);
 }
 
@@ -405,7 +402,7 @@ typedef struct tablector_s {
 
 static void
 tablector_init(tablector_t *c) {
-  assert(rdb_test_filename(c->path, sizeof(c->path), "test_table.ldb"));
+  ASSERT(rdb_test_filename(c->path, sizeof(c->path), "test_table.ldb"));
 
   rdb_remove_file(c->path);
 
@@ -439,28 +436,28 @@ tablector_finish(tablector_t *c,
 
   tablector_clear(c);
 
-  assert(rdb_truncfile_create(c->path, &sink) == RDB_OK);
+  ASSERT(rdb_truncfile_create(c->path, &sink) == RDB_OK);
 
   tb = rdb_tablebuilder_create(options, sink);
 
   rb_map_iterate(data, key, value) {
     rdb_tablebuilder_add(tb, key, value);
 
-    assert(rdb_tablebuilder_ok(tb));
+    ASSERT(rdb_tablebuilder_ok(tb));
   }
 
-  assert(rdb_tablebuilder_finish(tb) == RDB_OK);
-  assert(rdb_wfile_close(sink) == RDB_OK);
+  ASSERT(rdb_tablebuilder_finish(tb) == RDB_OK);
+  ASSERT(rdb_wfile_close(sink) == RDB_OK);
 
   rdb_wfile_destroy(sink);
 
-  assert(rdb_get_file_size(c->path, &fsize) == RDB_OK);
-  assert(fsize == rdb_tablebuilder_file_size(tb));
+  ASSERT(rdb_get_file_size(c->path, &fsize) == RDB_OK);
+  ASSERT(fsize == rdb_tablebuilder_file_size(tb));
 
   rdb_tablebuilder_destroy(tb);
 
   /* Open the table. */
-  assert(rdb_seqfile_create(c->path, &c->source) == RDB_OK);
+  ASSERT(rdb_seqfile_create(c->path, &c->source) == RDB_OK);
 
   table_options.comparator = options->comparator;
 
@@ -563,7 +560,7 @@ conviter_key(const conviter_t *iter) {
   rdb_pkey_t key;
   rdb_slice_t k;
 
-  assert(conviter_valid(iter));
+  ASSERT(conviter_valid(iter));
 
   k = rdb_iter_key(iter->it);
 
@@ -686,7 +683,7 @@ dbctor_newdb(dbctor_t *c) {
 
   rc = rdb_destroy_db(c->dbname, &options);
 
-  assert(rc == RDB_OK);
+  ASSERT(rc == RDB_OK);
 
   options.create_if_missing = 1;
   options.error_if_exists = 1;
@@ -694,12 +691,12 @@ dbctor_newdb(dbctor_t *c) {
 
   rc = rdb_open(c->dbname, &options, &c->db);
 
-  assert(rc == RDB_OK);
+  ASSERT(rc == RDB_OK);
 }
 
 static void
 dbctor_init(dbctor_t *c, const rdb_comparator_t *cmp) {
-  assert(rdb_test_filename(c->dbname, sizeof(c->dbname), "table_testdb"));
+  ASSERT(rdb_test_filename(c->dbname, sizeof(c->dbname), "table_testdb"));
 
   c->cmp = cmp;
   c->db = NULL;
@@ -733,7 +730,7 @@ dbctor_finish(dbctor_t *c,
     rdb_batch_init(&batch);
     rdb_batch_put(&batch, key, value);
 
-    assert(rdb_write(c->db, &batch, 0) == RDB_OK);
+    ASSERT(rdb_write(c->db, &batch, 0) == RDB_OK);
 
     rdb_batch_clear(&batch);
   }
@@ -930,20 +927,20 @@ harness_test_forward_scan(harness_t *h,
 
   (void)keys;
 
-  assert(!rdb_iter_valid(iter));
+  ASSERT(!rdb_iter_valid(iter));
 
   rdb_iter_seek_first(iter);
   rb_iter_seek_first(&it);
 
   while (rb_iter_valid(&it)) {
-    assert(rdb_iter_valid(iter));
-    assert(iter_equal(iter, &it));
+    ASSERT(rdb_iter_valid(iter));
+    ASSERT(iter_equal(iter, &it));
 
     rdb_iter_next(iter);
     rb_iter_next(&it);
   }
 
-  assert(!rdb_iter_valid(iter));
+  ASSERT(!rdb_iter_valid(iter));
 
   rdb_iter_destroy(iter);
 }
@@ -957,20 +954,20 @@ harness_test_backward_scan(harness_t *h,
 
   (void)keys;
 
-  assert(!rdb_iter_valid(iter));
+  ASSERT(!rdb_iter_valid(iter));
 
   rdb_iter_seek_last(iter);
   rb_iter_seek_last(&it);
 
   while (rb_iter_valid(&it)) {
-    assert(rdb_iter_valid(iter));
-    assert(iter_equal(iter, &it));
+    ASSERT(rdb_iter_valid(iter));
+    ASSERT(iter_equal(iter, &it));
 
     rdb_iter_prev(iter);
     rb_iter_prev(&it);
   }
 
-  assert(!rdb_iter_valid(iter));
+  ASSERT(!rdb_iter_valid(iter));
 
   rdb_iter_destroy(iter);
 }
@@ -985,7 +982,7 @@ harness_test_random_access(harness_t *h,
   rb_iter_t it = rb_tree_iterator(data);
   int i;
 
-  assert(!rdb_iter_valid(iter));
+  ASSERT(!rdb_iter_valid(iter));
 
   rb_iter_seek_first(&it);
 
@@ -1004,7 +1001,7 @@ harness_test_random_access(harness_t *h,
           rdb_iter_next(iter);
           rb_iter_next(&it);
 
-          assert(iter_equal(iter, &it));
+          ASSERT(iter_equal(iter, &it));
         }
 
         break;
@@ -1017,7 +1014,7 @@ harness_test_random_access(harness_t *h,
         rdb_iter_seek_first(iter);
         rb_iter_seek_first(&it);
 
-        assert(iter_equal(iter, &it));
+        ASSERT(iter_equal(iter, &it));
 
         break;
       }
@@ -1038,7 +1035,7 @@ harness_test_random_access(harness_t *h,
         rdb_iter_seek(iter, &key);
         rb_iter_seek(&it, k);
 
-        assert(iter_equal(iter, &it));
+        ASSERT(iter_equal(iter, &it));
 
         rdb_buffer_clear(&key);
 
@@ -1053,7 +1050,7 @@ harness_test_random_access(harness_t *h,
           rdb_iter_prev(iter);
           rb_iter_prev(&it);
 
-          assert(iter_equal(iter, &it));
+          ASSERT(iter_equal(iter, &it));
         }
 
         break;
@@ -1066,7 +1063,7 @@ harness_test_random_access(harness_t *h,
         rdb_iter_seek_last(iter);
         rb_iter_seek_last(&it);
 
-        assert(iter_equal(iter, &it));
+        ASSERT(iter_equal(iter, &it));
 
         break;
       }
@@ -1138,16 +1135,16 @@ test_zero_restart_points_in_block(void) {
 
   rdb_iter_seek_first(iter);
 
-  assert(!rdb_iter_valid(iter));
+  ASSERT(!rdb_iter_valid(iter));
 
   rdb_iter_seek_last(iter);
 
-  assert(!rdb_iter_valid(iter));
+  ASSERT(!rdb_iter_valid(iter));
 
   key = rdb_string("foo");
   rdb_iter_seek(iter, &key);
 
-  assert(!rdb_iter_valid(iter));
+  ASSERT(!rdb_iter_valid(iter));
 
   rdb_iter_destroy(iter);
 }
@@ -1275,14 +1272,14 @@ test_randomized_long_db(harness_t *h) {
 
     sprintf(name, "leveldb.num-files-at-level%d", level);
 
-    assert(rdb_get_property(harness_db(h), name, &value));
+    ASSERT(rdb_get_property(harness_db(h), name, &value));
 
     files += atoi(value);
 
     rdb_free(value);
   }
 
-  assert(files > 0);
+  ASSERT(files > 0);
 
   rdb_buffer_clear(&key);
   rdb_buffer_clear(&val);
@@ -1323,7 +1320,7 @@ test_memtable_simple(void) {
   val = rdb_string("vlarge");
   rdb_batch_put(&batch, &key, &val);
 
-  assert(rdb_batch_insert_into(&batch, memtable) == RDB_OK);
+  ASSERT(rdb_batch_insert_into(&batch, memtable) == RDB_OK);
 
   iter = rdb_memiter_create(memtable);
 
@@ -1333,8 +1330,8 @@ test_memtable_simple(void) {
     key = rdb_iter_key(iter);
     val = rdb_iter_value(iter);
 
-    assert(key.size < sizeof(kbuf));
-    assert(val.size < sizeof(vbuf));
+    ASSERT(key.size < sizeof(kbuf));
+    ASSERT(val.size < sizeof(vbuf));
 
     memcpy(kbuf, key.data, key.size);
     memcpy(vbuf, val.data, val.size);
@@ -1404,17 +1401,17 @@ test_approximate_offsetof_plain(void) {
 
   ctor_finish(c, &options, &keys);
 
-  assert(check_range(ctor_approximate_offsetof(c, "abc"), 0, 0));
-  assert(check_range(ctor_approximate_offsetof(c, "k01"), 0, 0));
-  assert(check_range(ctor_approximate_offsetof(c, "k01a"), 0, 0));
-  assert(check_range(ctor_approximate_offsetof(c, "k02"), 0, 0));
-  assert(check_range(ctor_approximate_offsetof(c, "k03"), 0, 0));
-  assert(check_range(ctor_approximate_offsetof(c, "k04"), 10000, 11000));
-  assert(check_range(ctor_approximate_offsetof(c, "k04a"), 210000, 211000));
-  assert(check_range(ctor_approximate_offsetof(c, "k05"), 210000, 211000));
-  assert(check_range(ctor_approximate_offsetof(c, "k06"), 510000, 511000));
-  assert(check_range(ctor_approximate_offsetof(c, "k07"), 510000, 511000));
-  assert(check_range(ctor_approximate_offsetof(c, "xyz"), 610000, 612000));
+  ASSERT(check_range(ctor_approximate_offsetof(c, "abc"), 0, 0));
+  ASSERT(check_range(ctor_approximate_offsetof(c, "k01"), 0, 0));
+  ASSERT(check_range(ctor_approximate_offsetof(c, "k01a"), 0, 0));
+  ASSERT(check_range(ctor_approximate_offsetof(c, "k02"), 0, 0));
+  ASSERT(check_range(ctor_approximate_offsetof(c, "k03"), 0, 0));
+  ASSERT(check_range(ctor_approximate_offsetof(c, "k04"), 10000, 11000));
+  ASSERT(check_range(ctor_approximate_offsetof(c, "k04a"), 210000, 211000));
+  ASSERT(check_range(ctor_approximate_offsetof(c, "k05"), 210000, 211000));
+  ASSERT(check_range(ctor_approximate_offsetof(c, "k06"), 510000, 511000));
+  ASSERT(check_range(ctor_approximate_offsetof(c, "k07"), 510000, 511000));
+  ASSERT(check_range(ctor_approximate_offsetof(c, "xyz"), 610000, 612000));
 
   rdb_vector_clear(&keys);
   rdb_free(buf);
@@ -1459,14 +1456,14 @@ test_approximate_offsetof_compressed(void) {
 
   ctor_finish(c, &options, &keys);
 
-  assert(check_range(ctor_approximate_offsetof(c, "abc"), 0, slop));
-  assert(check_range(ctor_approximate_offsetof(c, "k01"), 0, slop));
-  assert(check_range(ctor_approximate_offsetof(c, "k02"), 0, slop));
+  ASSERT(check_range(ctor_approximate_offsetof(c, "abc"), 0, slop));
+  ASSERT(check_range(ctor_approximate_offsetof(c, "k01"), 0, slop));
+  ASSERT(check_range(ctor_approximate_offsetof(c, "k02"), 0, slop));
   /* Emitted a large compressible string, so adjust expected offset. */
-  assert(check_range(ctor_approximate_offsetof(c, "k03"), min_z, max_z));
-  assert(check_range(ctor_approximate_offsetof(c, "k04"), min_z, max_z));
+  ASSERT(check_range(ctor_approximate_offsetof(c, "k03"), min_z, max_z));
+  ASSERT(check_range(ctor_approximate_offsetof(c, "k04"), min_z, max_z));
   /* Emitted two large compressible strings, so adjust expected offset. */
-  assert(check_range(ctor_approximate_offsetof(c, "xyz"), 2 * min_z,
+  ASSERT(check_range(ctor_approximate_offsetof(c, "xyz"), 2 * min_z,
                                                           2 * max_z));
 
   rdb_vector_clear(&keys);

@@ -4,14 +4,13 @@
  * https://github.com/chjj/rdb
  */
 
-#undef NDEBUG
-
-#include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "extern.h"
 #include "hash.h"
+#include "testutil.h"
 
 static void
 test_signed_unsigned_issue(void) {
@@ -26,12 +25,12 @@ test_signed_unsigned_issue(void) {
       0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   };
 
-  assert(rdb_hash(0, 0, 0xbc9f1d34) == 0xbc9f1d34);
-  assert(rdb_hash(data1, sizeof(data1), 0xbc9f1d34) == 0xef1345c4);
-  assert(rdb_hash(data2, sizeof(data2), 0xbc9f1d34) == 0x5b663814);
-  assert(rdb_hash(data3, sizeof(data3), 0xbc9f1d34) == 0x323c078f);
-  assert(rdb_hash(data4, sizeof(data4), 0xbc9f1d34) == 0xed21633a);
-  assert(rdb_hash(data5, sizeof(data5), 0x12345678) == 0xf333dabb);
+  ASSERT(rdb_hash(0, 0, 0xbc9f1d34) == 0xbc9f1d34);
+  ASSERT(rdb_hash(data1, sizeof(data1), 0xbc9f1d34) == 0xef1345c4);
+  ASSERT(rdb_hash(data2, sizeof(data2), 0xbc9f1d34) == 0x5b663814);
+  ASSERT(rdb_hash(data3, sizeof(data3), 0xbc9f1d34) == 0x323c078f);
+  ASSERT(rdb_hash(data4, sizeof(data4), 0xbc9f1d34) == 0xed21633a);
+  ASSERT(rdb_hash(data5, sizeof(data5), 0x12345678) == 0xf333dabb);
 }
 
 RDB_EXTERN int

@@ -4,9 +4,6 @@
  * https://github.com/chjj/rdb
  */
 
-#undef NDEBUG
-
-#include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -44,8 +41,8 @@ test_read_write(void) {
 
   rdb_rand_init(&rnd, rdb_random_seed());
 
-  assert(rdb_test_filename(path, sizeof(path), "open_on_read.txt"));
-  assert(rdb_truncfile_create(path, &wfile) == RDB_OK);
+  ASSERT(rdb_test_filename(path, sizeof(path), "open_on_read.txt"));
+  ASSERT(rdb_truncfile_create(path, &wfile) == RDB_OK);
 
   /* Fill a file with data generated via a sequence of randomly sized writes. */
   while (data.size < data_size) {
@@ -53,21 +50,21 @@ test_read_write(void) {
 
     rdb_random_string(&str, &rnd, len);
 
-    assert(rdb_wfile_append(wfile, &str) == RDB_OK);
+    ASSERT(rdb_wfile_append(wfile, &str) == RDB_OK);
 
     rdb_buffer_concat(&data, &str);
 
     if (rdb_rand_one_in(&rnd, 10))
-      assert(rdb_wfile_flush(wfile) == RDB_OK);
+      ASSERT(rdb_wfile_flush(wfile) == RDB_OK);
   }
 
-  assert(rdb_wfile_sync(wfile) == RDB_OK);
-  assert(rdb_wfile_close(wfile) == RDB_OK);
+  ASSERT(rdb_wfile_sync(wfile) == RDB_OK);
+  ASSERT(rdb_wfile_close(wfile) == RDB_OK);
 
   rdb_wfile_destroy(wfile);
 
   /* Read all data using a sequence of randomly sized reads. */
-  assert(rdb_seqfile_create(path, &rfile) == RDB_OK);
+  ASSERT(rdb_seqfile_create(path, &rfile) == RDB_OK);
 
   while (result.size < data.size) {
     size_t tmp = rdb_rand_skewed(&rnd, 18);
@@ -76,18 +73,18 @@ test_read_write(void) {
 
     rdb_buffer_resize(&scratch, RDB_MAX(len, 1));
 
-    assert(rdb_rfile_read(rfile, &chunk, scratch.data, len) == RDB_OK);
-    assert(len == 0 || chunk.size > 0);
-    assert(chunk.size <= len);
+    ASSERT(rdb_rfile_read(rfile, &chunk, scratch.data, len) == RDB_OK);
+    ASSERT(len == 0 || chunk.size > 0);
+    ASSERT(chunk.size <= len);
 
     rdb_buffer_concat(&result, &chunk);
   }
 
-  assert(rdb_buffer_equal(&result, &data));
+  ASSERT(rdb_buffer_equal(&result, &data));
 
   rdb_rfile_destroy(rfile);
 
-  assert(rdb_remove_file(path) == RDB_OK);
+  ASSERT(rdb_remove_file(path) == RDB_OK);
 
   rdb_buffer_clear(&data);
   rdb_buffer_clear(&str);
@@ -100,10 +97,10 @@ test_open_non_existent_file(void) {
   char path[RDB_PATH_MAX];
   rdb_rfile_t *rfile;
 
-  assert(rdb_test_filename(path, sizeof(path), "non_existent_file"));
-  assert(!rdb_file_exists(path));
-  assert(rdb_randfile_create(path, &rfile, 1) == RDB_NOTFOUND);
-  assert(rdb_seqfile_create(path, &rfile) == RDB_NOTFOUND);
+  ASSERT(rdb_test_filename(path, sizeof(path), "non_existent_file"));
+  ASSERT(!rdb_file_exists(path));
+  ASSERT(rdb_randfile_create(path, &rfile, 1) == RDB_NOTFOUND);
+  ASSERT(rdb_seqfile_create(path, &rfile) == RDB_NOTFOUND);
 }
 
 static void
@@ -115,30 +112,30 @@ test_reopen_writable_file(void) {
 
   rdb_buffer_init(&result);
 
-  assert(rdb_test_filename(path, sizeof(path), "reopen_writable_file.txt"));
+  ASSERT(rdb_test_filename(path, sizeof(path), "reopen_writable_file.txt"));
 
   rdb_remove_file(path);
 
-  assert(rdb_truncfile_create(path, &wfile) == RDB_OK);
+  ASSERT(rdb_truncfile_create(path, &wfile) == RDB_OK);
 
   data = rdb_string("hello world!");
 
-  assert(rdb_wfile_append(wfile, &data) == RDB_OK);
-  assert(rdb_wfile_close(wfile) == RDB_OK);
+  ASSERT(rdb_wfile_append(wfile, &data) == RDB_OK);
+  ASSERT(rdb_wfile_close(wfile) == RDB_OK);
 
   rdb_wfile_destroy(wfile);
 
-  assert(rdb_truncfile_create(path, &wfile) == RDB_OK);
+  ASSERT(rdb_truncfile_create(path, &wfile) == RDB_OK);
 
   data = rdb_string("42");
 
-  assert(rdb_wfile_append(wfile, &data) == RDB_OK);
-  assert(rdb_wfile_close(wfile) == RDB_OK);
+  ASSERT(rdb_wfile_append(wfile, &data) == RDB_OK);
+  ASSERT(rdb_wfile_close(wfile) == RDB_OK);
 
   rdb_wfile_destroy(wfile);
 
-  assert(rdb_read_file(path, &result) == RDB_OK);
-  assert(rdb_buffer_equal(&result, &data));
+  ASSERT(rdb_read_file(path, &result) == RDB_OK);
+  ASSERT(rdb_buffer_equal(&result, &data));
 
   rdb_remove_file(path);
   rdb_buffer_clear(&result);
@@ -153,33 +150,33 @@ test_reopen_appendable_file(void) {
 
   rdb_buffer_init(&result);
 
-  assert(rdb_test_filename(path, sizeof(path), "reopen_appendable_file.txt"));
+  ASSERT(rdb_test_filename(path, sizeof(path), "reopen_appendable_file.txt"));
 
   rdb_remove_file(path);
 
-  assert(rdb_appendfile_create(path, &wfile) == RDB_OK);
+  ASSERT(rdb_appendfile_create(path, &wfile) == RDB_OK);
 
   data = rdb_string("hello world!");
 
-  assert(rdb_wfile_append(wfile, &data) == RDB_OK);
-  assert(rdb_wfile_close(wfile) == RDB_OK);
+  ASSERT(rdb_wfile_append(wfile, &data) == RDB_OK);
+  ASSERT(rdb_wfile_close(wfile) == RDB_OK);
 
   rdb_wfile_destroy(wfile);
 
-  assert(rdb_appendfile_create(path, &wfile) == RDB_OK);
+  ASSERT(rdb_appendfile_create(path, &wfile) == RDB_OK);
 
   data = rdb_string("42");
 
-  assert(rdb_wfile_append(wfile, &data) == RDB_OK);
-  assert(rdb_wfile_close(wfile) == RDB_OK);
+  ASSERT(rdb_wfile_append(wfile, &data) == RDB_OK);
+  ASSERT(rdb_wfile_close(wfile) == RDB_OK);
 
   rdb_wfile_destroy(wfile);
 
-  assert(rdb_read_file(path, &result) == RDB_OK);
+  ASSERT(rdb_read_file(path, &result) == RDB_OK);
 
   data = rdb_string("hello world!42");
 
-  assert(rdb_buffer_equal(&result, &data));
+  ASSERT(rdb_buffer_equal(&result, &data));
 
   rdb_remove_file(path);
   rdb_buffer_clear(&result);
@@ -197,28 +194,28 @@ test_open_on_read(void) {
   FILE *f;
   int i;
 
-  assert(rdb_test_filename(path, sizeof(path), "open_on_read.txt"));
+  ASSERT(rdb_test_filename(path, sizeof(path), "open_on_read.txt"));
 
   f = fopen(path, "we");
 
-  assert(f != NULL);
+  ASSERT(f != NULL);
 
   fputs(file_data, f);
   fclose(f);
 
   for (i = 0; i < num_files; i++)
-    assert(rdb_randfile_create(path, &files[i], (i & 1)) == RDB_OK);
+    ASSERT(rdb_randfile_create(path, &files[i], (i & 1)) == RDB_OK);
 
   for (i = 0; i < num_files; i++) {
-    assert(rdb_rfile_pread(files[i], &chunk, &scratch, 1, i) == RDB_OK);
-    assert(chunk.size == 1);
-    assert(file_data[i] == chunk.data[0]);
+    ASSERT(rdb_rfile_pread(files[i], &chunk, &scratch, 1, i) == RDB_OK);
+    ASSERT(chunk.size == 1);
+    ASSERT(file_data[i] == chunk.data[0]);
   }
 
   for (i = 0; i < num_files; i++)
     rdb_rfile_destroy(files[i]);
 
-  assert(rdb_remove_file(path) == RDB_OK);
+  ASSERT(rdb_remove_file(path) == RDB_OK);
 }
 
 /*
@@ -249,7 +246,7 @@ run_thread_1(void *arg) {
 
   rdb_mutex_lock(&state->mu);
 
-  assert(state->called == 0);
+  ASSERT(state->called == 0);
 
   state->called = 1;
 
@@ -286,7 +283,7 @@ run_thread_2(void *arg) {
 
   rdb_mutex_lock(&state->mu);
 
-  assert(state->last_id == callback->id - 1);
+  ASSERT(state->last_id == callback->id - 1);
 
   state->last_id = callback->id;
 
@@ -368,7 +365,7 @@ test_start_thread(void) {
   while (state.num_running != 0)
     rdb_cond_wait(&state.cvar, &state.mu);
 
-  assert(state.val == 3);
+  ASSERT(state.val == 3);
 
   rdb_mutex_unlock(&state.mu);
 

@@ -4,9 +4,6 @@
  * https://github.com/chjj/rdb
  */
 
-#undef NDEBUG
-
-#include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,6 +12,7 @@
 #include "coding.h"
 #include "extern.h"
 #include "slice.h"
+#include "testutil.h"
 
 static void
 test_fixed32(void) {
@@ -29,7 +27,7 @@ test_fixed32(void) {
   for (v = 0; v < 100000; v++) {
     a = rdb_fixed32_decode(xp);
 
-    assert(v == a);
+    ASSERT(v == a);
 
     xp += 4;
   }
@@ -58,19 +56,19 @@ test_fixed64(void) {
 
     a = rdb_fixed64_decode(xp);
 
-    assert(v - 1 == a);
+    ASSERT(v - 1 == a);
 
     xp += 8;
 
     a = rdb_fixed64_decode(xp);
 
-    assert(v + 0 == a);
+    ASSERT(v + 0 == a);
 
     xp += 8;
 
     a = rdb_fixed64_decode(xp);
 
-    assert(v + 1 == a);
+    ASSERT(v + 1 == a);
 
     xp += 8;
   }
@@ -83,21 +81,21 @@ test_encoding_output(void) {
 
   rdb_fixed32_write(dst, 0x04030201);
 
-  assert(0x01 == (int)(dst[0]));
-  assert(0x02 == (int)(dst[1]));
-  assert(0x03 == (int)(dst[2]));
-  assert(0x04 == (int)(dst[3]));
+  ASSERT(0x01 == (int)(dst[0]));
+  ASSERT(0x02 == (int)(dst[1]));
+  ASSERT(0x03 == (int)(dst[2]));
+  ASSERT(0x04 == (int)(dst[3]));
 
   rdb_fixed64_write(dst, UINT64_C(0x0807060504030201));
 
-  assert(0x01 == (int)(dst[0]));
-  assert(0x02 == (int)(dst[1]));
-  assert(0x03 == (int)(dst[2]));
-  assert(0x04 == (int)(dst[3]));
-  assert(0x05 == (int)(dst[4]));
-  assert(0x06 == (int)(dst[5]));
-  assert(0x07 == (int)(dst[6]));
-  assert(0x08 == (int)(dst[7]));
+  ASSERT(0x01 == (int)(dst[0]));
+  ASSERT(0x02 == (int)(dst[1]));
+  ASSERT(0x03 == (int)(dst[2]));
+  ASSERT(0x04 == (int)(dst[3]));
+  ASSERT(0x05 == (int)(dst[4]));
+  ASSERT(0x06 == (int)(dst[5]));
+  ASSERT(0x07 == (int)(dst[6]));
+  ASSERT(0x08 == (int)(dst[7]));
 }
 
 static void
@@ -124,12 +122,12 @@ test_varint32(void) {
 
     rc = rdb_varint32_read(&actual, &xp, &xn);
 
-    assert(rc == 1);
-    assert(expected == actual);
-    assert(rdb_varint32_size(actual) == (size_t)(xp - sp));
+    ASSERT(rc == 1);
+    ASSERT(expected == actual);
+    ASSERT(rdb_varint32_size(actual) == (size_t)(xp - sp));
   }
 
-  assert(xn == 0);
+  ASSERT(xn == 0);
 }
 
 static void
@@ -170,12 +168,12 @@ test_varint64(void) {
 
     rc = rdb_varint64_read(&z, &xp, &xn);
 
-    assert(rc == 1);
-    assert(values[i] == z);
-    assert(rdb_varint64_size(z) == (size_t)(xp - sp));
+    ASSERT(rc == 1);
+    ASSERT(values[i] == z);
+    ASSERT(rdb_varint64_size(z) == (size_t)(xp - sp));
   }
 
-  assert(xn == 0);
+  ASSERT(xn == 0);
 }
 
 static void
@@ -188,7 +186,7 @@ test_varint32_overflow(void) {
 
   rc = rdb_varint32_read(&z, &xp, &xn);
 
-  assert(rc == 0);
+  ASSERT(rc == 0);
 }
 
 static void
@@ -209,15 +207,15 @@ test_varint32_truncation(void) {
     xn = i;
     rc = rdb_varint32_read(&z, &xp, &xn);
 
-    assert(rc == 0);
+    ASSERT(rc == 0);
   }
 
   xp = scratch;
   xn = zn;
   rc = rdb_varint32_read(&z, &xp, &xn);
 
-  assert(rc == 1);
-  assert(large_value == z);
+  ASSERT(rc == 1);
+  ASSERT(large_value == z);
 }
 
 static void
@@ -231,7 +229,7 @@ test_varint64_overflow(void) {
 
   rc = rdb_varint64_read(&z, &xp, &xn);
 
-  assert(rc == 0);
+  ASSERT(rc == 0);
 }
 
 static void
@@ -252,15 +250,15 @@ test_varint64_truncation(void) {
     xn = i;
     rc = rdb_varint64_read(&z, &xp, &xn);
 
-    assert(rc == 0);
+    ASSERT(rc == 0);
   }
 
   xp = scratch;
   xn = zn;
   rc = rdb_varint64_read(&z, &xp, &xn);
 
-  assert(rc == 1);
-  assert(large_value == z);
+  ASSERT(rc == 1);
+  ASSERT(large_value == z);
 }
 
 static void
@@ -283,23 +281,23 @@ test_strings(void) {
 
   input = s;
 
-  assert(rdb_slice_slurp(&k, &input));
-  assert(k.size == 0);
+  ASSERT(rdb_slice_slurp(&k, &input));
+  ASSERT(k.size == 0);
 
-  assert(rdb_slice_slurp(&k, &input));
-  assert(k.size == 3);
-  assert(memcmp(k.data, "foo", 3) == 0);
+  ASSERT(rdb_slice_slurp(&k, &input));
+  ASSERT(k.size == 3);
+  ASSERT(memcmp(k.data, "foo", 3) == 0);
 
-  assert(rdb_slice_slurp(&k, &input));
-  assert(k.size == 3);
-  assert(memcmp(k.data, "bar", 3) == 0);
+  ASSERT(rdb_slice_slurp(&k, &input));
+  ASSERT(k.size == 3);
+  ASSERT(memcmp(k.data, "bar", 3) == 0);
 
-  assert(rdb_slice_slurp(&k, &input));
-  assert(k.size == 200);
-  assert(memcmp(k.data, x, 200) == 0);
+  ASSERT(rdb_slice_slurp(&k, &input));
+  ASSERT(k.size == 200);
+  ASSERT(memcmp(k.data, x, 200) == 0);
 
-  assert(input.size == 0);
-  assert(!rdb_slice_slurp(&k, &input));
+  ASSERT(input.size == 0);
+  ASSERT(!rdb_slice_slurp(&k, &input));
 
   rdb_buffer_clear(&s);
 }

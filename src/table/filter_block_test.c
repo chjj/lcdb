@@ -4,9 +4,6 @@
  * https://github.com/chjj/rdb
  */
 
-#undef NDEBUG
-
-#include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,6 +14,7 @@
 #include "../util/extern.h"
 #include "../util/hash.h"
 #include "../util/slice.h"
+#include "../util/testutil.h"
 
 #include "filter_block.h"
 
@@ -52,7 +50,7 @@ bloom_match(const rdb_bloom_t *bloom,
 
   (void)bloom;
 
-  assert((filter->size & 3) == 0);
+  ASSERT((filter->size & 3) == 0);
 
   for (i = 0; i < filter->size; i += 4) {
     if (h == rdb_fixed32_decode(filter->data + i))
@@ -84,15 +82,15 @@ test_empty_builder(const rdb_bloom_t *policy) {
 
   block = rdb_filterbuilder_finish(&fb);
 
-  assert(block.size == sizeof(expect));
-  assert(memcmp(block.data, expect, sizeof(expect)) == 0);
+  ASSERT(block.size == sizeof(expect));
+  ASSERT(memcmp(block.data, expect, sizeof(expect)) == 0);
 
   rdb_filterreader_init(&fr, policy, &block);
 
   key = rdb_string("foo");
 
-  assert(rdb_filterreader_matches(&fr, 0, &key));
-  assert(rdb_filterreader_matches(&fr, 100000, &key));
+  ASSERT(rdb_filterreader_matches(&fr, 0, &key));
+  ASSERT(rdb_filterreader_matches(&fr, 100000, &key));
 
   rdb_filterbuilder_clear(&fb);
 }
@@ -129,19 +127,19 @@ test_single_chunk(const rdb_bloom_t *policy) {
   rdb_filterreader_init(&fr, policy, &block);
 
   key = rdb_string("foo");
-  assert(rdb_filterreader_matches(&fr, 100, &key));
+  ASSERT(rdb_filterreader_matches(&fr, 100, &key));
   key = rdb_string("bar");
-  assert(rdb_filterreader_matches(&fr, 100, &key));
+  ASSERT(rdb_filterreader_matches(&fr, 100, &key));
   key = rdb_string("box");
-  assert(rdb_filterreader_matches(&fr, 100, &key));
+  ASSERT(rdb_filterreader_matches(&fr, 100, &key));
   key = rdb_string("hello");
-  assert(rdb_filterreader_matches(&fr, 100, &key));
+  ASSERT(rdb_filterreader_matches(&fr, 100, &key));
   key = rdb_string("foo");
-  assert(rdb_filterreader_matches(&fr, 100, &key));
+  ASSERT(rdb_filterreader_matches(&fr, 100, &key));
   key = rdb_string("missing");
-  assert(!rdb_filterreader_matches(&fr, 100, &key));
+  ASSERT(!rdb_filterreader_matches(&fr, 100, &key));
   key = rdb_string("other");
-  assert(!rdb_filterreader_matches(&fr, 100, &key));
+  ASSERT(!rdb_filterreader_matches(&fr, 100, &key));
 
   rdb_filterbuilder_clear(&fb);
 }
@@ -183,43 +181,43 @@ test_multi_chunk(const rdb_bloom_t *policy) {
 
   /* Check first filter. */
   key = rdb_string("foo");
-  assert(rdb_filterreader_matches(&fr, 0, &key));
+  ASSERT(rdb_filterreader_matches(&fr, 0, &key));
   key = rdb_string("bar");
-  assert(rdb_filterreader_matches(&fr, 2000, &key));
+  ASSERT(rdb_filterreader_matches(&fr, 2000, &key));
   key = rdb_string("box");
-  assert(!rdb_filterreader_matches(&fr, 0, &key));
+  ASSERT(!rdb_filterreader_matches(&fr, 0, &key));
   key = rdb_string("hello");
-  assert(!rdb_filterreader_matches(&fr, 0, &key));
+  ASSERT(!rdb_filterreader_matches(&fr, 0, &key));
 
   /* Check second filter. */
   key = rdb_string("box");
-  assert(rdb_filterreader_matches(&fr, 3100, &key));
+  ASSERT(rdb_filterreader_matches(&fr, 3100, &key));
   key = rdb_string("foo");
-  assert(!rdb_filterreader_matches(&fr, 3100, &key));
+  ASSERT(!rdb_filterreader_matches(&fr, 3100, &key));
   key = rdb_string("bar");
-  assert(!rdb_filterreader_matches(&fr, 3100, &key));
+  ASSERT(!rdb_filterreader_matches(&fr, 3100, &key));
   key = rdb_string("hello");
-  assert(!rdb_filterreader_matches(&fr, 3100, &key));
+  ASSERT(!rdb_filterreader_matches(&fr, 3100, &key));
 
   /* Check third filter (empty). */
   key = rdb_string("foo");
-  assert(!rdb_filterreader_matches(&fr, 4100, &key));
+  ASSERT(!rdb_filterreader_matches(&fr, 4100, &key));
   key = rdb_string("bar");
-  assert(!rdb_filterreader_matches(&fr, 4100, &key));
+  ASSERT(!rdb_filterreader_matches(&fr, 4100, &key));
   key = rdb_string("box");
-  assert(!rdb_filterreader_matches(&fr, 4100, &key));
+  ASSERT(!rdb_filterreader_matches(&fr, 4100, &key));
   key = rdb_string("hello");
-  assert(!rdb_filterreader_matches(&fr, 4100, &key));
+  ASSERT(!rdb_filterreader_matches(&fr, 4100, &key));
 
   /* Check last filter. */
   key = rdb_string("box");
-  assert(rdb_filterreader_matches(&fr, 9000, &key));
+  ASSERT(rdb_filterreader_matches(&fr, 9000, &key));
   key = rdb_string("hello");
-  assert(rdb_filterreader_matches(&fr, 9000, &key));
+  ASSERT(rdb_filterreader_matches(&fr, 9000, &key));
   key = rdb_string("foo");
-  assert(!rdb_filterreader_matches(&fr, 9000, &key));
+  ASSERT(!rdb_filterreader_matches(&fr, 9000, &key));
   key = rdb_string("bar");
-  assert(!rdb_filterreader_matches(&fr, 9000, &key));
+  ASSERT(!rdb_filterreader_matches(&fr, 9000, &key));
 
   rdb_filterbuilder_clear(&fb);
 }

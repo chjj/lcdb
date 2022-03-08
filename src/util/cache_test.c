@@ -4,9 +4,6 @@
  * https://github.com/chjj/rdb
  */
 
-#undef NDEBUG
-
-#include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,6 +13,7 @@
 #include "coding.h"
 #include "extern.h"
 #include "slice.h"
+#include "testutil.h"
 #include "vector.h"
 
 /*
@@ -49,7 +47,7 @@ encode_key(int k, uint8_t *buf) {
 
 static int
 decode_key(const rdb_slice_t *key) {
-  assert(key->size == 4);
+  ASSERT(key->size == 4);
   return rdb_fixed32_decode(key->data) & 0x7fffffff;
 }
 
@@ -159,29 +157,29 @@ test_cache_hit_and_miss(void) {
 
   test_init(&t);
 
-  assert(-1 == test_lookup(&t, 100));
+  ASSERT(-1 == test_lookup(&t, 100));
 
   test_insert(&t, 100, 101, 1);
 
-  assert(101 == test_lookup(&t, 100));
-  assert(-1 == test_lookup(&t, 200));
-  assert(-1 == test_lookup(&t, 300));
+  ASSERT(101 == test_lookup(&t, 100));
+  ASSERT(-1 == test_lookup(&t, 200));
+  ASSERT(-1 == test_lookup(&t, 300));
 
   test_insert(&t, 200, 201, 1);
 
-  assert(101 == test_lookup(&t, 100));
-  assert(201 == test_lookup(&t, 200));
-  assert(-1 == test_lookup(&t, 300));
+  ASSERT(101 == test_lookup(&t, 100));
+  ASSERT(201 == test_lookup(&t, 200));
+  ASSERT(-1 == test_lookup(&t, 300));
 
   test_insert(&t, 100, 102, 1);
 
-  assert(102 == test_lookup(&t, 100));
-  assert(201 == test_lookup(&t, 200));
-  assert(-1 == test_lookup(&t, 300));
+  ASSERT(102 == test_lookup(&t, 100));
+  ASSERT(201 == test_lookup(&t, 200));
+  ASSERT(-1 == test_lookup(&t, 300));
 
-  assert(1 == t.deleted_keys.length);
-  assert(100 == t.deleted_keys.items[0]);
-  assert(101 == t.deleted_values.items[0]);
+  ASSERT(1 == t.deleted_keys.length);
+  ASSERT(100 == t.deleted_keys.items[0]);
+  ASSERT(101 == t.deleted_values.items[0]);
 
   test_clear(&t);
 }
@@ -194,23 +192,23 @@ test_cache_erase(void) {
 
   test_erase(&t, 200);
 
-  assert(0 == t.deleted_keys.length);
+  ASSERT(0 == t.deleted_keys.length);
 
   test_insert(&t, 100, 101, 1);
   test_insert(&t, 200, 201, 1);
   test_erase(&t, 100);
 
-  assert(-1 == test_lookup(&t, 100));
-  assert(201 == test_lookup(&t, 200));
-  assert(1 == t.deleted_keys.length);
-  assert(100 == t.deleted_keys.items[0]);
-  assert(101 == t.deleted_values.items[0]);
+  ASSERT(-1 == test_lookup(&t, 100));
+  ASSERT(201 == test_lookup(&t, 200));
+  ASSERT(1 == t.deleted_keys.length);
+  ASSERT(100 == t.deleted_keys.items[0]);
+  ASSERT(101 == t.deleted_values.items[0]);
 
   test_erase(&t, 100);
 
-  assert(-1 == test_lookup(&t, 100));
-  assert(201 == test_lookup(&t, 200));
-  assert(1 == t.deleted_keys.length);
+  ASSERT(-1 == test_lookup(&t, 100));
+  ASSERT(201 == test_lookup(&t, 200));
+  ASSERT(1 == t.deleted_keys.length);
 
   test_clear(&t);
 }
@@ -230,31 +228,31 @@ test_cache_entries_are_pinned(void) {
 
   h1 = rdb_lru_lookup(t.cache, &key);
 
-  assert(101 == decode_value(rdb_lru_value(h1)));
+  ASSERT(101 == decode_value(rdb_lru_value(h1)));
 
   test_insert(&t, 100, 102, 1);
 
   h2 = rdb_lru_lookup(t.cache, &key);
 
-  assert(102 == decode_value(rdb_lru_value(h2)));
-  assert(0 == t.deleted_keys.length);
+  ASSERT(102 == decode_value(rdb_lru_value(h2)));
+  ASSERT(0 == t.deleted_keys.length);
 
   rdb_lru_release(t.cache, h1);
 
-  assert(1 == t.deleted_keys.length);
-  assert(100 == t.deleted_keys.items[0]);
-  assert(101 == t.deleted_values.items[0]);
+  ASSERT(1 == t.deleted_keys.length);
+  ASSERT(100 == t.deleted_keys.items[0]);
+  ASSERT(101 == t.deleted_values.items[0]);
 
   test_erase(&t, 100);
 
-  assert(-1 == test_lookup(&t, 100));
-  assert(1 == t.deleted_keys.length);
+  ASSERT(-1 == test_lookup(&t, 100));
+  ASSERT(1 == t.deleted_keys.length);
 
   rdb_lru_release(t.cache, h2);
 
-  assert(2 == t.deleted_keys.length);
-  assert(100 == t.deleted_keys.items[1]);
-  assert(102 == t.deleted_values.items[1]);
+  ASSERT(2 == t.deleted_keys.length);
+  ASSERT(100 == t.deleted_keys.items[1]);
+  ASSERT(102 == t.deleted_values.items[1]);
 
   test_clear(&t);
 }
@@ -281,13 +279,13 @@ test_cache_eviction_policy(void) {
   for (i = 0; i < CACHE_SIZE + 100; i++) {
     test_insert(&t, 1000 + i, 2000 + i, 1);
 
-    assert(2000 + i == test_lookup(&t, 1000 + i));
-    assert(101 == test_lookup(&t, 100));
+    ASSERT(2000 + i == test_lookup(&t, 1000 + i));
+    ASSERT(101 == test_lookup(&t, 100));
   }
 
-  assert(101 == test_lookup(&t, 100));
-  assert(-1 == test_lookup(&t, 200));
-  assert(301 == test_lookup(&t, 300));
+  ASSERT(101 == test_lookup(&t, 100));
+  ASSERT(-1 == test_lookup(&t, 200));
+  ASSERT(301 == test_lookup(&t, 300));
 
   rdb_lru_release(t.cache, h);
 
@@ -309,7 +307,7 @@ test_cache_use_exceeds_cache_size(void) {
 
   /* Check that all the entries can be found in the cache. */
   for (i = 0; i < h.length; i++)
-    assert(2000 + i == (size_t)test_lookup(&t, 1000 + i));
+    ASSERT(2000 + i == (size_t)test_lookup(&t, 1000 + i));
 
   for (i = 0; i < h.length; i++)
     rdb_lru_release(t.cache, h.items[i]);
@@ -348,11 +346,11 @@ test_cache_heavy_entries(void) {
 
     if (r >= 0) {
       cached_weight += weight;
-      assert(1000 + i == r);
+      ASSERT(1000 + i == r);
     }
   }
 
-  assert(cached_weight <= CACHE_SIZE + CACHE_SIZE / 10);
+  ASSERT(cached_weight <= CACHE_SIZE + CACHE_SIZE / 10);
 
   test_clear(&t);
 }
@@ -367,7 +365,7 @@ test_cache_newid(void) {
   a = rdb_lru_newid(t.cache);
   b = rdb_lru_newid(t.cache);
 
-  assert(a != b);
+  ASSERT(a != b);
 
   test_clear(&t);
 }
@@ -387,13 +385,13 @@ test_cache_prune(void) {
   key = encode_key(1, buf);
   h = rdb_lru_lookup(t.cache, &key);
 
-  assert(h != NULL);
+  ASSERT(h != NULL);
 
   rdb_lru_prune(t.cache);
   rdb_lru_release(t.cache, h);
 
-  assert(100 == test_lookup(&t, 1));
-  assert(-1 == test_lookup(&t, 2));
+  ASSERT(100 == test_lookup(&t, 1));
+  ASSERT(-1 == test_lookup(&t, 2));
 
   test_clear(&t);
 }
@@ -410,7 +408,7 @@ test_cache_zero_size_cache(void) {
 
   test_insert(&t, 1, 100, 1);
 
-  assert(-1 == test_lookup(&t, 1));
+  ASSERT(-1 == test_lookup(&t, 1));
 
   test_clear(&t);
 }

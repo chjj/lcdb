@@ -4,15 +4,14 @@
  * https://github.com/chjj/rdb
  */
 
-#undef NDEBUG
-
-#include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "extern.h"
 #include "strutil.h"
+#include "testutil.h"
 
 static int
 check_number(uint64_t x, const char *y) {
@@ -23,28 +22,28 @@ check_number(uint64_t x, const char *y) {
 
 static void
 test_encode_int(void) {
-  assert(check_number(0, "0"));
-  assert(check_number(1, "1"));
-  assert(check_number(9, "9"));
+  ASSERT(check_number(0, "0"));
+  ASSERT(check_number(1, "1"));
+  ASSERT(check_number(9, "9"));
 
-  assert(check_number(10, "10"));
-  assert(check_number(11, "11"));
-  assert(check_number(19, "19"));
-  assert(check_number(99, "99"));
+  ASSERT(check_number(10, "10"));
+  ASSERT(check_number(11, "11"));
+  ASSERT(check_number(19, "19"));
+  ASSERT(check_number(99, "99"));
 
-  assert(check_number(100, "100"));
-  assert(check_number(109, "109"));
-  assert(check_number(190, "190"));
-  assert(check_number(123, "123"));
-  assert(check_number(12345678, "12345678"));
+  ASSERT(check_number(100, "100"));
+  ASSERT(check_number(109, "109"));
+  ASSERT(check_number(190, "190"));
+  ASSERT(check_number(123, "123"));
+  ASSERT(check_number(12345678, "12345678"));
 
-  assert(UINT64_MAX == UINT64_C(18446744073709551615));
+  ASSERT(UINT64_MAX == UINT64_C(18446744073709551615));
 
-  assert(check_number(UINT64_C(18446744073709551000), "18446744073709551000"));
-  assert(check_number(UINT64_C(18446744073709551600), "18446744073709551600"));
-  assert(check_number(UINT64_C(18446744073709551610), "18446744073709551610"));
-  assert(check_number(UINT64_C(18446744073709551614), "18446744073709551614"));
-  assert(check_number(UINT64_C(18446744073709551615), "18446744073709551615"));
+  ASSERT(check_number(UINT64_C(18446744073709551000), "18446744073709551000"));
+  ASSERT(check_number(UINT64_C(18446744073709551600), "18446744073709551600"));
+  ASSERT(check_number(UINT64_C(18446744073709551610), "18446744073709551610"));
+  ASSERT(check_number(UINT64_C(18446744073709551614), "18446744073709551614"));
+  ASSERT(check_number(UINT64_C(18446744073709551615), "18446744073709551615"));
 }
 
 static void
@@ -62,10 +61,10 @@ decode_int_test(uint64_t number, const char *padding) {
   input = input_string;
   output = input;
 
-  assert(rdb_decode_int(&result, &output));
-  assert(number == result);
-  assert(strlen(decimal_number) == strlen(input) - strlen(output));
-  assert(strlen(padding) == strlen(output));
+  ASSERT(rdb_decode_int(&result, &output));
+  ASSERT(number == result);
+  ASSERT(strlen(decimal_number) == strlen(input) - strlen(output));
+  ASSERT(strlen(padding) == strlen(output));
 }
 
 static void
@@ -118,7 +117,7 @@ test_decode_int_with_padding(void) {
 static void
 decode_int_overflow_test(const char *input_string) {
   uint64_t result;
-  assert(0 == rdb_decode_int(&result, &input_string));
+  ASSERT(0 == rdb_decode_int(&result, &input_string));
 }
 
 static void
@@ -145,8 +144,8 @@ decode_int_no_digits_test(const char *input_string) {
   const char *output = input_string;
   uint64_t result;
 
-  assert(0 == rdb_decode_int(&result, &output));
-  assert(output == input_string);
+  ASSERT(0 == rdb_decode_int(&result, &output));
+  ASSERT(output == input_string);
 }
 
 static void
@@ -163,25 +162,25 @@ test_decode_int_no_digits(void) {
 
 static void
 test_starts_with(void) {
-  assert(rdb_starts_with("foobar", "foo"));
-  assert(rdb_starts_with("foo", "foo"));
-  assert(!rdb_starts_with("zoobar", "foo"));
-  assert(!rdb_starts_with("fo", "foo"));
-  assert(!rdb_starts_with("", "foo"));
+  ASSERT(rdb_starts_with("foobar", "foo"));
+  ASSERT(rdb_starts_with("foo", "foo"));
+  ASSERT(!rdb_starts_with("zoobar", "foo"));
+  ASSERT(!rdb_starts_with("fo", "foo"));
+  ASSERT(!rdb_starts_with("", "foo"));
 }
 
 static void
 test_basename(void) {
-  assert(strcmp(rdb_basename("/foo/bar"), "bar") == 0);
-  assert(strcmp(rdb_basename("/foo///bar"), "bar") == 0);
-  assert(strcmp(rdb_basename("./bar"), "bar") == 0);
-  assert(strcmp(rdb_basename("bar"), "bar") == 0);
+  ASSERT(strcmp(rdb_basename("/foo/bar"), "bar") == 0);
+  ASSERT(strcmp(rdb_basename("/foo///bar"), "bar") == 0);
+  ASSERT(strcmp(rdb_basename("./bar"), "bar") == 0);
+  ASSERT(strcmp(rdb_basename("bar"), "bar") == 0);
 
 #ifdef _WIN32
-  assert(strcmp(rdb_basename("\\foo/\\bar"), "bar") == 0);
-  assert(strcmp(rdb_basename("\\foo\\/bar"), "bar") == 0);
-  assert(strcmp(rdb_basename(".\\bar"), "bar") == 0);
-  assert(strcmp(rdb_basename("bar"), "bar") == 0);
+  ASSERT(strcmp(rdb_basename("\\foo/\\bar"), "bar") == 0);
+  ASSERT(strcmp(rdb_basename("\\foo\\/bar"), "bar") == 0);
+  ASSERT(strcmp(rdb_basename(".\\bar"), "bar") == 0);
+  ASSERT(strcmp(rdb_basename("bar"), "bar") == 0);
 #endif
 }
 
@@ -189,39 +188,39 @@ static void
 test_dirname(void) {
   char dir[128];
 
-  assert(!rdb_dirname(dir, 4, "/foo/bar"));
-  assert(rdb_dirname(dir, 5, "/foo/bar"));
+  ASSERT(!rdb_dirname(dir, 4, "/foo/bar"));
+  ASSERT(rdb_dirname(dir, 5, "/foo/bar"));
 
-  assert(rdb_dirname(dir, 128, "/foo/bar"));
-  assert(strcmp(dir, "/foo") == 0);
+  ASSERT(rdb_dirname(dir, 128, "/foo/bar"));
+  ASSERT(strcmp(dir, "/foo") == 0);
 
-  assert(rdb_dirname(dir, 128, "/foo///bar"));
-  assert(strcmp(dir, "/foo") == 0);
+  ASSERT(rdb_dirname(dir, 128, "/foo///bar"));
+  ASSERT(strcmp(dir, "/foo") == 0);
 
-  assert(rdb_dirname(dir, 128, "./bar"));
-  assert(strcmp(dir, ".") == 0);
+  ASSERT(rdb_dirname(dir, 128, "./bar"));
+  ASSERT(strcmp(dir, ".") == 0);
 
-  assert(rdb_dirname(dir, 128, "bar"));
-  assert(strcmp(dir, ".") == 0);
+  ASSERT(rdb_dirname(dir, 128, "bar"));
+  ASSERT(strcmp(dir, ".") == 0);
 
-  assert(rdb_dirname(dir, 128, "/bar"));
-  assert(strcmp(dir, "/") == 0);
+  ASSERT(rdb_dirname(dir, 128, "/bar"));
+  ASSERT(strcmp(dir, "/") == 0);
 
-  assert(rdb_dirname(dir, 128, "/"));
-  assert(strcmp(dir, "/") == 0);
+  ASSERT(rdb_dirname(dir, 128, "/"));
+  ASSERT(strcmp(dir, "/") == 0);
 
-  assert(rdb_dirname(dir, 128, ""));
-  assert(strcmp(dir, ".") == 0);
+  ASSERT(rdb_dirname(dir, 128, ""));
+  ASSERT(strcmp(dir, ".") == 0);
 
 #ifdef _WIN32
-  assert(rdb_dirname(dir, 128, "/foo\\bar"));
-  assert(strcmp(dir, "/foo") == 0);
+  ASSERT(rdb_dirname(dir, 128, "/foo\\bar"));
+  ASSERT(strcmp(dir, "/foo") == 0);
 
-  assert(rdb_dirname(dir, 128, "/foo/\\bar"));
-  assert(strcmp(dir, "/foo") == 0);
+  ASSERT(rdb_dirname(dir, 128, "/foo/\\bar"));
+  ASSERT(strcmp(dir, "/foo") == 0);
 
-  assert(rdb_dirname(dir, 128, "/foo\\/bar"));
-  assert(strcmp(dir, "/foo") == 0);
+  ASSERT(rdb_dirname(dir, 128, "/foo\\/bar"));
+  ASSERT(strcmp(dir, "/foo") == 0);
 #endif
 }
 
@@ -229,20 +228,20 @@ static void
 test_join(void) {
   char path[128];
 
-  assert(!rdb_join(path, 7, "foo", "bar"));
+  ASSERT(!rdb_join(path, 7, "foo", "bar"));
 
 #if defined(_WIN32)
-  assert(rdb_join(path, 8, "foo", "bar"));
-  assert(strcmp(path, "foo\\bar") == 0);
+  ASSERT(rdb_join(path, 8, "foo", "bar"));
+  ASSERT(strcmp(path, "foo\\bar") == 0);
 
-  assert(rdb_join(path, 128, "/foo", "bar"));
-  assert(strcmp(path, "/foo\\bar") == 0);
+  ASSERT(rdb_join(path, 128, "/foo", "bar"));
+  ASSERT(strcmp(path, "/foo\\bar") == 0);
 #else
-  assert(rdb_join(path, 8, "foo", "bar"));
-  assert(strcmp(path, "foo/bar") == 0);
+  ASSERT(rdb_join(path, 8, "foo", "bar"));
+  ASSERT(strcmp(path, "foo/bar") == 0);
 
-  assert(rdb_join(path, 128, "/foo", "bar"));
-  assert(strcmp(path, "/foo/bar") == 0);
+  ASSERT(rdb_join(path, 128, "/foo", "bar"));
+  ASSERT(strcmp(path, "/foo/bar") == 0);
 #endif
 }
 
