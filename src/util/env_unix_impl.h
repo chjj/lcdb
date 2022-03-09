@@ -7,6 +7,8 @@
 #undef HAVE_FCNTL
 #undef HAVE_MMAP
 #undef HAVE_FDATASYNC
+#undef HAVE_PREAD
+#undef HAVE_FDOPEN
 
 #if !defined(__EMSCRIPTEN__) && !defined(__wasi__)
 #  define HAVE_FCNTL
@@ -16,6 +18,9 @@
 #ifndef __ANDROID__
 #  define HAVE_FDATASYNC
 #endif
+
+#define HAVE_PREAD
+#define HAVE_FDOPEN
 
 #include <assert.h>
 #include <errno.h>
@@ -91,7 +96,9 @@ struct rdb_filelock_s {
  */
 
 static rdb_limiter_t rdb_fd_limiter = {8192, 8192};
+#ifdef HAVE_MMAP
 static rdb_limiter_t rdb_mmap_limiter = {RDB_MMAP_LIMIT, RDB_MMAP_LIMIT};
+#endif
 static rdb_mutex_t file_mutex = RDB_MUTEX_INITIALIZER;
 static rb_set_t file_set;
 
@@ -569,6 +576,10 @@ struct rdb_rfile_s {
   int mapped;
   unsigned char *base;
   size_t length;
+#ifndef HAVE_PREAD
+  rdb_mutex_t mutex;
+  int has_mutex;
+#endif
 };
 
 static void
@@ -580,6 +591,9 @@ rdb_seqfile_init(rdb_rfile_t *file, const char *filename, int fd) {
   file->mapped = 0;
   file->base = NULL;
   file->length = 0;
+#ifndef HAVE_PREAD
+  file->has_mutex = 0;
+#endif
 }
 
 static void
@@ -596,6 +610,11 @@ rdb_randfile_init(rdb_rfile_t *file,
   file->mapped = 0;
   file->base = NULL;
   file->length = 0;
+
+#ifndef HAVE_PREAD
+  rdb_mutex_init(&file->mutex);
+  file->has_mutex = 1;
+#endif
 
   if (!acquired)
     close(fd);
@@ -615,6 +634,9 @@ rdb_mapfile_init(rdb_rfile_t *file,
   file->mapped = 1;
   file->base = base;
   file->length = length;
+#ifndef HAVE_PREAD
+  file->has_mutex = 0;
+#endif
 }
 #endif
 
@@ -678,9 +700,23 @@ rdb_rfile_pread(rdb_rfile_t *file,
       return RDB_POSIX_ERROR(errno);
   }
 
+#ifdef HAVE_PREAD
   do {
     nread = pread(fd, buf, count, offset);
   } while (nread < 0 && errno == EINTR);
+#else
+  rdb_mutex_lock(&file->mutex);
+
+  if ((uint64_t)lseek(fd, offset, SEEK_SET) == offset) {
+    do {
+      nread = read(fd, buf, count);
+    } while (nread < 0 && errno == EINTR);
+  } else {
+    nread = -1;
+  }
+
+  rdb_mutex_unlock(&file->mutex);
+#endif
 
   if (nread >= 0)
     rdb_slice_set(result, buf, nread);
@@ -714,6 +750,13 @@ rdb_rfile_close(rdb_rfile_t *file) {
   file->base = NULL;
   file->length = 0;
 
+#ifndef HAVE_PREAD
+  if (file->has_mutex) {
+    rdb_mutex_destroy(&file->mutex);
+    file->has_mutex = 0;
+  }
+#endif
+
   return rc;
 }
 
@@ -742,12 +785,15 @@ rdb_seqfile_create(const char *filename, rdb_rfile_t **file) {
 
 int
 rdb_randfile_create(const char *filename, rdb_rfile_t **file, int use_mmap) {
-  uint64_t size;
-  int fd, rc;
+#ifdef HAVE_MMAP
+  uint64_t size = 0;
+  int rc = RDB_OK;
+  struct stat st;
+#endif
+  int fd;
 
 #ifndef HAVE_MMAP
   (void)use_mmap;
-  (void)rc;
 #endif
 
   if (strlen(filename) + 1 > RDB_PATH_MAX)
@@ -771,7 +817,10 @@ rdb_randfile_create(const char *filename, rdb_rfile_t **file, int use_mmap) {
   }
 
 #ifdef HAVE_MMAP
-  rc = rdb_get_file_size(filename, &size);
+  if (fstat(fd, &st) != 0)
+    rc = RDB_POSIX_ERROR(errno);
+  else
+    size = st.st_size;
 
   if (rc == RDB_OK && size > (((size_t)-1) / 2))
     rc = RDB_IOERR;
@@ -979,6 +1028,7 @@ rdb_logger_create(FILE *stream);
 
 int
 rdb_logger_open(const char *filename, rdb_logger_t **result) {
+#ifdef HAVE_FDOPEN
   int fd = rdb_open(filename, O_APPEND | O_WRONLY | O_CREAT, 0644);
   FILE *stream;
 
@@ -986,6 +1036,10 @@ rdb_logger_open(const char *filename, rdb_logger_t **result) {
     return RDB_POSIX_ERROR(errno);
 
   stream = fdopen(fd, "w");
+#else
+  FILE *stream = fopen(filename, "a");
+  int fd = -1;
+#endif
 
   if (stream == NULL) {
     close(fd);

@@ -94,6 +94,8 @@ rdb_cond_wait(rdb_cond_t *cond, rdb_mutex_t *mtx) {
 
 /* Set a sane stack size for thread (from libuv). */
 #if defined(__APPLE__) || defined(__linux__)
+int getpagesize(void);
+
 static size_t
 thread_stack_size(void) {
   struct rlimit lim;

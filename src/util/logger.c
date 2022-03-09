@@ -20,6 +20,7 @@
 #    include <sys/syscall.h>
 #    ifdef __NR_gettid
 #      define HAVE_GETTID
+long syscall(long, ...);
 #    endif
 #  endif
 #  include <unistd.h>
