@@ -4,24 +4,6 @@
  * https://github.com/chjj/rdb
  */
 
-#undef HAVE_FCNTL
-#undef HAVE_MMAP
-#undef HAVE_FDATASYNC
-#undef HAVE_PREAD
-#undef HAVE_FDOPEN
-
-#if !defined(__EMSCRIPTEN__) && !defined(__wasi__)
-#  define HAVE_FCNTL
-#  define HAVE_MMAP
-#endif
-
-#ifndef __ANDROID__
-#  define HAVE_FDATASYNC
-#endif
-
-#define HAVE_PREAD
-#define HAVE_FDOPEN
-
 #include <assert.h>
 #include <errno.h>
 #include <limits.h>
@@ -36,9 +18,6 @@
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <sys/resource.h>
-#ifdef HAVE_MMAP
-#include <sys/mman.h>
-#endif
 
 #include <dirent.h>
 #include <fcntl.h>
@@ -51,15 +30,6 @@
 #  include <sys/select.h>
 #endif
 
-#ifndef MAP_FAILED
-#  define MAP_FAILED ((void *)-1)
-#endif
-
-#ifdef __wasi__
-/* lseek(3) is statement expression in wasi-libc. */
-#  pragma GCC diagnostic ignored "-Wgnu-statement-expression"
-#endif
-
 #include "atomic.h"
 #include "env.h"
 #include "internal.h"
@@ -68,6 +38,60 @@
 #include "slice.h"
 #include "status.h"
 #include "strutil.h"
+
+/*
+ * Compat
+ */
+
+#undef HAVE_FCNTL
+#undef HAVE_MMAP
+#undef HAVE_SETLK
+#undef HAVE_FLOCK
+#undef HAVE_FDATASYNC
+#undef HAVE_PREAD
+
+#if !defined(__wasi__) && !defined(__EMSCRIPTEN__)
+#  define HAVE_FCNTL
+#endif
+
+#if !defined(__wasi__) && !defined(__EMSCRIPTEN__) && !defined(__DJGPP__)
+#  include <sys/mman.h>
+#  define HAVE_MMAP
+#endif
+
+#if defined(HAVE_FCNTL) && defined(F_WRLCK) && defined(F_SETLK)
+#  define HAVE_SETLK
+#endif
+
+#if !defined(HAVE_SETLK) && !defined(__wasi__) && !defined(__EMSCRIPTEN__)
+#  ifndef LOCK_EX
+#    include <sys/file.h>
+#  endif
+#  ifdef LOCK_EX
+#    define HAVE_FLOCK
+#  endif
+#endif
+
+#if !defined(__ANDROID__) && !defined(__DJGPP__)
+#  define HAVE_FDATASYNC
+#endif
+
+#if !defined(__WATCOMC__) && !defined(__DJGPP__)
+#  define HAVE_PREAD
+#endif
+
+/*
+ * Fixes
+ */
+
+#ifndef MAP_FAILED
+#  define MAP_FAILED ((void *)-1)
+#endif
+
+#ifdef __wasi__
+/* lseek(3) is statement expression in wasi-libc. */
+#  pragma GCC diagnostic ignored "-Wgnu-statement-expression"
+#endif
 
 /*
  * Constants
@@ -240,7 +264,7 @@ rdb_sync_fd(int fd, const char *fd_path) {
 
 static int
 rdb_lock_or_unlock(int fd, int lock) {
-#ifdef HAVE_FCNTL
+#if defined(HAVE_SETLK)
   struct flock info;
 
   errno = 0;
@@ -251,6 +275,8 @@ rdb_lock_or_unlock(int fd, int lock) {
   info.l_whence = SEEK_SET;
 
   return fcntl(fd, F_SETLK, &info) == 0;
+#elif defined(HAVE_FLOCK)
+  return flock(fd, lock ? LOCK_EX : LOCK_UN) == 0;
 #else
   (void)fd;
   (void)lock;
@@ -260,9 +286,9 @@ rdb_lock_or_unlock(int fd, int lock) {
 
 static int
 rdb_max_open_files(void) {
-#ifdef __Fuchsia__
+#if defined(__Fuchsia__)
   return 50;
-#else
+#elif defined(RLIMIT_NOFILE)
   struct rlimit rlim;
 
   if (getrlimit(RLIMIT_NOFILE, &rlim) != 0)
@@ -272,6 +298,8 @@ rdb_max_open_files(void) {
     return INT_MAX / 2;
 
   return rlim.rlim_cur / 5;
+#else
+  return 1024;
 #endif
 }
 
@@ -1023,12 +1051,15 @@ rdb_wfile_destroy(rdb_wfile_t *file) {
  * Logging
  */
 
+#ifdef __GLIBC__
+FILE *fdopen(int, const char *);
+#endif
+
 rdb_logger_t *
 rdb_logger_create(FILE *stream);
 
 int
 rdb_logger_open(const char *filename, rdb_logger_t **result) {
-#ifdef HAVE_FDOPEN
   int fd = rdb_open(filename, O_APPEND | O_WRONLY | O_CREAT, 0644);
   FILE *stream;
 
@@ -1036,10 +1067,6 @@ rdb_logger_open(const char *filename, rdb_logger_t **result) {
     return RDB_POSIX_ERROR(errno);
 
   stream = fdopen(fd, "w");
-#else
-  FILE *stream = fopen(filename, "a");
-  int fd = -1;
-#endif
 
   if (stream == NULL) {
     close(fd);
