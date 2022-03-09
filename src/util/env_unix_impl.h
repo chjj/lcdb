@@ -72,7 +72,7 @@
 #  endif
 #endif
 
-#if !defined(__ANDROID__) && !defined(__DJGPP__)
+#if defined(__linux__) || defined(__sun) || defined(__NetBSD__)
 #  define HAVE_FDATASYNC
 #endif
 
@@ -238,26 +238,19 @@ rdb_open(const char *name, int flags, uint32_t mode) {
 }
 
 static int
-rdb_sync_fd(int fd, const char *fd_path) {
-  int sync_success;
-
-  (void)fd_path;
-
-#ifdef F_FULLFSYNC
-#ifdef HAVE_FCNTL
+rdb_sync_fd(int fd) {
+#if defined(__APPLE__) && defined(F_FULLFSYNC)
   if (fcntl(fd, F_FULLFSYNC) == 0)
     return RDB_OK;
 #endif
-#endif
 
 #ifdef HAVE_FDATASYNC
-  sync_success = fdatasync(fd) == 0;
-#else
-  sync_success = fsync(fd) == 0;
-#endif
-
-  if (sync_success)
+  if (fdatasync(fd) == 0)
     return RDB_OK;
+#else
+  if (fsync(fd) == 0)
+    return RDB_OK;
+#endif
 
   return RDB_IOERR;
 }
@@ -947,7 +940,7 @@ rdb_wfile_sync_dir(rdb_wfile_t *file) {
   if (fd < 0) {
     rc = RDB_POSIX_ERROR(errno);
   } else {
-    rc = rdb_sync_fd(fd, file->dirname);
+    rc = rdb_sync_fd(fd);
     close(fd);
   }
 
@@ -1001,7 +994,7 @@ rdb_wfile_sync(rdb_wfile_t *file) {
   if ((rc = rdb_wfile_flush(file)))
     return rc;
 
-  return rdb_sync_fd(file->fd, file->filename);
+  return rdb_sync_fd(file->fd);
 }
 
 /*
