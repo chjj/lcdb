@@ -45,6 +45,73 @@ struct rdb_filelock_s {
 static rdb_limiter_t rdb_mmap_limiter = {RDB_MMAP_LIMIT, RDB_MMAP_LIMIT};
 
 /*
+ * Compat
+ */
+
+static BOOL (FAR WINAPI *RDBMoveFileExA)(LPCSTR, LPCSTR, DWORD) = NULL;
+static BOOL (FAR WINAPI *RDBGetFileAttributesExA)(LPCSTR,
+                                                  GET_FILEEX_INFO_LEVELS,
+                                                  LPVOID) = NULL;
+
+static void
+rdb_load_functions(void) {
+  static volatile long state = 0;
+  static HMODULE mod;
+  long s;
+
+  while ((s = InterlockedCompareExchange(&state, 1, 0)) == 1)
+    Sleep(0);
+
+  if (s == 0) {
+    mod = GetModuleHandleA("kernel32.dll");
+
+    if (mod == NULL)
+      abort(); /* LCOV_EXCL_LINE */
+
+    /* Available only on Windows NT (not 9x). */
+    RDBMoveFileExA = GetProcAddress(mod, "MoveFileExA");
+
+    /* Available only on Windows 98 and above. */
+    RDBGetFileAttributesExA = GetProcAddress(mod, "GetFileAttributesExA");
+
+    if (InterlockedExchange(&state, 2) != 1)
+      abort(); /* LCOV_EXCL_LINE */
+  } else {
+    assert(s == 2);
+  }
+}
+
+static BOOL
+RDBSetFilePointerEx(HANDLE file,
+                    LARGE_INTEGER pos,
+                    LARGE_INTEGER *rpos,
+                    DWORD method) {
+  pos.LowPart = SetFilePointer(file, pos.LowPart, &pos.HighPart, method);
+
+  if (pos.LowPart == (DWORD)-1) { /* INVALID_SET_FILE_POINTER */
+    if (GetLastError() != NO_ERROR)
+      return FALSE;
+  }
+
+  if (rpos != NULL)
+    *rpos = pos;
+
+  return TRUE;
+}
+
+static BOOL
+RDBGetFileSizeEx(HANDLE file, LARGE_INTEGER *size) {
+  size->LowPart = GetFileSize(file, &size->HighPart);
+
+  if (size->LowPart == (DWORD)-1) { /* INVALID_FILE_SIZE */
+    if (GetLastError() != NO_ERROR)
+      return FALSE;
+  }
+
+  return TRUE;
+}
+
+/*
  * Limiter
  */
 
@@ -260,40 +327,75 @@ rdb_remove_dir(const char *dirname) {
 
 int
 rdb_get_file_size(const char *filename, uint64_t *size) {
-  WIN32_FILE_ATTRIBUTE_DATA attrs;
-  ULARGE_INTEGER ul;
+  LARGE_INTEGER result;
+  HANDLE handle;
 
-  if (!GetFileAttributesExA(filename, GetFileExInfoStandard, &attrs))
+  rdb_load_functions();
+
+  /* Windows 98 and above only. */
+  if (RDBGetFileAttributesExA != NULL) {
+    WIN32_FILE_ATTRIBUTE_DATA attrs;
+
+    if (!RDBGetFileAttributesExA(filename, GetFileExInfoStandard, &attrs))
+      return RDB_WIN32_ERROR(GetLastError());
+
+    result.HighPart = attrs.nFileSizeHigh;
+    result.LowPart = attrs.nFileSizeLow;
+
+    *size = result.QuadPart;
+
+    return RDB_OK;
+  }
+
+  /* Windows 95 fallback. */
+  handle = CreateFileA(filename,
+                       0,
+                       0,
+                       NULL,
+                       OPEN_EXISTING,
+                       FILE_FLAG_BACKUP_SEMANTICS,
+                       NULL);
+
+  if (handle == INVALID_HANDLE_VALUE)
     return RDB_WIN32_ERROR(GetLastError());
 
-  ul.HighPart = attrs.nFileSizeHigh;
-  ul.LowPart = attrs.nFileSizeLow;
+  if (!RDBGetFileSizeEx(handle, &result)) {
+    DWORD code = GetLastError();
+    CloseHandle(handle);
+    return RDB_WIN32_ERROR(code);
+  }
 
-  *size = ul.QuadPart;
+  CloseHandle(handle);
+
+  *size = result.QuadPart;
 
   return RDB_OK;
 }
 
 int
 rdb_rename_file(const char *from, const char *to) {
-  DWORD move_error, replace_error;
+  rdb_load_functions();
 
-  if (MoveFileA(from, to))
+  /* Windows NT only. */
+  if (RDBMoveFileExA != NULL) {
+    if (!RDBMoveFileExA(from, to, MOVEFILE_REPLACE_EXISTING))
+      return RDB_WIN32_ERROR(GetLastError());
+
     return RDB_OK;
-
-  move_error = GetLastError();
-
-  if (ReplaceFileA(to, from, NULL, REPLACEFILE_IGNORE_MERGE_ERRORS, NULL, NULL))
-    return RDB_OK;
-
-  replace_error = GetLastError();
-
-  if (replace_error == ERROR_FILE_NOT_FOUND
-      || replace_error == ERROR_PATH_NOT_FOUND) {
-    return RDB_WIN32_ERROR(move_error);
   }
 
-  return RDB_WIN32_ERROR(replace_error);
+  /* Windows 9x fallback (non-atomic). */
+  if (!MoveFileA(from, to)) {
+    DWORD code = GetLastError();
+
+    if (!DeleteFileA(to))
+      return RDB_WIN32_ERROR(code);
+
+    if (!MoveFileA(from, to))
+      return RDB_WIN32_ERROR(code);
+  }
+
+  return RDB_OK;
 }
 
 int
@@ -422,7 +524,7 @@ rdb_rfile_skip(rdb_rfile_t *file, uint64_t offset) {
 
   dist.QuadPart = offset;
 
-  if (!SetFilePointerEx(file->handle, dist, NULL, FILE_CURRENT))
+  if (!RDBSetFilePointerEx(file->handle, dist, NULL, FILE_CURRENT))
     return RDB_IOERR;
 
   return RDB_OK;
@@ -541,7 +643,7 @@ rdb_randfile_create(const char *filename, rdb_rfile_t **file, int use_mmap) {
     return RDB_OK;
   }
 
-  if (!GetFileSizeEx(handle, &size))
+  if (!RDBGetFileSizeEx(handle, &size))
     rc = RDB_WIN32_ERROR(GetLastError());
 
   if (rc == RDB_OK && size.QuadPart > (((size_t)-1) / 2))
