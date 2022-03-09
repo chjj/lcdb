@@ -6,7 +6,7 @@
 
 #include "atomic.h"
 
-#if defined(RDB_GNUC_ATOMICS) || defined(RDB_LEGACY_ATOMICS)
+#if defined(RDB_CLANG_ATOMICS) || defined(RDB_GNUC_ATOMICS)
 
 int
 rdb_atomic_no_empty_translation_unit(void);
