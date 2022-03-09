@@ -80,8 +80,8 @@ rdb_cond_init(rdb_cond_t *cond) {
 
   InitializeCriticalSection(&cond->lock);
 
-  cond->signal = CreateEvent(NULL, FALSE, FALSE, NULL);
-  cond->broadcast = CreateEvent(NULL, TRUE, FALSE, NULL);
+  cond->signal = CreateEventA(NULL, FALSE, FALSE, NULL);
+  cond->broadcast = CreateEventA(NULL, TRUE, FALSE, NULL);
 
   if (!cond->signal || !cond->broadcast)
     abort(); /* LCOV_EXCL_LINE */

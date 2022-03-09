@@ -220,6 +220,8 @@ test_open_on_read(void) {
  * Threads
  */
 
+#if defined(_WIN32) || defined(RDB_PTHREAD)
+
 struct run_state {
   rdb_mutex_t mu;
   rdb_cond_t cvar;
@@ -370,6 +372,8 @@ test_start_thread(void) {
   rdb_cond_destroy(&state.cvar);
   rdb_mutex_destroy(&state.mu);
 }
+
+#endif /* _WIN32 || RDB_PTHREAD */
 
 /*
  * Execute

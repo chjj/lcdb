@@ -318,8 +318,8 @@ int rdb_test_c(void) {
     size_t limit_len[2] = { 21, 1 };
     leveldb_writeoptions_set_sync(woptions, 0);
     for (i = 0; i < n; i++) {
-      snprintf(keybuf, sizeof(keybuf), "k%020d", i);
-      snprintf(valbuf, sizeof(valbuf), "v%020d", i);
+      sprintf(keybuf, "k%020d", i);
+      sprintf(valbuf, "v%020d", i);
       leveldb_put(db, woptions, keybuf, strlen(keybuf), valbuf, strlen(valbuf),
                   &err);
       CheckNoError(err);

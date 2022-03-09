@@ -191,6 +191,10 @@ rdb_pool_schedule(rdb_pool_t *pool, rdb_work_f *func, void *arg) {
   rdb_cond_signal(&pool->worker);
   rdb_mutex_unlock(&pool->mutex);
 #else
+  (void)rdb_queue_push;
+  (void)worker_thread;
+  (void)pool;
+
   func(arg);
 #endif
 }

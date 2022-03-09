@@ -2550,6 +2550,8 @@ test_db_bloom_filter(test_t *t) {
  * Multi-threaded Testing
  */
 
+#if defined(_WIN32) || defined(RDB_PTHREAD)
+
 #define NUM_THREADS 4
 #define TEST_SECONDS 10
 #define NUM_KEYS 1000
@@ -2674,6 +2676,8 @@ test_db_multi_threaded(test_t *t) {
     }
   } while (test_change_options(t));
 }
+
+#endif /* _WIN32 || RDB_PTHREAD */
 
 /*
  * Randomized Testing
@@ -3014,7 +3018,9 @@ rdb_test_db(void) {
     test_db_still_read_sst,
     test_db_files_deleted_after_compaction,
     test_db_bloom_filter,
+#if defined(_WIN32) || defined(RDB_PTHREAD)
     test_db_multi_threaded,
+#endif
     test_db_randomized
   };
 
