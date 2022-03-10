@@ -26,7 +26,7 @@
 #include "write_batch.h"
 
 /* Must be included last (for stdint and LDB_EXTERN). */
-#include <ldb_c.h>
+#include <lcdb_c.h>
 
 /*
  * Types

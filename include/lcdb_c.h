@@ -1,5 +1,5 @@
 /*!
- * ldb_c.h - wrapper for lcdb
+ * lcdb_c.h - wrapper for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
  * https://github.com/chjj/lcdb
  */

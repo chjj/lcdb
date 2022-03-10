@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <ldb_c.h>
+#include <lcdb_c.h>
 
 #include "util/extern.h"
 
