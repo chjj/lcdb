@@ -12,6 +12,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
+
 #include "coding.h"
 #include "snappy.h"
 
@@ -19,7 +20,7 @@
  * Constants
  */
 
-#define MAX_TABLE_SIZE (1 << 14)
+#define MAX_TABLE_SIZE (1 << 11) /* Previously (1 << 14). */
 #define INPUT_MARGIN (16 - 1)
 #define MIN_BLOCK_SIZE (1 + 1 + INPUT_MARGIN)
 #define MAX_BLOCK_SIZE 65536
@@ -30,6 +31,18 @@ enum {
   TAG_COPY2   = 0x02,
   TAG_COPY4   = 0x03
 };
+
+/*
+ * Helpers
+ */
+
+#define load32 rdb_fixed32_decode
+#define load64 rdb_fixed64_decode
+
+static uint32_t
+hash32(uint32_t x, int shift) {
+  return (x * 0x1e35a7bd) >> shift;
+}
 
 /*
  * Encoding
@@ -85,14 +98,6 @@ emit_copy(uint8_t *zp, uint32_t off, uint32_t len) {
 
   return zp;
 }
-
-static uint32_t
-hash32(uint32_t x, int shift) {
-  return (x * 0x1e35a7bd) >> shift;
-}
-
-#define load32 rdb_fixed32_decode
-#define load64 rdb_fixed64_decode
 
 static uint8_t *
 encode_block(uint8_t *zp, const uint8_t *xp, size_t xn) {
@@ -360,19 +365,17 @@ snappy_encode(uint8_t *zp, const uint8_t *xp, size_t xn) {
 
   zp = rdb_varint32_write(zp, xn);
 
-  while (xn > 0) {
-    size_t n = xn;
+  while (xn >= MAX_BLOCK_SIZE) {
+    zp = encode_block(zp, xp, MAX_BLOCK_SIZE);
+    xp += MAX_BLOCK_SIZE;
+    xn -= MAX_BLOCK_SIZE;
+  }
 
-    if (n > MAX_BLOCK_SIZE)
-      n = MAX_BLOCK_SIZE;
-
-    if (n < MIN_BLOCK_SIZE)
-      zp = emit_literal(zp, xp, n);
+  if (xn > 0) {
+    if (xn >= MIN_BLOCK_SIZE)
+      zp = encode_block(zp, xp, xn);
     else
-      zp = encode_block(zp, xp, n);
-
-    xp += n;
-    xn -= n;
+      zp = emit_literal(zp, xp, xn);
   }
 
   return zp - sp;
