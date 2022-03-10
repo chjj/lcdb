@@ -5,8 +5,8 @@
  */
 
 int
-rdb_test_arena(void);
+ldb_test_arena(void);
 
 int main(void) {
-  return rdb_test_arena();
+  return ldb_test_arena();
 }

@@ -19,17 +19,17 @@
  */
 
 static void
-bloom_build(const rdb_bloom_t *bloom,
-            rdb_buffer_t *dst,
-            const rdb_slice_t *keys,
+bloom_build(const ldb_bloom_t *bloom,
+            ldb_buffer_t *dst,
+            const ldb_slice_t *keys,
             size_t length);
 
 static int
-bloom_match(const rdb_bloom_t *bloom,
-            const rdb_slice_t *filter,
-            const rdb_slice_t *key);
+bloom_match(const ldb_bloom_t *bloom,
+            const ldb_slice_t *filter,
+            const ldb_slice_t *key);
 
-static const rdb_bloom_t bloom_default = {
+static const ldb_bloom_t bloom_default = {
   /* .name = */ "leveldb.BuiltinBloomFilter2",
   /* .build = */ bloom_build,
   /* .match = */ bloom_match,
@@ -43,26 +43,26 @@ static const rdb_bloom_t bloom_default = {
  * Globals
  */
 
-const rdb_bloom_t *rdb_bloom_default = &bloom_default;
+const ldb_bloom_t *ldb_bloom_default = &bloom_default;
 
 /*
  * Bloom
  */
 
-rdb_bloom_t *
-rdb_bloom_create(int bits_per_key) {
-  rdb_bloom_t *bloom = rdb_malloc(sizeof(rdb_bloom_t));
-  rdb_bloom_init(bloom, bits_per_key);
+ldb_bloom_t *
+ldb_bloom_create(int bits_per_key) {
+  ldb_bloom_t *bloom = ldb_malloc(sizeof(ldb_bloom_t));
+  ldb_bloom_init(bloom, bits_per_key);
   return bloom;
 }
 
 void
-rdb_bloom_destroy(rdb_bloom_t *bloom) {
-  rdb_free(bloom);
+ldb_bloom_destroy(ldb_bloom_t *bloom) {
+  ldb_free(bloom);
 }
 
 void
-rdb_bloom_init(rdb_bloom_t *bloom, int bits_per_key) {
+ldb_bloom_init(ldb_bloom_t *bloom, int bits_per_key) {
   /* We intentionally round down to reduce probing cost a little bit. */
   bloom->name = bloom_default.name;
   bloom->build = bloom_default.build;
@@ -80,7 +80,7 @@ rdb_bloom_init(rdb_bloom_t *bloom, int bits_per_key) {
 }
 
 int
-rdb_bloom_name(char *buf, size_t size, const rdb_bloom_t *bloom) {
+ldb_bloom_name(char *buf, size_t size, const ldb_bloom_t *bloom) {
   const char *name = bloom->name;
   size_t len = strlen(name);
 
@@ -94,12 +94,12 @@ rdb_bloom_name(char *buf, size_t size, const rdb_bloom_t *bloom) {
 }
 
 static uint32_t
-bloom_hash(const rdb_slice_t *key) {
-  return rdb_hash(key->data, key->size, 0xbc9f1d34);
+bloom_hash(const ldb_slice_t *key) {
+  return ldb_hash(key->data, key->size, 0xbc9f1d34);
 }
 
 static size_t
-bloom_size(const rdb_bloom_t *bloom, size_t n) {
+bloom_size(const ldb_bloom_t *bloom, size_t n) {
   /* Compute bloom filter size (in both bits and bytes). */
   size_t bits = n * bloom->bits_per_key;
 
@@ -112,9 +112,9 @@ bloom_size(const rdb_bloom_t *bloom, size_t n) {
 }
 
 static void
-bloom_add(const rdb_bloom_t *bloom,
+bloom_add(const ldb_bloom_t *bloom,
           uint8_t *data,
-          const rdb_slice_t *key,
+          const ldb_slice_t *key,
           size_t bits) {
   /* Use double-hashing to generate a sequence of hash values.
      See analysis in [Kirsch,Mitzenmacher 2006]. */
@@ -132,16 +132,16 @@ bloom_add(const rdb_bloom_t *bloom,
 }
 
 static void
-bloom_build(const rdb_bloom_t *bloom,
-            rdb_buffer_t *dst,
-            const rdb_slice_t *keys,
+bloom_build(const ldb_bloom_t *bloom,
+            ldb_buffer_t *dst,
+            const ldb_slice_t *keys,
             size_t length) {
   size_t bytes = bloom_size(bloom, length);
   size_t bits = bytes * 8;
   uint8_t *data;
   size_t i;
 
-  data = rdb_buffer_pad(dst, bytes + 1);
+  data = ldb_buffer_pad(dst, bytes + 1);
 
   for (i = 0; i < length; i++)
     bloom_add(bloom, data, &keys[i], bits);
@@ -150,9 +150,9 @@ bloom_build(const rdb_bloom_t *bloom,
 }
 
 static int
-bloom_match(const rdb_bloom_t *bloom,
-            const rdb_slice_t *filter,
-            const rdb_slice_t *key) {
+bloom_match(const ldb_bloom_t *bloom,
+            const ldb_slice_t *filter,
+            const ldb_slice_t *key) {
   const uint8_t *data = filter->data;
   size_t len = filter->size;
   uint32_t hash, delta;

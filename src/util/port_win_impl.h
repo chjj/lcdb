@@ -8,7 +8,7 @@
  *   https://github.com/libuv/libuv
  */
 
-#define RDB_NEED_WINDOWS_H
+#define LDB_NEED_WINDOWS_H
 
 #include <assert.h>
 #include <stdlib.h>
@@ -21,17 +21,17 @@
  * Types
  */
 
-typedef struct rdb_args_s {
+typedef struct ldb_args_s {
   void (*start)(void *);
   void *arg;
-} rdb_args_t;
+} ldb_args_t;
 
 /*
  * Mutex
  */
 
 static void
-rdb_mutex_tryinit(rdb_mutex_t *mtx) {
+ldb_mutex_tryinit(ldb_mutex_t *mtx) {
   /* Logic from libsodium/core.c */
   long state;
 
@@ -49,24 +49,24 @@ rdb_mutex_tryinit(rdb_mutex_t *mtx) {
 }
 
 void
-rdb_mutex_init(rdb_mutex_t *mtx) {
+ldb_mutex_init(ldb_mutex_t *mtx) {
   mtx->state = 2;
   InitializeCriticalSection(&mtx->handle);
 }
 
 void
-rdb_mutex_destroy(rdb_mutex_t *mtx) {
+ldb_mutex_destroy(ldb_mutex_t *mtx) {
   DeleteCriticalSection(&mtx->handle);
 }
 
 void
-rdb_mutex_lock(rdb_mutex_t *mtx) {
-  rdb_mutex_tryinit(mtx);
+ldb_mutex_lock(ldb_mutex_t *mtx) {
+  ldb_mutex_tryinit(mtx);
   EnterCriticalSection(&mtx->handle);
 }
 
 void
-rdb_mutex_unlock(rdb_mutex_t *mtx) {
+ldb_mutex_unlock(ldb_mutex_t *mtx) {
   LeaveCriticalSection(&mtx->handle);
 }
 
@@ -75,7 +75,7 @@ rdb_mutex_unlock(rdb_mutex_t *mtx) {
  */
 
 void
-rdb_cond_init(rdb_cond_t *cond) {
+ldb_cond_init(ldb_cond_t *cond) {
   cond->waiters = 0;
 
   InitializeCriticalSection(&cond->lock);
@@ -88,7 +88,7 @@ rdb_cond_init(rdb_cond_t *cond) {
 }
 
 void
-rdb_cond_destroy(rdb_cond_t *cond) {
+ldb_cond_destroy(ldb_cond_t *cond) {
   if (!CloseHandle(cond->broadcast))
     abort(); /* LCOV_EXCL_LINE */
 
@@ -99,7 +99,7 @@ rdb_cond_destroy(rdb_cond_t *cond) {
 }
 
 void
-rdb_cond_signal(rdb_cond_t *cond) {
+ldb_cond_signal(ldb_cond_t *cond) {
   int have_waiters;
 
   EnterCriticalSection(&cond->lock);
@@ -111,7 +111,7 @@ rdb_cond_signal(rdb_cond_t *cond) {
 }
 
 void
-rdb_cond_broadcast(rdb_cond_t *cond) {
+ldb_cond_broadcast(ldb_cond_t *cond) {
   int have_waiters;
 
   EnterCriticalSection(&cond->lock);
@@ -123,7 +123,7 @@ rdb_cond_broadcast(rdb_cond_t *cond) {
 }
 
 void
-rdb_cond_wait(rdb_cond_t *cond, rdb_mutex_t *mtx) {
+ldb_cond_wait(ldb_cond_t *cond, ldb_mutex_t *mtx) {
   HANDLE handles[2];
   int last_waiter;
   DWORD result;
@@ -158,10 +158,10 @@ rdb_cond_wait(rdb_cond_t *cond, rdb_mutex_t *mtx) {
  */
 
 static DWORD WINAPI /* __stdcall */
-rdb_thread_run(void *ptr) {
-  rdb_args_t args = *((rdb_args_t *)ptr);
+ldb_thread_run(void *ptr) {
+  ldb_args_t args = *((ldb_args_t *)ptr);
 
-  rdb_free(ptr);
+  ldb_free(ptr);
 
   args.start(args.arg);
 
@@ -169,26 +169,26 @@ rdb_thread_run(void *ptr) {
 }
 
 void
-rdb_thread_create(rdb_thread_t *thread, void (*start)(void *), void *arg) {
-  rdb_args_t *args = rdb_malloc(sizeof(rdb_args_t));
+ldb_thread_create(ldb_thread_t *thread, void (*start)(void *), void *arg) {
+  ldb_args_t *args = ldb_malloc(sizeof(ldb_args_t));
 
   args->start = start;
   args->arg = arg;
 
-  thread->handle = CreateThread(NULL, 0, rdb_thread_run, args, 0, NULL);
+  thread->handle = CreateThread(NULL, 0, ldb_thread_run, args, 0, NULL);
 
   if (thread->handle == NULL)
     abort(); /* LCOV_EXCL_LINE */
 }
 
 void
-rdb_thread_detach(rdb_thread_t *thread) {
+ldb_thread_detach(ldb_thread_t *thread) {
   if (CloseHandle(thread->handle) == FALSE)
     abort(); /* LCOV_EXCL_LINE */
 }
 
 void
-rdb_thread_join(rdb_thread_t *thread) {
+ldb_thread_join(ldb_thread_t *thread) {
   WaitForSingleObject(thread->handle, INFINITE);
 
   if (CloseHandle(thread->handle) == FALSE)

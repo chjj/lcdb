@@ -22,105 +22,105 @@
  */
 
 /* Generate new filter every 2KB of data. */
-#define RDB_FILTER_BASE_LG 11
-#define RDB_FILTER_BASE (1 << RDB_FILTER_BASE_LG)
+#define LDB_FILTER_BASE_LG 11
+#define LDB_FILTER_BASE (1 << LDB_FILTER_BASE_LG)
 
 /*
  * Filter Builder
  */
 
 void
-rdb_filterbuilder_init(rdb_filterbuilder_t *fb, const rdb_bloom_t *policy) {
+ldb_filterbuilder_init(ldb_filterbuilder_t *fb, const ldb_bloom_t *policy) {
   fb->policy = policy;
 
-  rdb_buffer_init(&fb->keys);
-  rdb_array_init(&fb->start);
-  rdb_buffer_init(&fb->result);
-  rdb_array_init(&fb->filter_offsets);
+  ldb_buffer_init(&fb->keys);
+  ldb_array_init(&fb->start);
+  ldb_buffer_init(&fb->result);
+  ldb_array_init(&fb->filter_offsets);
 }
 
 void
-rdb_filterbuilder_clear(rdb_filterbuilder_t *fb) {
-  rdb_buffer_clear(&fb->keys);
-  rdb_array_clear(&fb->start);
-  rdb_buffer_clear(&fb->result);
-  rdb_array_clear(&fb->filter_offsets);
+ldb_filterbuilder_clear(ldb_filterbuilder_t *fb) {
+  ldb_buffer_clear(&fb->keys);
+  ldb_array_clear(&fb->start);
+  ldb_buffer_clear(&fb->result);
+  ldb_array_clear(&fb->filter_offsets);
 }
 
 static void
-rdb_filterbuilder_generate_filter(rdb_filterbuilder_t *fb);
+ldb_filterbuilder_generate_filter(ldb_filterbuilder_t *fb);
 
 void
-rdb_filterbuilder_start_block(rdb_filterbuilder_t *fb, uint64_t block_offset) {
-  uint64_t filter_index = (block_offset / RDB_FILTER_BASE);
+ldb_filterbuilder_start_block(ldb_filterbuilder_t *fb, uint64_t block_offset) {
+  uint64_t filter_index = (block_offset / LDB_FILTER_BASE);
 
   assert(filter_index >= fb->filter_offsets.length);
 
   while (filter_index > fb->filter_offsets.length)
-    rdb_filterbuilder_generate_filter(fb);
+    ldb_filterbuilder_generate_filter(fb);
 }
 
 void
-rdb_filterbuilder_add_key(rdb_filterbuilder_t *fb, const rdb_slice_t *key) {
-  rdb_slice_t k = *key;
+ldb_filterbuilder_add_key(ldb_filterbuilder_t *fb, const ldb_slice_t *key) {
+  ldb_slice_t k = *key;
 
-  rdb_array_push(&fb->start, fb->keys.size);
-  rdb_buffer_append(&fb->keys, k.data, k.size);
+  ldb_array_push(&fb->start, fb->keys.size);
+  ldb_buffer_append(&fb->keys, k.data, k.size);
 }
 
-rdb_slice_t
-rdb_filterbuilder_finish(rdb_filterbuilder_t *fb) {
+ldb_slice_t
+ldb_filterbuilder_finish(ldb_filterbuilder_t *fb) {
   uint32_t array_offset;
   size_t i;
 
   if (fb->start.length > 0)
-    rdb_filterbuilder_generate_filter(fb);
+    ldb_filterbuilder_generate_filter(fb);
 
   /* Append array of per-filter offsets. */
   array_offset = fb->result.size;
 
   for (i = 0; i < fb->filter_offsets.length; i++)
-    rdb_buffer_fixed32(&fb->result, fb->filter_offsets.items[i]);
+    ldb_buffer_fixed32(&fb->result, fb->filter_offsets.items[i]);
 
-  rdb_buffer_fixed32(&fb->result, array_offset);
+  ldb_buffer_fixed32(&fb->result, array_offset);
 
   /* Save encoding parameter in result. */
-  rdb_buffer_push(&fb->result, RDB_FILTER_BASE_LG);
+  ldb_buffer_push(&fb->result, LDB_FILTER_BASE_LG);
 
   return fb->result;
 }
 
 static void
-rdb_filterbuilder_generate_filter(rdb_filterbuilder_t *fb) {
+ldb_filterbuilder_generate_filter(ldb_filterbuilder_t *fb) {
   size_t num_keys = fb->start.length;
-  rdb_slice_t *tmp_keys;
+  ldb_slice_t *tmp_keys;
   size_t i;
 
   if (num_keys == 0) {
     /* Fast path if there are no keys for this filter. */
-    rdb_array_push(&fb->filter_offsets, fb->result.size);
+    ldb_array_push(&fb->filter_offsets, fb->result.size);
     return;
   }
 
   /* Make list of keys from flattened key structure. */
-  rdb_array_push(&fb->start, fb->keys.size); /* Simplify length computation. */
+  ldb_array_push(&fb->start, fb->keys.size); /* Simplify length computation. */
 
-  tmp_keys = rdb_malloc(num_keys * sizeof(rdb_slice_t));
+  tmp_keys = ldb_malloc(num_keys * sizeof(ldb_slice_t));
 
   for (i = 0; i < num_keys; i++) {
     const uint8_t *base = fb->keys.data + fb->start.items[i];
     size_t length = fb->start.items[i + 1] - fb->start.items[i];
 
-    rdb_slice_set(&tmp_keys[i], base, length);
+    ldb_slice_set(&tmp_keys[i], base, length);
   }
 
   /* Generate filter for current set of keys and append to result. */
-  rdb_array_push(&fb->filter_offsets, fb->result.size);
-  rdb_bloom_build(fb->policy, &fb->result, tmp_keys, num_keys);
+  ldb_array_push(&fb->filter_offsets, fb->result.size);
+  ldb_bloom_build(fb->policy, &fb->result, tmp_keys, num_keys);
 
-  rdb_free(tmp_keys);
-  rdb_buffer_reset(&fb->keys);
-  rdb_array_reset(&fb->start);
+  ldb_free(tmp_keys);
+  ldb_buffer_reset(&fb->keys);
+  ldb_array_reset(&fb->start);
 }
 
 /*
@@ -128,9 +128,9 @@ rdb_filterbuilder_generate_filter(rdb_filterbuilder_t *fb) {
  */
 
 void
-rdb_filterreader_init(rdb_filterreader_t *fr,
-                      const rdb_bloom_t *policy,
-                      const rdb_slice_t *contents) {
+ldb_filterreader_init(ldb_filterreader_t *fr,
+                      const ldb_bloom_t *policy,
+                      const ldb_slice_t *contents) {
   size_t n, last_word;
 
   fr->policy = policy;
@@ -146,7 +146,7 @@ rdb_filterreader_init(rdb_filterreader_t *fr,
 
   fr->base_lg = contents->data[n - 1];
 
-  last_word = rdb_fixed32_decode(contents->data + n - 5);
+  last_word = ldb_fixed32_decode(contents->data + n - 5);
 
   if (last_word > n - 5)
     return;
@@ -157,21 +157,21 @@ rdb_filterreader_init(rdb_filterreader_t *fr,
 }
 
 int
-rdb_filterreader_matches(const rdb_filterreader_t *fr,
+ldb_filterreader_matches(const ldb_filterreader_t *fr,
                          uint64_t block_offset,
-                         const rdb_slice_t *key) {
+                         const ldb_slice_t *key) {
   uint64_t index = block_offset >> fr->base_lg;
 
   if (index < fr->num) {
-    uint32_t start = rdb_fixed32_decode(fr->offset + index * 4);
-    uint32_t limit = rdb_fixed32_decode(fr->offset + index * 4 + 4);
+    uint32_t start = ldb_fixed32_decode(fr->offset + index * 4);
+    uint32_t limit = ldb_fixed32_decode(fr->offset + index * 4 + 4);
 
     if (start <= limit && limit <= (size_t)(fr->offset - fr->data)) {
-      rdb_slice_t filter;
+      ldb_slice_t filter;
 
-      rdb_slice_set(&filter, fr->data + start, limit - start);
+      ldb_slice_set(&filter, fr->data + start, limit - start);
 
-      return rdb_bloom_match(fr->policy, &filter, key);
+      return ldb_bloom_match(fr->policy, &filter, key);
     }
 
     if (start == limit) {

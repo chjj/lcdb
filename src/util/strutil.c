@@ -14,7 +14,7 @@
  */
 
 int
-rdb_size_int(uint64_t x) {
+ldb_size_int(uint64_t x) {
   int n = 0;
 
   do {
@@ -26,8 +26,8 @@ rdb_size_int(uint64_t x) {
 }
 
 int
-rdb_encode_int(char *zp, uint64_t x, int pad) {
-  int n = rdb_size_int(x);
+ldb_encode_int(char *zp, uint64_t x, int pad) {
+  int n = ldb_size_int(x);
   int i;
 
   if (n < pad)
@@ -44,7 +44,7 @@ rdb_encode_int(char *zp, uint64_t x, int pad) {
 }
 
 int
-rdb_decode_int(uint64_t *z, const char **xp) {
+ldb_decode_int(uint64_t *z, const char **xp) {
   const int last = '0' + (int)(UINT64_MAX % 10);
   const uint64_t limit = UINT64_MAX / 10;
   const char *sp = *xp;
@@ -79,7 +79,7 @@ rdb_decode_int(uint64_t *z, const char **xp) {
 }
 
 int
-rdb_starts_with(const char *xp, const char *yp) {
+ldb_starts_with(const char *xp, const char *yp) {
   while (*xp && *xp == *yp) {
     xp++;
     yp++;
@@ -89,7 +89,7 @@ rdb_starts_with(const char *xp, const char *yp) {
 }
 
 char *
-rdb_basename(const char *fname) {
+ldb_basename(const char *fname) {
 #if defined(_WIN32)
   size_t len = strlen(fname);
 
@@ -114,8 +114,8 @@ rdb_basename(const char *fname) {
 }
 
 int
-rdb_dirname(char *buf, size_t size, const char *fname) {
-  const char *base = rdb_basename(fname);
+ldb_dirname(char *buf, size_t size, const char *fname) {
+  const char *base = ldb_basename(fname);
   size_t pos;
 
   if (base == fname) {
@@ -151,7 +151,7 @@ rdb_dirname(char *buf, size_t size, const char *fname) {
 }
 
 int
-rdb_join(char *zp, size_t zn, const char *xp, const char *yp) {
+ldb_join(char *zp, size_t zn, const char *xp, const char *yp) {
   size_t xn = strlen(xp);
   size_t yn = strlen(yp);
 

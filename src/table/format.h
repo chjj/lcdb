@@ -4,8 +4,8 @@
  * https://github.com/chjj/rdb
  */
 
-#ifndef RDB_TABLE_FORMAT_H
-#define RDB_TABLE_FORMAT_H
+#ifndef LDB_TABLE_FORMAT_H
+#define LDB_TABLE_FORMAT_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -17,104 +17,104 @@
  */
 
 /* Maximum encoding length of a BlockHandle. */
-#define RDB_BLOCKHANDLE_MAX (10 + 10) /* kMaxEncodedLength */
+#define LDB_BLOCKHANDLE_MAX (10 + 10) /* kMaxEncodedLength */
 
 /* Encoded length of a Footer. Note that the serialization of a
    Footer will always occupy exactly this many bytes. It consists
    of two block handles and a magic number. */
-#define RDB_FOOTER_SIZE (2 * RDB_BLOCKHANDLE_MAX + 8) /* kEncodedLength */
+#define LDB_FOOTER_SIZE (2 * LDB_BLOCKHANDLE_MAX + 8) /* kEncodedLength */
 
 /* 1-byte type + 32-bit crc. */
-#define RDB_BLOCK_TRAILER_SIZE 5 /* kBlockTrailerSize */
+#define LDB_BLOCK_TRAILER_SIZE 5 /* kBlockTrailerSize */
 
 /* kTableMagicNumber was picked by running
       echo http://code.google.com/p/leveldb/ | sha1sum
    and taking the leading 64 bits. */
-#define RDB_TABLE_MAGIC UINT64_C(0xdb4775248b80fb57) /* kTableMagicNumber */
+#define LDB_TABLE_MAGIC UINT64_C(0xdb4775248b80fb57) /* kTableMagicNumber */
 
 /*
  * Types
  */
 
-struct rdb_rfile_s;
-struct rdb_readopt_s;
+struct ldb_rfile_s;
+struct ldb_readopt_s;
 
 /* BlockHandle is a pointer to the extent of a file that stores a data
    block or a meta block. */
-typedef struct rdb_blockhandle_s {
+typedef struct ldb_blockhandle_s {
   uint64_t offset;
   uint64_t size;
-} rdb_blockhandle_t;
+} ldb_blockhandle_t;
 
 /* Footer encapsulates the fixed information stored at the tail
    end of every table file. */
-typedef struct rdb_footer_s {
-  rdb_blockhandle_t metaindex_handle;
-  rdb_blockhandle_t index_handle;
-} rdb_footer_t;
+typedef struct ldb_footer_s {
+  ldb_blockhandle_t metaindex_handle;
+  ldb_blockhandle_t index_handle;
+} ldb_footer_t;
 
-typedef struct rdb_blockcontents_s {
-  rdb_slice_t data;    /* Actual contents of data. */
+typedef struct ldb_blockcontents_s {
+  ldb_slice_t data;    /* Actual contents of data. */
   int cachable;        /* True iff data can be cached. */
   int heap_allocated;  /* True iff caller should free() data.data. */
-} rdb_blockcontents_t;
+} ldb_blockcontents_t;
 
 /*
  * Block Handle
  */
 
 void
-rdb_blockhandle_init(rdb_blockhandle_t *x);
+ldb_blockhandle_init(ldb_blockhandle_t *x);
 
 size_t
-rdb_blockhandle_size(const rdb_blockhandle_t *x);
+ldb_blockhandle_size(const ldb_blockhandle_t *x);
 
 uint8_t *
-rdb_blockhandle_write(uint8_t *zp, const rdb_blockhandle_t *x);
+ldb_blockhandle_write(uint8_t *zp, const ldb_blockhandle_t *x);
 
 void
-rdb_blockhandle_export(rdb_buffer_t *z, const rdb_blockhandle_t *x);
+ldb_blockhandle_export(ldb_buffer_t *z, const ldb_blockhandle_t *x);
 
 int
-rdb_blockhandle_read(rdb_blockhandle_t *z, const uint8_t **xp, size_t *xn);
+ldb_blockhandle_read(ldb_blockhandle_t *z, const uint8_t **xp, size_t *xn);
 
 int
-rdb_blockhandle_import(rdb_blockhandle_t *z, const rdb_slice_t *x);
+ldb_blockhandle_import(ldb_blockhandle_t *z, const ldb_slice_t *x);
 
 /*
  * Footer
  */
 
 void
-rdb_footer_init(rdb_footer_t *x);
+ldb_footer_init(ldb_footer_t *x);
 
 uint8_t *
-rdb_footer_write(uint8_t *zp, const rdb_footer_t *x);
+ldb_footer_write(uint8_t *zp, const ldb_footer_t *x);
 
 void
-rdb_footer_export(rdb_buffer_t *z, const rdb_footer_t *x);
+ldb_footer_export(ldb_buffer_t *z, const ldb_footer_t *x);
 
 int
-rdb_footer_read(rdb_footer_t *z, const uint8_t **xp, size_t *xn);
+ldb_footer_read(ldb_footer_t *z, const uint8_t **xp, size_t *xn);
 
 int
-rdb_footer_import(rdb_footer_t *z, const rdb_slice_t *x);
+ldb_footer_import(ldb_footer_t *z, const ldb_slice_t *x);
 
 /*
  * Block Contents
  */
 
 void
-rdb_blockcontents_init(rdb_blockcontents_t *x);
+ldb_blockcontents_init(ldb_blockcontents_t *x);
 
 /*
  * Block Read
  */
 
 int
-rdb_read_block(rdb_blockcontents_t *result,
-               struct rdb_rfile_s *file,
-               const struct rdb_readopt_s *options,
-               const rdb_blockhandle_t *handle);
+ldb_read_block(ldb_blockcontents_t *result,
+               struct ldb_rfile_s *file,
+               const struct ldb_readopt_s *options,
+               const ldb_blockhandle_t *handle);
 
-#endif /* RDB_TABLE_FORMAT_H */
+#endif /* LDB_TABLE_FORMAT_H */

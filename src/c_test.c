@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <rdb_c.h>
+#include <ldb_c.h>
 
 #include "util/extern.h"
 
@@ -175,10 +175,10 @@ static void leveldb_destroy_full(const leveldb_options_t *options,
   Free(&err);
 }
 
-RDB_EXTERN int
-rdb_test_c(void);
+LDB_EXTERN int
+ldb_test_c(void);
 
-int rdb_test_c(void) {
+int ldb_test_c(void) {
   leveldb_t* db;
   leveldb_comparator_t* cmp;
   leveldb_cache_t* cache;

@@ -4,8 +4,8 @@
  * https://github.com/chjj/rdb
  */
 
-#ifndef RDB_TESTUTIL_H
-#define RDB_TESTUTIL_H
+#ifndef LDB_TESTUTIL_H
+#define LDB_TESTUTIL_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -17,7 +17,7 @@
  * Types
  */
 
-struct rdb_rand_s;
+struct ldb_rand_s;
 
 /*
  * Assertions
@@ -27,7 +27,7 @@ struct rdb_rand_s;
 
 #define ASSERT(expr) do {                       \
   if (UNLIKELY(!(expr)))                        \
-    rdb_assert_fail(__FILE__, __LINE__, #expr); \
+    ldb_assert_fail(__FILE__, __LINE__, #expr); \
 } while (0)
 
 #define ASSERT_EQ(x, y) ASSERT(strcmp(x, y) == 0)
@@ -39,25 +39,25 @@ struct rdb_rand_s;
 
 /* Returns the random seed used at the start of the current test run. */
 uint32_t
-rdb_random_seed(void);
+ldb_random_seed(void);
 
 /* Store in *dst a random string of length "len" and return a slice that
    references the generated data. */
-rdb_slice_t *
-rdb_random_string(rdb_buffer_t *dst, struct rdb_rand_s *rnd, size_t len);
+ldb_slice_t *
+ldb_random_string(ldb_buffer_t *dst, struct ldb_rand_s *rnd, size_t len);
 
 /* Return a random key with the specified length that may contain interesting
    characters (e.g. \x00, \xff, etc.). */
-rdb_slice_t *
-rdb_random_key(rdb_buffer_t *dst, struct rdb_rand_s *rnd, size_t len);
+ldb_slice_t *
+ldb_random_key(ldb_buffer_t *dst, struct ldb_rand_s *rnd, size_t len);
 
 /* Store in *dst a string of length "len" that will compress to
    "N*compressed_fraction" bytes and return a slice that references
    the generated data. */
-rdb_slice_t *
-rdb_compressible_string(rdb_buffer_t *dst,
-                        struct rdb_rand_s *rnd,
+ldb_slice_t *
+ldb_compressible_string(ldb_buffer_t *dst,
+                        struct ldb_rand_s *rnd,
                         double compressed_fraction,
                         size_t len);
 
-#endif /* RDB_TESTUTIL_H */
+#endif /* LDB_TESTUTIL_H */

@@ -5,8 +5,8 @@
  */
 
 int
-rdb_test_skiplist(void);
+ldb_test_skiplist(void);
 
 int main(void) {
-  return rdb_test_skiplist();
+  return ldb_test_skiplist();
 }

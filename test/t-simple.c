@@ -13,115 +13,115 @@
 
 int
 main(void) {
-  rdb_dbopt_t opt = *rdb_dbopt_default;
-  rdb_slice_t key, val, ret;
+  ldb_dbopt_t opt = *ldb_dbopt_default;
+  ldb_slice_t key, val, ret;
   char path[1024];
   char kbuf[64];
   char vbuf[64];
-  rdb_batch_t b;
-  rdb_t *db;
+  ldb_batch_t b;
+  ldb_t *db;
   int i, rc;
 
-  ASSERT(rdb_test_filename(path, sizeof(path), "simpledb"));
+  ASSERT(ldb_test_filename(path, sizeof(path), "simpledb"));
 
-  rdb_destroy_db(path, 0);
+  ldb_destroy_db(path, 0);
 
   {
     opt.create_if_missing = 1;
     opt.error_if_exists = 1;
-    opt.filter_policy = rdb_bloom_default;
+    opt.filter_policy = ldb_bloom_default;
 
-    rc = rdb_open(path, &opt, &db);
+    rc = ldb_open(path, &opt, &db);
 
-    ASSERT(rc == RDB_OK);
+    ASSERT(rc == LDB_OK);
 
     {
-      rdb_batch_init(&b);
+      ldb_batch_init(&b);
 
       for (i = 0; i < 1000000; i++) {
         sprintf(kbuf, "hello %d padding padding paddi", rand());
         sprintf(vbuf, "world %d", i);
 
-        key = rdb_string(kbuf);
-        val = rdb_string(vbuf);
+        key = ldb_string(kbuf);
+        val = ldb_string(vbuf);
 
         if (i > 0 && (i % 1000) == 0) {
-          rc = rdb_write(db, &b, 0);
+          rc = ldb_write(db, &b, 0);
 
-          ASSERT(rc == RDB_OK);
+          ASSERT(rc == LDB_OK);
 
-          rdb_batch_reset(&b);
+          ldb_batch_reset(&b);
         }
 
-        rdb_batch_put(&b, &key, &val);
+        ldb_batch_put(&b, &key, &val);
 
-        ASSERT(rc == RDB_OK);
+        ASSERT(rc == LDB_OK);
       }
 
-      rc = rdb_write(db, &b, 0);
+      rc = ldb_write(db, &b, 0);
 
-      ASSERT(rc == RDB_OK);
+      ASSERT(rc == LDB_OK);
 
-      rdb_batch_clear(&b);
+      ldb_batch_clear(&b);
     }
 
     {
-      rc = rdb_get(db, &key, &ret, 0);
+      rc = ldb_get(db, &key, &ret, 0);
 
-      ASSERT(rc == RDB_OK);
-      ASSERT(rdb_compare(&ret, &val) == 0);
+      ASSERT(rc == LDB_OK);
+      ASSERT(ldb_compare(&ret, &val) == 0);
 
-      rdb_free(ret.data);
-    }
-
-    {
-      char *prop;
-
-      if (rdb_get_property(db, "leveldb.stats", &prop)) {
-        puts(prop);
-        rdb_free(prop);
-      }
+      ldb_free(ret.data);
     }
 
     {
       char *prop;
 
-      if (rdb_get_property(db, "leveldb.sstables", &prop)) {
+      if (ldb_get_property(db, "leveldb.stats", &prop)) {
         puts(prop);
-        rdb_free(prop);
+        ldb_free(prop);
       }
     }
 
-    rdb_close(db);
+    {
+      char *prop;
+
+      if (ldb_get_property(db, "leveldb.sstables", &prop)) {
+        puts(prop);
+        ldb_free(prop);
+      }
+    }
+
+    ldb_close(db);
   }
 
   {
     opt.create_if_missing = 0;
     opt.error_if_exists = 0;
 
-    rc = rdb_open(path, &opt, &db);
+    rc = ldb_open(path, &opt, &db);
 
-    ASSERT(rc == RDB_OK);
+    ASSERT(rc == LDB_OK);
 
     {
-      ret = rdb_slice(0, 0);
-      rc = rdb_get(db, &key, &ret, 0);
+      ret = ldb_slice(0, 0);
+      rc = ldb_get(db, &key, &ret, 0);
 
-      ASSERT(rc == RDB_OK);
-      ASSERT(rdb_compare(&ret, &val) == 0);
+      ASSERT(rc == LDB_OK);
+      ASSERT(ldb_compare(&ret, &val) == 0);
 
-      rdb_free(ret.data);
+      ldb_free(ret.data);
     }
 
     {
-      rdb_iter_t *it = rdb_iterator(db, 0);
+      ldb_iter_t *it = ldb_iterator(db, 0);
       int total = 0;
 
-      rdb_iter_seek_first(it);
+      ldb_iter_seek_first(it);
 
-      while (rdb_iter_valid(it)) {
-        rdb_slice_t k = rdb_iter_key(it);
-        rdb_slice_t v = rdb_iter_value(it);
+      while (ldb_iter_valid(it)) {
+        ldb_slice_t k = ldb_iter_key(it);
+        ldb_slice_t v = ldb_iter_value(it);
 
         ASSERT(k.size >= 7);
         ASSERT(v.size >= 7);
@@ -129,21 +129,21 @@ main(void) {
         ASSERT(memcmp(k.data, "hello ", 6) == 0);
         ASSERT(memcmp(v.data, "world ", 6) == 0);
 
-        rdb_iter_next(it);
+        ldb_iter_next(it);
 
         total++;
       }
 
       ASSERT(total >= 999000);
-      ASSERT(rdb_iter_status(it) == RDB_OK);
+      ASSERT(ldb_iter_status(it) == LDB_OK);
 
-      rdb_iter_destroy(it);
+      ldb_iter_destroy(it);
     }
 
-    rdb_close(db);
+    ldb_close(db);
   }
 
-  rdb_destroy_db(path, 0);
+  ldb_destroy_db(path, 0);
 
   return 0;
 }

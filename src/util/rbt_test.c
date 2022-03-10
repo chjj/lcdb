@@ -24,11 +24,11 @@ my_clear(rb_node_t *node) {
   free(node->key.p);
 }
 
-RDB_EXTERN int
-rdb_test_rbt(void);
+LDB_EXTERN int
+ldb_test_rbt(void);
 
 int
-rdb_test_rbt(void) {
+ldb_test_rbt(void) {
   rb_tree_t tree;
   void *item;
   int i;

@@ -26,14 +26,14 @@
 
 typedef struct fftest_s {
   int disjoint_sorted_files;
-  rdb_vector_t files;
+  ldb_vector_t files;
 } fftest_t;
 
 static void
 fftest_init(fftest_t *t) {
   t->disjoint_sorted_files = 1;
 
-  rdb_vector_init(&t->files);
+  ldb_vector_init(&t->files);
 }
 
 static void
@@ -41,27 +41,27 @@ fftest_clear(fftest_t *t) {
   size_t i;
 
   for (i = 0; i < t->files.length; i++)
-    rdb_filemeta_destroy(t->files.items[i]);
+    ldb_filemeta_destroy(t->files.items[i]);
 
-  rdb_vector_clear(&t->files);
+  ldb_vector_clear(&t->files);
 }
 
 static void
 fftest_add4(fftest_t *t,
             const char *smallest,
             const char *largest,
-            rdb_seqnum_t smallest_seq,
-            rdb_seqnum_t largest_seq) {
-  rdb_filemeta_t *f = rdb_filemeta_create();
-  rdb_slice_t sk = rdb_string(smallest);
-  rdb_slice_t lk = rdb_string(largest);
+            ldb_seqnum_t smallest_seq,
+            ldb_seqnum_t largest_seq) {
+  ldb_filemeta_t *f = ldb_filemeta_create();
+  ldb_slice_t sk = ldb_string(smallest);
+  ldb_slice_t lk = ldb_string(largest);
 
   f->number = t->files.length + 1;
 
-  rdb_ikey_set(&f->smallest, &sk, smallest_seq, RDB_TYPE_VALUE);
-  rdb_ikey_set(&f->largest, &lk, largest_seq, RDB_TYPE_VALUE);
+  ldb_ikey_set(&f->smallest, &sk, smallest_seq, LDB_TYPE_VALUE);
+  ldb_ikey_set(&f->largest, &lk, largest_seq, LDB_TYPE_VALUE);
 
-  rdb_vector_push(&t->files, f);
+  ldb_vector_push(&t->files, f);
 }
 
 static void
@@ -71,39 +71,39 @@ fftest_add(fftest_t *t, const char *smallest, const char *largest) {
 
 static int
 fftest_find(fftest_t *t, const char *key) {
-  rdb_slice_t k = rdb_string(key);
-  rdb_comparator_t cmp;
-  rdb_ikey_t target;
+  ldb_slice_t k = ldb_string(key);
+  ldb_comparator_t cmp;
+  ldb_ikey_t target;
   int r;
 
-  rdb_ikc_init(&cmp, rdb_bytewise_comparator);
-  rdb_ikey_init(&target);
+  ldb_ikc_init(&cmp, ldb_bytewise_comparator);
+  ldb_ikey_init(&target);
 
-  rdb_ikey_set(&target, &k, 100, RDB_TYPE_VALUE);
+  ldb_ikey_set(&target, &k, 100, LDB_TYPE_VALUE);
 
   r = find_file(&cmp, &t->files, &target);
 
-  rdb_ikey_clear(&target);
+  ldb_ikey_clear(&target);
 
   return r;
 }
 
 static int
 fftest_overlaps(fftest_t *t, const char *smallest, const char *largest) {
-  rdb_slice_t sbuf, lbuf;
-  rdb_slice_t *s = NULL;
-  rdb_slice_t *l = NULL;
-  rdb_comparator_t cmp;
+  ldb_slice_t sbuf, lbuf;
+  ldb_slice_t *s = NULL;
+  ldb_slice_t *l = NULL;
+  ldb_comparator_t cmp;
 
-  rdb_ikc_init(&cmp, rdb_bytewise_comparator);
+  ldb_ikc_init(&cmp, ldb_bytewise_comparator);
 
   if (smallest != NULL) {
-    sbuf = rdb_string(smallest);
+    sbuf = ldb_string(smallest);
     s = &sbuf;
   }
 
   if (largest != NULL) {
-    lbuf = rdb_string(largest);
+    lbuf = ldb_string(largest);
     l = &lbuf;
   }
 
@@ -116,18 +116,18 @@ fftest_overlaps(fftest_t *t, const char *smallest, const char *largest) {
  */
 
 typedef struct addtest_s {
-  rdb_comparator_t icmp;
-  rdb_vector_t level_files;
-  rdb_vector_t compaction_files;
-  rdb_vector_t all_files;
+  ldb_comparator_t icmp;
+  ldb_vector_t level_files;
+  ldb_vector_t compaction_files;
+  ldb_vector_t all_files;
 } addtest_t;
 
 static void
 addtest_init(addtest_t *t) {
-  rdb_ikc_init(&t->icmp, rdb_bytewise_comparator);
-  rdb_vector_init(&t->level_files);
-  rdb_vector_init(&t->compaction_files);
-  rdb_vector_init(&t->all_files);
+  ldb_ikc_init(&t->icmp, ldb_bytewise_comparator);
+  ldb_vector_init(&t->level_files);
+  ldb_vector_init(&t->compaction_files);
+  ldb_vector_init(&t->all_files);
 }
 
 static void
@@ -135,26 +135,26 @@ addtest_clear(addtest_t *t) {
   size_t i;
 
   for (i = 0; i < t->all_files.length; i++)
-    rdb_filemeta_destroy(t->all_files.items[i]);
+    ldb_filemeta_destroy(t->all_files.items[i]);
 
-  rdb_vector_clear(&t->level_files);
-  rdb_vector_clear(&t->compaction_files);
-  rdb_vector_clear(&t->all_files);
+  ldb_vector_clear(&t->level_files);
+  ldb_vector_clear(&t->compaction_files);
+  ldb_vector_clear(&t->all_files);
 }
 
-static rdb_filemeta_t *
+static ldb_filemeta_t *
 addtest_file(addtest_t *t,
             uint64_t number,
-            const rdb_ikey_t *smallest,
-            const rdb_ikey_t *largest) {
-  rdb_filemeta_t *f = rdb_filemeta_create();
+            const ldb_ikey_t *smallest,
+            const ldb_ikey_t *largest) {
+  ldb_filemeta_t *f = ldb_filemeta_create();
 
   f->number = number;
 
-  rdb_ikey_copy(&f->smallest, smallest);
-  rdb_ikey_copy(&f->largest, largest);
+  ldb_ikey_copy(&f->smallest, smallest);
+  ldb_ikey_copy(&f->largest, largest);
 
-  rdb_vector_push(&t->all_files, f);
+  ldb_vector_push(&t->all_files, f);
 
   return f;
 }
@@ -312,19 +312,19 @@ test_boundary_empty_file_sets(addtest_t *t) {
 
 static void
 test_boundary_empty_level_files(addtest_t *t) {
-  rdb_slice_t k100 = rdb_string("100");
-  rdb_filemeta_t *f1;
-  rdb_ikey_t k0, k1;
+  ldb_slice_t k100 = ldb_string("100");
+  ldb_filemeta_t *f1;
+  ldb_ikey_t k0, k1;
 
-  rdb_ikey_init(&k0);
-  rdb_ikey_init(&k1);
+  ldb_ikey_init(&k0);
+  ldb_ikey_init(&k1);
 
-  rdb_ikey_set(&k0, &k100, 2, RDB_TYPE_VALUE);
-  rdb_ikey_set(&k1, &k100, 1, RDB_TYPE_VALUE);
+  ldb_ikey_set(&k0, &k100, 2, LDB_TYPE_VALUE);
+  ldb_ikey_set(&k1, &k100, 1, LDB_TYPE_VALUE);
 
   f1 = addtest_file(t, 1, &k0, &k1);
 
-  rdb_vector_push(&t->compaction_files, f1);
+  ldb_vector_push(&t->compaction_files, f1);
 
   add_boundary_inputs(&t->icmp, &t->level_files, &t->compaction_files);
 
@@ -332,25 +332,25 @@ test_boundary_empty_level_files(addtest_t *t) {
   ASSERT(f1 == t->compaction_files.items[0]);
   ASSERT(t->level_files.length == 0);
 
-  rdb_ikey_clear(&k0);
-  rdb_ikey_clear(&k1);
+  ldb_ikey_clear(&k0);
+  ldb_ikey_clear(&k1);
 }
 
 static void
 test_boundary_empty_compaction_files(addtest_t *t) {
-  rdb_slice_t k100 = rdb_string("100");
-  rdb_filemeta_t *f1;
-  rdb_ikey_t k0, k1;
+  ldb_slice_t k100 = ldb_string("100");
+  ldb_filemeta_t *f1;
+  ldb_ikey_t k0, k1;
 
-  rdb_ikey_init(&k0);
-  rdb_ikey_init(&k1);
+  ldb_ikey_init(&k0);
+  ldb_ikey_init(&k1);
 
-  rdb_ikey_set(&k0, &k100, 2, RDB_TYPE_VALUE);
-  rdb_ikey_set(&k1, &k100, 1, RDB_TYPE_VALUE);
+  ldb_ikey_set(&k0, &k100, 2, LDB_TYPE_VALUE);
+  ldb_ikey_set(&k1, &k100, 1, LDB_TYPE_VALUE);
 
   f1 = addtest_file(t, 1, &k0, &k1);
 
-  rdb_vector_push(&t->level_files, f1);
+  ldb_vector_push(&t->level_files, f1);
 
   add_boundary_inputs(&t->icmp, &t->level_files, &t->compaction_files);
 
@@ -358,80 +358,80 @@ test_boundary_empty_compaction_files(addtest_t *t) {
   ASSERT(1 == t->level_files.length);
   ASSERT(f1 == t->level_files.items[0]);
 
-  rdb_ikey_clear(&k0);
-  rdb_ikey_clear(&k1);
+  ldb_ikey_clear(&k0);
+  ldb_ikey_clear(&k1);
 }
 
 static void
 test_boundary_no_boundary_files(addtest_t *t) {
-  rdb_slice_t k100 = rdb_string("100");
-  rdb_slice_t k200 = rdb_string("200");
-  rdb_slice_t k300 = rdb_string("300");
-  rdb_filemeta_t *f1, *f2, *f3;
-  rdb_ikey_t k0, k1;
+  ldb_slice_t k100 = ldb_string("100");
+  ldb_slice_t k200 = ldb_string("200");
+  ldb_slice_t k300 = ldb_string("300");
+  ldb_filemeta_t *f1, *f2, *f3;
+  ldb_ikey_t k0, k1;
 
-  rdb_ikey_init(&k0);
-  rdb_ikey_init(&k1);
+  ldb_ikey_init(&k0);
+  ldb_ikey_init(&k1);
 
-  rdb_ikey_set(&k0, &k100, 2, RDB_TYPE_VALUE);
-  rdb_ikey_set(&k1, &k100, 1, RDB_TYPE_VALUE);
+  ldb_ikey_set(&k0, &k100, 2, LDB_TYPE_VALUE);
+  ldb_ikey_set(&k1, &k100, 1, LDB_TYPE_VALUE);
 
   f1 = addtest_file(t, 1, &k0, &k1);
 
-  rdb_ikey_set(&k0, &k200, 2, RDB_TYPE_VALUE);
-  rdb_ikey_set(&k1, &k200, 1, RDB_TYPE_VALUE);
+  ldb_ikey_set(&k0, &k200, 2, LDB_TYPE_VALUE);
+  ldb_ikey_set(&k1, &k200, 1, LDB_TYPE_VALUE);
 
   f2 = addtest_file(t, 1, &k0, &k1);
 
-  rdb_ikey_set(&k0, &k300, 2, RDB_TYPE_VALUE);
-  rdb_ikey_set(&k1, &k300, 1, RDB_TYPE_VALUE);
+  ldb_ikey_set(&k0, &k300, 2, LDB_TYPE_VALUE);
+  ldb_ikey_set(&k1, &k300, 1, LDB_TYPE_VALUE);
 
   f3 = addtest_file(t, 1, &k0, &k1);
 
-  rdb_vector_push(&t->level_files, f3);
-  rdb_vector_push(&t->level_files, f2);
-  rdb_vector_push(&t->level_files, f1);
-  rdb_vector_push(&t->compaction_files, f2);
-  rdb_vector_push(&t->compaction_files, f3);
+  ldb_vector_push(&t->level_files, f3);
+  ldb_vector_push(&t->level_files, f2);
+  ldb_vector_push(&t->level_files, f1);
+  ldb_vector_push(&t->compaction_files, f2);
+  ldb_vector_push(&t->compaction_files, f3);
 
   add_boundary_inputs(&t->icmp, &t->level_files, &t->compaction_files);
 
   ASSERT(2 == t->compaction_files.length);
 
-  rdb_ikey_clear(&k0);
-  rdb_ikey_clear(&k1);
+  ldb_ikey_clear(&k0);
+  ldb_ikey_clear(&k1);
 }
 
 static void
 test_boundary_one_boundary_files(addtest_t *t) {
-  rdb_slice_t k100 = rdb_string("100");
-  rdb_slice_t k200 = rdb_string("200");
-  rdb_slice_t k300 = rdb_string("300");
-  rdb_filemeta_t *f1, *f2, *f3;
-  rdb_ikey_t k0, k1;
+  ldb_slice_t k100 = ldb_string("100");
+  ldb_slice_t k200 = ldb_string("200");
+  ldb_slice_t k300 = ldb_string("300");
+  ldb_filemeta_t *f1, *f2, *f3;
+  ldb_ikey_t k0, k1;
 
-  rdb_ikey_init(&k0);
-  rdb_ikey_init(&k1);
+  ldb_ikey_init(&k0);
+  ldb_ikey_init(&k1);
 
-  rdb_ikey_set(&k0, &k100, 3, RDB_TYPE_VALUE);
-  rdb_ikey_set(&k1, &k100, 2, RDB_TYPE_VALUE);
+  ldb_ikey_set(&k0, &k100, 3, LDB_TYPE_VALUE);
+  ldb_ikey_set(&k1, &k100, 2, LDB_TYPE_VALUE);
 
   f1 = addtest_file(t, 1, &k0, &k1);
 
-  rdb_ikey_set(&k0, &k100, 1, RDB_TYPE_VALUE);
-  rdb_ikey_set(&k1, &k200, 3, RDB_TYPE_VALUE);
+  ldb_ikey_set(&k0, &k100, 1, LDB_TYPE_VALUE);
+  ldb_ikey_set(&k1, &k200, 3, LDB_TYPE_VALUE);
 
   f2 = addtest_file(t, 1, &k0, &k1);
 
-  rdb_ikey_set(&k0, &k300, 2, RDB_TYPE_VALUE);
-  rdb_ikey_set(&k1, &k300, 1, RDB_TYPE_VALUE);
+  ldb_ikey_set(&k0, &k300, 2, LDB_TYPE_VALUE);
+  ldb_ikey_set(&k1, &k300, 1, LDB_TYPE_VALUE);
 
   f3 = addtest_file(t, 1, &k0, &k1);
 
-  rdb_vector_push(&t->level_files, f3);
-  rdb_vector_push(&t->level_files, f2);
-  rdb_vector_push(&t->level_files, f1);
-  rdb_vector_push(&t->compaction_files, f1);
+  ldb_vector_push(&t->level_files, f3);
+  ldb_vector_push(&t->level_files, f2);
+  ldb_vector_push(&t->level_files, f1);
+  ldb_vector_push(&t->compaction_files, f1);
 
   add_boundary_inputs(&t->icmp, &t->level_files, &t->compaction_files);
 
@@ -439,39 +439,39 @@ test_boundary_one_boundary_files(addtest_t *t) {
   ASSERT(f1 == t->compaction_files.items[0]);
   ASSERT(f2 == t->compaction_files.items[1]);
 
-  rdb_ikey_clear(&k0);
-  rdb_ikey_clear(&k1);
+  ldb_ikey_clear(&k0);
+  ldb_ikey_clear(&k1);
 }
 
 static void
 test_boundary_two_boundary_files(addtest_t *t) {
-  rdb_slice_t k100 = rdb_string("100");
-  rdb_slice_t k300 = rdb_string("300");
-  rdb_filemeta_t *f1, *f2, *f3;
-  rdb_ikey_t k0, k1;
+  ldb_slice_t k100 = ldb_string("100");
+  ldb_slice_t k300 = ldb_string("300");
+  ldb_filemeta_t *f1, *f2, *f3;
+  ldb_ikey_t k0, k1;
 
-  rdb_ikey_init(&k0);
-  rdb_ikey_init(&k1);
+  ldb_ikey_init(&k0);
+  ldb_ikey_init(&k1);
 
-  rdb_ikey_set(&k0, &k100, 6, RDB_TYPE_VALUE);
-  rdb_ikey_set(&k1, &k100, 5, RDB_TYPE_VALUE);
+  ldb_ikey_set(&k0, &k100, 6, LDB_TYPE_VALUE);
+  ldb_ikey_set(&k1, &k100, 5, LDB_TYPE_VALUE);
 
   f1 = addtest_file(t, 1, &k0, &k1);
 
-  rdb_ikey_set(&k0, &k100, 2, RDB_TYPE_VALUE);
-  rdb_ikey_set(&k1, &k300, 1, RDB_TYPE_VALUE);
+  ldb_ikey_set(&k0, &k100, 2, LDB_TYPE_VALUE);
+  ldb_ikey_set(&k1, &k300, 1, LDB_TYPE_VALUE);
 
   f2 = addtest_file(t, 1, &k0, &k1);
 
-  rdb_ikey_set(&k0, &k100, 4, RDB_TYPE_VALUE);
-  rdb_ikey_set(&k1, &k100, 3, RDB_TYPE_VALUE);
+  ldb_ikey_set(&k0, &k100, 4, LDB_TYPE_VALUE);
+  ldb_ikey_set(&k1, &k100, 3, LDB_TYPE_VALUE);
 
   f3 = addtest_file(t, 1, &k0, &k1);
 
-  rdb_vector_push(&t->level_files, f2);
-  rdb_vector_push(&t->level_files, f3);
-  rdb_vector_push(&t->level_files, f1);
-  rdb_vector_push(&t->compaction_files, f1);
+  ldb_vector_push(&t->level_files, f2);
+  ldb_vector_push(&t->level_files, f3);
+  ldb_vector_push(&t->level_files, f1);
+  ldb_vector_push(&t->compaction_files, f1);
 
   add_boundary_inputs(&t->icmp, &t->level_files, &t->compaction_files);
 
@@ -480,45 +480,45 @@ test_boundary_two_boundary_files(addtest_t *t) {
   ASSERT(f3 == t->compaction_files.items[1]);
   ASSERT(f2 == t->compaction_files.items[2]);
 
-  rdb_ikey_clear(&k0);
-  rdb_ikey_clear(&k1);
+  ldb_ikey_clear(&k0);
+  ldb_ikey_clear(&k1);
 }
 
 static void
 test_boundary_disjoin_file_pointers(addtest_t *t) {
-  rdb_slice_t k100 = rdb_string("100");
-  rdb_slice_t k300 = rdb_string("300");
-  rdb_filemeta_t *f1, *f2, *f3, *f4;
-  rdb_ikey_t k0, k1;
+  ldb_slice_t k100 = ldb_string("100");
+  ldb_slice_t k300 = ldb_string("300");
+  ldb_filemeta_t *f1, *f2, *f3, *f4;
+  ldb_ikey_t k0, k1;
 
-  rdb_ikey_init(&k0);
-  rdb_ikey_init(&k1);
+  ldb_ikey_init(&k0);
+  ldb_ikey_init(&k1);
 
-  rdb_ikey_set(&k0, &k100, 6, RDB_TYPE_VALUE);
-  rdb_ikey_set(&k1, &k100, 5, RDB_TYPE_VALUE);
+  ldb_ikey_set(&k0, &k100, 6, LDB_TYPE_VALUE);
+  ldb_ikey_set(&k1, &k100, 5, LDB_TYPE_VALUE);
 
   f1 = addtest_file(t, 1, &k0, &k1);
 
-  rdb_ikey_set(&k0, &k100, 6, RDB_TYPE_VALUE);
-  rdb_ikey_set(&k1, &k100, 5, RDB_TYPE_VALUE);
+  ldb_ikey_set(&k0, &k100, 6, LDB_TYPE_VALUE);
+  ldb_ikey_set(&k1, &k100, 5, LDB_TYPE_VALUE);
 
   f2 = addtest_file(t, 1, &k0, &k1);
 
-  rdb_ikey_set(&k0, &k100, 2, RDB_TYPE_VALUE);
-  rdb_ikey_set(&k1, &k300, 1, RDB_TYPE_VALUE);
+  ldb_ikey_set(&k0, &k100, 2, LDB_TYPE_VALUE);
+  ldb_ikey_set(&k1, &k300, 1, LDB_TYPE_VALUE);
 
   f3 = addtest_file(t, 1, &k0, &k1);
 
-  rdb_ikey_set(&k0, &k100, 4, RDB_TYPE_VALUE);
-  rdb_ikey_set(&k1, &k100, 3, RDB_TYPE_VALUE);
+  ldb_ikey_set(&k0, &k100, 4, LDB_TYPE_VALUE);
+  ldb_ikey_set(&k1, &k100, 3, LDB_TYPE_VALUE);
 
   f4 = addtest_file(t, 1, &k0, &k1);
 
-  rdb_vector_push(&t->level_files, f2);
-  rdb_vector_push(&t->level_files, f3);
-  rdb_vector_push(&t->level_files, f4);
+  ldb_vector_push(&t->level_files, f2);
+  ldb_vector_push(&t->level_files, f3);
+  ldb_vector_push(&t->level_files, f4);
 
-  rdb_vector_push(&t->compaction_files, f1);
+  ldb_vector_push(&t->compaction_files, f1);
 
   add_boundary_inputs(&t->icmp, &t->level_files, &t->compaction_files);
 
@@ -527,19 +527,19 @@ test_boundary_disjoin_file_pointers(addtest_t *t) {
   ASSERT(f4 == t->compaction_files.items[1]);
   ASSERT(f3 == t->compaction_files.items[2]);
 
-  rdb_ikey_clear(&k0);
-  rdb_ikey_clear(&k1);
+  ldb_ikey_clear(&k0);
+  ldb_ikey_clear(&k1);
 }
 
 /*
  * Execute
  */
 
-RDB_EXTERN int
-rdb_test_version_set(void);
+LDB_EXTERN int
+ldb_test_version_set(void);
 
 int
-rdb_test_version_set(void) {
+ldb_test_version_set(void) {
   static void (*fftests[])(fftest_t *) = {
     test_find_file_empty,
     test_find_file_single,

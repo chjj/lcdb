@@ -4,8 +4,8 @@
  * https://github.com/chjj/rdb
  */
 
-#ifndef RDB_ENV_H
-#define RDB_ENV_H
+#ifndef LDB_ENV_H
+#define LDB_ENV_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -17,88 +17,88 @@
  * Constants
  */
 
-#define RDB_PATH_MAX 1024
+#define LDB_PATH_MAX 1024
 
 /*
  * Types
  */
 
-typedef struct rdb_filelock_s rdb_filelock_t;
-typedef struct rdb_logger_s rdb_logger_t;
-typedef struct rdb_rfile_s rdb_rfile_t;
-typedef struct rdb_wfile_s rdb_wfile_t;
+typedef struct ldb_filelock_s ldb_filelock_t;
+typedef struct ldb_logger_s ldb_logger_t;
+typedef struct ldb_rfile_s ldb_rfile_t;
+typedef struct ldb_wfile_s ldb_wfile_t;
 
 /*
  * Filesystem
  */
 
 int
-rdb_path_absolute(char *buf, size_t size, const char *name);
+ldb_path_absolute(char *buf, size_t size, const char *name);
 
 int
-rdb_file_exists(const char *filename);
+ldb_file_exists(const char *filename);
 
 int
-rdb_get_children(const char *path, char ***out);
+ldb_get_children(const char *path, char ***out);
 
 void
-rdb_free_children(char **list, int len);
+ldb_free_children(char **list, int len);
 
 int
-rdb_remove_file(const char *filename);
+ldb_remove_file(const char *filename);
 
 int
-rdb_create_dir(const char *dirname);
+ldb_create_dir(const char *dirname);
 
 int
-rdb_remove_dir(const char *dirname);
+ldb_remove_dir(const char *dirname);
 
 int
-rdb_get_file_size(const char *filename, uint64_t *size);
+ldb_get_file_size(const char *filename, uint64_t *size);
 
 int
-rdb_rename_file(const char *from, const char *to);
+ldb_rename_file(const char *from, const char *to);
 
 int
-rdb_lock_file(const char *filename, rdb_filelock_t **lock);
+ldb_lock_file(const char *filename, ldb_filelock_t **lock);
 
 int
-rdb_unlock_file(rdb_filelock_t *lock);
+ldb_unlock_file(ldb_filelock_t *lock);
 
-RDB_EXTERN int
-rdb_test_directory(char *result, size_t size);
+LDB_EXTERN int
+ldb_test_directory(char *result, size_t size);
 
-RDB_EXTERN int
-rdb_test_filename(char *result, size_t size, const char *name);
+LDB_EXTERN int
+ldb_test_filename(char *result, size_t size, const char *name);
 
 /*
  * Readable File
  */
 
 int
-rdb_seqfile_create(const char *filename, rdb_rfile_t **file);
+ldb_seqfile_create(const char *filename, ldb_rfile_t **file);
 
 int
-rdb_randfile_create(const char *filename, rdb_rfile_t **file, int use_mmap);
+ldb_randfile_create(const char *filename, ldb_rfile_t **file, int use_mmap);
 
 void
-rdb_rfile_destroy(rdb_rfile_t *file);
+ldb_rfile_destroy(ldb_rfile_t *file);
 
 int
-rdb_rfile_mapped(rdb_rfile_t *file);
+ldb_rfile_mapped(ldb_rfile_t *file);
 
 int
-rdb_rfile_read(rdb_rfile_t *file,
-               rdb_slice_t *result,
+ldb_rfile_read(ldb_rfile_t *file,
+               ldb_slice_t *result,
                void *buf,
                size_t count);
 
 int
-rdb_rfile_skip(rdb_rfile_t *file, uint64_t offset);
+ldb_rfile_skip(ldb_rfile_t *file, uint64_t offset);
 
 int
-rdb_rfile_pread(rdb_rfile_t *file,
-                rdb_slice_t *result,
+ldb_rfile_pread(ldb_rfile_t *file,
+                ldb_slice_t *result,
                 void *buf,
                 size_t count,
                 uint64_t offset);
@@ -108,57 +108,57 @@ rdb_rfile_pread(rdb_rfile_t *file,
  */
 
 int
-rdb_truncfile_create(const char *filename, rdb_wfile_t **file);
+ldb_truncfile_create(const char *filename, ldb_wfile_t **file);
 
 int
-rdb_appendfile_create(const char *filename, rdb_wfile_t **file);
+ldb_appendfile_create(const char *filename, ldb_wfile_t **file);
 
 void
-rdb_wfile_destroy(rdb_wfile_t *file);
+ldb_wfile_destroy(ldb_wfile_t *file);
 
 int
-rdb_wfile_close(rdb_wfile_t *file);
+ldb_wfile_close(ldb_wfile_t *file);
 
 int
-rdb_wfile_append(rdb_wfile_t *file, const rdb_slice_t *data);
+ldb_wfile_append(ldb_wfile_t *file, const ldb_slice_t *data);
 
 int
-rdb_wfile_flush(rdb_wfile_t *file);
+ldb_wfile_flush(ldb_wfile_t *file);
 
 int
-rdb_wfile_sync(rdb_wfile_t *file);
+ldb_wfile_sync(ldb_wfile_t *file);
 
 /*
  * Logging
  */
 
-RDB_EXTERN int
-rdb_logger_open(const char *filename, rdb_logger_t **result);
+LDB_EXTERN int
+ldb_logger_open(const char *filename, ldb_logger_t **result);
 
-RDB_EXTERN void
-rdb_logger_destroy(rdb_logger_t *logger);
+LDB_EXTERN void
+ldb_logger_destroy(ldb_logger_t *logger);
 
-RDB_EXTERN void
-rdb_log(rdb_logger_t *logger, const char *fmt, ...);
+LDB_EXTERN void
+ldb_log(ldb_logger_t *logger, const char *fmt, ...);
 
 /*
  * Time
  */
 
 int64_t
-rdb_now_usec(void);
+ldb_now_usec(void);
 
 void
-rdb_sleep_usec(int64_t usec);
+ldb_sleep_usec(int64_t usec);
 
 /*
  * Extra
  */
 
 int
-rdb_write_file(const char *fname, const rdb_slice_t *data, int should_sync);
+ldb_write_file(const char *fname, const ldb_slice_t *data, int should_sync);
 
 int
-rdb_read_file(const char *fname, rdb_buffer_t *data);
+ldb_read_file(const char *fname, ldb_buffer_t *data);
 
-#endif /* RDB_ENV_H */
+#endif /* LDB_ENV_H */

@@ -4,8 +4,8 @@
  * https://github.com/chjj/rdb
  */
 
-#ifndef RDB_VECTOR_H
-#define RDB_VECTOR_H
+#ifndef LDB_VECTOR_H
+#define LDB_VECTOR_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -19,40 +19,40 @@ extern "C" {
  */
 
 void
-rdb_vector_init(rdb_vector_t *z);
+ldb_vector_init(ldb_vector_t *z);
 
 void
-rdb_vector_clear(rdb_vector_t *z);
+ldb_vector_clear(ldb_vector_t *z);
 
 void
-rdb_vector_reset(rdb_vector_t *z);
+ldb_vector_reset(ldb_vector_t *z);
 
 void
-rdb_vector_grow(rdb_vector_t *z, size_t zn);
+ldb_vector_grow(ldb_vector_t *z, size_t zn);
 
 void
-rdb_vector_push(rdb_vector_t *z, const void *x);
+ldb_vector_push(ldb_vector_t *z, const void *x);
 
 void *
-rdb_vector_pop(rdb_vector_t *z);
+ldb_vector_pop(ldb_vector_t *z);
 
 void *
-rdb_vector_top(const rdb_vector_t *z);
+ldb_vector_top(const ldb_vector_t *z);
 
 void
-rdb_vector_resize(rdb_vector_t *z, size_t zn);
+ldb_vector_resize(ldb_vector_t *z, size_t zn);
 
 void
-rdb_vector_copy(rdb_vector_t *z, const rdb_vector_t *x);
+ldb_vector_copy(ldb_vector_t *z, const ldb_vector_t *x);
 
 void
-rdb_vector_swap(rdb_vector_t *x, rdb_vector_t *y);
+ldb_vector_swap(ldb_vector_t *x, ldb_vector_t *y);
 
 void
-rdb_vector_sort(rdb_vector_t *z, int (*cmp)(void *, void *));
+ldb_vector_sort(ldb_vector_t *z, int (*cmp)(void *, void *));
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* RDB_VECTOR_H */
+#endif /* LDB_VECTOR_H */

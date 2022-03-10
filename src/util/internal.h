@@ -4,8 +4,8 @@
  * https://github.com/chjj/rdb
  */
 
-#ifndef RDB_INTERNAL_H
-#define RDB_INTERNAL_H
+#ifndef LDB_INTERNAL_H
+#define LDB_INTERNAL_H
 
 #include <stddef.h>
 #include "extern.h"
@@ -15,14 +15,14 @@
  */
 
 #if defined(__cplusplus)
-#  define RDB_STDC_VERSION 0L
-#  define RDB_CPP_VERSION (__cplusplus + 0L)
+#  define LDB_STDC_VERSION 0L
+#  define LDB_CPP_VERSION (__cplusplus + 0L)
 #elif defined(__STDC_VERSION__)
-#  define RDB_STDC_VERSION __STDC_VERSION__
-#  define RDB_CPP_VERSION 0L
+#  define LDB_STDC_VERSION __STDC_VERSION__
+#  define LDB_CPP_VERSION 0L
 #else
-#  define RDB_STDC_VERSION 0L
-#  define RDB_CPP_VERSION 0L
+#  define LDB_STDC_VERSION 0L
+#  define LDB_CPP_VERSION 0L
 #endif
 
 /*
@@ -31,10 +31,10 @@
 
 #if defined(__GNUC__) && defined(__GNUC_MINOR__) && !defined(__TINYC__) \
                                                  && !defined(__NWCC__)
-#  define RDB_GNUC_PREREQ(maj, min) \
+#  define LDB_GNUC_PREREQ(maj, min) \
     ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((maj) << 16) + (min))
 #else
-#  define RDB_GNUC_PREREQ(maj, min) 0
+#  define LDB_GNUC_PREREQ(maj, min) 0
 #endif
 
 /*
@@ -42,9 +42,9 @@
  */
 
 #if defined(__has_builtin) && !defined(__NWCC__)
-#  define RDB_HAS_BUILTIN __has_builtin
+#  define LDB_HAS_BUILTIN __has_builtin
 #else
-#  define RDB_HAS_BUILTIN(x) 0
+#  define LDB_HAS_BUILTIN(x) 0
 #endif
 
 /*
@@ -54,7 +54,7 @@
 #undef LIKELY
 #undef UNLIKELY
 
-#if RDB_GNUC_PREREQ(3, 0) || RDB_HAS_BUILTIN(__builtin_expect)
+#if LDB_GNUC_PREREQ(3, 0) || LDB_HAS_BUILTIN(__builtin_expect)
 #  define LIKELY(x) __builtin_expect(x, 1)
 #  define UNLIKELY(x) __builtin_expect(x, 0)
 #else
@@ -68,19 +68,19 @@
 
 #undef STATIC_ASSERT
 
-#if RDB_STDC_VERSION >= 201112L && !defined(__chibicc__)
+#if LDB_STDC_VERSION >= 201112L && !defined(__chibicc__)
 #  define STATIC_ASSERT(expr) _Static_assert(expr, "check failed")
-#elif RDB_CPP_VERSION >= 201703L
+#elif LDB_CPP_VERSION >= 201703L
 #  define STATIC_ASSERT(expr) static_assert(expr)
-#elif RDB_CPP_VERSION >= 201103L
+#elif LDB_CPP_VERSION >= 201103L
 #  define STATIC_ASSERT(expr) static_assert(expr, "check failed")
-#elif RDB_GNUC_PREREQ(2, 7) || defined(__clang__) || defined(__TINYC__)
+#elif LDB_GNUC_PREREQ(2, 7) || defined(__clang__) || defined(__TINYC__)
 #  define STATIC_ASSERT_2(x, y) \
-     typedef char rdb__assert_ ## y[(x) ? 1 : -1] __attribute__((unused))
+     typedef char ldb__assert_ ## y[(x) ? 1 : -1] __attribute__((unused))
 #  define STATIC_ASSERT_1(x, y) STATIC_ASSERT_2(x, y)
 #  define STATIC_ASSERT(expr) STATIC_ASSERT_1(expr, __LINE__)
 #else
-#  define STATIC_ASSERT(expr) struct rdb__assert_empty
+#  define STATIC_ASSERT(expr) struct ldb__assert_empty
 #endif
 
 /*
@@ -89,82 +89,82 @@
 
 #undef unused
 
-#if RDB_STDC_VERSION >= 199901L
-#  define RDB_INLINE inline
-#elif RDB_CPP_VERSION >= 199711L
-#  define RDB_INLINE inline
-#elif RDB_GNUC_PREREQ(2, 7)
-#  define RDB_INLINE __inline__
+#if LDB_STDC_VERSION >= 199901L
+#  define LDB_INLINE inline
+#elif LDB_CPP_VERSION >= 199711L
+#  define LDB_INLINE inline
+#elif LDB_GNUC_PREREQ(2, 7)
+#  define LDB_INLINE __inline__
 #elif defined(_MSC_VER) && _MSC_VER >= 900
-#  define RDB_INLINE __inline
+#  define LDB_INLINE __inline
 #elif (defined(__SUNPRO_C) && __SUNPRO_C >= 0x560) \
    || (defined(__SUNPRO_CC) && __SUNPRO_CC >= 0x560)
-#  define RDB_INLINE inline
+#  define LDB_INLINE inline
 #else
-#  define RDB_INLINE
+#  define LDB_INLINE
 #endif
 
-#if RDB_STDC_VERSION >= 201112L
-#  define RDB_NORETURN _Noreturn
-#elif RDB_CPP_VERSION >= 201103L
-#  define RDB_NORETURN [[noreturn]]
-#elif RDB_GNUC_PREREQ(2, 7)
-#  define RDB_NORETURN __attribute__((noreturn))
+#if LDB_STDC_VERSION >= 201112L
+#  define LDB_NORETURN _Noreturn
+#elif LDB_CPP_VERSION >= 201103L
+#  define LDB_NORETURN [[noreturn]]
+#elif LDB_GNUC_PREREQ(2, 7)
+#  define LDB_NORETURN __attribute__((noreturn))
 #elif defined(_MSC_VER) && _MSC_VER >= 1200
-#  define RDB_NORETURN __declspec(noreturn)
+#  define LDB_NORETURN __declspec(noreturn)
 #elif (defined(__SUNPRO_C) && __SUNPRO_C >= 0x590) \
    || (defined(__SUNPRO_CC) && __SUNPRO_CC >= 0x590)
-#  define RDB_NORETURN __attribute__((noreturn))
+#  define LDB_NORETURN __attribute__((noreturn))
 #else
-#  define RDB_NORETURN
+#  define LDB_NORETURN
 #endif
 
-#if RDB_STDC_VERSION > 201710L
-#  define RDB_UNUSED [[maybe_unused]]
-#elif RDB_CPP_VERSION >= 201703L
-#  define RDB_UNUSED [[maybe_unused]]
-#elif RDB_GNUC_PREREQ(2, 7) || defined(__clang__) || defined(__TINYC__)
-#  define RDB_UNUSED __attribute__((unused))
+#if LDB_STDC_VERSION > 201710L
+#  define LDB_UNUSED [[maybe_unused]]
+#elif LDB_CPP_VERSION >= 201703L
+#  define LDB_UNUSED [[maybe_unused]]
+#elif LDB_GNUC_PREREQ(2, 7) || defined(__clang__) || defined(__TINYC__)
+#  define LDB_UNUSED __attribute__((unused))
 #else
-#  define RDB_UNUSED
+#  define LDB_UNUSED
 #endif
 
-#if RDB_GNUC_PREREQ(3, 0)
-#  define RDB_MALLOC __attribute__((__malloc__))
+#if LDB_GNUC_PREREQ(3, 0)
+#  define LDB_MALLOC __attribute__((__malloc__))
 #else
-#  define RDB_MALLOC
+#  define LDB_MALLOC
 #endif
 
 #if defined(__GNUC__) && __GNUC__ >= 2
-#  define RDB_EXTENSION __extension__
+#  define LDB_EXTENSION __extension__
 #else
-#  define RDB_EXTENSION
+#  define LDB_EXTENSION
 #endif
 
-#define RDB_STATIC RDB_UNUSED static RDB_INLINE
+#define LDB_STATIC LDB_UNUSED static LDB_INLINE
 
 /*
  * Macros
  */
 
 #define lengthof(x) (sizeof(x) / sizeof((x)[0]))
-#define RDB_MIN(x, y) ((x) < (y) ? (x) : (y))
-#define RDB_MAX(x, y) ((x) > (y) ? (x) : (y))
+#define LDB_MIN(x, y) ((x) < (y) ? (x) : (y))
+#define LDB_MAX(x, y) ((x) > (y) ? (x) : (y))
 
 /*
  * Helpers
  */
 
-RDB_EXTERN RDB_NORETURN void
-rdb_assert_fail(const char *file, int line, const char *expr);
+LDB_EXTERN LDB_NORETURN void
+ldb_assert_fail(const char *file, int line, const char *expr);
 
-RDB_MALLOC void *
-rdb_malloc(size_t size);
+LDB_MALLOC void *
+ldb_malloc(size_t size);
 
-RDB_MALLOC void *
-rdb_realloc(void *ptr, size_t size);
+LDB_MALLOC void *
+ldb_realloc(void *ptr, size_t size);
 
-RDB_EXTERN void
-rdb_free(void *ptr);
+LDB_EXTERN void
+ldb_free(void *ptr);
 
-#endif /* RDB_INTERNAL_H */
+#endif /* LDB_INTERNAL_H */

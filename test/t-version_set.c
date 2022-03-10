@@ -5,8 +5,8 @@
  */
 
 int
-rdb_test_version_set(void);
+ldb_test_version_set(void);
 
 int main(void) {
-  return rdb_test_version_set();
+  return ldb_test_version_set();
 }

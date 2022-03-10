@@ -4,8 +4,8 @@
  * https://github.com/chjj/rdb
  */
 
-#ifndef RDB_STATUS_H
-#define RDB_STATUS_H
+#ifndef LDB_STATUS_H
+#define LDB_STATUS_H
 
 #include "extern.h"
 
@@ -13,18 +13,18 @@
  * Constants
  */
 
-#define RDB_OK (0)
-#define RDB_NOTFOUND (-1)
-#define RDB_CORRUPTION (-2)
-#define RDB_NOSUPPORT (-3)
-#define RDB_INVALID (-4)
-#define RDB_IOERR (-5)
+#define LDB_OK (0)
+#define LDB_NOTFOUND (-1)
+#define LDB_CORRUPTION (-2)
+#define LDB_NOSUPPORT (-3)
+#define LDB_INVALID (-4)
+#define LDB_IOERR (-5)
 
 /*
  * Helpers
  */
 
-RDB_EXTERN const char *
-rdb_strerror(int code);
+LDB_EXTERN const char *
+ldb_strerror(int code);
 
-#endif /* RDB_STATUS_H */
+#endif /* LDB_STATUS_H */

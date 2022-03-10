@@ -25,19 +25,19 @@ test_signed_unsigned_issue(void) {
       0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   };
 
-  ASSERT(rdb_hash(0, 0, 0xbc9f1d34) == 0xbc9f1d34);
-  ASSERT(rdb_hash(data1, sizeof(data1), 0xbc9f1d34) == 0xef1345c4);
-  ASSERT(rdb_hash(data2, sizeof(data2), 0xbc9f1d34) == 0x5b663814);
-  ASSERT(rdb_hash(data3, sizeof(data3), 0xbc9f1d34) == 0x323c078f);
-  ASSERT(rdb_hash(data4, sizeof(data4), 0xbc9f1d34) == 0xed21633a);
-  ASSERT(rdb_hash(data5, sizeof(data5), 0x12345678) == 0xf333dabb);
+  ASSERT(ldb_hash(0, 0, 0xbc9f1d34) == 0xbc9f1d34);
+  ASSERT(ldb_hash(data1, sizeof(data1), 0xbc9f1d34) == 0xef1345c4);
+  ASSERT(ldb_hash(data2, sizeof(data2), 0xbc9f1d34) == 0x5b663814);
+  ASSERT(ldb_hash(data3, sizeof(data3), 0xbc9f1d34) == 0x323c078f);
+  ASSERT(ldb_hash(data4, sizeof(data4), 0xbc9f1d34) == 0xed21633a);
+  ASSERT(ldb_hash(data5, sizeof(data5), 0x12345678) == 0xf333dabb);
 }
 
-RDB_EXTERN int
-rdb_test_hash(void);
+LDB_EXTERN int
+ldb_test_hash(void);
 
 int
-rdb_test_hash(void) {
+ldb_test_hash(void) {
   test_signed_unsigned_issue();
   return 0;
 }

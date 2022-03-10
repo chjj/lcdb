@@ -16,7 +16,7 @@
 static int
 check_number(uint64_t x, const char *y) {
   char z[21];
-  rdb_encode_int(z, x, 0);
+  ldb_encode_int(z, x, 0);
   return strcmp(z, y) == 0;
 }
 
@@ -54,14 +54,14 @@ decode_int_test(uint64_t number, const char *padding) {
   uint64_t result;
   char *input;
 
-  rdb_encode_int(decimal_number, number, 0);
+  ldb_encode_int(decimal_number, number, 0);
 
   sprintf(input_string, "%s%s", decimal_number, padding);
 
   input = input_string;
   output = input;
 
-  ASSERT(rdb_decode_int(&result, &output));
+  ASSERT(ldb_decode_int(&result, &output));
   ASSERT(number == result);
   ASSERT(strlen(decimal_number) == strlen(input) - strlen(output));
   ASSERT(strlen(padding) == strlen(output));
@@ -117,7 +117,7 @@ test_decode_int_with_padding(void) {
 static void
 decode_int_overflow_test(const char *input_string) {
   uint64_t result;
-  ASSERT(0 == rdb_decode_int(&result, &input_string));
+  ASSERT(0 == ldb_decode_int(&result, &input_string));
 }
 
 static void
@@ -144,7 +144,7 @@ decode_int_no_digits_test(const char *input_string) {
   const char *output = input_string;
   uint64_t result;
 
-  ASSERT(0 == rdb_decode_int(&result, &output));
+  ASSERT(0 == ldb_decode_int(&result, &output));
   ASSERT(output == input_string);
 }
 
@@ -162,25 +162,25 @@ test_decode_int_no_digits(void) {
 
 static void
 test_starts_with(void) {
-  ASSERT(rdb_starts_with("foobar", "foo"));
-  ASSERT(rdb_starts_with("foo", "foo"));
-  ASSERT(!rdb_starts_with("zoobar", "foo"));
-  ASSERT(!rdb_starts_with("fo", "foo"));
-  ASSERT(!rdb_starts_with("", "foo"));
+  ASSERT(ldb_starts_with("foobar", "foo"));
+  ASSERT(ldb_starts_with("foo", "foo"));
+  ASSERT(!ldb_starts_with("zoobar", "foo"));
+  ASSERT(!ldb_starts_with("fo", "foo"));
+  ASSERT(!ldb_starts_with("", "foo"));
 }
 
 static void
 test_basename(void) {
-  ASSERT(strcmp(rdb_basename("/foo/bar"), "bar") == 0);
-  ASSERT(strcmp(rdb_basename("/foo///bar"), "bar") == 0);
-  ASSERT(strcmp(rdb_basename("./bar"), "bar") == 0);
-  ASSERT(strcmp(rdb_basename("bar"), "bar") == 0);
+  ASSERT(strcmp(ldb_basename("/foo/bar"), "bar") == 0);
+  ASSERT(strcmp(ldb_basename("/foo///bar"), "bar") == 0);
+  ASSERT(strcmp(ldb_basename("./bar"), "bar") == 0);
+  ASSERT(strcmp(ldb_basename("bar"), "bar") == 0);
 
 #ifdef _WIN32
-  ASSERT(strcmp(rdb_basename("\\foo/\\bar"), "bar") == 0);
-  ASSERT(strcmp(rdb_basename("\\foo\\/bar"), "bar") == 0);
-  ASSERT(strcmp(rdb_basename(".\\bar"), "bar") == 0);
-  ASSERT(strcmp(rdb_basename("bar"), "bar") == 0);
+  ASSERT(strcmp(ldb_basename("\\foo/\\bar"), "bar") == 0);
+  ASSERT(strcmp(ldb_basename("\\foo\\/bar"), "bar") == 0);
+  ASSERT(strcmp(ldb_basename(".\\bar"), "bar") == 0);
+  ASSERT(strcmp(ldb_basename("bar"), "bar") == 0);
 #endif
 }
 
@@ -188,38 +188,38 @@ static void
 test_dirname(void) {
   char dir[128];
 
-  ASSERT(!rdb_dirname(dir, 4, "/foo/bar"));
-  ASSERT(rdb_dirname(dir, 5, "/foo/bar"));
+  ASSERT(!ldb_dirname(dir, 4, "/foo/bar"));
+  ASSERT(ldb_dirname(dir, 5, "/foo/bar"));
 
-  ASSERT(rdb_dirname(dir, 128, "/foo/bar"));
+  ASSERT(ldb_dirname(dir, 128, "/foo/bar"));
   ASSERT(strcmp(dir, "/foo") == 0);
 
-  ASSERT(rdb_dirname(dir, 128, "/foo///bar"));
+  ASSERT(ldb_dirname(dir, 128, "/foo///bar"));
   ASSERT(strcmp(dir, "/foo") == 0);
 
-  ASSERT(rdb_dirname(dir, 128, "./bar"));
+  ASSERT(ldb_dirname(dir, 128, "./bar"));
   ASSERT(strcmp(dir, ".") == 0);
 
-  ASSERT(rdb_dirname(dir, 128, "bar"));
+  ASSERT(ldb_dirname(dir, 128, "bar"));
   ASSERT(strcmp(dir, ".") == 0);
 
-  ASSERT(rdb_dirname(dir, 128, "/bar"));
+  ASSERT(ldb_dirname(dir, 128, "/bar"));
   ASSERT(strcmp(dir, "/") == 0);
 
-  ASSERT(rdb_dirname(dir, 128, "/"));
+  ASSERT(ldb_dirname(dir, 128, "/"));
   ASSERT(strcmp(dir, "/") == 0);
 
-  ASSERT(rdb_dirname(dir, 128, ""));
+  ASSERT(ldb_dirname(dir, 128, ""));
   ASSERT(strcmp(dir, ".") == 0);
 
 #ifdef _WIN32
-  ASSERT(rdb_dirname(dir, 128, "/foo\\bar"));
+  ASSERT(ldb_dirname(dir, 128, "/foo\\bar"));
   ASSERT(strcmp(dir, "/foo") == 0);
 
-  ASSERT(rdb_dirname(dir, 128, "/foo/\\bar"));
+  ASSERT(ldb_dirname(dir, 128, "/foo/\\bar"));
   ASSERT(strcmp(dir, "/foo") == 0);
 
-  ASSERT(rdb_dirname(dir, 128, "/foo\\/bar"));
+  ASSERT(ldb_dirname(dir, 128, "/foo\\/bar"));
   ASSERT(strcmp(dir, "/foo") == 0);
 #endif
 }
@@ -228,28 +228,28 @@ static void
 test_join(void) {
   char path[128];
 
-  ASSERT(!rdb_join(path, 7, "foo", "bar"));
+  ASSERT(!ldb_join(path, 7, "foo", "bar"));
 
 #if defined(_WIN32)
-  ASSERT(rdb_join(path, 8, "foo", "bar"));
+  ASSERT(ldb_join(path, 8, "foo", "bar"));
   ASSERT(strcmp(path, "foo\\bar") == 0);
 
-  ASSERT(rdb_join(path, 128, "/foo", "bar"));
+  ASSERT(ldb_join(path, 128, "/foo", "bar"));
   ASSERT(strcmp(path, "/foo\\bar") == 0);
 #else
-  ASSERT(rdb_join(path, 8, "foo", "bar"));
+  ASSERT(ldb_join(path, 8, "foo", "bar"));
   ASSERT(strcmp(path, "foo/bar") == 0);
 
-  ASSERT(rdb_join(path, 128, "/foo", "bar"));
+  ASSERT(ldb_join(path, 128, "/foo", "bar"));
   ASSERT(strcmp(path, "/foo/bar") == 0);
 #endif
 }
 
-RDB_EXTERN int
-rdb_test_strutil(void);
+LDB_EXTERN int
+ldb_test_strutil(void);
 
 int
-rdb_test_strutil(void) {
+ldb_test_strutil(void) {
   test_encode_int();
   test_decode_int();
   test_decode_int_with_padding();

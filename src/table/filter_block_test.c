@@ -20,9 +20,9 @@
 
 /* For testing: emit an array with one hash value per key. */
 static void
-bloom_build(const rdb_bloom_t *bloom,
-            rdb_buffer_t *dst,
-            const rdb_slice_t *keys,
+bloom_build(const ldb_bloom_t *bloom,
+            ldb_buffer_t *dst,
+            const ldb_slice_t *keys,
             size_t length) {
   size_t zn = length * 4;
   uint8_t *zp;
@@ -31,21 +31,21 @@ bloom_build(const rdb_bloom_t *bloom,
 
   (void)bloom;
 
-  zp = rdb_buffer_expand(dst, zn);
+  zp = ldb_buffer_expand(dst, zn);
 
   for (i = 0; i < length; i++) {
-    h = rdb_hash(keys[i].data, keys[i].size, 1);
-    zp = rdb_fixed32_write(zp, h);
+    h = ldb_hash(keys[i].data, keys[i].size, 1);
+    zp = ldb_fixed32_write(zp, h);
   }
 
   dst->size += zn;
 }
 
 static int
-bloom_match(const rdb_bloom_t *bloom,
-            const rdb_slice_t *filter,
-            const rdb_slice_t *key) {
-  uint32_t h = rdb_hash(key->data, key->size, 1);
+bloom_match(const ldb_bloom_t *bloom,
+            const ldb_slice_t *filter,
+            const ldb_slice_t *key) {
+  uint32_t h = ldb_hash(key->data, key->size, 1);
   size_t i;
 
   (void)bloom;
@@ -53,14 +53,14 @@ bloom_match(const rdb_bloom_t *bloom,
   ASSERT((filter->size & 3) == 0);
 
   for (i = 0; i < filter->size; i += 4) {
-    if (h == rdb_fixed32_decode(filter->data + i))
+    if (h == ldb_fixed32_decode(filter->data + i))
       return 1;
   }
 
   return 0;
 }
 
-static const rdb_bloom_t bloom_test = {
+static const ldb_bloom_t bloom_test = {
   /* .name = */ "TestHashFilter",
   /* .build = */ bloom_build,
   /* .match = */ bloom_match,
@@ -71,167 +71,167 @@ static const rdb_bloom_t bloom_test = {
 };
 
 static void
-test_empty_builder(const rdb_bloom_t *policy) {
+test_empty_builder(const ldb_bloom_t *policy) {
   static uint8_t expect[] = {0, 0, 0, 0, 11};
-  rdb_filterbuilder_t fb;
-  rdb_filterreader_t fr;
-  rdb_slice_t block;
-  rdb_slice_t key;
+  ldb_filterbuilder_t fb;
+  ldb_filterreader_t fr;
+  ldb_slice_t block;
+  ldb_slice_t key;
 
-  rdb_filterbuilder_init(&fb, policy);
+  ldb_filterbuilder_init(&fb, policy);
 
-  block = rdb_filterbuilder_finish(&fb);
+  block = ldb_filterbuilder_finish(&fb);
 
   ASSERT(block.size == sizeof(expect));
   ASSERT(memcmp(block.data, expect, sizeof(expect)) == 0);
 
-  rdb_filterreader_init(&fr, policy, &block);
+  ldb_filterreader_init(&fr, policy, &block);
 
-  key = rdb_string("foo");
+  key = ldb_string("foo");
 
-  ASSERT(rdb_filterreader_matches(&fr, 0, &key));
-  ASSERT(rdb_filterreader_matches(&fr, 100000, &key));
+  ASSERT(ldb_filterreader_matches(&fr, 0, &key));
+  ASSERT(ldb_filterreader_matches(&fr, 100000, &key));
 
-  rdb_filterbuilder_clear(&fb);
+  ldb_filterbuilder_clear(&fb);
 }
 
 static void
-test_single_chunk(const rdb_bloom_t *policy) {
-  rdb_filterbuilder_t fb;
-  rdb_filterreader_t fr;
-  rdb_slice_t block;
-  rdb_slice_t key;
+test_single_chunk(const ldb_bloom_t *policy) {
+  ldb_filterbuilder_t fb;
+  ldb_filterreader_t fr;
+  ldb_slice_t block;
+  ldb_slice_t key;
 
-  rdb_filterbuilder_init(&fb, policy);
-  rdb_filterbuilder_start_block(&fb, 100);
+  ldb_filterbuilder_init(&fb, policy);
+  ldb_filterbuilder_start_block(&fb, 100);
 
-  key = rdb_string("foo");
-  rdb_filterbuilder_add_key(&fb, &key);
-  key = rdb_string("bar");
-  rdb_filterbuilder_add_key(&fb, &key);
-  key = rdb_string("box");
-  rdb_filterbuilder_add_key(&fb, &key);
+  key = ldb_string("foo");
+  ldb_filterbuilder_add_key(&fb, &key);
+  key = ldb_string("bar");
+  ldb_filterbuilder_add_key(&fb, &key);
+  key = ldb_string("box");
+  ldb_filterbuilder_add_key(&fb, &key);
 
-  rdb_filterbuilder_start_block(&fb, 200);
+  ldb_filterbuilder_start_block(&fb, 200);
 
-  key = rdb_string("box");
-  rdb_filterbuilder_add_key(&fb, &key);
+  key = ldb_string("box");
+  ldb_filterbuilder_add_key(&fb, &key);
 
-  rdb_filterbuilder_start_block(&fb, 300);
+  ldb_filterbuilder_start_block(&fb, 300);
 
-  key = rdb_string("hello");
-  rdb_filterbuilder_add_key(&fb, &key);
+  key = ldb_string("hello");
+  ldb_filterbuilder_add_key(&fb, &key);
 
-  block = rdb_filterbuilder_finish(&fb);
+  block = ldb_filterbuilder_finish(&fb);
 
-  rdb_filterreader_init(&fr, policy, &block);
+  ldb_filterreader_init(&fr, policy, &block);
 
-  key = rdb_string("foo");
-  ASSERT(rdb_filterreader_matches(&fr, 100, &key));
-  key = rdb_string("bar");
-  ASSERT(rdb_filterreader_matches(&fr, 100, &key));
-  key = rdb_string("box");
-  ASSERT(rdb_filterreader_matches(&fr, 100, &key));
-  key = rdb_string("hello");
-  ASSERT(rdb_filterreader_matches(&fr, 100, &key));
-  key = rdb_string("foo");
-  ASSERT(rdb_filterreader_matches(&fr, 100, &key));
-  key = rdb_string("missing");
-  ASSERT(!rdb_filterreader_matches(&fr, 100, &key));
-  key = rdb_string("other");
-  ASSERT(!rdb_filterreader_matches(&fr, 100, &key));
+  key = ldb_string("foo");
+  ASSERT(ldb_filterreader_matches(&fr, 100, &key));
+  key = ldb_string("bar");
+  ASSERT(ldb_filterreader_matches(&fr, 100, &key));
+  key = ldb_string("box");
+  ASSERT(ldb_filterreader_matches(&fr, 100, &key));
+  key = ldb_string("hello");
+  ASSERT(ldb_filterreader_matches(&fr, 100, &key));
+  key = ldb_string("foo");
+  ASSERT(ldb_filterreader_matches(&fr, 100, &key));
+  key = ldb_string("missing");
+  ASSERT(!ldb_filterreader_matches(&fr, 100, &key));
+  key = ldb_string("other");
+  ASSERT(!ldb_filterreader_matches(&fr, 100, &key));
 
-  rdb_filterbuilder_clear(&fb);
+  ldb_filterbuilder_clear(&fb);
 }
 
 static void
-test_multi_chunk(const rdb_bloom_t *policy) {
-  rdb_filterbuilder_t fb;
-  rdb_filterreader_t fr;
-  rdb_slice_t block;
-  rdb_slice_t key;
+test_multi_chunk(const ldb_bloom_t *policy) {
+  ldb_filterbuilder_t fb;
+  ldb_filterreader_t fr;
+  ldb_slice_t block;
+  ldb_slice_t key;
 
-  rdb_filterbuilder_init(&fb, policy);
+  ldb_filterbuilder_init(&fb, policy);
 
   /* First filter. */
-  rdb_filterbuilder_start_block(&fb, 0);
-  key = rdb_string("foo");
-  rdb_filterbuilder_add_key(&fb, &key);
-  rdb_filterbuilder_start_block(&fb, 2000);
-  key = rdb_string("bar");
-  rdb_filterbuilder_add_key(&fb, &key);
+  ldb_filterbuilder_start_block(&fb, 0);
+  key = ldb_string("foo");
+  ldb_filterbuilder_add_key(&fb, &key);
+  ldb_filterbuilder_start_block(&fb, 2000);
+  key = ldb_string("bar");
+  ldb_filterbuilder_add_key(&fb, &key);
 
   /* Second filter. */
-  rdb_filterbuilder_start_block(&fb, 3100);
-  key = rdb_string("box");
-  rdb_filterbuilder_add_key(&fb, &key);
+  ldb_filterbuilder_start_block(&fb, 3100);
+  key = ldb_string("box");
+  ldb_filterbuilder_add_key(&fb, &key);
 
   /* Third filter is empty. */
 
   /* Last filter. */
-  rdb_filterbuilder_start_block(&fb, 9000);
-  key = rdb_string("box");
-  rdb_filterbuilder_add_key(&fb, &key);
-  key = rdb_string("hello");
-  rdb_filterbuilder_add_key(&fb, &key);
+  ldb_filterbuilder_start_block(&fb, 9000);
+  key = ldb_string("box");
+  ldb_filterbuilder_add_key(&fb, &key);
+  key = ldb_string("hello");
+  ldb_filterbuilder_add_key(&fb, &key);
 
-  block = rdb_filterbuilder_finish(&fb);
+  block = ldb_filterbuilder_finish(&fb);
 
-  rdb_filterreader_init(&fr, policy, &block);
+  ldb_filterreader_init(&fr, policy, &block);
 
   /* Check first filter. */
-  key = rdb_string("foo");
-  ASSERT(rdb_filterreader_matches(&fr, 0, &key));
-  key = rdb_string("bar");
-  ASSERT(rdb_filterreader_matches(&fr, 2000, &key));
-  key = rdb_string("box");
-  ASSERT(!rdb_filterreader_matches(&fr, 0, &key));
-  key = rdb_string("hello");
-  ASSERT(!rdb_filterreader_matches(&fr, 0, &key));
+  key = ldb_string("foo");
+  ASSERT(ldb_filterreader_matches(&fr, 0, &key));
+  key = ldb_string("bar");
+  ASSERT(ldb_filterreader_matches(&fr, 2000, &key));
+  key = ldb_string("box");
+  ASSERT(!ldb_filterreader_matches(&fr, 0, &key));
+  key = ldb_string("hello");
+  ASSERT(!ldb_filterreader_matches(&fr, 0, &key));
 
   /* Check second filter. */
-  key = rdb_string("box");
-  ASSERT(rdb_filterreader_matches(&fr, 3100, &key));
-  key = rdb_string("foo");
-  ASSERT(!rdb_filterreader_matches(&fr, 3100, &key));
-  key = rdb_string("bar");
-  ASSERT(!rdb_filterreader_matches(&fr, 3100, &key));
-  key = rdb_string("hello");
-  ASSERT(!rdb_filterreader_matches(&fr, 3100, &key));
+  key = ldb_string("box");
+  ASSERT(ldb_filterreader_matches(&fr, 3100, &key));
+  key = ldb_string("foo");
+  ASSERT(!ldb_filterreader_matches(&fr, 3100, &key));
+  key = ldb_string("bar");
+  ASSERT(!ldb_filterreader_matches(&fr, 3100, &key));
+  key = ldb_string("hello");
+  ASSERT(!ldb_filterreader_matches(&fr, 3100, &key));
 
   /* Check third filter (empty). */
-  key = rdb_string("foo");
-  ASSERT(!rdb_filterreader_matches(&fr, 4100, &key));
-  key = rdb_string("bar");
-  ASSERT(!rdb_filterreader_matches(&fr, 4100, &key));
-  key = rdb_string("box");
-  ASSERT(!rdb_filterreader_matches(&fr, 4100, &key));
-  key = rdb_string("hello");
-  ASSERT(!rdb_filterreader_matches(&fr, 4100, &key));
+  key = ldb_string("foo");
+  ASSERT(!ldb_filterreader_matches(&fr, 4100, &key));
+  key = ldb_string("bar");
+  ASSERT(!ldb_filterreader_matches(&fr, 4100, &key));
+  key = ldb_string("box");
+  ASSERT(!ldb_filterreader_matches(&fr, 4100, &key));
+  key = ldb_string("hello");
+  ASSERT(!ldb_filterreader_matches(&fr, 4100, &key));
 
   /* Check last filter. */
-  key = rdb_string("box");
-  ASSERT(rdb_filterreader_matches(&fr, 9000, &key));
-  key = rdb_string("hello");
-  ASSERT(rdb_filterreader_matches(&fr, 9000, &key));
-  key = rdb_string("foo");
-  ASSERT(!rdb_filterreader_matches(&fr, 9000, &key));
-  key = rdb_string("bar");
-  ASSERT(!rdb_filterreader_matches(&fr, 9000, &key));
+  key = ldb_string("box");
+  ASSERT(ldb_filterreader_matches(&fr, 9000, &key));
+  key = ldb_string("hello");
+  ASSERT(ldb_filterreader_matches(&fr, 9000, &key));
+  key = ldb_string("foo");
+  ASSERT(!ldb_filterreader_matches(&fr, 9000, &key));
+  key = ldb_string("bar");
+  ASSERT(!ldb_filterreader_matches(&fr, 9000, &key));
 
-  rdb_filterbuilder_clear(&fb);
+  ldb_filterbuilder_clear(&fb);
 }
 
-RDB_EXTERN int
-rdb_test_filter_block(void);
+LDB_EXTERN int
+ldb_test_filter_block(void);
 
 int
-rdb_test_filter_block(void) {
+ldb_test_filter_block(void) {
   test_empty_builder(&bloom_test);
   test_single_chunk(&bloom_test);
   test_multi_chunk(&bloom_test);
-  test_empty_builder(rdb_bloom_default);
-  test_single_chunk(rdb_bloom_default);
-  test_multi_chunk(rdb_bloom_default);
+  test_empty_builder(ldb_bloom_default);
+  test_single_chunk(ldb_bloom_default);
+  test_multi_chunk(ldb_bloom_default);
   return 0;
 }

@@ -4,15 +4,15 @@
  * https://github.com/chjj/rdb
  */
 
-#ifndef RDB_MEMCMP_H
-#define RDB_MEMCMP_H
+#ifndef LDB_MEMCMP_H
+#define LDB_MEMCMP_H
 
 #include <stddef.h>
 #include <string.h>
 #include "internal.h"
 
-RDB_STATIC int
-rdb_memcmp4(const void *x, size_t xn, const void *y, size_t yn) {
+LDB_STATIC int
+ldb_memcmp4(const void *x, size_t xn, const void *y, size_t yn) {
   size_t n = xn < yn ? xn : yn;
   int r = n ? memcmp(x, y, n) : 0;
 
@@ -26,4 +26,4 @@ rdb_memcmp4(const void *x, size_t xn, const void *y, size_t yn) {
   return r;
 }
 
-#endif /* RDB_MEMCMP_H */
+#endif /* LDB_MEMCMP_H */

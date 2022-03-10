@@ -4,8 +4,8 @@
  * https://github.com/chjj/rdb
  */
 
-#ifndef RDB_RBT_H
-#define RDB_RBT_H
+#ifndef LDB_RBT_H
+#define LDB_RBT_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -64,55 +64,55 @@ typedef rb_tree_t rb_set64_t;
  */
 
 /* Node */
-#define rb_node_destroy rdb_rb_node_destroy
+#define rb_node_destroy ldb_rb_node_destroy
 
 /* Tree */
-#define rb_tree_init rdb_rb_tree_init
-#define rb_tree_clear rdb_rb_tree_clear
-#define rb_tree_copy rdb_rb_tree_copy
-#define rb_tree_get rdb_rb_tree_get
-#define rb_tree_put rdb_rb_tree_put
-#define rb_tree_del rdb_rb_tree_del
-#define rb_tree_iterator rdb_rb_tree_iterator
+#define rb_tree_init ldb_rb_tree_init
+#define rb_tree_clear ldb_rb_tree_clear
+#define rb_tree_copy ldb_rb_tree_copy
+#define rb_tree_get ldb_rb_tree_get
+#define rb_tree_put ldb_rb_tree_put
+#define rb_tree_del ldb_rb_tree_del
+#define rb_tree_iterator ldb_rb_tree_iterator
 
 /* Iterator */
-#define rb_iter_init rdb_rb_iter_init
-#define rb_iter_compare rdb_rb_iter_compare
-#define rb_iter_valid rdb_rb_iter_valid
-#define rb_iter_reset rdb_rb_iter_reset
-#define rb_iter_seek_first rdb_rb_iter_seek_first
-#define rb_iter_seek_last rdb_rb_iter_seek_last
-#define rb_iter_seek_min rdb_rb_iter_seek_min
-#define rb_iter_seek_max rdb_rb_iter_seek_max
-#define rb_iter_seek rdb_rb_iter_seek
-#define rb_iter_prev rdb_rb_iter_prev
-#define rb_iter_next rdb_rb_iter_next
-#define rb_iter_start rdb_rb_iter_start
-#define rb_iter_kv rdb_rb_iter_kv
-#define rb_iter_k rdb_rb_iter_k
-#define rb_iter_v rdb_rb_iter_v
+#define rb_iter_init ldb_rb_iter_init
+#define rb_iter_compare ldb_rb_iter_compare
+#define rb_iter_valid ldb_rb_iter_valid
+#define rb_iter_reset ldb_rb_iter_reset
+#define rb_iter_seek_first ldb_rb_iter_seek_first
+#define rb_iter_seek_last ldb_rb_iter_seek_last
+#define rb_iter_seek_min ldb_rb_iter_seek_min
+#define rb_iter_seek_max ldb_rb_iter_seek_max
+#define rb_iter_seek ldb_rb_iter_seek
+#define rb_iter_prev ldb_rb_iter_prev
+#define rb_iter_next ldb_rb_iter_next
+#define rb_iter_start ldb_rb_iter_start
+#define rb_iter_kv ldb_rb_iter_kv
+#define rb_iter_k ldb_rb_iter_k
+#define rb_iter_v ldb_rb_iter_v
 
 /* Map */
-#define rb_map_get rdb_rb_map_get
-#define rb_map_has rdb_rb_map_has
-#define rb_map_put rdb_rb_map_put
-#define rb_map_del rdb_rb_map_del
-#define rb_map_kv rdb_rb_map_kv
-#define rb_map_k rdb_rb_map_k
-#define rb_map_v rdb_rb_map_v
+#define rb_map_get ldb_rb_map_get
+#define rb_map_has ldb_rb_map_has
+#define rb_map_put ldb_rb_map_put
+#define rb_map_del ldb_rb_map_del
+#define rb_map_kv ldb_rb_map_kv
+#define rb_map_k ldb_rb_map_k
+#define rb_map_v ldb_rb_map_v
 
 /* Set */
-#define rb_set_has rdb_rb_set_has
-#define rb_set_put rdb_rb_set_put
-#define rb_set_del rdb_rb_set_del
-#define rb_set_k rdb_rb_set_k
+#define rb_set_has ldb_rb_set_has
+#define rb_set_put ldb_rb_set_put
+#define rb_set_del ldb_rb_set_del
+#define rb_set_k ldb_rb_set_k
 
 /* Set64 */
-#define rb_set64_compare rdb_rb_set64_compare
-#define rb_set64_has rdb_rb_set64_has
-#define rb_set64_put rdb_rb_set64_put
-#define rb_set64_del rdb_rb_set64_del
-#define rb_set64_k rdb_rb_set64_k
+#define rb_set64_compare ldb_rb_set64_compare
+#define rb_set64_has ldb_rb_set64_has
+#define rb_set64_put ldb_rb_set64_put
+#define rb_set64_del ldb_rb_set64_del
+#define rb_set64_k ldb_rb_set64_k
 
 /*
  * Node
@@ -313,4 +313,4 @@ rb_set64_k(const rb_iter_t *iter, uint64_t *key);
 
 #define rb_set64_iterate(t, k) rb__set64_keys(t, (rb_iter_t *)&(t)->iter, k)
 
-#endif /* RDB_RBT_H */
+#endif /* LDB_RBT_H */

@@ -18,7 +18,7 @@
 static void
 test_snappy_1(void) {
   size_t size = 1 << 20;
-  uint8_t *data = rdb_malloc(size);
+  uint8_t *data = ldb_malloc(size);
   size_t encsize, decsize;
   uint8_t *enc, *dec;
   size_t i;
@@ -28,7 +28,7 @@ test_snappy_1(void) {
 
   ASSERT(snappy_encode_size(&encsize, size));
 
-  enc = rdb_malloc(encsize);
+  enc = ldb_malloc(encsize);
   encsize = snappy_encode(enc, data, size);
 
   ASSERT(encsize > 0 && encsize < size);
@@ -37,14 +37,14 @@ test_snappy_1(void) {
   ASSERT(snappy_decode_size(&decsize, enc, encsize));
   ASSERT(decsize == size);
 
-  dec = rdb_malloc(decsize);
+  dec = ldb_malloc(decsize);
 
   ASSERT(snappy_decode(dec, enc, encsize));
   ASSERT(memcmp(dec, data, size) == 0);
 
-  rdb_free(data);
-  rdb_free(enc);
-  rdb_free(dec);
+  ldb_free(data);
+  ldb_free(enc);
+  ldb_free(dec);
 }
 
 static void
@@ -56,7 +56,7 @@ test_snappy_2(void) {
 
   ASSERT(snappy_encode_size(&encsize, size));
 
-  enc = rdb_malloc(encsize);
+  enc = ldb_malloc(encsize);
   encsize = snappy_encode(enc, data, size);
 
   ASSERT(encsize > 0 && encsize < size);
@@ -64,13 +64,13 @@ test_snappy_2(void) {
   ASSERT(snappy_decode_size(&decsize, enc, encsize));
   ASSERT(decsize == size);
 
-  dec = rdb_malloc(decsize);
+  dec = ldb_malloc(decsize);
 
   ASSERT(snappy_decode(dec, enc, encsize));
   ASSERT(memcmp(dec, data, size) == 0);
 
-  rdb_free(enc);
-  rdb_free(dec);
+  ldb_free(enc);
+  ldb_free(dec);
 }
 
 static void
@@ -85,19 +85,19 @@ test_snappy_3(void) {
   ASSERT(snappy_decode_size(&decsize, enc, encsize));
   ASSERT(decsize == size);
 
-  dec = rdb_malloc(decsize);
+  dec = ldb_malloc(decsize);
 
   ASSERT(snappy_decode(dec, enc, encsize));
   ASSERT(memcmp(dec, data, size) == 0);
 
-  rdb_free(dec);
+  ldb_free(dec);
 }
 
-RDB_EXTERN int
-rdb_test_snappy(void);
+LDB_EXTERN int
+ldb_test_snappy(void);
 
 int
-rdb_test_snappy(void) {
+ldb_test_snappy(void) {
   test_snappy_1();
   test_snappy_2();
   test_snappy_3();

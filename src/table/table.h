@@ -4,8 +4,8 @@
  * https://github.com/chjj/rdb
  */
 
-#ifndef RDB_TABLE_H
-#define RDB_TABLE_H
+#ifndef LDB_TABLE_H
+#define LDB_TABLE_H
 
 #include <stdint.h>
 
@@ -15,15 +15,15 @@
  * Types
  */
 
-struct rdb_dbopt_s;
-struct rdb_iter_s;
-struct rdb_readopt_s;
-struct rdb_rfile_s;
+struct ldb_dbopt_s;
+struct ldb_iter_s;
+struct ldb_readopt_s;
+struct ldb_rfile_s;
 
 /* A table is a sorted map from strings to strings. Tables are
    immutable and persistent. A table may be safely accessed from
    multiple threads without external synchronization. */
-typedef struct rdb_table_s rdb_table_t;
+typedef struct ldb_table_s ldb_table_t;
 
 /*
  * Table
@@ -43,35 +43,35 @@ typedef struct rdb_table_s rdb_table_t;
  * *file must remain live while this Table is in use.
  */
 int
-rdb_table_open(const struct rdb_dbopt_s *options,
-               struct rdb_rfile_s *file,
+ldb_table_open(const struct ldb_dbopt_s *options,
+               struct ldb_rfile_s *file,
                uint64_t size,
-               rdb_table_t **table);
+               ldb_table_t **table);
 
 void
-rdb_table_destroy(rdb_table_t *table);
+ldb_table_destroy(ldb_table_t *table);
 
 
 /* Returns a new iterator over the table contents.
  * The result of NewIterator() is initially invalid (caller must
  * call one of the Seek methods on the iterator before using it).
  */
-struct rdb_iter_s *
-rdb_tableiter_create(const rdb_table_t *table,
-                     const struct rdb_readopt_s *options);
+struct ldb_iter_s *
+ldb_tableiter_create(const ldb_table_t *table,
+                     const struct ldb_readopt_s *options);
 
 /* Calls (*handle_result)(arg, ...) with the entry found after a call
  * to Seek(key). May not make such a call if filter policy says
  * that key is not present.
  */
 int
-rdb_table_internal_get(rdb_table_t *table,
-                       const struct rdb_readopt_s *options,
-                       const rdb_slice_t *k,
+ldb_table_internal_get(ldb_table_t *table,
+                       const struct ldb_readopt_s *options,
+                       const ldb_slice_t *k,
                        void *arg,
                        void (*handle_result)(void *,
-                                             const rdb_slice_t *,
-                                             const rdb_slice_t *));
+                                             const ldb_slice_t *,
+                                             const ldb_slice_t *));
 
 /* Given a key, return an approximate byte offset in the file where
  * the data for that key begins (or would begin if the key were
@@ -81,7 +81,7 @@ rdb_table_internal_get(rdb_table_t *table,
  * be close to the file length.
  */
 uint64_t
-rdb_table_approximate_offsetof(const rdb_table_t *table,
-                               const rdb_slice_t *key);
+ldb_table_approximate_offsetof(const ldb_table_t *table,
+                               const ldb_slice_t *key);
 
-#endif /* RDB_TABLE_H */
+#endif /* LDB_TABLE_H */

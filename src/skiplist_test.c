@@ -29,11 +29,11 @@
  */
 
 static int
-integer_compare(const rdb_comparator_t *cmp,
-                const rdb_slice_t *x,
-                const rdb_slice_t *y) {
-  uint64_t xn = rdb_fixed64_decode(x->data);
-  uint64_t yn = rdb_fixed64_decode(y->data);
+integer_compare(const ldb_comparator_t *cmp,
+                const ldb_slice_t *x,
+                const ldb_slice_t *y) {
+  uint64_t xn = ldb_fixed64_decode(x->data);
+  uint64_t yn = ldb_fixed64_decode(y->data);
 
   (void)cmp;
 
@@ -46,7 +46,7 @@ integer_compare(const rdb_comparator_t *cmp,
   return 0;
 }
 
-static const rdb_comparator_t integer_comparator = {
+static const ldb_comparator_t integer_comparator = {
   /* .name = */ "leveldb.IntegerComparator",
   /* .compare = */ integer_compare,
   /* .shortest_separator = */ NULL,
@@ -62,7 +62,7 @@ static const rdb_comparator_t integer_comparator = {
 static uint8_t *
 encode_key(uint64_t key, uint8_t *buf) {
   buf[0] = 8;
-  rdb_fixed64_write(buf + 1, key);
+  ldb_fixed64_write(buf + 1, key);
   return buf;
 }
 
@@ -70,43 +70,43 @@ encode_key(uint64_t key, uint8_t *buf) {
  * SkipList
  */
 
-#define skiplist_t rdb_skiplist_t
-#define skiplist_init rdb_skiplist_init
+#define skiplist_t ldb_skiplist_t
+#define skiplist_init ldb_skiplist_init
 
 static void
 skiplist_insert(skiplist_t *list, uint64_t key) {
-  uint8_t *buf = rdb_arena_alloc(list->arena, 9);
-  rdb_skiplist_insert(list, encode_key(key, buf));
+  uint8_t *buf = ldb_arena_alloc(list->arena, 9);
+  ldb_skiplist_insert(list, encode_key(key, buf));
 }
 
 static int
 skiplist_contains(const skiplist_t *list, uint64_t key) {
   uint8_t buf[9];
-  return rdb_skiplist_contains(list, encode_key(key, buf));
+  return ldb_skiplist_contains(list, encode_key(key, buf));
 }
 
 /*
  * SkipList::Iterator
  */
 
-#define skipiter_t rdb_skipiter_t
-#define skipiter_init rdb_skipiter_init
-#define skipiter_valid rdb_skipiter_valid
-#define skipiter_next rdb_skipiter_next
-#define skipiter_prev rdb_skipiter_prev
-#define skipiter_seek_first rdb_skipiter_seek_first
-#define skipiter_seek_last rdb_skipiter_seek_last
+#define skipiter_t ldb_skipiter_t
+#define skipiter_init ldb_skipiter_init
+#define skipiter_valid ldb_skipiter_valid
+#define skipiter_next ldb_skipiter_next
+#define skipiter_prev ldb_skipiter_prev
+#define skipiter_seek_first ldb_skipiter_seek_first
+#define skipiter_seek_last ldb_skipiter_seek_last
 
 static uint64_t
 skipiter_key(const skipiter_t *iter) {
-  const uint8_t *buf = rdb_skipiter_key(iter);
-  return rdb_fixed64_decode(buf + 1);
+  const uint8_t *buf = ldb_skipiter_key(iter);
+  return ldb_fixed64_decode(buf + 1);
 }
 
 static void
 skipiter_seek(skipiter_t *iter, uint64_t target) {
   uint8_t buf[9];
-  rdb_skipiter_seek(iter, encode_key(target, buf));
+  ldb_skipiter_seek(iter, encode_key(target, buf));
 }
 
 /*
@@ -115,11 +115,11 @@ skipiter_seek(skipiter_t *iter, uint64_t target) {
 
 static void
 test_skip_empty(void) {
-  rdb_arena_t arena;
+  ldb_arena_t arena;
   skiplist_t list;
   skipiter_t iter;
 
-  rdb_arena_init(&arena);
+  ldb_arena_init(&arena);
 
   skiplist_init(&list, &integer_comparator, &arena);
 
@@ -141,28 +141,28 @@ test_skip_empty(void) {
 
   ASSERT(!skipiter_valid(&iter));
 
-  rdb_arena_clear(&arena);
+  ldb_arena_clear(&arena);
 }
 
 static void
 test_skip_insert_and_lookup(void) {
   const int N = 2000;
   const int R = 5000;
-  rdb_arena_t arena;
+  ldb_arena_t arena;
   skiplist_t list;
   rb_set64_t keys;
-  rdb_rand_t rnd;
+  ldb_rand_t rnd;
   int i, j;
 
-  rdb_arena_init(&arena);
+  ldb_arena_init(&arena);
 
   skiplist_init(&list, &integer_comparator, &arena);
 
   rb_set64_init(&keys);
-  rdb_rand_init(&rnd, 1000);
+  ldb_rand_init(&rnd, 1000);
 
   for (i = 0; i < N; i++) {
-    uint64_t key = rdb_rand_next(&rnd) % R;
+    uint64_t key = ldb_rand_next(&rnd) % R;
 
     if (rb_set64_put(&keys, key))
       skiplist_insert(&list, key);
@@ -255,7 +255,7 @@ test_skip_insert_and_lookup(void) {
     ASSERT(!skipiter_valid(&iter));
   }
 
-  rdb_arena_clear(&arena);
+  ldb_arena_clear(&arena);
   rb_set64_clear(&keys);
 }
 
@@ -309,7 +309,7 @@ hash_numbers(uint64_t k, uint64_t g) {
   data[0] = k;
   data[1] = g;
 
-  return rdb_hash((uint8_t *)data, sizeof(data), 0);
+  return ldb_hash((uint8_t *)data, sizeof(data), 0);
 }
 
 static uint64_t
@@ -325,8 +325,8 @@ is_valid_key(uint64_t k) {
 }
 
 static uint64_t
-random_target(rdb_rand_t *rnd) {
-  switch (rdb_rand_next(rnd) % 10) {
+random_target(ldb_rand_t *rnd) {
+  switch (ldb_rand_next(rnd) % 10) {
     case 0:
       /* Seek to beginning. */
       return make_key(0, 0);
@@ -335,7 +335,7 @@ random_target(rdb_rand_t *rnd) {
       return make_key(K, 0);
     default:
       /* Seek to middle. */
-      return make_key(rdb_rand_next(rnd) % K, 0);
+      return make_key(ldb_rand_next(rnd) % K, 0);
   }
 }
 
@@ -345,17 +345,17 @@ random_target(rdb_rand_t *rnd) {
 
 /* Per-key generation. */
 typedef struct cstate_s {
-  rdb_atomic(int) generation[4 /* K */];
+  ldb_atomic(int) generation[4 /* K */];
 } cstate_t;
 
 static void
 cstate_set(cstate_t *s, int k, int v) {
-  rdb_atomic_store(&s->generation[k], v, rdb_order_release);
+  ldb_atomic_store(&s->generation[k], v, ldb_order_release);
 }
 
 static int
 cstate_get(cstate_t *s, int k) {
-  return rdb_atomic_load(&s->generation[k], rdb_order_acquire);
+  return ldb_atomic_load(&s->generation[k], ldb_order_acquire);
 }
 
 static void
@@ -374,7 +374,7 @@ typedef struct ctest_s {
   /* Current state of the test. */
   cstate_t current;
 
-  rdb_arena_t arena;
+  ldb_arena_t arena;
 
   /* SkipList is not protected by mu. We just use a single writer
      thread to modify it. */
@@ -384,19 +384,19 @@ typedef struct ctest_s {
 static void
 ctest_init(ctest_t *t) {
   cstate_init(&t->current);
-  rdb_arena_init(&t->arena);
+  ldb_arena_init(&t->arena);
   skiplist_init(&t->list, &integer_comparator, &t->arena);
 }
 
 static void
 ctest_clear(ctest_t *t) {
-  rdb_arena_clear(&t->arena);
+  ldb_arena_clear(&t->arena);
 }
 
 /* REQUIRES: External synchronization. */
 static void
-ctest_write_step(ctest_t *t, rdb_rand_t *rnd) {
-  uint32_t k = rdb_rand_next(rnd) % K;
+ctest_write_step(ctest_t *t, ldb_rand_t *rnd) {
+  uint32_t k = ldb_rand_next(rnd) % K;
   intptr_t g = cstate_get(&t->current, k) + 1;
   uint64_t key = make_key(k, g);
 
@@ -405,7 +405,7 @@ ctest_write_step(ctest_t *t, rdb_rand_t *rnd) {
 }
 
 static void
-ctest_read_step(ctest_t *t, rdb_rand_t *rnd) {
+ctest_read_step(ctest_t *t, ldb_rand_t *rnd) {
   /* Remember the initial committed state of the skiplist. */
   cstate_t initial;
   skipiter_t iter;
@@ -455,7 +455,7 @@ ctest_read_step(ctest_t *t, rdb_rand_t *rnd) {
     if (!skipiter_valid(&iter))
       break;
 
-    if (rdb_rand_next(rnd) % 2) {
+    if (ldb_rand_next(rnd) % 2) {
       skipiter_next(&iter);
       pos = make_key(int_key(pos), int_gen(pos) + 1);
     } else {
@@ -473,13 +473,13 @@ ctest_read_step(ctest_t *t, rdb_rand_t *rnd) {
    testing of the ConcurrentTest scaffolding. */
 static void
 test_skip_concurrent_without_threads(void) {
-  rdb_rand_t rnd;
+  ldb_rand_t rnd;
   ctest_t t;
   int i;
 
   ctest_init(&t);
 
-  rdb_rand_init(&rnd, rdb_random_seed());
+  ldb_rand_init(&rnd, ldb_random_seed());
 
   for (i = 0; i < 10000; i++) {
     ctest_read_step(&t, &rnd);
@@ -489,7 +489,7 @@ test_skip_concurrent_without_threads(void) {
   ctest_clear(&t);
 }
 
-#if defined(_WIN32) || defined(RDB_PTHREAD)
+#if defined(_WIN32) || defined(LDB_PTHREAD)
 
 /*
  * TestState
@@ -504,10 +504,10 @@ enum reader_state {
 typedef struct tstate_s {
   ctest_t test;
   int seed;
-  rdb_atomic(int) quit_flag;
+  ldb_atomic(int) quit_flag;
   enum reader_state state;
-  rdb_mutex_t mu;
-  rdb_cond_t state_cv;
+  ldb_mutex_t mu;
+  ldb_cond_t state_cv;
 } tstate_t;
 
 static void
@@ -518,48 +518,48 @@ tstate_init(tstate_t *t, int seed) {
   t->quit_flag = 0;
   t->state = STATE_STARTING;
 
-  rdb_mutex_init(&t->mu);
-  rdb_cond_init(&t->state_cv);
+  ldb_mutex_init(&t->mu);
+  ldb_cond_init(&t->state_cv);
 }
 
 static void
 tstate_clear(tstate_t *t) {
-  rdb_cond_destroy(&t->state_cv);
-  rdb_mutex_destroy(&t->mu);
+  ldb_cond_destroy(&t->state_cv);
+  ldb_mutex_destroy(&t->mu);
   ctest_clear(&t->test);
 }
 
 static void
 tstate_wait(tstate_t *t, enum reader_state s) {
-  rdb_mutex_lock(&t->mu);
+  ldb_mutex_lock(&t->mu);
 
   while (t->state != s)
-    rdb_cond_wait(&t->state_cv, &t->mu);
+    ldb_cond_wait(&t->state_cv, &t->mu);
 
-  rdb_mutex_unlock(&t->mu);
+  ldb_mutex_unlock(&t->mu);
 }
 
 static void
 tstate_change(tstate_t *t, enum reader_state s) {
-  rdb_mutex_lock(&t->mu);
+  ldb_mutex_lock(&t->mu);
 
   t->state = s;
 
-  rdb_cond_signal(&t->state_cv);
-  rdb_mutex_unlock(&t->mu);
+  ldb_cond_signal(&t->state_cv);
+  ldb_mutex_unlock(&t->mu);
 }
 
 static void
 concurrent_reader(void *arg) {
   tstate_t *state = (tstate_t *)arg;
   int64_t reads = 0;
-  rdb_rand_t rnd;
+  ldb_rand_t rnd;
 
-  rdb_rand_init(&rnd, state->seed);
+  ldb_rand_init(&rnd, state->seed);
 
   tstate_change(state, STATE_RUNNING);
 
-  while (!rdb_atomic_load(&state->quit_flag, rdb_order_acquire)) {
+  while (!ldb_atomic_load(&state->quit_flag, ldb_order_acquire)) {
     ctest_read_step(&state->test, &rnd);
     ++reads;
   }
@@ -568,15 +568,15 @@ concurrent_reader(void *arg) {
 }
 
 static void
-test_skip_concurrent(rdb_pool_t *pool, int run) {
+test_skip_concurrent(ldb_pool_t *pool, int run) {
   const int size = 1000;
   const int N = 1000;
-  rdb_rand_t rnd;
+  ldb_rand_t rnd;
   int i, j, seed;
 
-  seed = rdb_random_seed() + (run * 100);
+  seed = ldb_random_seed() + (run * 100);
 
-  rdb_rand_init(&rnd, seed);
+  ldb_rand_init(&rnd, seed);
 
   for (i = 0; i < N; i++) {
     tstate_t state;
@@ -586,38 +586,38 @@ test_skip_concurrent(rdb_pool_t *pool, int run) {
     if ((i % 100) == 0)
       fprintf(stderr, "Run %d of %d\n", i, N);
 
-    rdb_pool_schedule(pool, &concurrent_reader, &state);
+    ldb_pool_schedule(pool, &concurrent_reader, &state);
 
     tstate_wait(&state, STATE_RUNNING);
 
     for (j = 0; j < size; j++)
       ctest_write_step(&state.test, &rnd);
 
-    rdb_atomic_store(&state.quit_flag, 1, rdb_order_release);
+    ldb_atomic_store(&state.quit_flag, 1, ldb_order_release);
 
     tstate_wait(&state, STATE_DONE);
     tstate_clear(&state);
   }
 }
 
-#endif /* _WIN32 || RDB_PTHREAD */
+#endif /* _WIN32 || LDB_PTHREAD */
 
 /*
  * Execute
  */
 
-RDB_EXTERN int
-rdb_test_skiplist(void);
+LDB_EXTERN int
+ldb_test_skiplist(void);
 
 int
-rdb_test_skiplist(void) {
+ldb_test_skiplist(void) {
   test_skip_empty();
   test_skip_insert_and_lookup();
   test_skip_concurrent_without_threads();
 
-#if defined(_WIN32) || defined(RDB_PTHREAD)
+#if defined(_WIN32) || defined(LDB_PTHREAD)
   {
-    rdb_pool_t *pool = rdb_pool_create(1);
+    ldb_pool_t *pool = ldb_pool_create(1);
 
     test_skip_concurrent(pool, 1);
     test_skip_concurrent(pool, 2);
@@ -625,9 +625,9 @@ rdb_test_skiplist(void) {
     test_skip_concurrent(pool, 4);
     test_skip_concurrent(pool, 5);
 
-    rdb_pool_destroy(pool);
+    ldb_pool_destroy(pool);
   }
-#endif /* _WIN32 || RDB_PTHREAD */
+#endif /* _WIN32 || LDB_PTHREAD */
 
   return 0;
 }

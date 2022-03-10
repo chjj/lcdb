@@ -10,7 +10,7 @@
 #include "crc32c.h"
 #include "internal.h"
 
-#if !defined(RDB_CRC32C_SIMPLE)
+#if !defined(LDB_CRC32C_SIMPLE)
 
 /*
  * Constants
@@ -258,7 +258,7 @@ static const uint32_t crc32c_mask_delta = 0xa282ead8;
  *
  * N must be a power of two.
  */
-static RDB_INLINE const void *
+static LDB_INLINE const void *
 round_up(const void *ptr) {
   return (const void *)(((uintptr_t)(ptr) + (4 - 1)) & ~(uintptr_t)(4 - 1));
 }
@@ -268,7 +268,7 @@ round_up(const void *ptr) {
  */
 
 uint32_t
-rdb_crc32c_extend(uint32_t z, const uint8_t *xp, size_t xn) {
+ldb_crc32c_extend(uint32_t z, const uint8_t *xp, size_t xn) {
   const uint8_t *p = xp;
   const uint8_t *e = p + xn;
   uint32_t l = z ^ crc32c_xor;
@@ -281,7 +281,7 @@ rdb_crc32c_extend(uint32_t z, const uint8_t *xp, size_t xn) {
 
 /* Process one of the 4 strides of 4-byte data. */
 #define STEP4(s) do {                                \
-  crc##s = rdb_fixed32_decode(p + s * 4)             \
+  crc##s = ldb_fixed32_decode(p + s * 4)             \
          ^ stride_ext_table_3[crc##s & 0xff]         \
          ^ stride_ext_table_2[(crc##s >> 8) & 0xff]  \
          ^ stride_ext_table_1[(crc##s >> 16) & 0xff] \
@@ -319,10 +319,10 @@ rdb_crc32c_extend(uint32_t z, const uint8_t *xp, size_t xn) {
 
   if ((e - p) >= 16) {
     /* Load a 16-byte swath into the stride partial results. */
-    uint32_t crc0 = rdb_fixed32_decode(p + 0 * 4) ^ l;
-    uint32_t crc1 = rdb_fixed32_decode(p + 1 * 4);
-    uint32_t crc2 = rdb_fixed32_decode(p + 2 * 4);
-    uint32_t crc3 = rdb_fixed32_decode(p + 3 * 4);
+    uint32_t crc0 = ldb_fixed32_decode(p + 0 * 4) ^ l;
+    uint32_t crc1 = ldb_fixed32_decode(p + 1 * 4);
+    uint32_t crc2 = ldb_fixed32_decode(p + 2 * 4);
+    uint32_t crc3 = ldb_fixed32_decode(p + 3 * 4);
     uint32_t tmp;
     size_t i;
 
@@ -370,7 +370,7 @@ rdb_crc32c_extend(uint32_t z, const uint8_t *xp, size_t xn) {
   return l ^ crc32c_xor;
 }
 
-#else /* RDB_CRC32C_SIMPLE */
+#else /* LDB_CRC32C_SIMPLE */
 
 /*
  * Constants
@@ -450,7 +450,7 @@ static const uint32_t crc32c_mask_delta = 0xa282ead8;
  */
 
 uint32_t
-rdb_crc32c_extend(uint32_t z, const uint8_t *xp, size_t xn) {
+ldb_crc32c_extend(uint32_t z, const uint8_t *xp, size_t xn) {
   z ^= 0xffffffff;
 
   while (xn--)
@@ -459,21 +459,21 @@ rdb_crc32c_extend(uint32_t z, const uint8_t *xp, size_t xn) {
   return z ^ 0xffffffff;
 }
 
-#endif /* RDB_CRC32C_SIMPLE */
+#endif /* LDB_CRC32C_SIMPLE */
 
 uint32_t
-rdb_crc32c_value(const uint8_t *xp, size_t xn) {
-  return rdb_crc32c_extend(0, xp, xn);
+ldb_crc32c_value(const uint8_t *xp, size_t xn) {
+  return ldb_crc32c_extend(0, xp, xn);
 }
 
 uint32_t
-rdb_crc32c_mask(uint32_t crc) {
+ldb_crc32c_mask(uint32_t crc) {
   /* Rotate right by 15 bits and add a constant. */
   return ((crc >> 15) | (crc << 17)) + crc32c_mask_delta;
 }
 
 uint32_t
-rdb_crc32c_unmask(uint32_t masked_crc) {
+ldb_crc32c_unmask(uint32_t masked_crc) {
   uint32_t rot = masked_crc - crc32c_mask_delta;
   return ((rot >> 17) | (rot << 15));
 }

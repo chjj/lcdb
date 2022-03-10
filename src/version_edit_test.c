@@ -17,74 +17,74 @@
 #include "version_edit.h"
 
 static void
-encode_and_decode(const rdb_vedit_t *edit) {
-  rdb_buffer_t encoded, encoded2;
-  rdb_vedit_t parsed;
+encode_and_decode(const ldb_vedit_t *edit) {
+  ldb_buffer_t encoded, encoded2;
+  ldb_vedit_t parsed;
 
-  rdb_buffer_init(&encoded);
-  rdb_buffer_init(&encoded2);
-  rdb_vedit_init(&parsed);
+  ldb_buffer_init(&encoded);
+  ldb_buffer_init(&encoded2);
+  ldb_vedit_init(&parsed);
 
-  rdb_vedit_export(&encoded, edit);
+  ldb_vedit_export(&encoded, edit);
 
-  ASSERT(rdb_vedit_import(&parsed, &encoded));
+  ASSERT(ldb_vedit_import(&parsed, &encoded));
 
-  rdb_vedit_export(&encoded2, &parsed);
+  ldb_vedit_export(&encoded2, &parsed);
 
-  ASSERT(rdb_buffer_equal(&encoded, &encoded2));
+  ASSERT(ldb_buffer_equal(&encoded, &encoded2));
 
-  rdb_vedit_clear(&parsed);
-  rdb_buffer_clear(&encoded2);
-  rdb_buffer_clear(&encoded);
+  ldb_vedit_clear(&parsed);
+  ldb_buffer_clear(&encoded2);
+  ldb_buffer_clear(&encoded);
 }
 
 static void
 test_encode_decode(void) {
   static const uint64_t big = UINT64_C(1) << 50;
-  rdb_slice_t s1 = rdb_string("foo");
-  rdb_slice_t s2 = rdb_string("zoo");
-  rdb_slice_t s3 = rdb_string("x");
-  rdb_ikey_t k1, k2, k3;
-  rdb_vedit_t edit;
+  ldb_slice_t s1 = ldb_string("foo");
+  ldb_slice_t s2 = ldb_string("zoo");
+  ldb_slice_t s3 = ldb_string("x");
+  ldb_ikey_t k1, k2, k3;
+  ldb_vedit_t edit;
   int i;
 
-  rdb_vedit_init(&edit);
+  ldb_vedit_init(&edit);
 
-  rdb_ikey_init(&k1);
-  rdb_ikey_init(&k2);
-  rdb_ikey_init(&k3);
+  ldb_ikey_init(&k1);
+  ldb_ikey_init(&k2);
+  ldb_ikey_init(&k3);
 
   for (i = 0; i < 4; i++) {
     encode_and_decode(&edit);
 
-    rdb_ikey_set(&k1, &s1, big + 500 + i, RDB_TYPE_VALUE);
-    rdb_ikey_set(&k2, &s2, big + 600 + i, RDB_TYPE_DELETION);
-    rdb_ikey_set(&k3, &s3, big + 900 + i, RDB_TYPE_VALUE);
+    ldb_ikey_set(&k1, &s1, big + 500 + i, LDB_TYPE_VALUE);
+    ldb_ikey_set(&k2, &s2, big + 600 + i, LDB_TYPE_DELETION);
+    ldb_ikey_set(&k3, &s3, big + 900 + i, LDB_TYPE_VALUE);
 
-    rdb_vedit_add_file(&edit, 3, big + 300 + i, big + 400 + i, &k1, &k2);
-    rdb_vedit_remove_file(&edit, 4, big + 700 + i);
-    rdb_vedit_set_compact_pointer(&edit, i, &k3);
+    ldb_vedit_add_file(&edit, 3, big + 300 + i, big + 400 + i, &k1, &k2);
+    ldb_vedit_remove_file(&edit, 4, big + 700 + i);
+    ldb_vedit_set_compact_pointer(&edit, i, &k3);
   }
 
-  rdb_ikey_clear(&k1);
-  rdb_ikey_clear(&k2);
-  rdb_ikey_clear(&k3);
+  ldb_ikey_clear(&k1);
+  ldb_ikey_clear(&k2);
+  ldb_ikey_clear(&k3);
 
-  rdb_vedit_set_comparator_name(&edit, "foo");
-  rdb_vedit_set_log_number(&edit, big + 100);
-  rdb_vedit_set_next_file(&edit, big + 200);
-  rdb_vedit_set_last_sequence(&edit, big + 1000);
+  ldb_vedit_set_comparator_name(&edit, "foo");
+  ldb_vedit_set_log_number(&edit, big + 100);
+  ldb_vedit_set_next_file(&edit, big + 200);
+  ldb_vedit_set_last_sequence(&edit, big + 1000);
 
   encode_and_decode(&edit);
 
-  rdb_vedit_clear(&edit);
+  ldb_vedit_clear(&edit);
 }
 
-RDB_EXTERN int
-rdb_test_version_edit(void);
+LDB_EXTERN int
+ldb_test_version_edit(void);
 
 int
-rdb_test_version_edit(void) {
+ldb_test_version_edit(void) {
   test_encode_decode();
   return 0;
 }

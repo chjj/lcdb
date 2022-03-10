@@ -5,8 +5,8 @@
  */
 
 int
-rdb_test_table(void);
+ldb_test_table(void);
 
 int main(void) {
-  return rdb_test_table();
+  return ldb_test_table();
 }

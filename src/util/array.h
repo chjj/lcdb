@@ -4,8 +4,8 @@
  * https://github.com/chjj/rdb
  */
 
-#ifndef RDB_ARRAY_H
-#define RDB_ARRAY_H
+#ifndef LDB_ARRAY_H
+#define LDB_ARRAY_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -16,36 +16,36 @@
  */
 
 void
-rdb_array_init(rdb_array_t *z);
+ldb_array_init(ldb_array_t *z);
 
 void
-rdb_array_clear(rdb_array_t *z);
+ldb_array_clear(ldb_array_t *z);
 
 void
-rdb_array_reset(rdb_array_t *z);
+ldb_array_reset(ldb_array_t *z);
 
 void
-rdb_array_grow(rdb_array_t *z, size_t zn);
+ldb_array_grow(ldb_array_t *z, size_t zn);
 
 void
-rdb_array_push(rdb_array_t *z, int64_t x);
+ldb_array_push(ldb_array_t *z, int64_t x);
 
 int64_t
-rdb_array_pop(rdb_array_t *z);
+ldb_array_pop(ldb_array_t *z);
 
 int64_t
-rdb_array_top(const rdb_array_t *z);
+ldb_array_top(const ldb_array_t *z);
 
 void
-rdb_array_resize(rdb_array_t *z, size_t zn);
+ldb_array_resize(ldb_array_t *z, size_t zn);
 
 void
-rdb_array_copy(rdb_array_t *z, const rdb_array_t *x);
+ldb_array_copy(ldb_array_t *z, const ldb_array_t *x);
 
 void
-rdb_array_swap(rdb_array_t *x, rdb_array_t *y);
+ldb_array_swap(ldb_array_t *x, ldb_array_t *y);
 
 void
-rdb_array_sort(rdb_array_t *z, int (*cmp)(int64_t, int64_t));
+ldb_array_sort(ldb_array_t *z, int (*cmp)(int64_t, int64_t));
 
-#endif /* RDB_ARRAY_H */
+#endif /* LDB_ARRAY_H */

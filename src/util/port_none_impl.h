@@ -12,22 +12,22 @@
  */
 
 void
-rdb_mutex_init(rdb_mutex_t *mtx) {
+ldb_mutex_init(ldb_mutex_t *mtx) {
   (void)mtx;
 }
 
 void
-rdb_mutex_destroy(rdb_mutex_t *mtx) {
+ldb_mutex_destroy(ldb_mutex_t *mtx) {
   (void)mtx;
 }
 
 void
-rdb_mutex_lock(rdb_mutex_t *mtx) {
+ldb_mutex_lock(ldb_mutex_t *mtx) {
   (void)mtx;
 }
 
 void
-rdb_mutex_unlock(rdb_mutex_t *mtx) {
+ldb_mutex_unlock(ldb_mutex_t *mtx) {
   (void)mtx;
 }
 
@@ -36,27 +36,27 @@ rdb_mutex_unlock(rdb_mutex_t *mtx) {
  */
 
 void
-rdb_cond_init(rdb_cond_t *cond) {
+ldb_cond_init(ldb_cond_t *cond) {
   (void)cond;
 }
 
 void
-rdb_cond_destroy(rdb_cond_t *cond) {
+ldb_cond_destroy(ldb_cond_t *cond) {
   (void)cond;
 }
 
 void
-rdb_cond_signal(rdb_cond_t *cond) {
+ldb_cond_signal(ldb_cond_t *cond) {
   (void)cond;
 }
 
 void
-rdb_cond_broadcast(rdb_cond_t *cond) {
+ldb_cond_broadcast(ldb_cond_t *cond) {
   (void)cond;
 }
 
 void
-rdb_cond_wait(rdb_cond_t *cond, rdb_mutex_t *mtx) {
+ldb_cond_wait(ldb_cond_t *cond, ldb_mutex_t *mtx) {
   (void)cond;
   (void)mtx;
   abort(); /* LCOV_EXCL_LINE */
@@ -67,7 +67,7 @@ rdb_cond_wait(rdb_cond_t *cond, rdb_mutex_t *mtx) {
  */
 
 void
-rdb_thread_create(rdb_thread_t *thread, void (*start)(void *), void *arg) {
+ldb_thread_create(ldb_thread_t *thread, void (*start)(void *), void *arg) {
   (void)thread;
   (void)start;
   (void)arg;
@@ -75,11 +75,11 @@ rdb_thread_create(rdb_thread_t *thread, void (*start)(void *), void *arg) {
 }
 
 void
-rdb_thread_detach(rdb_thread_t *thread) {
+ldb_thread_detach(ldb_thread_t *thread) {
   (void)thread;
 }
 
 void
-rdb_thread_join(rdb_thread_t *thread) {
+ldb_thread_join(ldb_thread_t *thread) {
   (void)thread;
 }

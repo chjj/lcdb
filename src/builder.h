@@ -4,17 +4,17 @@
  * https://github.com/chjj/rdb
  */
 
-#ifndef RDB_BUILDER_H
-#define RDB_BUILDER_H
+#ifndef LDB_BUILDER_H
+#define LDB_BUILDER_H
 
 /*
  * Types
  */
 
-struct rdb_dbopt_s;
-struct rdb_filemeta_s;
-struct rdb_iter_s;
-struct rdb_tcache_s;
+struct ldb_dbopt_s;
+struct ldb_filemeta_s;
+struct ldb_iter_s;
+struct ldb_tcache_s;
 
 /*
  * BuildTable
@@ -26,10 +26,10 @@ struct rdb_tcache_s;
    If no data is present in *iter, meta->file_size will be set to
    zero, and no Table file will be produced. */
 int
-rdb_build_table(const char *prefix,
-                const struct rdb_dbopt_s *options,
-                struct rdb_tcache_s *table_cache,
-                struct rdb_iter_s *iter,
-                struct rdb_filemeta_s *meta);
+ldb_build_table(const char *prefix,
+                const struct ldb_dbopt_s *options,
+                struct ldb_tcache_s *table_cache,
+                struct ldb_iter_s *iter,
+                struct ldb_filemeta_s *meta);
 
-#endif /* RDB_BUILDER_H */
+#endif /* LDB_BUILDER_H */

@@ -4,8 +4,8 @@
  * https://github.com/chjj/rdb
  */
 
-#ifndef RDB_LOG_WRITER_H
-#define RDB_LOG_WRITER_H
+#ifndef LDB_LOG_WRITER_H
+#define LDB_LOG_WRITER_H
 
 #include <stdint.h>
 
@@ -16,18 +16,18 @@
  * Types
  */
 
-struct rdb_wfile_s;
+struct ldb_wfile_s;
 
-typedef struct rdb_logwriter_s {
-  struct rdb_wfile_s *file;
-  rdb_buffer_t *dst; /* For testing. */
+typedef struct ldb_logwriter_s {
+  struct ldb_wfile_s *file;
+  ldb_buffer_t *dst; /* For testing. */
   int block_offset; /* Current offset in block. */
 
   /* crc32c values for all supported record types. These are
      pre-computed to reduce the overhead of computing the crc of the
      record type stored in the header. */
-  uint32_t type_crc[RDB_MAX_RECTYPE + 1];
-} rdb_logwriter_t;
+  uint32_t type_crc[LDB_MAX_RECTYPE + 1];
+} ldb_logwriter_t;
 
 /*
  * LogWriter
@@ -37,18 +37,18 @@ typedef struct rdb_logwriter_s {
  * "*file" must have initial length "dest_length".
  * "*file" must remain live while this Writer is in use.
  */
-rdb_logwriter_t *
-rdb_logwriter_create(struct rdb_wfile_s *file, uint64_t length);
+ldb_logwriter_t *
+ldb_logwriter_create(struct ldb_wfile_s *file, uint64_t length);
 
 void
-rdb_logwriter_destroy(rdb_logwriter_t *lw);
+ldb_logwriter_destroy(ldb_logwriter_t *lw);
 
 void
-rdb_logwriter_init(rdb_logwriter_t *lw,
-                   struct rdb_wfile_s *file,
+ldb_logwriter_init(ldb_logwriter_t *lw,
+                   struct ldb_wfile_s *file,
                    uint64_t length);
 
 int
-rdb_logwriter_add_record(rdb_logwriter_t *lw, const rdb_slice_t *slice);
+ldb_logwriter_add_record(ldb_logwriter_t *lw, const ldb_slice_t *slice);
 
-#endif /* RDB_LOG_WRITER_H */
+#endif /* LDB_LOG_WRITER_H */

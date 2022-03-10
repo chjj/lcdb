@@ -5,8 +5,8 @@
  */
 
 int
-rdb_test_c(void);
+ldb_test_c(void);
 
 int main(void) {
-  return rdb_test_c();
+  return ldb_test_c();
 }

@@ -5,8 +5,8 @@
  */
 
 int
-rdb_test_write_batch(void);
+ldb_test_write_batch(void);
 
 int main(void) {
-  return rdb_test_write_batch();
+  return ldb_test_write_batch();
 }

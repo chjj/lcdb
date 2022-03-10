@@ -7,22 +7,22 @@
 #include "internal.h"
 #include "status.h"
 
-static const char *rdb_errmsg[] = {
-  /* .RDB_OK = */ "OK",
-  /* .RDB_NOTFOUND = */ "NotFound",
-  /* .RDB_CORRUPTION = */ "Corruption",
-  /* .RDB_NOSUPPORT = */ "Not implemented",
-  /* .RDB_INVALID = */ "Invalid argument",
-  /* .RDB_IOERR = */ "IO error"
+static const char *ldb_errmsg[] = {
+  /* .LDB_OK = */ "OK",
+  /* .LDB_NOTFOUND = */ "NotFound",
+  /* .LDB_CORRUPTION = */ "Corruption",
+  /* .LDB_NOSUPPORT = */ "Not implemented",
+  /* .LDB_INVALID = */ "Invalid argument",
+  /* .LDB_IOERR = */ "IO error"
 };
 
 const char *
-rdb_strerror(int code) {
+ldb_strerror(int code) {
   if (code < 0)
     code = -code;
 
-  if (code >= (int)lengthof(rdb_errmsg))
-    code = -RDB_INVALID;
+  if (code >= (int)lengthof(ldb_errmsg))
+    code = -LDB_INVALID;
 
-  return rdb_errmsg[code];
+  return ldb_errmsg[code];
 }

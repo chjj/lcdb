@@ -15,16 +15,16 @@
  */
 
 void
-rdb_vector_init(rdb_vector_t *z) {
+ldb_vector_init(ldb_vector_t *z) {
   z->items = NULL;
   z->length = 0;
   z->alloc = 0;
 }
 
 void
-rdb_vector_clear(rdb_vector_t *z) {
+ldb_vector_clear(ldb_vector_t *z) {
   if (z->alloc > 0)
-    rdb_free(z->items);
+    ldb_free(z->items);
 
   z->items = NULL;
   z->length = 0;
@@ -32,57 +32,57 @@ rdb_vector_clear(rdb_vector_t *z) {
 }
 
 void
-rdb_vector_reset(rdb_vector_t *z) {
+ldb_vector_reset(ldb_vector_t *z) {
   z->length = 0;
 }
 
 void
-rdb_vector_grow(rdb_vector_t *z, size_t zn) {
+ldb_vector_grow(ldb_vector_t *z, size_t zn) {
   if (zn > z->alloc) {
-    z->items = (void **)rdb_realloc(z->items, zn * sizeof(void *));
+    z->items = (void **)ldb_realloc(z->items, zn * sizeof(void *));
     z->alloc = zn;
   }
 }
 
 void
-rdb_vector_push(rdb_vector_t *z, const void *x) {
+ldb_vector_push(ldb_vector_t *z, const void *x) {
   if (z->length == z->alloc)
-    rdb_vector_grow(z, (z->alloc * 3) / 2 + (z->alloc <= 1));
+    ldb_vector_grow(z, (z->alloc * 3) / 2 + (z->alloc <= 1));
 
   z->items[z->length++] = (void *)x;
 }
 
 void *
-rdb_vector_pop(rdb_vector_t *z) {
+ldb_vector_pop(ldb_vector_t *z) {
   assert(z->length > 0);
   return z->items[--z->length];
 }
 
 void *
-rdb_vector_top(const rdb_vector_t *z) {
+ldb_vector_top(const ldb_vector_t *z) {
   assert(z->length > 0);
   return (void *)z->items[z->length - 1];
 }
 
 void
-rdb_vector_resize(rdb_vector_t *z, size_t zn) {
-  rdb_vector_grow(z, zn);
+ldb_vector_resize(ldb_vector_t *z, size_t zn) {
+  ldb_vector_grow(z, zn);
   z->length = zn;
 }
 
 void
-rdb_vector_copy(rdb_vector_t *z, const rdb_vector_t *x) {
+ldb_vector_copy(ldb_vector_t *z, const ldb_vector_t *x) {
   size_t i;
 
-  rdb_vector_resize(z, x->length);
+  ldb_vector_resize(z, x->length);
 
   for (i = 0; i < x->length; i++)
     z->items[i] = x->items[i];
 }
 
 void
-rdb_vector_swap(rdb_vector_t *x, rdb_vector_t *y) {
-  rdb_vector_t t = *x;
+ldb_vector_swap(ldb_vector_t *x, ldb_vector_t *y) {
+  ldb_vector_t t = *x;
   *x = *y;
   *y = t;
 }
@@ -93,7 +93,7 @@ rdb_vector_swap(rdb_vector_t *x, rdb_vector_t *y) {
  */
 
 static void
-rdb_swap(void **items, int i, int j) {
+ldb_swap(void **items, int i, int j) {
   void *item = items[i];
 
   items[i] = items[j];
@@ -101,7 +101,7 @@ rdb_swap(void **items, int i, int j) {
 }
 
 static int
-rdb_partition(void **items, int lo, int hi, int (*cmp)(void *, void *)) {
+ldb_partition(void **items, int lo, int hi, int (*cmp)(void *, void *)) {
   void *pivot = items[(hi + lo) >> 1];
   int i = lo - 1;
   int j = hi + 1;
@@ -113,22 +113,22 @@ rdb_partition(void **items, int lo, int hi, int (*cmp)(void *, void *)) {
     if (i >= j)
       return j;
 
-    rdb_swap(items, i, j);
+    ldb_swap(items, i, j);
   }
 }
 
 static void
-rdb_qsort(void **items, int lo, int hi, int (*cmp)(void *, void *)) {
+ldb_qsort(void **items, int lo, int hi, int (*cmp)(void *, void *)) {
   if (lo >= 0 && hi >= 0 && lo < hi) {
-    int p = rdb_partition(items, lo, hi, cmp);
+    int p = ldb_partition(items, lo, hi, cmp);
 
-    rdb_qsort(items, lo, p, cmp);
-    rdb_qsort(items, p + 1, hi, cmp);
+    ldb_qsort(items, lo, p, cmp);
+    ldb_qsort(items, p + 1, hi, cmp);
   }
 }
 
 void
-rdb_vector_sort(rdb_vector_t *z, int (*cmp)(void *, void *)) {
+ldb_vector_sort(ldb_vector_t *z, int (*cmp)(void *, void *)) {
   if (z->length > 1)
-    rdb_qsort(z->items, 0, z->length - 1, cmp);
+    ldb_qsort(z->items, 0, z->length - 1, cmp);
 }

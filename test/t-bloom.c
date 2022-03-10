@@ -5,8 +5,8 @@
  */
 
 int
-rdb_test_bloom(void);
+ldb_test_bloom(void);
 
 int main(void) {
-  return rdb_test_bloom();
+  return ldb_test_bloom();
 }

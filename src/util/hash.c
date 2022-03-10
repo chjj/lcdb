@@ -14,7 +14,7 @@
  */
 
 uint32_t
-rdb_hash(const uint8_t *data, size_t size, uint32_t seed) {
+ldb_hash(const uint8_t *data, size_t size, uint32_t seed) {
   /* Similar to murmur hash. */
   static const uint32_t m = 0xc6a4a793;
   static const uint32_t r = 24;
@@ -23,7 +23,7 @@ rdb_hash(const uint8_t *data, size_t size, uint32_t seed) {
 
   /* Pick up four bytes at a time. */
   while (size >= 4) {
-    w = rdb_fixed32_decode(data);
+    w = ldb_fixed32_decode(data);
 
     h += w;
     h *= m;

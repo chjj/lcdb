@@ -5,8 +5,8 @@
  */
 
 int
-rdb_test_hash(void);
+ldb_test_hash(void);
 
 int main(void) {
-  return rdb_test_hash();
+  return ldb_test_hash();
 }

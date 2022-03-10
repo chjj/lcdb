@@ -16,16 +16,16 @@
  */
 
 void
-rdb_array_init(rdb_array_t *z) {
+ldb_array_init(ldb_array_t *z) {
   z->items = NULL;
   z->length = 0;
   z->alloc = 0;
 }
 
 void
-rdb_array_clear(rdb_array_t *z) {
+ldb_array_clear(ldb_array_t *z) {
   if (z->alloc > 0)
-    rdb_free(z->items);
+    ldb_free(z->items);
 
   z->items = NULL;
   z->length = 0;
@@ -33,57 +33,57 @@ rdb_array_clear(rdb_array_t *z) {
 }
 
 void
-rdb_array_reset(rdb_array_t *z) {
+ldb_array_reset(ldb_array_t *z) {
   z->length = 0;
 }
 
 void
-rdb_array_grow(rdb_array_t *z, size_t zn) {
+ldb_array_grow(ldb_array_t *z, size_t zn) {
   if (zn > z->alloc) {
-    z->items = (int64_t *)rdb_realloc(z->items, zn * sizeof(int64_t));
+    z->items = (int64_t *)ldb_realloc(z->items, zn * sizeof(int64_t));
     z->alloc = zn;
   }
 }
 
 void
-rdb_array_push(rdb_array_t *z, int64_t x) {
+ldb_array_push(ldb_array_t *z, int64_t x) {
   if (z->length == z->alloc)
-    rdb_array_grow(z, (z->alloc * 3) / 2 + (z->alloc <= 1));
+    ldb_array_grow(z, (z->alloc * 3) / 2 + (z->alloc <= 1));
 
   z->items[z->length++] = x;
 }
 
 int64_t
-rdb_array_pop(rdb_array_t *z) {
+ldb_array_pop(ldb_array_t *z) {
   assert(z->length > 0);
   return z->items[--z->length];
 }
 
 int64_t
-rdb_array_top(const rdb_array_t *z) {
+ldb_array_top(const ldb_array_t *z) {
   assert(z->length > 0);
   return z->items[z->length - 1];
 }
 
 void
-rdb_array_resize(rdb_array_t *z, size_t zn) {
-  rdb_array_grow(z, zn);
+ldb_array_resize(ldb_array_t *z, size_t zn) {
+  ldb_array_grow(z, zn);
   z->length = zn;
 }
 
 void
-rdb_array_copy(rdb_array_t *z, const rdb_array_t *x) {
+ldb_array_copy(ldb_array_t *z, const ldb_array_t *x) {
   size_t i;
 
-  rdb_array_resize(z, x->length);
+  ldb_array_resize(z, x->length);
 
   for (i = 0; i < x->length; i++)
     z->items[i] = x->items[i];
 }
 
 void
-rdb_array_swap(rdb_array_t *x, rdb_array_t *y) {
-  rdb_array_t t = *x;
+ldb_array_swap(ldb_array_t *x, ldb_array_t *y) {
+  ldb_array_t t = *x;
   *x = *y;
   *y = t;
 }
@@ -94,7 +94,7 @@ rdb_array_swap(rdb_array_t *x, rdb_array_t *y) {
  */
 
 static void
-rdb_swap(int64_t *items, int i, int j) {
+ldb_swap(int64_t *items, int i, int j) {
   int64_t item = items[i];
 
   items[i] = items[j];
@@ -102,7 +102,7 @@ rdb_swap(int64_t *items, int i, int j) {
 }
 
 static int
-rdb_partition(int64_t *items, int lo, int hi, int (*cmp)(int64_t, int64_t)) {
+ldb_partition(int64_t *items, int lo, int hi, int (*cmp)(int64_t, int64_t)) {
   int64_t pivot = items[(hi + lo) >> 1];
   int i = lo - 1;
   int j = hi + 1;
@@ -114,22 +114,22 @@ rdb_partition(int64_t *items, int lo, int hi, int (*cmp)(int64_t, int64_t)) {
     if (i >= j)
       return j;
 
-    rdb_swap(items, i, j);
+    ldb_swap(items, i, j);
   }
 }
 
 static void
-rdb_qsort(int64_t *items, int lo, int hi, int (*cmp)(int64_t, int64_t)) {
+ldb_qsort(int64_t *items, int lo, int hi, int (*cmp)(int64_t, int64_t)) {
   if (lo >= 0 && hi >= 0 && lo < hi) {
-    int p = rdb_partition(items, lo, hi, cmp);
+    int p = ldb_partition(items, lo, hi, cmp);
 
-    rdb_qsort(items, lo, p, cmp);
-    rdb_qsort(items, p + 1, hi, cmp);
+    ldb_qsort(items, lo, p, cmp);
+    ldb_qsort(items, p + 1, hi, cmp);
   }
 }
 
 void
-rdb_array_sort(rdb_array_t *z, int (*cmp)(int64_t, int64_t)) {
+ldb_array_sort(ldb_array_t *z, int (*cmp)(int64_t, int64_t)) {
   if (z->length > 1)
-    rdb_qsort(z->items, 0, z->length - 1, cmp);
+    ldb_qsort(z->items, 0, z->length - 1, cmp);
 }

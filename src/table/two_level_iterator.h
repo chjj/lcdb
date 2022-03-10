@@ -4,8 +4,8 @@
  * https://github.com/chjj/rdb
  */
 
-#ifndef RDB_TWO_LEVEL_ITERATOR_H
-#define RDB_TWO_LEVEL_ITERATOR_H
+#ifndef LDB_TWO_LEVEL_ITERATOR_H
+#define LDB_TWO_LEVEL_ITERATOR_H
 
 #include "../util/types.h"
 
@@ -13,12 +13,12 @@
  * Types
  */
 
-struct rdb_iter_s;
-struct rdb_readopt_s;
+struct ldb_iter_s;
+struct ldb_readopt_s;
 
-typedef struct rdb_iter_s *(*rdb_blockfunc_f)(void *,
-                                              const struct rdb_readopt_s *,
-                                              const rdb_slice_t *);
+typedef struct ldb_iter_s *(*ldb_blockfunc_f)(void *,
+                                              const struct ldb_readopt_s *,
+                                              const ldb_slice_t *);
 
 /*
  * Two-Level Iterator
@@ -34,10 +34,10 @@ typedef struct rdb_iter_s *(*rdb_blockfunc_f)(void *,
  * Uses a supplied function to convert an index_iter value into
  * an iterator over the contents of the corresponding block.
  */
-struct rdb_iter_s *
-rdb_twoiter_create(struct rdb_iter_s *index_iter,
-                   rdb_blockfunc_f block_function,
+struct ldb_iter_s *
+ldb_twoiter_create(struct ldb_iter_s *index_iter,
+                   ldb_blockfunc_f block_function,
                    void *arg,
-                   const struct rdb_readopt_s *options);
+                   const struct ldb_readopt_s *options);
 
-#endif /* RDB_TWO_LEVEL_ITERATOR_H */
+#endif /* LDB_TWO_LEVEL_ITERATOR_H */

@@ -5,8 +5,8 @@
  */
 
 int
-rdb_test_env(void);
+ldb_test_env(void);
 
 int main(void) {
-  return rdb_test_env();
+  return ldb_test_env();
 }

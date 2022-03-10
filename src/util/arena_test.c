@@ -13,22 +13,22 @@
 #include "slice.h"
 #include "testutil.h"
 
-RDB_EXTERN int
-rdb_test_arena(void);
+LDB_EXTERN int
+ldb_test_arena(void);
 
 int
-rdb_test_arena(void) {
+ldb_test_arena(void) {
   const size_t N = 100000;
-  rdb_slice_t *allocated;
+  ldb_slice_t *allocated;
   size_t bytes = 0;
-  rdb_arena_t arena;
-  rdb_rand_t rnd;
+  ldb_arena_t arena;
+  ldb_rand_t rnd;
   size_t i, length;
 
-  rdb_arena_init(&arena);
-  rdb_rand_init(&rnd, 301);
+  ldb_arena_init(&arena);
+  ldb_rand_init(&rnd, 301);
 
-  allocated = rdb_malloc(N * sizeof(rdb_slice_t));
+  allocated = ldb_malloc(N * sizeof(ldb_slice_t));
   length = 0;
 
   for (i = 0; i < N; i++) {
@@ -38,11 +38,11 @@ rdb_test_arena(void) {
     if (i % (N / 10) == 0) {
       s = i;
     } else {
-      s = rdb_rand_one_in(&rnd, 4000)
-        ? rdb_rand_uniform(&rnd, 6000)
-        : (rdb_rand_one_in(&rnd, 10)
-           ? rdb_rand_uniform(&rnd, 100)
-           : rdb_rand_uniform(&rnd, 20));
+      s = ldb_rand_one_in(&rnd, 4000)
+        ? ldb_rand_uniform(&rnd, 6000)
+        : (ldb_rand_one_in(&rnd, 10)
+           ? ldb_rand_uniform(&rnd, 100)
+           : ldb_rand_uniform(&rnd, 20));
     }
 
     if (s == 0) {
@@ -50,10 +50,10 @@ rdb_test_arena(void) {
       s = 1;
     }
 
-    if (rdb_rand_one_in(&rnd, 10))
-      r = rdb_arena_alloc_aligned(&arena, s);
+    if (ldb_rand_one_in(&rnd, 10))
+      r = ldb_arena_alloc_aligned(&arena, s);
     else
-      r = rdb_arena_alloc(&arena, s);
+      r = ldb_arena_alloc(&arena, s);
 
     for (b = 0; b < s; b++) {
       /* Fill the "i"th allocation with a known bit pattern. */
@@ -62,12 +62,12 @@ rdb_test_arena(void) {
 
     bytes += s;
 
-    allocated[length++] = rdb_slice(r, s);
+    allocated[length++] = ldb_slice(r, s);
 
-    ASSERT(rdb_arena_usage(&arena) >= bytes);
+    ASSERT(ldb_arena_usage(&arena) >= bytes);
 
     if (i > N / 10)
-      ASSERT(rdb_arena_usage(&arena) <= bytes * 1.10);
+      ASSERT(ldb_arena_usage(&arena) <= bytes * 1.10);
   }
 
   for (i = 0; i < length; i++) {
@@ -81,8 +81,8 @@ rdb_test_arena(void) {
     }
   }
 
-  rdb_arena_clear(&arena);
-  rdb_free(allocated);
+  ldb_arena_clear(&arena);
+  ldb_free(allocated);
 
   return 0;
 }

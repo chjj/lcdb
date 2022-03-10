@@ -4,8 +4,8 @@
  * https://github.com/chjj/rdb
  */
 
-#ifndef RDB_RANDOM_H
-#define RDB_RANDOM_H
+#ifndef LDB_RANDOM_H
+#define LDB_RANDOM_H
 
 #include <stdint.h>
 
@@ -13,23 +13,23 @@
    generating truly random bits, but good enough for our needs in this
    package. */
 
-typedef struct rdb_rand_s {
+typedef struct ldb_rand_s {
   uint32_t seed;
-} rdb_rand_t;
+} ldb_rand_t;
 
 void
-rdb_rand_init(rdb_rand_t *rnd, uint32_t seed);
+ldb_rand_init(ldb_rand_t *rnd, uint32_t seed);
 
 uint32_t
-rdb_rand_next(rdb_rand_t *rnd);
+ldb_rand_next(ldb_rand_t *rnd);
 
 uint32_t
-rdb_rand_uniform(rdb_rand_t *rnd, uint32_t n);
+ldb_rand_uniform(ldb_rand_t *rnd, uint32_t n);
 
 uint32_t
-rdb_rand_one_in(rdb_rand_t *rnd, uint32_t n);
+ldb_rand_one_in(ldb_rand_t *rnd, uint32_t n);
 
 uint32_t
-rdb_rand_skewed(rdb_rand_t *rnd, int max_log);
+ldb_rand_skewed(ldb_rand_t *rnd, int max_log);
 
-#endif /* RDB_RANDOM_H */
+#endif /* LDB_RANDOM_H */

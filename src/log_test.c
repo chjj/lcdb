@@ -31,23 +31,23 @@
 static const size_t offset_record_sizes[] = {
   10000, /* Two sizable records in first block. */
   10000,
-  2 * RDB_BLOCK_SIZE - 1000,        /* Span three blocks. */
+  2 * LDB_BLOCK_SIZE - 1000,        /* Span three blocks. */
   1,
   13716,                            /* Consume all but two bytes of block 3. */
-  RDB_BLOCK_SIZE - RDB_HEADER_SIZE, /* Consume the entirety of block 4. */
+  LDB_BLOCK_SIZE - LDB_HEADER_SIZE, /* Consume the entirety of block 4. */
 };
 
 static const uint64_t last_record_offsets[] = {
   0,
-  RDB_HEADER_SIZE + 10000,
-  2 * (RDB_HEADER_SIZE + 10000),
-  2 * (RDB_HEADER_SIZE + 10000)
-    + (2 * RDB_BLOCK_SIZE - 1000)
-    + 3 * RDB_HEADER_SIZE,
-  2 * (RDB_HEADER_SIZE + 10000)
-    + (2 * RDB_BLOCK_SIZE - 1000)
-    + 3 * RDB_HEADER_SIZE + RDB_HEADER_SIZE + 1,
-  3 * RDB_BLOCK_SIZE,
+  LDB_HEADER_SIZE + 10000,
+  2 * (LDB_HEADER_SIZE + 10000),
+  2 * (LDB_HEADER_SIZE + 10000)
+    + (2 * LDB_BLOCK_SIZE - 1000)
+    + 3 * LDB_HEADER_SIZE,
+  2 * (LDB_HEADER_SIZE + 10000)
+    + (2 * LDB_BLOCK_SIZE - 1000)
+    + 3 * LDB_HEADER_SIZE + LDB_HEADER_SIZE + 1,
+  3 * LDB_BLOCK_SIZE,
 };
 
 static const int num_offset_records = lengthof(last_record_offsets);
@@ -57,29 +57,29 @@ static const int num_offset_records = lengthof(last_record_offsets);
  */
 
 typedef struct ltest_s {
-  rdb_buffer_t dst;
-  rdb_slice_t src;
+  ldb_buffer_t dst;
+  ldb_slice_t src;
   int status;
-  rdb_reporter_t report;
+  ldb_reporter_t report;
   int reading;
-  rdb_logwriter_t writer;
-  rdb_logreader_t reader;
-  rdb_buffer_t scratch;
-  rdb_vector_t arena;
+  ldb_logwriter_t writer;
+  ldb_logreader_t reader;
+  ldb_buffer_t scratch;
+  ldb_vector_t arena;
 } ltest_t;
 
 static void
-report_corruption(rdb_reporter_t *report, size_t bytes, int status) {
+report_corruption(ldb_reporter_t *report, size_t bytes, int status) {
   report->dropped_bytes += bytes;
   *report->status = status;
 }
 
 static void
 ltest_init(ltest_t *t) {
-  rdb_buffer_init(&t->dst);
-  rdb_slice_init(&t->src);
+  ldb_buffer_init(&t->dst);
+  ldb_slice_init(&t->src);
 
-  t->status = RDB_OK;
+  t->status = LDB_OK;
 
   t->report.status = &t->status;
   t->report.dropped_bytes = 0;
@@ -87,14 +87,14 @@ ltest_init(ltest_t *t) {
 
   t->reading = 0;
 
-  rdb_logwriter_init(&t->writer, NULL, 0);
-  rdb_logreader_init(&t->reader, NULL, &t->report, 1, 0);
+  ldb_logwriter_init(&t->writer, NULL, 0);
+  ldb_logreader_init(&t->reader, NULL, &t->report, 1, 0);
 
   t->writer.dst = &t->dst;
   t->reader.src = &t->src;
 
-  rdb_buffer_init(&t->scratch);
-  rdb_vector_init(&t->arena);
+  ldb_buffer_init(&t->scratch);
+  ldb_vector_init(&t->arena);
 }
 
 static void
@@ -102,12 +102,12 @@ ltest_clear(ltest_t *t) {
   size_t i;
 
   for (i = 0; i < t->arena.length; i++)
-    rdb_free(t->arena.items[i]);
+    ldb_free(t->arena.items[i]);
 
-  rdb_vector_clear(&t->arena);
-  rdb_buffer_clear(&t->scratch);
-  rdb_logreader_clear(&t->reader);
-  rdb_buffer_clear(&t->dst);
+  ldb_vector_clear(&t->arena);
+  ldb_buffer_clear(&t->scratch);
+  ldb_logreader_clear(&t->reader);
+  ldb_buffer_clear(&t->dst);
 }
 
 static void
@@ -115,28 +115,28 @@ ltest_reset(ltest_t *t) {
   size_t i;
 
   for (i = 0; i < t->arena.length; i++)
-    rdb_free(t->arena.items[i]);
+    ldb_free(t->arena.items[i]);
 
-  rdb_vector_reset(&t->arena);
+  ldb_vector_reset(&t->arena);
 }
 
 /* Construct a string of the specified length
    made out of the supplied partial string. */
 static const char *
 ltest_big_string(ltest_t *t, const char *partial, size_t n) {
-  rdb_slice_t chunk = rdb_string(partial);
-  rdb_buffer_t result;
+  ldb_slice_t chunk = ldb_string(partial);
+  ldb_buffer_t result;
 
-  rdb_buffer_init(&result);
-  rdb_buffer_grow(&result, n + chunk.size + 1);
+  ldb_buffer_init(&result);
+  ldb_buffer_grow(&result, n + chunk.size + 1);
 
   while (result.size < n)
-    rdb_buffer_concat(&result, &chunk);
+    ldb_buffer_concat(&result, &chunk);
 
-  rdb_buffer_resize(&result, n);
-  rdb_buffer_push(&result, 0);
+  ldb_buffer_resize(&result, n);
+  ldb_buffer_push(&result, 0);
 
-  rdb_vector_push(&t->arena, result.data);
+  ldb_vector_push(&t->arena, result.data);
 
   return (char *)result.data;
 }
@@ -150,24 +150,24 @@ number_string(int n, char *buf) {
 
 /* Return a skewed potentially long string. */
 static const char *
-ltest_rand_string(ltest_t *t, int i, rdb_rand_t *rnd) {
+ltest_rand_string(ltest_t *t, int i, ldb_rand_t *rnd) {
   char buf[50];
-  return ltest_big_string(t, number_string(i, buf), rdb_rand_skewed(rnd, 17));
+  return ltest_big_string(t, number_string(i, buf), ldb_rand_skewed(rnd, 17));
 }
 
 static void
 ltest_reopen_for_append(ltest_t *t) {
-  rdb_logwriter_init(&t->writer, NULL, t->dst.size);
+  ldb_logwriter_init(&t->writer, NULL, t->dst.size);
   t->writer.dst = &t->dst;
 }
 
 static void
 ltest_write(ltest_t *t, const char *msg) {
-  rdb_slice_t m = rdb_string(msg);
+  ldb_slice_t m = ldb_string(msg);
 
   ASSERT(!t->reading);
 
-  rdb_logwriter_add_record(&t->writer, &m);
+  ldb_logwriter_add_record(&t->writer, &m);
 }
 
 static size_t
@@ -177,7 +177,7 @@ ltest_written_bytes(const ltest_t *t) {
 
 static const char *
 ltest_read(ltest_t *t) {
-  rdb_slice_t record;
+  ldb_slice_t record;
   char *result;
 
   if (!t->reading) {
@@ -185,17 +185,17 @@ ltest_read(ltest_t *t) {
     t->src = t->dst;
   }
 
-  if (!rdb_logreader_read_record(&t->reader, &record, &t->scratch))
+  if (!ldb_logreader_read_record(&t->reader, &record, &t->scratch))
     return "EOF";
 
-  result = rdb_malloc(record.size + 1);
+  result = ldb_malloc(record.size + 1);
 
   if (record.size > 0)
     memcpy(result, record.data, record.size);
 
   result[record.size] = '\0';
 
-  rdb_vector_push(&t->arena, result);
+  ldb_vector_push(&t->arena, result);
 
   return result;
 }
@@ -212,22 +212,22 @@ ltest_set_byte(ltest_t *t, int offset, int new_byte) {
 
 static void
 ltest_shrink_size(ltest_t *t, int bytes) {
-  rdb_buffer_resize(&t->dst, t->dst.size - bytes);
+  ldb_buffer_resize(&t->dst, t->dst.size - bytes);
 }
 
 static void
 ltest_fix_checksum(ltest_t *t, int header_offset, int len) {
   /* Compute crc of type/len/data. */
-  uint32_t crc = rdb_crc32c_value(&t->dst.data[header_offset + 6], 1 + len);
+  uint32_t crc = ldb_crc32c_value(&t->dst.data[header_offset + 6], 1 + len);
 
-  crc = rdb_crc32c_mask(crc);
+  crc = ldb_crc32c_mask(crc);
 
-  rdb_fixed32_write(&t->dst.data[header_offset], crc);
+  ldb_fixed32_write(&t->dst.data[header_offset], crc);
 }
 
 static void
 ltest_force_error(ltest_t *t) {
-  t->reader.error = RDB_CORRUPTION;
+  t->reader.error = LDB_CORRUPTION;
 }
 
 static size_t
@@ -241,21 +241,21 @@ ltest_write_initial_offset_log(ltest_t *t) {
 
   for (i = 0; i < num_offset_records; i++) {
     size_t len = offset_record_sizes[i];
-    char *record = rdb_malloc(len + 1);
+    char *record = ldb_malloc(len + 1);
 
     memset(record, 'a' + i, len);
 
     record[len] = '\0';
 
     ltest_write(t, record);
-    rdb_free(record);
+    ldb_free(record);
   }
 }
 
 static void
 ltest_start_reading_at(ltest_t *t, uint64_t initial_offset) {
-  rdb_logreader_clear(&t->reader);
-  rdb_logreader_init(&t->reader, NULL, &t->report, 1, initial_offset);
+  ldb_logreader_clear(&t->reader);
+  ldb_logreader_init(&t->reader, NULL, &t->report, 1, initial_offset);
 
   t->reader.src = &t->src;
 }
@@ -263,37 +263,37 @@ ltest_start_reading_at(ltest_t *t, uint64_t initial_offset) {
 static void
 ltest_check_offset_past_end_returns_no_records(ltest_t *t,
                                                uint64_t offset_past_end) {
-  rdb_logreader_t reader;
-  rdb_slice_t record;
+  ldb_logreader_t reader;
+  ldb_slice_t record;
 
   ltest_write_initial_offset_log(t);
 
   t->reading = 1;
   t->src = t->dst;
 
-  rdb_logreader_init(&reader, NULL, &t->report, 1,
+  ldb_logreader_init(&reader, NULL, &t->report, 1,
                      ltest_written_bytes(t) + offset_past_end);
 
   reader.src = &t->src;
 
-  ASSERT(!rdb_logreader_read_record(&reader, &record, &t->scratch));
+  ASSERT(!ldb_logreader_read_record(&reader, &record, &t->scratch));
 
-  rdb_logreader_clear(&reader);
+  ldb_logreader_clear(&reader);
 }
 
 static void
 ltest_check_initial_offset_record(ltest_t *t,
                                   uint64_t initial_offset,
                                   int offset_index) {
-  rdb_logreader_t reader;
-  rdb_slice_t record;
+  ldb_logreader_t reader;
+  ldb_slice_t record;
 
   ltest_write_initial_offset_log(t);
 
   t->reading = 1;
   t->src = t->dst;
 
-  rdb_logreader_init(&reader, NULL, &t->report, 1, initial_offset);
+  ldb_logreader_init(&reader, NULL, &t->report, 1, initial_offset);
 
   reader.src = &t->src;
 
@@ -301,7 +301,7 @@ ltest_check_initial_offset_record(ltest_t *t,
   ASSERT(offset_index < num_offset_records);
 
   for (; offset_index < num_offset_records; offset_index++) {
-    ASSERT(rdb_logreader_read_record(&reader, &record, &t->scratch));
+    ASSERT(ldb_logreader_read_record(&reader, &record, &t->scratch));
 
     ASSERT(offset_record_sizes[offset_index] == record.size);
 
@@ -310,7 +310,7 @@ ltest_check_initial_offset_record(ltest_t *t,
     ASSERT('a' + offset_index == (int)record.data[0]);
   }
 
-  rdb_logreader_clear(&reader);
+  ldb_logreader_clear(&reader);
 }
 
 /*
@@ -366,11 +366,11 @@ test_log_fragmentation(ltest_t *t) {
 static void
 test_log_marginal_trailer(ltest_t *t) {
   /* Make a trailer that is exactly the same length as an empty record. */
-  const int n = RDB_BLOCK_SIZE - 2 * RDB_HEADER_SIZE;
+  const int n = LDB_BLOCK_SIZE - 2 * LDB_HEADER_SIZE;
 
   ltest_write(t, ltest_big_string(t, "foo", n));
 
-  ASSERT(RDB_BLOCK_SIZE - RDB_HEADER_SIZE == ltest_written_bytes(t));
+  ASSERT(LDB_BLOCK_SIZE - LDB_HEADER_SIZE == ltest_written_bytes(t));
 
   ltest_write(t, "");
   ltest_write(t, "bar");
@@ -384,11 +384,11 @@ test_log_marginal_trailer(ltest_t *t) {
 static void
 test_log_marginal_trailer2(ltest_t *t) {
   /* Make a trailer that is exactly the same length as an empty record. */
-  const int n = RDB_BLOCK_SIZE - 2 * RDB_HEADER_SIZE;
+  const int n = LDB_BLOCK_SIZE - 2 * LDB_HEADER_SIZE;
 
   ltest_write(t, ltest_big_string(t, "foo", n));
 
-  ASSERT(RDB_BLOCK_SIZE - RDB_HEADER_SIZE == ltest_written_bytes(t));
+  ASSERT(LDB_BLOCK_SIZE - LDB_HEADER_SIZE == ltest_written_bytes(t));
 
   ltest_write(t, "bar");
 
@@ -396,16 +396,16 @@ test_log_marginal_trailer2(ltest_t *t) {
   ASSERT_EQ("bar", ltest_read(t));
   ASSERT_EQ("EOF", ltest_read(t));
   ASSERT(0 == ltest_dropped_bytes(t));
-  ASSERT(t->status == RDB_OK);
+  ASSERT(t->status == LDB_OK);
 }
 
 static void
 test_log_short_trailer(ltest_t *t) {
-  const int n = RDB_BLOCK_SIZE - 2 * RDB_HEADER_SIZE + 4;
+  const int n = LDB_BLOCK_SIZE - 2 * LDB_HEADER_SIZE + 4;
 
   ltest_write(t, ltest_big_string(t, "foo", n));
 
-  ASSERT(RDB_BLOCK_SIZE - RDB_HEADER_SIZE + 4 == ltest_written_bytes(t));
+  ASSERT(LDB_BLOCK_SIZE - LDB_HEADER_SIZE + 4 == ltest_written_bytes(t));
 
   ltest_write(t, "");
   ltest_write(t, "bar");
@@ -418,11 +418,11 @@ test_log_short_trailer(ltest_t *t) {
 
 static void
 test_log_aligned_eof(ltest_t *t) {
-  const int n = RDB_BLOCK_SIZE - 2 * RDB_HEADER_SIZE + 4;
+  const int n = LDB_BLOCK_SIZE - 2 * LDB_HEADER_SIZE + 4;
 
   ltest_write(t, ltest_big_string(t, "foo", n));
 
-  ASSERT(RDB_BLOCK_SIZE - RDB_HEADER_SIZE + 4 == ltest_written_bytes(t));
+  ASSERT(LDB_BLOCK_SIZE - LDB_HEADER_SIZE + 4 == ltest_written_bytes(t));
   ASSERT_EQ(ltest_big_string(t, "foo", n), ltest_read(t));
   ASSERT_EQ("EOF", ltest_read(t));
 }
@@ -441,17 +441,17 @@ test_log_open_for_append(ltest_t *t) {
 static void
 test_log_random_read(ltest_t *t) {
   const int N = 500;
-  rdb_rand_t rnd;
+  ldb_rand_t rnd;
   int i;
 
-  rdb_rand_init(&rnd, 301);
+  ldb_rand_init(&rnd, 301);
 
   for (i = 0; i < N; i++) {
     ltest_write(t, ltest_rand_string(t, i, &rnd));
     ltest_reset(t);
   }
 
-  rdb_rand_init(&rnd, 301);
+  ldb_rand_init(&rnd, 301);
 
   for (i = 0; i < N; i++) {
     ASSERT_EQ(ltest_rand_string(t, i, &rnd), ltest_read(t));
@@ -469,8 +469,8 @@ test_log_read_error(ltest_t *t) {
   ltest_force_error(t);
 
   ASSERT_EQ("EOF", ltest_read(t));
-  ASSERT(RDB_BLOCK_SIZE == ltest_dropped_bytes(t));
-  ASSERT(t->status == RDB_CORRUPTION); /* "read error" */
+  ASSERT(LDB_BLOCK_SIZE == ltest_dropped_bytes(t));
+  ASSERT(t->status == LDB_CORRUPTION); /* "read error" */
 }
 
 static void
@@ -483,7 +483,7 @@ test_log_bad_record_type(ltest_t *t) {
 
   ASSERT_EQ("EOF", ltest_read(t));
   ASSERT(3 == ltest_dropped_bytes(t));
-  ASSERT(t->status == RDB_CORRUPTION); /* "unknown record type" */
+  ASSERT(t->status == LDB_CORRUPTION); /* "unknown record type" */
 }
 
 static void
@@ -495,12 +495,12 @@ test_log_truncated_trailing_record_is_ignored(ltest_t *t) {
 
   /* Truncated last record is ignored, not treated as an error. */
   ASSERT(0 == ltest_dropped_bytes(t));
-  ASSERT(t->status == RDB_OK);
+  ASSERT(t->status == LDB_OK);
 }
 
 static void
 test_log_bad_length(ltest_t *t) {
-  const int payload_size = RDB_BLOCK_SIZE - RDB_HEADER_SIZE;
+  const int payload_size = LDB_BLOCK_SIZE - LDB_HEADER_SIZE;
 
   ltest_write(t, ltest_big_string(t, "bar", payload_size));
   ltest_write(t, "foo");
@@ -509,8 +509,8 @@ test_log_bad_length(ltest_t *t) {
   ltest_increment_byte(t, 4, 1);
 
   ASSERT_EQ("foo", ltest_read(t));
-  ASSERT(RDB_BLOCK_SIZE == ltest_dropped_bytes(t));
-  ASSERT(t->status == RDB_CORRUPTION); /* "bad record length" */
+  ASSERT(LDB_BLOCK_SIZE == ltest_dropped_bytes(t));
+  ASSERT(t->status == LDB_CORRUPTION); /* "bad record length" */
 }
 
 static void
@@ -520,7 +520,7 @@ test_log_bad_length_at_end_is_ignored(ltest_t *t) {
 
   ASSERT_EQ("EOF", ltest_read(t));
   ASSERT(0 == ltest_dropped_bytes(t));
-  ASSERT(t->status == RDB_OK);
+  ASSERT(t->status == LDB_OK);
 }
 
 static void
@@ -530,78 +530,78 @@ test_log_checksum_mismatch(ltest_t *t) {
 
   ASSERT_EQ("EOF", ltest_read(t));
   ASSERT(10 == ltest_dropped_bytes(t));
-  ASSERT(t->status == RDB_CORRUPTION); /* "checksum mismatch" */
+  ASSERT(t->status == LDB_CORRUPTION); /* "checksum mismatch" */
 }
 
 static void
 test_log_unexpected_middle_type(ltest_t *t) {
   ltest_write(t, "foo");
-  ltest_set_byte(t, 6, RDB_TYPE_MIDDLE);
+  ltest_set_byte(t, 6, LDB_TYPE_MIDDLE);
   ltest_fix_checksum(t, 0, 3);
 
   ASSERT_EQ("EOF", ltest_read(t));
   ASSERT(3 == ltest_dropped_bytes(t));
-  ASSERT(t->status == RDB_CORRUPTION); /* "missing start" */
+  ASSERT(t->status == LDB_CORRUPTION); /* "missing start" */
 }
 
 static void
 test_log_unexpected_last_type(ltest_t *t) {
   ltest_write(t, "foo");
-  ltest_set_byte(t, 6, RDB_TYPE_LAST);
+  ltest_set_byte(t, 6, LDB_TYPE_LAST);
   ltest_fix_checksum(t, 0, 3);
 
   ASSERT_EQ("EOF", ltest_read(t));
   ASSERT(3 == ltest_dropped_bytes(t));
-  ASSERT(t->status == RDB_CORRUPTION); /* "missing start" */
+  ASSERT(t->status == LDB_CORRUPTION); /* "missing start" */
 }
 
 static void
 test_log_unexpected_full_type(ltest_t *t) {
   ltest_write(t, "foo");
   ltest_write(t, "bar");
-  ltest_set_byte(t, 6, RDB_TYPE_FIRST);
+  ltest_set_byte(t, 6, LDB_TYPE_FIRST);
   ltest_fix_checksum(t, 0, 3);
 
   ASSERT_EQ("bar", ltest_read(t));
   ASSERT_EQ("EOF", ltest_read(t));
   ASSERT(3 == ltest_dropped_bytes(t));
-  ASSERT(t->status == RDB_CORRUPTION); /* "partial record without end" */
+  ASSERT(t->status == LDB_CORRUPTION); /* "partial record without end" */
 }
 
 static void
 test_log_unexpected_first_type(ltest_t *t) {
   ltest_write(t, "foo");
   ltest_write(t, ltest_big_string(t, "bar", 100000));
-  ltest_set_byte(t, 6, RDB_TYPE_FIRST);
+  ltest_set_byte(t, 6, LDB_TYPE_FIRST);
   ltest_fix_checksum(t, 0, 3);
 
   ASSERT_EQ(ltest_big_string(t, "bar", 100000), ltest_read(t));
   ASSERT_EQ("EOF", ltest_read(t));
   ASSERT(3 == ltest_dropped_bytes(t));
-  ASSERT(t->status == RDB_CORRUPTION); /* "partial record without end" */
+  ASSERT(t->status == LDB_CORRUPTION); /* "partial record without end" */
 }
 
 static void
 test_log_missing_last_is_ignored(ltest_t *t) {
-  ltest_write(t, ltest_big_string(t, "bar", RDB_BLOCK_SIZE));
+  ltest_write(t, ltest_big_string(t, "bar", LDB_BLOCK_SIZE));
 
   /* Remove the LAST block, including header. */
   ltest_shrink_size(t, 14);
 
   ASSERT_EQ("EOF", ltest_read(t));
-  ASSERT(t->status == RDB_OK);
+  ASSERT(t->status == LDB_OK);
   ASSERT(0 == ltest_dropped_bytes(t));
 }
 
 static void
 test_log_partial_last_is_ignored(ltest_t *t) {
-  ltest_write(t, ltest_big_string(t, "bar", RDB_BLOCK_SIZE));
+  ltest_write(t, ltest_big_string(t, "bar", LDB_BLOCK_SIZE));
 
   /* Cause a bad record length in the LAST block. */
   ltest_shrink_size(t, 1);
 
   ASSERT_EQ("EOF", ltest_read(t));
-  ASSERT(t->status == RDB_OK);
+  ASSERT(t->status == LDB_OK);
   ASSERT(0 == ltest_dropped_bytes(t));
 }
 
@@ -615,12 +615,12 @@ test_log_skip_into_multi_record(ltest_t *t) {
    * incomplete fragment errors are not actual errors, and must be suppressed
    * until a new first or full record is encountered.
    */
-  ltest_write(t, ltest_big_string(t, "foo", 3 * RDB_BLOCK_SIZE));
+  ltest_write(t, ltest_big_string(t, "foo", 3 * LDB_BLOCK_SIZE));
   ltest_write(t, "correct");
-  ltest_start_reading_at(t, RDB_BLOCK_SIZE);
+  ltest_start_reading_at(t, LDB_BLOCK_SIZE);
 
   ASSERT_EQ("correct", ltest_read(t));
-  ASSERT(t->status == RDB_OK);
+  ASSERT(t->status == LDB_OK);
   ASSERT(0 == ltest_dropped_bytes(t));
   ASSERT_EQ("EOF", ltest_read(t));
 }
@@ -638,12 +638,12 @@ test_log_error_joins_records(ltest_t *t) {
   int offset;
 
   /* Write records that span two blocks. */
-  ltest_write(t, ltest_big_string(t, "foo", RDB_BLOCK_SIZE));
-  ltest_write(t, ltest_big_string(t, "bar", RDB_BLOCK_SIZE));
+  ltest_write(t, ltest_big_string(t, "foo", LDB_BLOCK_SIZE));
+  ltest_write(t, ltest_big_string(t, "bar", LDB_BLOCK_SIZE));
   ltest_write(t, "correct");
 
   /* Wipe the middle block. */
-  for (offset = RDB_BLOCK_SIZE; offset < 2 * RDB_BLOCK_SIZE; offset++)
+  for (offset = LDB_BLOCK_SIZE; offset < 2 * LDB_BLOCK_SIZE; offset++)
     ltest_set_byte(t, offset, 'x');
 
   ASSERT_EQ("correct", ltest_read(t));
@@ -651,8 +651,8 @@ test_log_error_joins_records(ltest_t *t) {
 
   dropped = ltest_dropped_bytes(t);
 
-  ASSERT(dropped <= 2 * RDB_BLOCK_SIZE + 100);
-  ASSERT(dropped >= 2 * RDB_BLOCK_SIZE);
+  ASSERT(dropped <= 2 * LDB_BLOCK_SIZE + 100);
+  ASSERT(dropped >= 2 * LDB_BLOCK_SIZE);
 }
 
 static void
@@ -692,30 +692,30 @@ test_log_read_fourth_one_off(ltest_t *t) {
 
 static void
 test_log_read_fourth_first_block_trailer(ltest_t *t) {
-  ltest_check_initial_offset_record(t, RDB_BLOCK_SIZE - 4, 3);
+  ltest_check_initial_offset_record(t, LDB_BLOCK_SIZE - 4, 3);
 }
 
 static void
 test_log_read_fourth_middle_block(ltest_t *t) {
-  ltest_check_initial_offset_record(t, RDB_BLOCK_SIZE + 1, 3);
+  ltest_check_initial_offset_record(t, LDB_BLOCK_SIZE + 1, 3);
 }
 
 static void
 test_log_read_fourth_last_block(ltest_t *t) {
-  ltest_check_initial_offset_record(t, 2 * RDB_BLOCK_SIZE + 1, 3);
+  ltest_check_initial_offset_record(t, 2 * LDB_BLOCK_SIZE + 1, 3);
 }
 
 static void
 test_log_read_fourth_start(ltest_t *t) {
   ltest_check_initial_offset_record(t,
-    2 * (RDB_HEADER_SIZE + 1000) +
-    (2 * RDB_BLOCK_SIZE - 1000) + 3 * RDB_HEADER_SIZE,
+    2 * (LDB_HEADER_SIZE + 1000) +
+    (2 * LDB_BLOCK_SIZE - 1000) + 3 * LDB_HEADER_SIZE,
     3);
 }
 
 static void
 test_log_read_initial_offset_into_block_padding(ltest_t *t) {
-  ltest_check_initial_offset_record(t, 3 * RDB_BLOCK_SIZE - 3, 5);
+  ltest_check_initial_offset_record(t, 3 * LDB_BLOCK_SIZE - 3, 5);
 }
 
 static void
@@ -732,11 +732,11 @@ test_log_read_past_end(ltest_t *t) {
  * Execute
  */
 
-RDB_EXTERN int
-rdb_test_log(void);
+LDB_EXTERN int
+ldb_test_log(void);
 
 int
-rdb_test_log(void) {
+ldb_test_log(void) {
   static void (*tests[])(ltest_t *) = {
     test_log_empty,
     test_log_read_write,

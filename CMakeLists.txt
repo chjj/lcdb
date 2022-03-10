@@ -7,21 +7,21 @@ project(rdb LANGUAGES C)
 
 include(CTest)
 
-option(RDB_TESTS "Build tests" ON)
+option(LDB_TESTS "Build tests" ON)
 
-set(rdb_sources)
-set(rdb_defines)
-set(rdb_cflags)
-set(rdb_ldflags)
-set(rdb_libs)
+set(ldb_sources)
+set(ldb_defines)
+set(ldb_cflags)
+set(ldb_ldflags)
+set(ldb_libs)
 
 set(CMAKE_C_STANDARD 90)
 set(CMAKE_C_EXTENSIONS OFF)
 set(CMAKE_C_STANDARD_REQUIRED OFF)
 set(CMAKE_C_VISIBILITY_PRESET hidden)
-list(APPEND rdb_defines _GNU_SOURCE)
+list(APPEND ldb_defines _GNU_SOURCE)
 
-list(APPEND rdb_sources # util
+list(APPEND ldb_sources # util
                         src/util/arena.c
                         src/util/array.c
                         src/util/atomic.c
@@ -72,8 +72,8 @@ list(APPEND rdb_sources # util
                         src/version_set.c
                         src/write_batch.c)
 
-if(RDB_TESTS)
-  list(APPEND rdb_sources # util
+if(LDB_TESTS)
+  list(APPEND ldb_sources # util
                           src/util/arena_test.c
                           src/util/bloom_test.c
                           src/util/cache_test.c
@@ -104,13 +104,13 @@ if(RDB_TESTS)
                           src/write_batch_test.c)
 endif()
 
-list(APPEND rdb_defines RDB_BUILD)
-list(APPEND rdb_defines RDB_PTHREAD)
+list(APPEND ldb_defines LDB_BUILD)
+list(APPEND ldb_defines LDB_PTHREAD)
 
 if(MSVC)
-  list(APPEND rdb_cflags /wd4244 /wd4267)
+  list(APPEND ldb_cflags /wd4244 /wd4267)
 else()
-  list(APPEND rdb_cflags -pedantic
+  list(APPEND ldb_cflags -pedantic
                          -Wall
                          -Wextra
                          -Wcast-align
@@ -120,17 +120,17 @@ else()
                          -Wshadow)
 endif()
 
-add_library(rdb STATIC ${rdb_sources})
-target_compile_definitions(rdb PRIVATE ${rdb_defines})
-target_compile_options(rdb PUBLIC ${rdb_cflags})
+add_library(rdb STATIC ${ldb_sources})
+target_compile_definitions(rdb PRIVATE ${ldb_defines})
+target_compile_options(rdb PUBLIC ${ldb_cflags})
 target_include_directories(rdb PUBLIC ${PROJECT_SOURCE_DIR}/include)
-target_link_options(rdb INTERFACE ${rdb_ldflags})
-target_link_libraries(rdb PRIVATE ${rdb_libs} pthread)
+target_link_options(rdb INTERFACE ${ldb_ldflags})
+target_link_libraries(rdb PRIVATE ${ldb_libs} pthread)
 
 add_executable(rdbutil src/dbutil.c)
 target_link_libraries(rdbutil PRIVATE rdb)
 
-if(RDB_TESTS)
+if(LDB_TESTS)
   set(tests arena
             autocompact
             bloom

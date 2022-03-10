@@ -5,8 +5,8 @@
  */
 
 int
-rdb_test_corruption(void);
+ldb_test_corruption(void);
 
 int main(void) {
-  return rdb_test_corruption();
+  return ldb_test_corruption();
 }

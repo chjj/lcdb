@@ -4,8 +4,8 @@
  * https://github.com/chjj/rdb
  */
 
-#ifndef RDB_SLICE_H
-#define RDB_SLICE_H
+#ifndef LDB_SLICE_H
+#define LDB_SLICE_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -17,17 +17,17 @@
  * Slice
  */
 
-RDB_EXTERN rdb_slice_t
-rdb_slice(const uint8_t *xp, size_t xn);
+LDB_EXTERN ldb_slice_t
+ldb_slice(const uint8_t *xp, size_t xn);
 
-RDB_EXTERN rdb_slice_t
-rdb_string(const char *xp);
+LDB_EXTERN ldb_slice_t
+ldb_string(const char *xp);
 
-#define rdb_slice rdb__slice
+#define ldb_slice ldb__slice
 
-RDB_STATIC rdb_slice_t
-rdb_slice(const uint8_t *xp, size_t xn) {
-  rdb_slice_t z;
+LDB_STATIC ldb_slice_t
+ldb_slice(const uint8_t *xp, size_t xn) {
+  ldb_slice_t z;
 
   z.data = (uint8_t *)xp;
   z.size = xn;
@@ -36,67 +36,67 @@ rdb_slice(const uint8_t *xp, size_t xn) {
   return z;
 }
 
-RDB_STATIC void
-rdb_slice_init(rdb_slice_t *z) {
+LDB_STATIC void
+ldb_slice_init(ldb_slice_t *z) {
   z->data = NULL;
   z->size = 0;
   z->alloc = 0;
 }
 
-RDB_STATIC void
-rdb_slice_reset(rdb_slice_t *z) {
+LDB_STATIC void
+ldb_slice_reset(ldb_slice_t *z) {
   z->data = NULL;
   z->size = 0;
   z->alloc = 0;
 }
 
-RDB_STATIC void
-rdb_slice_set(rdb_slice_t *z, const uint8_t *xp, size_t xn) {
+LDB_STATIC void
+ldb_slice_set(ldb_slice_t *z, const uint8_t *xp, size_t xn) {
   z->data = (uint8_t *)xp;
   z->size = xn;
   z->alloc = 0;
 }
 
 void
-rdb_slice_set_str(rdb_slice_t *z, const char *xp);
+ldb_slice_set_str(ldb_slice_t *z, const char *xp);
 
 void
-rdb_slice_copy(rdb_slice_t *z, const rdb_slice_t *x);
+ldb_slice_copy(ldb_slice_t *z, const ldb_slice_t *x);
 
 uint32_t
-rdb_slice_hash(const rdb_slice_t *x);
+ldb_slice_hash(const ldb_slice_t *x);
 
 int
-rdb_slice_equal(const rdb_slice_t *x, const rdb_slice_t *y);
+ldb_slice_equal(const ldb_slice_t *x, const ldb_slice_t *y);
 
-RDB_EXTERN int
-rdb_slice_compare(const rdb_slice_t *x, const rdb_slice_t *y);
+LDB_EXTERN int
+ldb_slice_compare(const ldb_slice_t *x, const ldb_slice_t *y);
 
 void
-rdb_slice_eat(rdb_slice_t *z, size_t xn);
+ldb_slice_eat(ldb_slice_t *z, size_t xn);
 
 size_t
-rdb_slice_size(const rdb_slice_t *x);
+ldb_slice_size(const ldb_slice_t *x);
 
 uint8_t *
-rdb_slice_write(uint8_t *zp, const rdb_slice_t *x);
+ldb_slice_write(uint8_t *zp, const ldb_slice_t *x);
 
 /* PutLengthPrefixedSlice */
 void
-rdb_slice_export(rdb_buffer_t *z, const rdb_slice_t *x);
+ldb_slice_export(ldb_buffer_t *z, const ldb_slice_t *x);
 
 int
-rdb_slice_read(rdb_slice_t *z, const uint8_t **xp, size_t *xn);
+ldb_slice_read(ldb_slice_t *z, const uint8_t **xp, size_t *xn);
 
 /* See GetInternalKey in version_edit.cc. */
 int
-rdb_slice_slurp(rdb_slice_t *z, rdb_slice_t *x);
+ldb_slice_slurp(ldb_slice_t *z, ldb_slice_t *x);
 
 int
-rdb_slice_import(rdb_slice_t *z, const rdb_slice_t *x);
+ldb_slice_import(ldb_slice_t *z, const ldb_slice_t *x);
 
 /* See GetLengthPrefixedSlice in memtable.cc. */
-rdb_slice_t
-rdb_slice_decode(const uint8_t *xp);
+ldb_slice_t
+ldb_slice_decode(const uint8_t *xp);
 
-#endif /* RDB_SLICE_H */
+#endif /* LDB_SLICE_H */

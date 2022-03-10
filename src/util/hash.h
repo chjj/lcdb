@@ -4,8 +4,8 @@
  * https://github.com/chjj/rdb
  */
 
-#ifndef RDB_HASH_H
-#define RDB_HASH_H
+#ifndef LDB_HASH_H
+#define LDB_HASH_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -15,6 +15,6 @@
  */
 
 uint32_t
-rdb_hash(const uint8_t *data, size_t size, uint32_t seed);
+ldb_hash(const uint8_t *data, size_t size, uint32_t seed);
 
-#endif /* RDB_HASH_H */
+#endif /* LDB_HASH_H */

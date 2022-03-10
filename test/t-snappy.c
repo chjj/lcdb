@@ -5,8 +5,8 @@
  */
 
 int
-rdb_test_snappy(void);
+ldb_test_snappy(void);
 
 int main(void) {
-  return rdb_test_snappy();
+  return ldb_test_snappy();
 }

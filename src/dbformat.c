@@ -22,19 +22,19 @@
  */
 
 static uint64_t
-pack_seqtype(uint64_t sequence, rdb_valtype_t type) {
-  assert(sequence <= RDB_MAX_SEQUENCE);
-  assert(type <= RDB_VALTYPE_SEEK);
+pack_seqtype(uint64_t sequence, ldb_valtype_t type) {
+  assert(sequence <= LDB_MAX_SEQUENCE);
+  assert(type <= LDB_VALTYPE_SEEK);
   return (sequence << 8) | type;
 }
 
-rdb_slice_t
-rdb_extract_user_key(const rdb_slice_t *key) {
-  rdb_slice_t ret;
+ldb_slice_t
+ldb_extract_user_key(const ldb_slice_t *key) {
+  ldb_slice_t ret;
 
   assert(key->size >= 8);
 
-  rdb_slice_set(&ret, key->data, key->size - 8);
+  ldb_slice_set(&ret, key->data, key->size - 8);
 
   return ret;
 }
@@ -44,10 +44,10 @@ rdb_extract_user_key(const rdb_slice_t *key) {
  */
 
 void
-rdb_pkey_init(rdb_pkey_t *key,
-              const rdb_slice_t *user_key,
-              rdb_seqnum_t sequence,
-              rdb_valtype_t type) {
+ldb_pkey_init(ldb_pkey_t *key,
+              const ldb_slice_t *user_key,
+              ldb_seqnum_t sequence,
+              ldb_valtype_t type) {
   /* This function is called by DBIter::Seek,
    * so we try to avoid this in case the user
    * passed a partially initialized struct.
@@ -60,7 +60,7 @@ rdb_pkey_init(rdb_pkey_t *key,
    *
    * [1] https://stackoverflow.com/questions/35492055
    */
-  rdb_slice_set(&key->user_key, user_key->data,
+  ldb_slice_set(&key->user_key, user_key->data,
                                 user_key->size);
 
   key->sequence = sequence;
@@ -68,27 +68,27 @@ rdb_pkey_init(rdb_pkey_t *key,
 }
 
 size_t
-rdb_pkey_size(const rdb_pkey_t *x) {
+ldb_pkey_size(const ldb_pkey_t *x) {
   return x->user_key.size + 8;
 }
 
 static uint8_t *
-rdb_pkey_write(uint8_t *zp, const rdb_pkey_t *x) {
-  zp = rdb_raw_write(zp, x->user_key.data, x->user_key.size);
-  zp = rdb_fixed64_write(zp, pack_seqtype(x->sequence, x->type));
+ldb_pkey_write(uint8_t *zp, const ldb_pkey_t *x) {
+  zp = ldb_raw_write(zp, x->user_key.data, x->user_key.size);
+  zp = ldb_fixed64_write(zp, pack_seqtype(x->sequence, x->type));
   return zp;
 }
 
 void
-rdb_pkey_export(rdb_buffer_t *z, const rdb_pkey_t *x) {
-  uint8_t *zp = rdb_buffer_expand(z, x->user_key.size + 8);
-  size_t xn = rdb_pkey_write(zp, x) - zp;
+ldb_pkey_export(ldb_buffer_t *z, const ldb_pkey_t *x) {
+  uint8_t *zp = ldb_buffer_expand(z, x->user_key.size + 8);
+  size_t xn = ldb_pkey_write(zp, x) - zp;
 
   z->size += xn;
 }
 
 int
-rdb_pkey_import(rdb_pkey_t *z, const rdb_slice_t *x) {
+ldb_pkey_import(ldb_pkey_t *z, const ldb_slice_t *x) {
   const uint8_t *xp = x->data;
   size_t xn = x->size;
   uint64_t num;
@@ -97,28 +97,28 @@ rdb_pkey_import(rdb_pkey_t *z, const rdb_slice_t *x) {
   if (xn < 8)
     return 0;
 
-  num = rdb_fixed64_decode(xp + xn - 8);
+  num = ldb_fixed64_decode(xp + xn - 8);
   type = num & 0xff;
 
-  if (type > RDB_TYPE_VALUE)
+  if (type > LDB_TYPE_VALUE)
     return 0;
 
-  rdb_slice_set(&z->user_key, xp, xn - 8);
+  ldb_slice_set(&z->user_key, xp, xn - 8);
 
   z->sequence = num >> 8;
-  z->type = (rdb_valtype_t)type;
+  z->type = (ldb_valtype_t)type;
 
   return 1;
 }
 
 void
-rdb_pkey_debug(rdb_buffer_t *z, const rdb_pkey_t *x) {
-  rdb_buffer_push(z, '\'');
-  rdb_buffer_escape(z, &x->user_key);
-  rdb_buffer_string(z, "' @ ");
-  rdb_buffer_number(z, x->sequence);
-  rdb_buffer_string(z, " : ");
-  rdb_buffer_number(z, x->type);
+ldb_pkey_debug(ldb_buffer_t *z, const ldb_pkey_t *x) {
+  ldb_buffer_push(z, '\'');
+  ldb_buffer_escape(z, &x->user_key);
+  ldb_buffer_string(z, "' @ ");
+  ldb_buffer_number(z, x->sequence);
+  ldb_buffer_string(z, " : ");
+  ldb_buffer_number(z, x->type);
 }
 
 /*
@@ -126,54 +126,54 @@ rdb_pkey_debug(rdb_buffer_t *z, const rdb_pkey_t *x) {
  */
 
 void
-rdb_ikey_init(rdb_ikey_t *ikey) {
-  rdb_buffer_init(ikey);
+ldb_ikey_init(ldb_ikey_t *ikey) {
+  ldb_buffer_init(ikey);
 }
 
 void
-rdb_ikey_set(rdb_ikey_t *ikey,
-             const rdb_slice_t *user_key,
-             rdb_seqnum_t sequence,
-             rdb_valtype_t type) {
-  rdb_pkey_t pkey;
+ldb_ikey_set(ldb_ikey_t *ikey,
+             const ldb_slice_t *user_key,
+             ldb_seqnum_t sequence,
+             ldb_valtype_t type) {
+  ldb_pkey_t pkey;
 
-  rdb_buffer_reset(ikey);
+  ldb_buffer_reset(ikey);
 
-  rdb_pkey_init(&pkey, user_key, sequence, type);
-  rdb_pkey_export(ikey, &pkey);
+  ldb_pkey_init(&pkey, user_key, sequence, type);
+  ldb_pkey_export(ikey, &pkey);
 }
 
 void
-rdb_ikey_clear(rdb_ikey_t *ikey) {
-  rdb_buffer_clear(ikey);
+ldb_ikey_clear(ldb_ikey_t *ikey) {
+  ldb_buffer_clear(ikey);
 }
 
 void
-rdb_ikey_copy(rdb_ikey_t *z, const rdb_ikey_t *x) {
-  rdb_buffer_copy(z, x);
+ldb_ikey_copy(ldb_ikey_t *z, const ldb_ikey_t *x) {
+  ldb_buffer_copy(z, x);
 }
 
-rdb_slice_t
-rdb_ikey_user_key(const rdb_ikey_t *ikey) {
-  return rdb_extract_user_key(ikey);
-}
-
-void
-rdb_ikey_export(rdb_ikey_t *z, const rdb_ikey_t *x) {
-  rdb_buffer_export(z, x);
+ldb_slice_t
+ldb_ikey_user_key(const ldb_ikey_t *ikey) {
+  return ldb_extract_user_key(ikey);
 }
 
 void
-rdb_ikey_debug(rdb_buffer_t *z, const rdb_ikey_t *x) {
-  rdb_pkey_t pkey;
+ldb_ikey_export(ldb_ikey_t *z, const ldb_ikey_t *x) {
+  ldb_buffer_export(z, x);
+}
 
-  if (rdb_pkey_import(&pkey, x)) {
-    rdb_pkey_debug(z, &pkey);
+void
+ldb_ikey_debug(ldb_buffer_t *z, const ldb_ikey_t *x) {
+  ldb_pkey_t pkey;
+
+  if (ldb_pkey_import(&pkey, x)) {
+    ldb_pkey_debug(z, &pkey);
     return;
   }
 
-  rdb_buffer_string(z, "(bad)");
-  rdb_buffer_escape(z, x);
+  ldb_buffer_string(z, "(bad)");
+  ldb_buffer_escape(z, x);
 }
 
 /*
@@ -181,52 +181,52 @@ rdb_ikey_debug(rdb_buffer_t *z, const rdb_ikey_t *x) {
  */
 
 void
-rdb_lkey_init(rdb_lkey_t *lkey,
-              const rdb_slice_t *user_key,
-              rdb_seqnum_t sequence) {
+ldb_lkey_init(ldb_lkey_t *lkey,
+              const ldb_slice_t *user_key,
+              ldb_seqnum_t sequence) {
   size_t usize = user_key->size;
   size_t needed = usize + 13; /* A conservative estimate. */
   uint8_t *zp = lkey->space;
 
   if (needed > sizeof(lkey->space))
-    zp = rdb_malloc(needed);
+    zp = ldb_malloc(needed);
 
   lkey->start = zp;
 
-  zp = rdb_varint32_write(zp, usize + 8);
+  zp = ldb_varint32_write(zp, usize + 8);
 
   lkey->kstart = zp;
 
-  zp = rdb_raw_write(zp, user_key->data, usize);
-  zp = rdb_fixed64_write(zp, pack_seqtype(sequence, RDB_VALTYPE_SEEK));
+  zp = ldb_raw_write(zp, user_key->data, usize);
+  zp = ldb_fixed64_write(zp, pack_seqtype(sequence, LDB_VALTYPE_SEEK));
 
   lkey->end = zp;
 }
 
 void
-rdb_lkey_clear(rdb_lkey_t *lkey) {
+ldb_lkey_clear(ldb_lkey_t *lkey) {
   if (lkey->start != lkey->space)
-    rdb_free((void *)lkey->start);
+    ldb_free((void *)lkey->start);
 }
 
-rdb_slice_t
-rdb_lkey_memtable_key(const rdb_lkey_t *lkey) {
-  rdb_slice_t ret;
-  rdb_slice_set(&ret, lkey->start, lkey->end - lkey->start);
+ldb_slice_t
+ldb_lkey_memtable_key(const ldb_lkey_t *lkey) {
+  ldb_slice_t ret;
+  ldb_slice_set(&ret, lkey->start, lkey->end - lkey->start);
   return ret;
 }
 
-rdb_slice_t
-rdb_lkey_internal_key(const rdb_lkey_t *lkey) {
-  rdb_slice_t ret;
-  rdb_slice_set(&ret, lkey->kstart, lkey->end - lkey->kstart);
+ldb_slice_t
+ldb_lkey_internal_key(const ldb_lkey_t *lkey) {
+  ldb_slice_t ret;
+  ldb_slice_set(&ret, lkey->kstart, lkey->end - lkey->kstart);
   return ret;
 }
 
-rdb_slice_t
-rdb_lkey_user_key(const rdb_lkey_t *lkey) {
-  rdb_slice_t ret;
-  rdb_slice_set(&ret, lkey->kstart, lkey->end - lkey->kstart - 8);
+ldb_slice_t
+ldb_lkey_user_key(const ldb_lkey_t *lkey) {
+  ldb_slice_t ret;
+  ldb_slice_set(&ret, lkey->kstart, lkey->end - lkey->kstart - 8);
   return ret;
 }
 
@@ -235,21 +235,21 @@ rdb_lkey_user_key(const rdb_lkey_t *lkey) {
  */
 
 static int
-rdb_ikc_compare(const rdb_comparator_t *ikc,
-                const rdb_slice_t *x,
-                const rdb_slice_t *y) {
+ldb_ikc_compare(const ldb_comparator_t *ikc,
+                const ldb_slice_t *x,
+                const ldb_slice_t *y) {
   /* Order by:
    *    increasing user key (according to user-supplied comparator)
    *    decreasing sequence number
    *    decreasing type (though sequence# should be enough to disambiguate)
    */
-  rdb_slice_t xk = rdb_extract_user_key(x);
-  rdb_slice_t yk = rdb_extract_user_key(y);
-  int r = rdb_compare(ikc->user_comparator, &xk, &yk);
+  ldb_slice_t xk = ldb_extract_user_key(x);
+  ldb_slice_t yk = ldb_extract_user_key(y);
+  int r = ldb_compare(ikc->user_comparator, &xk, &yk);
 
   if (r == 0) {
-    uint64_t xn = rdb_fixed64_decode(x->data + x->size - 8);
-    uint64_t yn = rdb_fixed64_decode(y->data + y->size - 8);
+    uint64_t xn = ldb_fixed64_decode(x->data + x->size - 8);
+    uint64_t yn = ldb_fixed64_decode(y->data + y->size - 8);
 
     if (xn > yn)
       r = -1;
@@ -261,64 +261,64 @@ rdb_ikc_compare(const rdb_comparator_t *ikc,
 }
 
 static void
-rdb_ikc_shortest_separator(const rdb_comparator_t *ikc,
-                           rdb_buffer_t *start,
-                           const rdb_slice_t *limit) {
+ldb_ikc_shortest_separator(const ldb_comparator_t *ikc,
+                           ldb_buffer_t *start,
+                           const ldb_slice_t *limit) {
   /* Attempt to shorten the user portion of the key. */
-  const rdb_comparator_t *uc = ikc->user_comparator;
-  rdb_slice_t user_start = rdb_extract_user_key(start);
-  rdb_slice_t user_limit = rdb_extract_user_key(limit);
-  rdb_buffer_t tmp;
+  const ldb_comparator_t *uc = ikc->user_comparator;
+  ldb_slice_t user_start = ldb_extract_user_key(start);
+  ldb_slice_t user_limit = ldb_extract_user_key(limit);
+  ldb_buffer_t tmp;
 
-  rdb_buffer_init(&tmp);
-  rdb_buffer_copy(&tmp, &user_start);
+  ldb_buffer_init(&tmp);
+  ldb_buffer_copy(&tmp, &user_start);
 
-  rdb_shortest_separator(uc, &tmp, &user_limit);
+  ldb_shortest_separator(uc, &tmp, &user_limit);
 
-  if (tmp.size < user_start.size && rdb_compare(uc, &user_start, &tmp) < 0) {
+  if (tmp.size < user_start.size && ldb_compare(uc, &user_start, &tmp) < 0) {
     /* User key has become shorter physically, but larger logically. */
     /* Tack on the earliest possible number to the shortened user key. */
-    rdb_buffer_fixed64(&tmp, pack_seqtype(RDB_MAX_SEQUENCE, RDB_VALTYPE_SEEK));
+    ldb_buffer_fixed64(&tmp, pack_seqtype(LDB_MAX_SEQUENCE, LDB_VALTYPE_SEEK));
 
-    assert(rdb_compare(ikc, start, &tmp) < 0);
-    assert(rdb_compare(ikc, &tmp, limit) < 0);
+    assert(ldb_compare(ikc, start, &tmp) < 0);
+    assert(ldb_compare(ikc, &tmp, limit) < 0);
 
-    rdb_buffer_swap(start, &tmp);
+    ldb_buffer_swap(start, &tmp);
   }
 
-  rdb_buffer_clear(&tmp);
+  ldb_buffer_clear(&tmp);
 }
 
 static void
-rdb_ikc_short_successor(const rdb_comparator_t *ikc, rdb_buffer_t *key) {
-  const rdb_comparator_t *uc = ikc->user_comparator;
-  rdb_slice_t user_key = rdb_extract_user_key(key);
-  rdb_buffer_t tmp;
+ldb_ikc_short_successor(const ldb_comparator_t *ikc, ldb_buffer_t *key) {
+  const ldb_comparator_t *uc = ikc->user_comparator;
+  ldb_slice_t user_key = ldb_extract_user_key(key);
+  ldb_buffer_t tmp;
 
-  rdb_buffer_init(&tmp);
-  rdb_buffer_copy(&tmp, &user_key);
+  ldb_buffer_init(&tmp);
+  ldb_buffer_copy(&tmp, &user_key);
 
-  rdb_short_successor(uc, &tmp);
+  ldb_short_successor(uc, &tmp);
 
-  if (tmp.size < user_key.size && rdb_compare(uc, &user_key, &tmp) < 0) {
+  if (tmp.size < user_key.size && ldb_compare(uc, &user_key, &tmp) < 0) {
     /* User key has become shorter physically, but larger logically. */
     /* Tack on the earliest possible number to the shortened user key. */
-    rdb_buffer_fixed64(&tmp, pack_seqtype(RDB_MAX_SEQUENCE, RDB_VALTYPE_SEEK));
+    ldb_buffer_fixed64(&tmp, pack_seqtype(LDB_MAX_SEQUENCE, LDB_VALTYPE_SEEK));
 
-    assert(rdb_compare(ikc, key, &tmp) < 0);
+    assert(ldb_compare(ikc, key, &tmp) < 0);
 
-    rdb_buffer_swap(key, &tmp);
+    ldb_buffer_swap(key, &tmp);
   }
 
-  rdb_buffer_clear(&tmp);
+  ldb_buffer_clear(&tmp);
 }
 
 void
-rdb_ikc_init(rdb_comparator_t *ikc, const rdb_comparator_t *user_comparator) {
+ldb_ikc_init(ldb_comparator_t *ikc, const ldb_comparator_t *user_comparator) {
   ikc->name = "leveldb.InternalKeyComparator";
-  ikc->compare = rdb_ikc_compare;
-  ikc->shortest_separator = rdb_ikc_shortest_separator;
-  ikc->short_successor = rdb_ikc_short_successor;
+  ikc->compare = ldb_ikc_compare;
+  ikc->shortest_separator = ldb_ikc_shortest_separator;
+  ikc->short_successor = ldb_ikc_short_successor;
   ikc->user_comparator = user_comparator;
   ikc->state = NULL;
 }
@@ -328,34 +328,34 @@ rdb_ikc_init(rdb_comparator_t *ikc, const rdb_comparator_t *user_comparator) {
  */
 
 static void
-rdb_ifp_build(const rdb_bloom_t *ifp,
-              rdb_buffer_t *dst,
-              const rdb_slice_t *keys,
+ldb_ifp_build(const ldb_bloom_t *ifp,
+              ldb_buffer_t *dst,
+              const ldb_slice_t *keys,
               size_t length) {
-  rdb_slice_t *ukeys = rdb_malloc(length * sizeof(rdb_slice_t));
+  ldb_slice_t *ukeys = ldb_malloc(length * sizeof(ldb_slice_t));
   size_t i;
 
   for (i = 0; i < length; i++)
-    ukeys[i] = rdb_extract_user_key(&keys[i]);
+    ukeys[i] = ldb_extract_user_key(&keys[i]);
 
-  rdb_bloom_build(ifp->user_policy, dst, ukeys, length);
-  rdb_free(ukeys);
+  ldb_bloom_build(ifp->user_policy, dst, ukeys, length);
+  ldb_free(ukeys);
 }
 
 static int
-rdb_ifp_match(const rdb_bloom_t *ifp,
-              const rdb_slice_t *filter,
-              const rdb_slice_t *key) {
-  rdb_slice_t k = rdb_extract_user_key(key);
+ldb_ifp_match(const ldb_bloom_t *ifp,
+              const ldb_slice_t *filter,
+              const ldb_slice_t *key) {
+  ldb_slice_t k = ldb_extract_user_key(key);
 
-  return rdb_bloom_match(ifp->user_policy, filter, &k);
+  return ldb_bloom_match(ifp->user_policy, filter, &k);
 }
 
 void
-rdb_ifp_init(rdb_bloom_t *ifp, const rdb_bloom_t *user_policy) {
+ldb_ifp_init(ldb_bloom_t *ifp, const ldb_bloom_t *user_policy) {
   ifp->name = user_policy->name;
-  ifp->build = rdb_ifp_build;
-  ifp->match = rdb_ifp_match;
+  ifp->build = ldb_ifp_build;
+  ifp->match = ldb_ifp_match;
   ifp->bits_per_key = 0;
   ifp->k = 0;
   ifp->user_policy = user_policy;

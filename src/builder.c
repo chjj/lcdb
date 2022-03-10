@@ -25,93 +25,93 @@
  */
 
 int
-rdb_build_table(const char *prefix,
-                const rdb_dbopt_t *options,
-                rdb_tcache_t *table_cache,
-                rdb_iter_t *iter,
-                rdb_filemeta_t *meta) {
-  char fname[RDB_PATH_MAX];
-  int rc = RDB_OK;
+ldb_build_table(const char *prefix,
+                const ldb_dbopt_t *options,
+                ldb_tcache_t *table_cache,
+                ldb_iter_t *iter,
+                ldb_filemeta_t *meta) {
+  char fname[LDB_PATH_MAX];
+  int rc = LDB_OK;
 
   meta->file_size = 0;
 
-  rdb_iter_seek_first(iter);
+  ldb_iter_seek_first(iter);
 
-  if (!rdb_table_filename(fname, sizeof(fname), prefix, meta->number))
-    return RDB_INVALID;
+  if (!ldb_table_filename(fname, sizeof(fname), prefix, meta->number))
+    return LDB_INVALID;
 
-  if (rdb_iter_valid(iter)) {
-    rdb_tablebuilder_t *builder;
-    rdb_slice_t key, val;
-    rdb_wfile_t *file;
-    rdb_iter_t *it;
+  if (ldb_iter_valid(iter)) {
+    ldb_tablebuilder_t *builder;
+    ldb_slice_t key, val;
+    ldb_wfile_t *file;
+    ldb_iter_t *it;
 
-    rc = rdb_truncfile_create(fname, &file);
+    rc = ldb_truncfile_create(fname, &file);
 
-    if (rc != RDB_OK)
+    if (rc != LDB_OK)
       return rc;
 
-    builder = rdb_tablebuilder_create(options, file);
+    builder = ldb_tablebuilder_create(options, file);
 
-    key = rdb_iter_key(iter);
+    key = ldb_iter_key(iter);
 
-    rdb_ikey_copy(&meta->smallest, &key);
+    ldb_ikey_copy(&meta->smallest, &key);
 
-    rdb_slice_reset(&key);
+    ldb_slice_reset(&key);
 
-    for (; rdb_iter_valid(iter); rdb_iter_next(iter)) {
-      key = rdb_iter_key(iter);
-      val = rdb_iter_value(iter);
+    for (; ldb_iter_valid(iter); ldb_iter_next(iter)) {
+      key = ldb_iter_key(iter);
+      val = ldb_iter_value(iter);
 
-      rdb_tablebuilder_add(builder, &key, &val);
+      ldb_tablebuilder_add(builder, &key, &val);
     }
 
     if (key.size > 0)
-      rdb_ikey_copy(&meta->largest, &key);
+      ldb_ikey_copy(&meta->largest, &key);
 
     /* Finish and check for builder errors. */
-    rc = rdb_tablebuilder_finish(builder);
+    rc = ldb_tablebuilder_finish(builder);
 
-    if (rc == RDB_OK) {
-      meta->file_size = rdb_tablebuilder_file_size(builder);
+    if (rc == LDB_OK) {
+      meta->file_size = ldb_tablebuilder_file_size(builder);
 
       assert(meta->file_size > 0);
     }
 
-    rdb_tablebuilder_destroy(builder);
+    ldb_tablebuilder_destroy(builder);
 
     /* Finish and check for file errors. */
-    if (rc == RDB_OK)
-      rc = rdb_wfile_sync(file);
+    if (rc == LDB_OK)
+      rc = ldb_wfile_sync(file);
 
-    if (rc == RDB_OK)
-      rc = rdb_wfile_close(file);
+    if (rc == LDB_OK)
+      rc = ldb_wfile_close(file);
 
-    rdb_wfile_destroy(file);
+    ldb_wfile_destroy(file);
     file = NULL;
 
-    if (rc == RDB_OK) {
+    if (rc == LDB_OK) {
       /* Verify that the table is usable. */
-      it = rdb_tcache_iterate(table_cache,
-                              rdb_readopt_default,
+      it = ldb_tcache_iterate(table_cache,
+                              ldb_readopt_default,
                               meta->number,
                               meta->file_size,
                               NULL);
 
-      rc = rdb_iter_status(it);
+      rc = ldb_iter_status(it);
 
-      rdb_iter_destroy(it);
+      ldb_iter_destroy(it);
     }
   }
 
   /* Check for input iterator errors. */
-  if (rdb_iter_status(iter) != RDB_OK)
-    rc = rdb_iter_status(iter);
+  if (ldb_iter_status(iter) != LDB_OK)
+    rc = ldb_iter_status(iter);
 
-  if (rc == RDB_OK && meta->file_size > 0)
+  if (rc == LDB_OK && meta->file_size > 0)
     ; /* Keep it. */
   else
-    rdb_remove_file(fname);
+    ldb_remove_file(fname);
 
   return rc;
 }

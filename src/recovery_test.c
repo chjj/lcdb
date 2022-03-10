@@ -33,52 +33,52 @@
  */
 
 typedef struct rtest_s {
-  char dbname[RDB_PATH_MAX];
+  char dbname[LDB_PATH_MAX];
   char buf[256];
-  rdb_t *db;
+  ldb_t *db;
 } rtest_t;
 
 static void
 rtest_close(rtest_t *t) {
   if (t->db != NULL)
-    rdb_close(t->db);
+    ldb_close(t->db);
 
   t->db = NULL;
 }
 
 static int
-rtest_open_with_status(rtest_t *t, const rdb_dbopt_t *options) {
-  rdb_dbopt_t opts;
+rtest_open_with_status(rtest_t *t, const ldb_dbopt_t *options) {
+  ldb_dbopt_t opts;
 
   rtest_close(t);
 
   if (options != NULL) {
     opts = *options;
   } else {
-    opts = *rdb_dbopt_default;
+    opts = *ldb_dbopt_default;
     opts.reuse_logs = 1; /* TODO: test both ways */
     opts.create_if_missing = 1;
   }
 
-  return rdb_open(t->dbname, &opts, &t->db);
+  return ldb_open(t->dbname, &opts, &t->db);
 }
 
 static int
 rtest_num_logs(rtest_t *t);
 
 static void
-rtest_open(rtest_t *t, const rdb_dbopt_t *options) {
-  ASSERT(rtest_open_with_status(t, options) == RDB_OK);
+rtest_open(rtest_t *t, const ldb_dbopt_t *options) {
+  ASSERT(rtest_open_with_status(t, options) == LDB_OK);
   ASSERT(1 == rtest_num_logs(t));
 }
 
 static void
 rtest_init(rtest_t *t) {
-  ASSERT(rdb_test_filename(t->dbname, sizeof(t->dbname), "recovery_test"));
+  ASSERT(ldb_test_filename(t->dbname, sizeof(t->dbname), "recovery_test"));
 
   t->db = NULL;
 
-  rdb_destroy_db(t->dbname, 0);
+  ldb_destroy_db(t->dbname, 0);
 
   rtest_open(t, 0);
 }
@@ -86,48 +86,48 @@ rtest_init(rtest_t *t) {
 static void
 rtest_clear(rtest_t *t) {
   rtest_close(t);
-  rdb_destroy_db(t->dbname, 0);
+  ldb_destroy_db(t->dbname, 0);
 }
 
 static int
 rtest_can_append(rtest_t *t) {
-  char fname[RDB_PATH_MAX];
-  rdb_wfile_t *tmp;
+  char fname[LDB_PATH_MAX];
+  ldb_wfile_t *tmp;
   int rc;
 
-  ASSERT(rdb_current_filename(fname, sizeof(fname), t->dbname));
+  ASSERT(ldb_current_filename(fname, sizeof(fname), t->dbname));
 
-  rc = rdb_appendfile_create(fname, &tmp);
+  rc = ldb_appendfile_create(fname, &tmp);
 
-  if (rc == RDB_NOSUPPORT)
+  if (rc == LDB_NOSUPPORT)
     return 0;
 
-  rdb_wfile_destroy(tmp);
+  ldb_wfile_destroy(tmp);
 
   return 1;
 }
 
 static int
 rtest_put(rtest_t *t, const char *k, const char *v) {
-  rdb_slice_t key = rdb_string(k);
-  rdb_slice_t val = rdb_string(v);
+  ldb_slice_t key = ldb_string(k);
+  ldb_slice_t val = ldb_string(v);
 
-  return rdb_put(t->db, &key, &val, 0);
+  return ldb_put(t->db, &key, &val, 0);
 }
 
 static const char *
 rtest_get(rtest_t *t, const char *k) {
-  rdb_slice_t key = rdb_string(k);
-  rdb_slice_t val;
+  ldb_slice_t key = ldb_string(k);
+  ldb_slice_t val;
   int rc;
 
-  rc = rdb_get(t->db, &key, &val, 0);
+  rc = ldb_get(t->db, &key, &val, 0);
 
-  if (rc == RDB_NOTFOUND)
+  if (rc == LDB_NOTFOUND)
     return "NOT_FOUND";
 
-  if (rc != RDB_OK)
-    return rdb_strerror(rc);
+  if (rc != LDB_OK)
+    return ldb_strerror(rc);
 
   ASSERT(val.size < sizeof(t->buf));
 
@@ -135,20 +135,20 @@ rtest_get(rtest_t *t, const char *k) {
 
   t->buf[val.size] = '\0';
 
-  rdb_free(val.data);
+  ldb_free(val.data);
 
   return t->buf;
 }
 
 static void
 rtest_manifest_filename(rtest_t *t, char *buf, size_t size) {
-  char fname[RDB_PATH_MAX];
-  rdb_buffer_t current;
+  char fname[LDB_PATH_MAX];
+  ldb_buffer_t current;
 
-  rdb_buffer_init(&current);
+  ldb_buffer_init(&current);
 
-  ASSERT(rdb_current_filename(fname, sizeof(fname), t->dbname));
-  ASSERT(rdb_read_file(fname, &current) == RDB_OK);
+  ASSERT(ldb_current_filename(fname, sizeof(fname), t->dbname));
+  ASSERT(ldb_read_file(fname, &current) == LDB_OK);
   ASSERT(current.size > 0 && current.data[current.size - 1] == '\n');
   ASSERT(current.size < sizeof(fname));
 
@@ -156,41 +156,41 @@ rtest_manifest_filename(rtest_t *t, char *buf, size_t size) {
 
   fname[current.size - 1] = '\0';
 
-  ASSERT(rdb_join(buf, size, t->dbname, fname));
+  ASSERT(ldb_join(buf, size, t->dbname, fname));
 
-  rdb_buffer_clear(&current);
+  ldb_buffer_clear(&current);
 }
 
 static void
 rtest_log_name(rtest_t *t, char *buf, size_t size, uint64_t number) {
-  ASSERT(rdb_log_filename(buf, size, t->dbname, number));
+  ASSERT(ldb_log_filename(buf, size, t->dbname, number));
 }
 
 static size_t
-rtest_get_files(rtest_t *t, rdb_array_t *result, rdb_filetype_t target) {
+rtest_get_files(rtest_t *t, ldb_array_t *result, ldb_filetype_t target) {
   char **names;
   int i, len;
 
-  rdb_array_reset(result);
+  ldb_array_reset(result);
 
-  len = rdb_get_children(t->dbname, &names);
+  len = ldb_get_children(t->dbname, &names);
 
   ASSERT(len >= 0);
 
   for (i = 0; i < len; i++) {
-    rdb_filetype_t type;
+    ldb_filetype_t type;
     uint64_t number;
 
-    if (!rdb_parse_filename(&type, &number, names[i]))
+    if (!ldb_parse_filename(&type, &number, names[i]))
       continue;
 
     if (type != target)
       continue;
 
-    rdb_array_push(result, number);
+    ldb_array_push(result, number);
   }
 
-  rdb_free_children(names, len);
+  ldb_free_children(names, len);
 
   return result->length;
 }
@@ -199,76 +199,76 @@ static size_t
 rtest_remove_log_files(rtest_t *t) {
   /* Linux allows unlinking open files, but Windows does not. */
   /* Closing the db allows for file deletion. */
-  char fname[RDB_PATH_MAX];
-  rdb_array_t files;
+  char fname[LDB_PATH_MAX];
+  ldb_array_t files;
   size_t i, len;
 
-  rdb_array_init(&files);
+  ldb_array_init(&files);
 
   rtest_close(t);
 
-  len = rtest_get_files(t, &files, RDB_FILE_LOG);
+  len = rtest_get_files(t, &files, LDB_FILE_LOG);
 
   for (i = 0; i < files.length; i++) {
     rtest_log_name(t, fname, sizeof(fname), files.items[i]);
 
-    ASSERT(rdb_remove_file(fname) == RDB_OK);
+    ASSERT(ldb_remove_file(fname) == LDB_OK);
   }
 
-  rdb_array_clear(&files);
+  ldb_array_clear(&files);
 
   return len;
 }
 
 static void
 rtest_remove_manifest(rtest_t *t) {
-  char fname[RDB_PATH_MAX];
+  char fname[LDB_PATH_MAX];
 
   rtest_manifest_filename(t, fname, sizeof(fname));
 
-  ASSERT(rdb_remove_file(fname) == RDB_OK);
+  ASSERT(ldb_remove_file(fname) == LDB_OK);
 }
 
 static uint64_t
 rtest_first_log(rtest_t *t) {
-  rdb_array_t files;
+  ldb_array_t files;
   uint64_t number;
 
-  rdb_array_init(&files);
+  ldb_array_init(&files);
 
-  ASSERT(rtest_get_files(t, &files, RDB_FILE_LOG) > 0);
+  ASSERT(rtest_get_files(t, &files, LDB_FILE_LOG) > 0);
 
   number = files.items[0];
 
-  rdb_array_clear(&files);
+  ldb_array_clear(&files);
 
   return number;
 }
 
 static int
 rtest_num_logs(rtest_t *t) {
-  rdb_array_t files;
+  ldb_array_t files;
   int len;
 
-  rdb_array_init(&files);
+  ldb_array_init(&files);
 
-  len = rtest_get_files(t, &files, RDB_FILE_LOG);
+  len = rtest_get_files(t, &files, LDB_FILE_LOG);
 
-  rdb_array_clear(&files);
+  ldb_array_clear(&files);
 
   return len;
 }
 
 static int
 rtest_num_tables(rtest_t *t) {
-  rdb_array_t files;
+  ldb_array_t files;
   int len;
 
-  rdb_array_init(&files);
+  ldb_array_init(&files);
 
-  len = rtest_get_files(t, &files, RDB_FILE_TABLE);
+  len = rtest_get_files(t, &files, LDB_FILE_TABLE);
 
-  rdb_array_clear(&files);
+  ldb_array_clear(&files);
 
   return len;
 }
@@ -276,47 +276,47 @@ rtest_num_tables(rtest_t *t) {
 static uint64_t
 get_file_size(const char *fname) {
   uint64_t result;
-  ASSERT(rdb_get_file_size(fname, &result) == RDB_OK);
+  ASSERT(ldb_get_file_size(fname, &result) == LDB_OK);
   return result;
 }
 
 static void
 rtest_compact_memtable(rtest_t *t) {
-  rdb_test_compact_memtable(t->db);
+  ldb_test_compact_memtable(t->db);
 }
 
 /* Directly construct a log file that sets key to val. */
 static void
 rtest_make_log(rtest_t *t,
                uint64_t lognum,
-               rdb_seqnum_t seq,
+               ldb_seqnum_t seq,
                const char *key,
                const char *val) {
-  rdb_slice_t k = rdb_string(key);
-  rdb_slice_t v = rdb_string(val);
-  char fname[RDB_PATH_MAX];
-  rdb_logwriter_t writer;
-  rdb_slice_t contents;
-  rdb_wfile_t *file;
-  rdb_batch_t batch;
+  ldb_slice_t k = ldb_string(key);
+  ldb_slice_t v = ldb_string(val);
+  char fname[LDB_PATH_MAX];
+  ldb_logwriter_t writer;
+  ldb_slice_t contents;
+  ldb_wfile_t *file;
+  ldb_batch_t batch;
 
-  rdb_batch_init(&batch);
+  ldb_batch_init(&batch);
 
-  ASSERT(rdb_log_filename(fname, sizeof(fname), t->dbname, lognum));
-  ASSERT(rdb_truncfile_create(fname, &file) == RDB_OK);
+  ASSERT(ldb_log_filename(fname, sizeof(fname), t->dbname, lognum));
+  ASSERT(ldb_truncfile_create(fname, &file) == LDB_OK);
 
-  rdb_logwriter_init(&writer, file, 0);
+  ldb_logwriter_init(&writer, file, 0);
 
-  rdb_batch_put(&batch, &k, &v);
-  rdb_batch_set_sequence(&batch, seq);
+  ldb_batch_put(&batch, &k, &v);
+  ldb_batch_set_sequence(&batch, seq);
 
-  contents = rdb_batch_contents(&batch);
+  contents = ldb_batch_contents(&batch);
 
-  ASSERT(rdb_logwriter_add_record(&writer, &contents) == 0);
-  ASSERT(rdb_wfile_flush(file) == RDB_OK);
+  ASSERT(ldb_logwriter_add_record(&writer, &contents) == 0);
+  ASSERT(ldb_wfile_flush(file) == LDB_OK);
 
-  rdb_wfile_destroy(file);
-  rdb_batch_clear(&batch);
+  ldb_wfile_destroy(file);
+  ldb_batch_clear(&batch);
 }
 
 /*
@@ -325,15 +325,15 @@ rtest_make_log(rtest_t *t,
 
 static void
 test_recovery_manifest_reused(rtest_t *t) {
-  char old[RDB_PATH_MAX];
-  char cur[RDB_PATH_MAX];
+  char old[LDB_PATH_MAX];
+  char cur[LDB_PATH_MAX];
 
   if (!rtest_can_append(t)) {
     fprintf(stderr, "skipping test because env does not support appending\n");
     return;
   }
 
-  ASSERT(rtest_put(t, "foo", "bar") == RDB_OK);
+  ASSERT(rtest_put(t, "foo", "bar") == LDB_OK);
 
   rtest_close(t);
 
@@ -356,15 +356,15 @@ test_recovery_manifest_reused(rtest_t *t) {
 
 static void
 test_recovery_large_manifest_compacted(rtest_t *t) {
-  char old[RDB_PATH_MAX];
-  char cur[RDB_PATH_MAX];
+  char old[LDB_PATH_MAX];
+  char cur[LDB_PATH_MAX];
 
   if (!rtest_can_append(t)) {
     fprintf(stderr, "skipping test because env does not support appending\n");
     return;
   }
 
-  ASSERT(rtest_put(t, "foo", "bar") == RDB_OK);
+  ASSERT(rtest_put(t, "foo", "bar") == LDB_OK);
 
   rtest_close(t);
 
@@ -373,19 +373,19 @@ test_recovery_large_manifest_compacted(rtest_t *t) {
   /* Pad with zeroes to make manifest file very big. */
   {
     uint64_t len = get_file_size(old);
-    rdb_buffer_t zeroes;
-    rdb_wfile_t *file;
+    ldb_buffer_t zeroes;
+    ldb_wfile_t *file;
 
-    ASSERT(rdb_appendfile_create(old, &file) == RDB_OK);
+    ASSERT(ldb_appendfile_create(old, &file) == LDB_OK);
 
-    rdb_buffer_init(&zeroes);
-    rdb_buffer_pad(&zeroes, 3 * 1048576 - len);
+    ldb_buffer_init(&zeroes);
+    ldb_buffer_pad(&zeroes, 3 * 1048576 - len);
 
-    ASSERT(rdb_wfile_append(file, &zeroes) == RDB_OK);
-    ASSERT(rdb_wfile_flush(file) == RDB_OK);
+    ASSERT(ldb_wfile_append(file, &zeroes) == LDB_OK);
+    ASSERT(ldb_wfile_flush(file) == LDB_OK);
 
-    rdb_buffer_clear(&zeroes);
-    rdb_wfile_destroy(file);
+    ldb_buffer_clear(&zeroes);
+    ldb_wfile_destroy(file);
   }
 
   rtest_open(t, 0);
@@ -408,7 +408,7 @@ test_recovery_large_manifest_compacted(rtest_t *t) {
 
 static void
 test_recovery_no_log_files(rtest_t *t) {
-  ASSERT(rtest_put(t, "foo", "bar") == RDB_OK);
+  ASSERT(rtest_put(t, "foo", "bar") == LDB_OK);
   ASSERT(1 == rtest_remove_log_files(t));
 
   rtest_open(t, 0);
@@ -422,7 +422,7 @@ test_recovery_no_log_files(rtest_t *t) {
 
 static void
 test_recovery_log_file_reuse(rtest_t *t) {
-  char fname[RDB_PATH_MAX];
+  char fname[LDB_PATH_MAX];
   uint64_t number;
   int i;
 
@@ -432,7 +432,7 @@ test_recovery_log_file_reuse(rtest_t *t) {
   }
 
   for (i = 0; i < 2; i++) {
-    ASSERT(rtest_put(t, "foo", "bar") == RDB_OK);
+    ASSERT(rtest_put(t, "foo", "bar") == LDB_OK);
 
     if (i == 0) {
       /* Compact to ensure current log is empty. */
@@ -468,7 +468,7 @@ test_recovery_log_file_reuse(rtest_t *t) {
 
 static void
 test_recovery_multiple_memtables(rtest_t *t) {
-  rdb_dbopt_t opt = *rdb_dbopt_default;
+  ldb_dbopt_t opt = *ldb_dbopt_default;
   const int num = 1000;
   uint64_t old_log;
   int i;
@@ -479,7 +479,7 @@ test_recovery_multiple_memtables(rtest_t *t) {
 
     sprintf(buf, "%050d", i);
 
-    ASSERT(rtest_put(t, buf, buf) == RDB_OK);
+    ASSERT(rtest_put(t, buf, buf) == LDB_OK);
   }
 
   ASSERT(0 == rtest_num_tables(t));
@@ -515,7 +515,7 @@ static void
 test_recovery_multiple_log_files(rtest_t *t) {
   uint64_t old_log, new_log;
 
-  ASSERT(rtest_put(t, "foo", "bar") == RDB_OK);
+  ASSERT(rtest_put(t, "foo", "bar") == LDB_OK);
 
   rtest_close(t);
 
@@ -577,25 +577,25 @@ static void
 test_recovery_manifest_missing(rtest_t *t) {
   int rc;
 
-  ASSERT(rtest_put(t, "foo", "bar") == RDB_OK);
+  ASSERT(rtest_put(t, "foo", "bar") == LDB_OK);
 
   rtest_close(t);
   rtest_remove_manifest(t);
 
   rc = rtest_open_with_status(t, 0);
 
-  ASSERT(rc == RDB_CORRUPTION);
+  ASSERT(rc == LDB_CORRUPTION);
 }
 
 /*
  * Execute
  */
 
-RDB_EXTERN int
-rdb_test_recovery(void);
+LDB_EXTERN int
+ldb_test_recovery(void);
 
 int
-rdb_test_recovery(void) {
+ldb_test_recovery(void) {
   static void (*tests[])(rtest_t *) = {
     test_recovery_manifest_reused,
     test_recovery_large_manifest_compacted,

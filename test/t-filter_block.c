@@ -5,8 +5,8 @@
  */
 
 int
-rdb_test_filter_block(void);
+ldb_test_filter_block(void);
 
 int main(void) {
-  return rdb_test_filter_block();
+  return ldb_test_filter_block();
 }

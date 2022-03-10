@@ -12,7 +12,7 @@
  * DB Options
  */
 
-static const rdb_dbopt_t db_options = {
+static const ldb_dbopt_t db_options = {
   /* .comparator = */ NULL,
   /* .create_if_missing = */ 0,
   /* .error_if_exists = */ 0,
@@ -24,7 +24,7 @@ static const rdb_dbopt_t db_options = {
   /* .block_size = */ 4 * 1024,
   /* .block_restart_interval = */ 16,
   /* .max_file_size = */ 2 * 1024 * 1024,
-  /* .compression = */ RDB_NO_COMPRESSION,
+  /* .compression = */ LDB_NO_COMPRESSION,
   /* .reuse_logs = */ 0,
   /* .filter_policy = */ NULL,
   /* .use_mmap = */ 1
@@ -34,7 +34,7 @@ static const rdb_dbopt_t db_options = {
  * Read Options
  */
 
-static const rdb_readopt_t read_options = {
+static const ldb_readopt_t read_options = {
   /* .verify_checksums = */ 0,
   /* .fill_cache = */ 1,
   /* .snapshot = */ NULL
@@ -44,7 +44,7 @@ static const rdb_readopt_t read_options = {
  * Write Options
  */
 
-static const rdb_writeopt_t write_options = {
+static const ldb_writeopt_t write_options = {
   /* .sync = */ 0
 };
 
@@ -52,7 +52,7 @@ static const rdb_writeopt_t write_options = {
  * Iterator Options
  */
 
-static const rdb_readopt_t iter_options = {
+static const ldb_readopt_t iter_options = {
   /* .verify_checksums = */ 0,
   /* .fill_cache = */ 0,
   /* .snapshot = */ NULL
@@ -62,7 +62,7 @@ static const rdb_readopt_t iter_options = {
  * Globals
  */
 
-const rdb_dbopt_t *rdb_dbopt_default = &db_options;
-const rdb_readopt_t *rdb_readopt_default = &read_options;
-const rdb_writeopt_t *rdb_writeopt_default = &write_options;
-const rdb_readopt_t *rdb_iteropt_default = &iter_options;
+const ldb_dbopt_t *ldb_dbopt_default = &db_options;
+const ldb_readopt_t *ldb_readopt_default = &read_options;
+const ldb_writeopt_t *ldb_writeopt_default = &write_options;
+const ldb_readopt_t *ldb_iteropt_default = &iter_options;

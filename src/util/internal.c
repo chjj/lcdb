@@ -12,8 +12,8 @@
  * Helpers
  */
 
-RDB_NORETURN void
-rdb_assert_fail(const char *file, int line, const char *expr) {
+LDB_NORETURN void
+ldb_assert_fail(const char *file, int line, const char *expr) {
   /* LCOV_EXCL_START */
   fprintf(stderr, "%s:%d: Assertion `%s' failed.\n", file, line, expr);
   fflush(stderr);
@@ -21,8 +21,8 @@ rdb_assert_fail(const char *file, int line, const char *expr) {
   /* LCOV_EXCL_STOP */
 }
 
-RDB_MALLOC void *
-rdb_malloc(size_t size) {
+LDB_MALLOC void *
+ldb_malloc(size_t size) {
   void *ptr = malloc(size);
 
   if (ptr == NULL)
@@ -31,8 +31,8 @@ rdb_malloc(size_t size) {
   return ptr;
 }
 
-RDB_MALLOC void *
-rdb_realloc(void *ptr, size_t size) {
+LDB_MALLOC void *
+ldb_realloc(void *ptr, size_t size) {
   ptr = realloc(ptr, size);
 
   if (ptr == NULL)
@@ -42,7 +42,7 @@ rdb_realloc(void *ptr, size_t size) {
 }
 
 void
-rdb_free(void *ptr) {
+ldb_free(void *ptr) {
   if (ptr == NULL) {
     abort(); /* LCOV_EXCL_LINE */
     return;

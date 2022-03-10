@@ -4,8 +4,8 @@
  * https://github.com/chjj/rdb
  */
 
-#ifndef RDB_CODING_H
-#define RDB_CODING_H
+#ifndef LDB_CODING_H
+#define LDB_CODING_H
 
 #include <stdint.h>
 #include <string.h>
@@ -16,24 +16,24 @@
  * Coding
  */
 
-RDB_UNUSED static void
-rdb_fixed32_encode(uint8_t *zp, uint32_t x) {
+LDB_UNUSED static void
+ldb_fixed32_encode(uint8_t *zp, uint32_t x) {
   zp[0] = (uint8_t)(x >>  0);
   zp[1] = (uint8_t)(x >>  8);
   zp[2] = (uint8_t)(x >> 16);
   zp[3] = (uint8_t)(x >> 24);
 }
 
-RDB_UNUSED static uint32_t
-rdb_fixed32_decode(const uint8_t *xp) {
+LDB_UNUSED static uint32_t
+ldb_fixed32_decode(const uint8_t *xp) {
   return ((uint32_t)xp[0] <<  0)
        | ((uint32_t)xp[1] <<  8)
        | ((uint32_t)xp[2] << 16)
        | ((uint32_t)xp[3] << 24);
 }
 
-RDB_UNUSED static void
-rdb_fixed64_encode(uint8_t *zp, uint64_t x) {
+LDB_UNUSED static void
+ldb_fixed64_encode(uint8_t *zp, uint64_t x) {
   zp[0] = (uint8_t)(x >>  0);
   zp[1] = (uint8_t)(x >>  8);
   zp[2] = (uint8_t)(x >> 16);
@@ -44,8 +44,8 @@ rdb_fixed64_encode(uint8_t *zp, uint64_t x) {
   zp[7] = (uint8_t)(x >> 56);
 }
 
-RDB_UNUSED static uint64_t
-rdb_fixed64_decode(const uint8_t *xp) {
+LDB_UNUSED static uint64_t
+ldb_fixed64_decode(const uint8_t *xp) {
   return ((uint64_t)xp[0] <<  0)
        | ((uint64_t)xp[1] <<  8)
        | ((uint64_t)xp[2] << 16)
@@ -56,8 +56,8 @@ rdb_fixed64_decode(const uint8_t *xp) {
        | ((uint64_t)xp[7] << 56);
 }
 
-RDB_UNUSED static uint8_t *
-rdb_fixed32_write(uint8_t *zp, uint32_t x) {
+LDB_UNUSED static uint8_t *
+ldb_fixed32_write(uint8_t *zp, uint32_t x) {
   *zp++ = (uint8_t)(x >>  0);
   *zp++ = (uint8_t)(x >>  8);
   *zp++ = (uint8_t)(x >> 16);
@@ -65,12 +65,12 @@ rdb_fixed32_write(uint8_t *zp, uint32_t x) {
   return zp;
 }
 
-RDB_UNUSED static int
-rdb_fixed32_read(uint32_t *z, const uint8_t **xp, size_t *xn) {
+LDB_UNUSED static int
+ldb_fixed32_read(uint32_t *z, const uint8_t **xp, size_t *xn) {
   if (*xn < 4)
     return 0;
 
-  *z = rdb_fixed32_decode(*xp);
+  *z = ldb_fixed32_decode(*xp);
 
   *xp += 4;
   *xn -= 4;
@@ -78,13 +78,13 @@ rdb_fixed32_read(uint32_t *z, const uint8_t **xp, size_t *xn) {
   return 1;
 }
 
-RDB_UNUSED static int
-rdb_fixed32_slurp(uint32_t *z, rdb_slice_t *x) {
-  return rdb_fixed32_read(z, (const uint8_t **)&x->data, &x->size);
+LDB_UNUSED static int
+ldb_fixed32_slurp(uint32_t *z, ldb_slice_t *x) {
+  return ldb_fixed32_read(z, (const uint8_t **)&x->data, &x->size);
 }
 
-RDB_UNUSED static uint8_t *
-rdb_fixed64_write(uint8_t *zp, uint64_t x) {
+LDB_UNUSED static uint8_t *
+ldb_fixed64_write(uint8_t *zp, uint64_t x) {
   *zp++ = (uint8_t)(x >>  0);
   *zp++ = (uint8_t)(x >>  8);
   *zp++ = (uint8_t)(x >> 16);
@@ -96,12 +96,12 @@ rdb_fixed64_write(uint8_t *zp, uint64_t x) {
   return zp;
 }
 
-RDB_UNUSED static int
-rdb_fixed64_read(uint64_t *z, const uint8_t **xp, size_t *xn) {
+LDB_UNUSED static int
+ldb_fixed64_read(uint64_t *z, const uint8_t **xp, size_t *xn) {
   if (*xn < 8)
     return 0;
 
-  *z = rdb_fixed64_decode(*xp);
+  *z = ldb_fixed64_decode(*xp);
 
   *xp += 8;
   *xn -= 8;
@@ -109,13 +109,13 @@ rdb_fixed64_read(uint64_t *z, const uint8_t **xp, size_t *xn) {
   return 1;
 }
 
-RDB_UNUSED static int
-rdb_fixed64_slurp(uint64_t *z, rdb_slice_t *x) {
-  return rdb_fixed64_read(z, (const uint8_t **)&x->data, &x->size);
+LDB_UNUSED static int
+ldb_fixed64_slurp(uint64_t *z, ldb_slice_t *x) {
+  return ldb_fixed64_read(z, (const uint8_t **)&x->data, &x->size);
 }
 
-RDB_UNUSED static size_t
-rdb_varint32_size(uint32_t x) {
+LDB_UNUSED static size_t
+ldb_varint32_size(uint32_t x) {
   if (x < (1 << 7))
     return 1;
 
@@ -131,8 +131,8 @@ rdb_varint32_size(uint32_t x) {
   return 5;
 }
 
-RDB_UNUSED static uint8_t *
-rdb_varint32_write(uint8_t *zp, uint32_t x) {
+LDB_UNUSED static uint8_t *
+ldb_varint32_write(uint8_t *zp, uint32_t x) {
   static const uint32_t B = 128;
 
   if (x < (1 << 7)) {
@@ -160,8 +160,8 @@ rdb_varint32_write(uint8_t *zp, uint32_t x) {
   return zp;
 }
 
-RDB_UNUSED static int
-rdb_varint32_read(uint32_t *z, const uint8_t **xp, size_t *xn) {
+LDB_UNUSED static int
+ldb_varint32_read(uint32_t *z, const uint8_t **xp, size_t *xn) {
   uint32_t result = 0;
   uint32_t shift, byte;
 
@@ -186,13 +186,13 @@ rdb_varint32_read(uint32_t *z, const uint8_t **xp, size_t *xn) {
   return 0;
 }
 
-RDB_UNUSED static int
-rdb_varint32_slurp(uint32_t *z, rdb_slice_t *x) {
-  return rdb_varint32_read(z, (const uint8_t **)&x->data, &x->size);
+LDB_UNUSED static int
+ldb_varint32_slurp(uint32_t *z, ldb_slice_t *x) {
+  return ldb_varint32_read(z, (const uint8_t **)&x->data, &x->size);
 }
 
-RDB_UNUSED static size_t
-rdb_varint64_size(uint64_t x) { /* VarintLength */
+LDB_UNUSED static size_t
+ldb_varint64_size(uint64_t x) { /* VarintLength */
   size_t len = 1;
 
   while (x >= 128) {
@@ -203,8 +203,8 @@ rdb_varint64_size(uint64_t x) { /* VarintLength */
   return len;
 }
 
-RDB_UNUSED static uint8_t *
-rdb_varint64_write(uint8_t *zp, uint64_t x) {
+LDB_UNUSED static uint8_t *
+ldb_varint64_write(uint8_t *zp, uint64_t x) {
   static const uint64_t B = 128;
 
   while (x >= B) {
@@ -217,8 +217,8 @@ rdb_varint64_write(uint8_t *zp, uint64_t x) {
   return zp;
 }
 
-RDB_UNUSED static int
-rdb_varint64_read(uint64_t *z, const uint8_t **xp, size_t *xn) {
+LDB_UNUSED static int
+ldb_varint64_read(uint64_t *z, const uint8_t **xp, size_t *xn) {
   uint64_t result = 0;
   uint32_t shift;
   uint64_t byte;
@@ -244,21 +244,21 @@ rdb_varint64_read(uint64_t *z, const uint8_t **xp, size_t *xn) {
   return 0;
 }
 
-RDB_UNUSED static int
-rdb_varint64_slurp(uint64_t *z, rdb_slice_t *x) {
-  return rdb_varint64_read(z, (const uint8_t **)&x->data, &x->size);
+LDB_UNUSED static int
+ldb_varint64_slurp(uint64_t *z, ldb_slice_t *x) {
+  return ldb_varint64_read(z, (const uint8_t **)&x->data, &x->size);
 }
 
-RDB_UNUSED static uint8_t *
-rdb_raw_write(uint8_t *zp, const uint8_t *xp, size_t xn) {
+LDB_UNUSED static uint8_t *
+ldb_raw_write(uint8_t *zp, const uint8_t *xp, size_t xn) {
   if (xn > 0)
     memcpy(zp, xp, xn);
 
   return zp + xn;
 }
 
-RDB_UNUSED static int
-rdb_raw_read(uint8_t *zp, size_t zn,
+LDB_UNUSED static int
+ldb_raw_read(uint8_t *zp, size_t zn,
             const uint8_t **xp, size_t *xn) {
   if (*xn < zn)
     return 0;
@@ -272,8 +272,8 @@ rdb_raw_read(uint8_t *zp, size_t zn,
   return 1;
 }
 
-RDB_UNUSED static int
-rdb_zraw_read(const uint8_t **zp, size_t zn,
+LDB_UNUSED static int
+ldb_zraw_read(const uint8_t **zp, size_t zn,
               const uint8_t **xp, size_t *xn) {
   if (*xn < zn)
     return 0;
@@ -285,12 +285,12 @@ rdb_zraw_read(const uint8_t **zp, size_t zn,
   return 1;
 }
 
-RDB_UNUSED static uint8_t *
-rdb_padding_write(uint8_t *zp, size_t zn) {
+LDB_UNUSED static uint8_t *
+ldb_padding_write(uint8_t *zp, size_t zn) {
   if (zn > 0)
     memset(zp, 0, zn);
 
   return zp + zn;
 }
 
-#endif /* RDB_CODING_H */
+#endif /* LDB_CODING_H */

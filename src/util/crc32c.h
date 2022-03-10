@@ -4,8 +4,8 @@
  * https://github.com/chjj/rdb
  */
 
-#ifndef RDB_CRC32C_H
-#define RDB_CRC32C_H
+#ifndef LDB_CRC32C_H
+#define LDB_CRC32C_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -15,11 +15,11 @@
  * crc32c of a stream of data.
  */
 uint32_t
-rdb_crc32c_extend(uint32_t z, const uint8_t *xp, size_t xn);
+ldb_crc32c_extend(uint32_t z, const uint8_t *xp, size_t xn);
 
 /* Return the crc32c of data[0,n-1]. */
 uint32_t
-rdb_crc32c_value(const uint8_t *xp, size_t xn);
+ldb_crc32c_value(const uint8_t *xp, size_t xn);
 
 /* Return a masked representation of crc.
  *
@@ -28,10 +28,10 @@ rdb_crc32c_value(const uint8_t *xp, size_t xn);
  * somewhere (e.g., in files) should be masked before being stored.
  */
 uint32_t
-rdb_crc32c_mask(uint32_t crc);
+ldb_crc32c_mask(uint32_t crc);
 
 /* Return the crc whose masked representation is masked_crc. */
 uint32_t
-rdb_crc32c_unmask(uint32_t masked_crc);
+ldb_crc32c_unmask(uint32_t masked_crc);
 
-#endif /* RDB_CRC32C_H */
+#endif /* LDB_CRC32C_H */

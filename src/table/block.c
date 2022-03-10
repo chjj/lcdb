@@ -23,27 +23,27 @@
  * Block
  */
 
-rdb_block_t *
-rdb_block_create(const rdb_blockcontents_t *contents) {
-  rdb_block_t *block = rdb_malloc(sizeof(rdb_block_t));
-  rdb_block_init(block, contents);
+ldb_block_t *
+ldb_block_create(const ldb_blockcontents_t *contents) {
+  ldb_block_t *block = ldb_malloc(sizeof(ldb_block_t));
+  ldb_block_init(block, contents);
   return block;
 }
 
 void
-rdb_block_destroy(rdb_block_t *block) {
-  rdb_block_clear(block);
-  rdb_free(block);
+ldb_block_destroy(ldb_block_t *block) {
+  ldb_block_clear(block);
+  ldb_free(block);
 }
 
 static uint32_t
-rdb_block_restarts(const rdb_block_t *block) {
+ldb_block_restarts(const ldb_block_t *block) {
   assert(block->size >= 4);
-  return rdb_fixed32_decode(block->data + block->size - 4);
+  return ldb_fixed32_decode(block->data + block->size - 4);
 }
 
 void
-rdb_block_init(rdb_block_t *block, const rdb_blockcontents_t *contents) {
+ldb_block_init(ldb_block_t *block, const ldb_blockcontents_t *contents) {
   block->data = contents->data.data;
   block->size = contents->data.size;
   block->restart_offset = 0;
@@ -54,19 +54,19 @@ rdb_block_init(rdb_block_t *block, const rdb_blockcontents_t *contents) {
   } else {
     size_t max_restarts_allowed = (block->size - 4) / 4;
 
-    if (rdb_block_restarts(block) > max_restarts_allowed) {
-      /* The size is too small for rdb_block_restarts(). */
+    if (ldb_block_restarts(block) > max_restarts_allowed) {
+      /* The size is too small for ldb_block_restarts(). */
       block->size = 0;
     } else {
-      block->restart_offset = block->size - (1 + rdb_block_restarts(block)) * 4;
+      block->restart_offset = block->size - (1 + ldb_block_restarts(block)) * 4;
     }
   }
 }
 
 void
-rdb_block_clear(rdb_block_t *block) {
+ldb_block_clear(ldb_block_t *block) {
   if (block->owned)
-    rdb_free((void *)block->data);
+    ldb_free((void *)block->data);
 }
 
 /* Helper routine: decode the next block entry starting at "xp",
@@ -78,7 +78,7 @@ rdb_block_clear(rdb_block_t *block) {
  * pointer to the key delta (just past the three decoded values).
  */
 static const uint8_t *
-rdb_decode_entry(uint32_t *shared,
+ldb_decode_entry(uint32_t *shared,
                  uint32_t *non_shared,
                  uint32_t *value_length,
                  const uint8_t *xp,
@@ -102,13 +102,13 @@ rdb_decode_entry(uint32_t *shared,
     xp += 3;
     xn -= 3;
   } else {
-    if (!rdb_varint32_read(shared, &xp, &xn))
+    if (!ldb_varint32_read(shared, &xp, &xn))
       return NULL;
 
-    if (!rdb_varint32_read(non_shared, &xp, &xn))
+    if (!ldb_varint32_read(non_shared, &xp, &xn))
       return NULL;
 
-    if (!rdb_varint32_read(value_length, &xp, &xn))
+    if (!ldb_varint32_read(value_length, &xp, &xn))
       return NULL;
   }
 
@@ -122,8 +122,8 @@ rdb_decode_entry(uint32_t *shared,
  * Block Iterator
  */
 
-typedef struct rdb_blockiter_s {
-  const rdb_comparator_t *comparator;
+typedef struct ldb_blockiter_s {
+  const ldb_comparator_t *comparator;
   const uint8_t *data;    /* Underlying block contents. */
   uint32_t restarts;      /* Offset of restart array (list of fixed32). */
   uint32_t num_restarts;  /* Number of uint32_t entries in restart array. */
@@ -131,35 +131,35 @@ typedef struct rdb_blockiter_s {
   /* current is offset in data of current entry. >= restarts if !valid. */
   uint32_t current;
   uint32_t restart_index; /* Index of restart block in which current falls. */
-  rdb_buffer_t key;
-  rdb_slice_t value;
+  ldb_buffer_t key;
+  ldb_slice_t value;
   int status;
-} rdb_blockiter_t;
+} ldb_blockiter_t;
 
 static int
-rdb_blockiter_compare(const rdb_blockiter_t *iter,
-                      const rdb_slice_t *x,
-                      const rdb_slice_t *y) {
-  return rdb_compare(iter->comparator, x, y);
+ldb_blockiter_compare(const ldb_blockiter_t *iter,
+                      const ldb_slice_t *x,
+                      const ldb_slice_t *y) {
+  return ldb_compare(iter->comparator, x, y);
 }
 
 /* Return the offset in iter->data just past the end of the current entry. */
 static uint32_t
-rdb_blockiter_next_entry_offset(const rdb_blockiter_t *iter) {
+ldb_blockiter_next_entry_offset(const ldb_blockiter_t *iter) {
   return (iter->value.data + iter->value.size) - iter->data;
 }
 
 static uint32_t
-rdb_blockiter_restart_point(const rdb_blockiter_t *iter, uint32_t index) {
+ldb_blockiter_restart_point(const ldb_blockiter_t *iter, uint32_t index) {
   assert(index < iter->num_restarts);
-  return rdb_fixed32_decode(iter->data + iter->restarts + index * 4);
+  return ldb_fixed32_decode(iter->data + iter->restarts + index * 4);
 }
 
 static void
-rdb_blockiter_seek_restart(rdb_blockiter_t *iter, uint32_t index) {
+ldb_blockiter_seek_restart(ldb_blockiter_t *iter, uint32_t index) {
   uint32_t offset;
 
-  rdb_buffer_reset(&iter->key);
+  ldb_buffer_reset(&iter->key);
 
   iter->restart_index = index;
 
@@ -167,14 +167,14 @@ rdb_blockiter_seek_restart(rdb_blockiter_t *iter, uint32_t index) {
 
   /* parse_next_key() starts at the end of iter->value,
      so set iter->value accordingly */
-  offset = rdb_blockiter_restart_point(iter, index);
+  offset = ldb_blockiter_restart_point(iter, index);
 
-  rdb_slice_set(&iter->value, iter->data + offset, 0);
+  ldb_slice_set(&iter->value, iter->data + offset, 0);
 }
 
 static void
-rdb_blockiter_init(rdb_blockiter_t *iter,
-                   const rdb_comparator_t *comparator,
+ldb_blockiter_init(ldb_blockiter_t *iter,
+                   const ldb_comparator_t *comparator,
                    const uint8_t *data,
                    uint32_t restarts,
                    uint32_t num_restarts) {
@@ -187,67 +187,67 @@ rdb_blockiter_init(rdb_blockiter_t *iter,
   iter->current = iter->restarts;
   iter->restart_index = iter->num_restarts;
 
-  rdb_buffer_init(&iter->key);
-  rdb_slice_init(&iter->value);
+  ldb_buffer_init(&iter->key);
+  ldb_slice_init(&iter->value);
 
-  iter->status = RDB_OK;
+  iter->status = LDB_OK;
 }
 
 static void
-rdb_blockiter_corruption(rdb_blockiter_t *iter) {
+ldb_blockiter_corruption(ldb_blockiter_t *iter) {
   iter->current = iter->restarts;
   iter->restart_index = iter->num_restarts;
-  iter->status = RDB_CORRUPTION; /* "bad entry in block" */
+  iter->status = LDB_CORRUPTION; /* "bad entry in block" */
 
-  rdb_buffer_reset(&iter->key);
-  rdb_slice_reset(&iter->value);
+  ldb_buffer_reset(&iter->key);
+  ldb_slice_reset(&iter->value);
 }
 
 static void
-rdb_blockiter_clear(rdb_blockiter_t *iter) {
-  rdb_buffer_clear(&iter->key);
+ldb_blockiter_clear(ldb_blockiter_t *iter) {
+  ldb_buffer_clear(&iter->key);
 }
 
 static int
-rdb_blockiter_valid(const rdb_blockiter_t *iter) {
+ldb_blockiter_valid(const ldb_blockiter_t *iter) {
   return iter->current < iter->restarts;
 }
 
 static int
-rdb_blockiter_status(const rdb_blockiter_t *iter) {
+ldb_blockiter_status(const ldb_blockiter_t *iter) {
   return iter->status;
 }
 
-static rdb_slice_t
-rdb_blockiter_key(const rdb_blockiter_t *iter) {
-  assert(rdb_blockiter_valid(iter));
+static ldb_slice_t
+ldb_blockiter_key(const ldb_blockiter_t *iter) {
+  assert(ldb_blockiter_valid(iter));
   return iter->key;
 }
 
-static rdb_slice_t
-rdb_blockiter_value(const rdb_blockiter_t *iter) {
-  assert(rdb_blockiter_valid(iter));
+static ldb_slice_t
+ldb_blockiter_value(const ldb_blockiter_t *iter) {
+  assert(ldb_blockiter_valid(iter));
   return iter->value;
 }
 
 static int
-rdb_blockiter_parse_next_key(rdb_blockiter_t *iter);
+ldb_blockiter_parse_next_key(ldb_blockiter_t *iter);
 
 static void
-rdb_blockiter_next(rdb_blockiter_t *iter) {
-  assert(rdb_blockiter_valid(iter));
+ldb_blockiter_next(ldb_blockiter_t *iter) {
+  assert(ldb_blockiter_valid(iter));
 
-  rdb_blockiter_parse_next_key(iter);
+  ldb_blockiter_parse_next_key(iter);
 }
 
 static void
-rdb_blockiter_prev(rdb_blockiter_t *iter) {
+ldb_blockiter_prev(ldb_blockiter_t *iter) {
   uint32_t original = iter->current;
 
-  assert(rdb_blockiter_valid(iter));
+  assert(ldb_blockiter_valid(iter));
 
   /* Scan backwards to a restart point before iter->current. */
-  while (rdb_blockiter_restart_point(iter, iter->restart_index) >= original) {
+  while (ldb_blockiter_restart_point(iter, iter->restart_index) >= original) {
     if (iter->restart_index == 0) {
       /* No more entries. */
       iter->current = iter->restarts;
@@ -258,16 +258,16 @@ rdb_blockiter_prev(rdb_blockiter_t *iter) {
     iter->restart_index--;
   }
 
-  rdb_blockiter_seek_restart(iter, iter->restart_index);
+  ldb_blockiter_seek_restart(iter, iter->restart_index);
 
   do {
     /* Loop until end of current entry hits the start of original entry. */
-  } while (rdb_blockiter_parse_next_key(iter)
-        && rdb_blockiter_next_entry_offset(iter) < original);
+  } while (ldb_blockiter_parse_next_key(iter)
+        && ldb_blockiter_next_entry_offset(iter) < original);
 }
 
 static void
-rdb_blockiter_seek(rdb_blockiter_t *iter, const rdb_slice_t *target) {
+ldb_blockiter_seek(ldb_blockiter_t *iter, const ldb_slice_t *target) {
   /* Binary search in restart array to find the
      last restart point with a key < target. */
   uint32_t left = 0;
@@ -275,11 +275,11 @@ rdb_blockiter_seek(rdb_blockiter_t *iter, const rdb_slice_t *target) {
   int current_key_compare = 0;
   int skip_seek;
 
-  if (rdb_blockiter_valid(iter)) {
+  if (ldb_blockiter_valid(iter)) {
     /* If we're already scanning, use the current position as a starting
        point. This is beneficial if the key we're seeking to is ahead of the
        current position. */
-    current_key_compare = rdb_blockiter_compare(iter, &iter->key, target);
+    current_key_compare = ldb_blockiter_compare(iter, &iter->key, target);
 
     if (current_key_compare < 0) {
       /* iter->key is smaller than target. */
@@ -294,23 +294,23 @@ rdb_blockiter_seek(rdb_blockiter_t *iter, const rdb_slice_t *target) {
 
   while (left < right) {
     uint32_t mid = (left + right + 1) / 2;
-    uint32_t region_offset = rdb_blockiter_restart_point(iter, mid);
+    uint32_t region_offset = ldb_blockiter_restart_point(iter, mid);
     uint32_t shared, non_shared, value_length;
-    const uint8_t *key_ptr = rdb_decode_entry(&shared,
+    const uint8_t *key_ptr = ldb_decode_entry(&shared,
                                               &non_shared,
                                               &value_length,
                                               iter->data + region_offset,
                                               iter->data + iter->restarts);
-    rdb_slice_t mid_key;
+    ldb_slice_t mid_key;
 
     if (key_ptr == NULL || (shared != 0)) {
-      rdb_blockiter_corruption(iter);
+      ldb_blockiter_corruption(iter);
       return;
     }
 
-    rdb_slice_set(&mid_key, key_ptr, non_shared);
+    ldb_slice_set(&mid_key, key_ptr, non_shared);
 
-    if (rdb_blockiter_compare(iter, &mid_key, target) < 0) {
+    if (ldb_blockiter_compare(iter, &mid_key, target) < 0) {
       /* Key at "mid" is smaller than "target".  Therefore all
          blocks before "mid" are uninteresting. */
       left = mid;
@@ -324,45 +324,45 @@ rdb_blockiter_seek(rdb_blockiter_t *iter, const rdb_slice_t *target) {
   /* We might be able to use our current position within the restart block.
      This is true if we determined the key we desire is in the current block
      and is after than the current key. */
-  assert(current_key_compare == 0 || rdb_blockiter_valid(iter));
+  assert(current_key_compare == 0 || ldb_blockiter_valid(iter));
 
   skip_seek = (left == iter->restart_index && current_key_compare < 0);
 
   if (!skip_seek)
-    rdb_blockiter_seek_restart(iter, left);
+    ldb_blockiter_seek_restart(iter, left);
 
   /* Linear search (within restart block) for first key >= target. */
   for (;;) {
-    if (!rdb_blockiter_parse_next_key(iter))
+    if (!ldb_blockiter_parse_next_key(iter))
       return;
 
-    if (rdb_blockiter_compare(iter, &iter->key, target) >= 0)
+    if (ldb_blockiter_compare(iter, &iter->key, target) >= 0)
       return;
   }
 }
 
 static void
-rdb_blockiter_seek_first(rdb_blockiter_t *iter) {
-  rdb_blockiter_seek_restart(iter, 0);
-  rdb_blockiter_parse_next_key(iter);
+ldb_blockiter_seek_first(ldb_blockiter_t *iter) {
+  ldb_blockiter_seek_restart(iter, 0);
+  ldb_blockiter_parse_next_key(iter);
 }
 
 static void
-rdb_blockiter_seek_last(rdb_blockiter_t *iter) {
-  rdb_blockiter_seek_restart(iter, iter->num_restarts - 1);
+ldb_blockiter_seek_last(ldb_blockiter_t *iter) {
+  ldb_blockiter_seek_restart(iter, iter->num_restarts - 1);
 
-  while (rdb_blockiter_parse_next_key(iter)
-      && rdb_blockiter_next_entry_offset(iter) < iter->restarts) {
+  while (ldb_blockiter_parse_next_key(iter)
+      && ldb_blockiter_next_entry_offset(iter) < iter->restarts) {
     /* Keep skipping. */
   }
 }
 
 static int
-rdb_blockiter_parse_next_key(rdb_blockiter_t *iter) {
+ldb_blockiter_parse_next_key(ldb_blockiter_t *iter) {
   uint32_t shared, non_shared, value_length;
   const uint8_t *p, *limit;
 
-  iter->current = rdb_blockiter_next_entry_offset(iter);
+  iter->current = ldb_blockiter_next_entry_offset(iter);
 
   p = iter->data + iter->current;
   limit = iter->data + iter->restarts; /* Restarts come right after data. */
@@ -375,49 +375,49 @@ rdb_blockiter_parse_next_key(rdb_blockiter_t *iter) {
   }
 
   /* Decode next entry. */
-  p = rdb_decode_entry(&shared, &non_shared, &value_length, p, limit);
+  p = ldb_decode_entry(&shared, &non_shared, &value_length, p, limit);
 
   if (p == NULL || iter->key.size < shared) {
-    rdb_blockiter_corruption(iter);
+    ldb_blockiter_corruption(iter);
     return 0;
   }
 
-  rdb_buffer_resize(&iter->key, shared);
-  rdb_buffer_append(&iter->key, p, non_shared);
+  ldb_buffer_resize(&iter->key, shared);
+  ldb_buffer_append(&iter->key, p, non_shared);
 
-  rdb_slice_set(&iter->value, p + non_shared, value_length);
+  ldb_slice_set(&iter->value, p + non_shared, value_length);
 
   while (iter->restart_index + 1 < iter->num_restarts
-      && rdb_blockiter_restart_point(iter, iter->restart_index + 1) < iter->current) {
+      && ldb_blockiter_restart_point(iter, iter->restart_index + 1) < iter->current) {
     ++iter->restart_index;
   }
 
   return 1;
 }
 
-RDB_ITERATOR_FUNCTIONS(rdb_blockiter);
+LDB_ITERATOR_FUNCTIONS(ldb_blockiter);
 
-rdb_iter_t *
-rdb_blockiter_create(const rdb_block_t *block,
-                     const rdb_comparator_t *comparator) {
-  rdb_blockiter_t *iter;
+ldb_iter_t *
+ldb_blockiter_create(const ldb_block_t *block,
+                     const ldb_comparator_t *comparator) {
+  ldb_blockiter_t *iter;
   uint32_t num_restarts;
 
   if (block->size < 4)
-    return rdb_emptyiter_create(RDB_CORRUPTION); /* "bad block contents" */
+    return ldb_emptyiter_create(LDB_CORRUPTION); /* "bad block contents" */
 
-  num_restarts = rdb_block_restarts(block);
+  num_restarts = ldb_block_restarts(block);
 
   if (num_restarts == 0)
-    return rdb_emptyiter_create(RDB_OK);
+    return ldb_emptyiter_create(LDB_OK);
 
-  iter = rdb_malloc(sizeof(rdb_blockiter_t));
+  iter = ldb_malloc(sizeof(ldb_blockiter_t));
 
-  rdb_blockiter_init(iter,
+  ldb_blockiter_init(iter,
                      comparator,
                      block->data,
                      block->restart_offset,
                      num_restarts);
 
-  return rdb_iter_create(iter, &rdb_blockiter_table);
+  return ldb_iter_create(iter, &ldb_blockiter_table);
 }

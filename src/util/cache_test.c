@@ -27,9 +27,9 @@
  */
 
 typedef struct test_s {
-  rdb_array_t deleted_keys;
-  rdb_array_t deleted_values;
-  rdb_lru_t *cache;
+  ldb_array_t deleted_keys;
+  ldb_array_t deleted_values;
+  ldb_lru_t *cache;
 } test_t;
 
 static test_t *current;
@@ -39,16 +39,16 @@ static test_t *current;
  */
 
 /* Conversions between numeric keys/values and the types expected by Cache. */
-static rdb_slice_t
+static ldb_slice_t
 encode_key(int k, uint8_t *buf) {
-  rdb_fixed32_write(buf, k);
-  return rdb_slice(buf, 4);
+  ldb_fixed32_write(buf, k);
+  return ldb_slice(buf, 4);
 }
 
 static int
-decode_key(const rdb_slice_t *key) {
+decode_key(const ldb_slice_t *key) {
   ASSERT(key->size == 4);
-  return rdb_fixed32_decode(key->data) & 0x7fffffff;
+  return ldb_fixed32_decode(key->data) & 0x7fffffff;
 }
 
 static void *
@@ -67,42 +67,42 @@ decode_value(void *v) {
 
 static void
 test_init(test_t *t) {
-  rdb_array_init(&t->deleted_keys);
-  rdb_array_init(&t->deleted_values);
+  ldb_array_init(&t->deleted_keys);
+  ldb_array_init(&t->deleted_values);
 
-  t->cache = rdb_lru_create(CACHE_SIZE);
+  t->cache = ldb_lru_create(CACHE_SIZE);
 
   current = t;
 }
 
 static void
 test_clear(test_t *t) {
-  rdb_lru_destroy(t->cache);
+  ldb_lru_destroy(t->cache);
 
-  rdb_array_clear(&t->deleted_keys);
-  rdb_array_clear(&t->deleted_values);
+  ldb_array_clear(&t->deleted_keys);
+  ldb_array_clear(&t->deleted_values);
 }
 
 static void
-test_deleter(const rdb_slice_t *key, void *value) {
-  rdb_array_push(&current->deleted_keys, decode_key(key));
-  rdb_array_push(&current->deleted_values, decode_value(value));
+test_deleter(const ldb_slice_t *key, void *value) {
+  ldb_array_push(&current->deleted_keys, decode_key(key));
+  ldb_array_push(&current->deleted_values, decode_value(value));
 }
 
 static int
 test_lookup(test_t *t, int key) {
-  rdb_lruhandle_t *h;
+  ldb_lruhandle_t *h;
   uint8_t buf[4];
-  rdb_slice_t k;
+  ldb_slice_t k;
   int r = -1;
 
   k = encode_key(key, buf);
-  h = rdb_lru_lookup(t->cache, &k);
+  h = ldb_lru_lookup(t->cache, &k);
 
   if (h != NULL) {
-    r = decode_value(rdb_lru_value(h));
+    r = decode_value(ldb_lru_value(h));
 
-    rdb_lru_release(t->cache, h);
+    ldb_lru_release(t->cache, h);
   }
 
   return r;
@@ -110,28 +110,28 @@ test_lookup(test_t *t, int key) {
 
 static void
 test_insert(test_t *t, int key, int value, int charge) {
-  rdb_lruhandle_t *h;
+  ldb_lruhandle_t *h;
   uint8_t buf[4];
-  rdb_slice_t k;
+  ldb_slice_t k;
 
   k = encode_key(key, buf);
 
-  h = rdb_lru_insert(t->cache, &k,
+  h = ldb_lru_insert(t->cache, &k,
                      encode_value(value),
                      charge,
                      &test_deleter);
 
-  rdb_lru_release(t->cache, h);
+  ldb_lru_release(t->cache, h);
 }
 
-static rdb_lruhandle_t *
+static ldb_lruhandle_t *
 test_insert2(test_t *t, int key, int value, int charge) {
   uint8_t buf[4];
-  rdb_slice_t k;
+  ldb_slice_t k;
 
   k = encode_key(key, buf);
 
-  return rdb_lru_insert(t->cache, &k,
+  return ldb_lru_insert(t->cache, &k,
                         encode_value(value),
                         charge,
                         &test_deleter);
@@ -140,11 +140,11 @@ test_insert2(test_t *t, int key, int value, int charge) {
 static void
 test_erase(test_t *t, int key) {
   uint8_t buf[4];
-  rdb_slice_t k;
+  ldb_slice_t k;
 
   k = encode_key(key, buf);
 
-  rdb_lru_erase(t->cache, &k);
+  ldb_lru_erase(t->cache, &k);
 }
 
 /*
@@ -215,8 +215,8 @@ test_cache_erase(void) {
 
 static void
 test_cache_entries_are_pinned(void) {
-  rdb_lruhandle_t *h1, *h2;
-  rdb_slice_t key;
+  ldb_lruhandle_t *h1, *h2;
+  ldb_slice_t key;
   uint8_t buf[4];
   test_t t;
 
@@ -226,18 +226,18 @@ test_cache_entries_are_pinned(void) {
 
   test_insert(&t, 100, 101, 1);
 
-  h1 = rdb_lru_lookup(t.cache, &key);
+  h1 = ldb_lru_lookup(t.cache, &key);
 
-  ASSERT(101 == decode_value(rdb_lru_value(h1)));
+  ASSERT(101 == decode_value(ldb_lru_value(h1)));
 
   test_insert(&t, 100, 102, 1);
 
-  h2 = rdb_lru_lookup(t.cache, &key);
+  h2 = ldb_lru_lookup(t.cache, &key);
 
-  ASSERT(102 == decode_value(rdb_lru_value(h2)));
+  ASSERT(102 == decode_value(ldb_lru_value(h2)));
   ASSERT(0 == t.deleted_keys.length);
 
-  rdb_lru_release(t.cache, h1);
+  ldb_lru_release(t.cache, h1);
 
   ASSERT(1 == t.deleted_keys.length);
   ASSERT(100 == t.deleted_keys.items[0]);
@@ -248,7 +248,7 @@ test_cache_entries_are_pinned(void) {
   ASSERT(-1 == test_lookup(&t, 100));
   ASSERT(1 == t.deleted_keys.length);
 
-  rdb_lru_release(t.cache, h2);
+  ldb_lru_release(t.cache, h2);
 
   ASSERT(2 == t.deleted_keys.length);
   ASSERT(100 == t.deleted_keys.items[1]);
@@ -259,8 +259,8 @@ test_cache_entries_are_pinned(void) {
 
 static void
 test_cache_eviction_policy(void) {
-  rdb_lruhandle_t *h;
-  rdb_slice_t key;
+  ldb_lruhandle_t *h;
+  ldb_slice_t key;
   uint8_t buf[4];
   test_t t;
   int i;
@@ -272,7 +272,7 @@ test_cache_eviction_policy(void) {
   test_insert(&t, 300, 301, 1);
 
   key = encode_key(300, buf);
-  h = rdb_lru_lookup(t.cache, &key);
+  h = ldb_lru_lookup(t.cache, &key);
 
   /* Frequently used entry must be kept around,
      as must things that are still in use. */
@@ -287,32 +287,32 @@ test_cache_eviction_policy(void) {
   ASSERT(-1 == test_lookup(&t, 200));
   ASSERT(301 == test_lookup(&t, 300));
 
-  rdb_lru_release(t.cache, h);
+  ldb_lru_release(t.cache, h);
 
   test_clear(&t);
 }
 
 static void
 test_cache_use_exceeds_cache_size(void) {
-  rdb_vector_t h;
+  ldb_vector_t h;
   test_t t;
   size_t i;
 
   test_init(&t);
-  rdb_vector_init(&h);
+  ldb_vector_init(&h);
 
   /* Overfill the cache, keeping handles on all inserted entries. */
   for (i = 0; i < CACHE_SIZE + 100; i++)
-    rdb_vector_push(&h, test_insert2(&t, 1000 + i, 2000 + i, 1));
+    ldb_vector_push(&h, test_insert2(&t, 1000 + i, 2000 + i, 1));
 
   /* Check that all the entries can be found in the cache. */
   for (i = 0; i < h.length; i++)
     ASSERT(2000 + i == (size_t)test_lookup(&t, 1000 + i));
 
   for (i = 0; i < h.length; i++)
-    rdb_lru_release(t.cache, h.items[i]);
+    ldb_lru_release(t.cache, h.items[i]);
 
-  rdb_vector_clear(&h);
+  ldb_vector_clear(&h);
   test_clear(&t);
 }
 
@@ -362,8 +362,8 @@ test_cache_newid(void) {
 
   test_init(&t);
 
-  a = rdb_lru_newid(t.cache);
-  b = rdb_lru_newid(t.cache);
+  a = ldb_lru_newid(t.cache);
+  b = ldb_lru_newid(t.cache);
 
   ASSERT(a != b);
 
@@ -372,8 +372,8 @@ test_cache_newid(void) {
 
 static void
 test_cache_prune(void) {
-  rdb_lruhandle_t *h;
-  rdb_slice_t key;
+  ldb_lruhandle_t *h;
+  ldb_slice_t key;
   uint8_t buf[4];
   test_t t;
 
@@ -383,12 +383,12 @@ test_cache_prune(void) {
   test_insert(&t, 2, 200, 1);
 
   key = encode_key(1, buf);
-  h = rdb_lru_lookup(t.cache, &key);
+  h = ldb_lru_lookup(t.cache, &key);
 
   ASSERT(h != NULL);
 
-  rdb_lru_prune(t.cache);
-  rdb_lru_release(t.cache, h);
+  ldb_lru_prune(t.cache);
+  ldb_lru_release(t.cache, h);
 
   ASSERT(100 == test_lookup(&t, 1));
   ASSERT(-1 == test_lookup(&t, 2));
@@ -402,9 +402,9 @@ test_cache_zero_size_cache(void) {
 
   test_init(&t);
 
-  rdb_lru_destroy(t.cache);
+  ldb_lru_destroy(t.cache);
 
-  t.cache = rdb_lru_create(0);
+  t.cache = ldb_lru_create(0);
 
   test_insert(&t, 1, 100, 1);
 
@@ -417,11 +417,11 @@ test_cache_zero_size_cache(void) {
  * Execute
  */
 
-RDB_EXTERN int
-rdb_test_cache(void);
+LDB_EXTERN int
+ldb_test_cache(void);
 
 int
-rdb_test_cache(void) {
+ldb_test_cache(void) {
   test_cache_hit_and_miss();
   test_cache_erase();
   test_cache_entries_are_pinned();

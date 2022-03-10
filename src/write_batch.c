@@ -19,13 +19,13 @@
 #include "memtable.h"
 #include "write_batch.h"
 
-/* rdb_batch_t::rep :=
+/* ldb_batch_t::rep :=
  *    sequence: fixed64
  *    count: fixed32
  *    data: record[count]
  * record :=
- *    RDB_TYPE_VALUE varstring varstring |
- *    RDB_TYPE_DELETION varstring
+ *    LDB_TYPE_VALUE varstring varstring |
+ *    LDB_TYPE_DELETION varstring
  * varstring :=
  *    len: varint32
  *    data: uint8[len]
@@ -36,82 +36,82 @@
  */
 
 /* Header has an 8-byte sequence number followed by a 4-byte count. */
-#define RDB_HEADER 12
+#define LDB_HEADER 12
 
 /*
  * Batch
  */
 
-rdb_batch_t *
-rdb_batch_create(void) {
-  rdb_batch_t *batch = rdb_malloc(sizeof(rdb_batch_t));
-  rdb_batch_init(batch);
+ldb_batch_t *
+ldb_batch_create(void) {
+  ldb_batch_t *batch = ldb_malloc(sizeof(ldb_batch_t));
+  ldb_batch_init(batch);
   return batch;
 }
 
 void
-rdb_batch_destroy(rdb_batch_t *batch) {
-  rdb_batch_clear(batch);
-  rdb_free(batch);
+ldb_batch_destroy(ldb_batch_t *batch) {
+  ldb_batch_clear(batch);
+  ldb_free(batch);
 }
 
 void
-rdb_batch_init(rdb_batch_t *batch) {
-  rdb_buffer_init(&batch->rep);
-  rdb_batch_reset(batch);
+ldb_batch_init(ldb_batch_t *batch) {
+  ldb_buffer_init(&batch->rep);
+  ldb_batch_reset(batch);
 }
 
 void
-rdb_batch_clear(rdb_batch_t *batch) {
-  rdb_buffer_clear(&batch->rep);
+ldb_batch_clear(ldb_batch_t *batch) {
+  ldb_buffer_clear(&batch->rep);
 }
 
 void
-rdb_batch_reset(rdb_batch_t *batch) {
-  rdb_buffer_resize(&batch->rep, RDB_HEADER);
+ldb_batch_reset(ldb_batch_t *batch) {
+  ldb_buffer_resize(&batch->rep, LDB_HEADER);
 
-  memset(batch->rep.data, 0, RDB_HEADER);
+  memset(batch->rep.data, 0, LDB_HEADER);
 }
 
 size_t
-rdb_batch_approximate_size(const rdb_batch_t *batch) {
+ldb_batch_approximate_size(const ldb_batch_t *batch) {
   return batch->rep.size;
 }
 
 int
-rdb_batch_iterate(const rdb_batch_t *batch, rdb_handler_t *handler) {
-  rdb_slice_t input = batch->rep;
-  rdb_slice_t key, value;
+ldb_batch_iterate(const ldb_batch_t *batch, ldb_handler_t *handler) {
+  ldb_slice_t input = batch->rep;
+  ldb_slice_t key, value;
   int found = 0;
 
-  if (input.size < RDB_HEADER)
-    return RDB_CORRUPTION; /* "malformed WriteBatch (too small)" */
+  if (input.size < LDB_HEADER)
+    return LDB_CORRUPTION; /* "malformed WriteBatch (too small)" */
 
-  rdb_slice_eat(&input, RDB_HEADER);
+  ldb_slice_eat(&input, LDB_HEADER);
 
   while (input.size > 0) {
     int tag = input.data[0];
 
-    rdb_slice_eat(&input, 1);
+    ldb_slice_eat(&input, 1);
 
     found++;
 
     switch (tag) {
-      case RDB_TYPE_VALUE: {
-        if (!rdb_slice_slurp(&key, &input))
-          return RDB_CORRUPTION; /* "bad WriteBatch Put" */
+      case LDB_TYPE_VALUE: {
+        if (!ldb_slice_slurp(&key, &input))
+          return LDB_CORRUPTION; /* "bad WriteBatch Put" */
 
-        if (!rdb_slice_slurp(&value, &input))
-          return RDB_CORRUPTION; /* "bad WriteBatch Put" */
+        if (!ldb_slice_slurp(&value, &input))
+          return LDB_CORRUPTION; /* "bad WriteBatch Put" */
 
         handler->put(handler, &key, &value);
 
         break;
       }
 
-      case RDB_TYPE_DELETION: {
-        if (!rdb_slice_slurp(&key, &input))
-          return RDB_CORRUPTION; /* "bad WriteBatch Delete" */
+      case LDB_TYPE_DELETION: {
+        if (!ldb_slice_slurp(&key, &input))
+          return LDB_CORRUPTION; /* "bad WriteBatch Delete" */
 
         handler->del(handler, &key);
 
@@ -119,112 +119,112 @@ rdb_batch_iterate(const rdb_batch_t *batch, rdb_handler_t *handler) {
       }
 
       default: {
-        return RDB_CORRUPTION; /* "unknown WriteBatch tag" */
+        return LDB_CORRUPTION; /* "unknown WriteBatch tag" */
       }
     }
   }
 
-  if (found != rdb_batch_count(batch))
-    return RDB_CORRUPTION; /* "WriteBatch has wrong count" */
+  if (found != ldb_batch_count(batch))
+    return LDB_CORRUPTION; /* "WriteBatch has wrong count" */
 
-  return RDB_OK;
+  return LDB_OK;
 }
 
 int
-rdb_batch_count(const rdb_batch_t *batch) {
-  return rdb_fixed32_decode(batch->rep.data + 8);
+ldb_batch_count(const ldb_batch_t *batch) {
+  return ldb_fixed32_decode(batch->rep.data + 8);
 }
 
 void
-rdb_batch_set_count(rdb_batch_t *batch, int count) {
-  rdb_fixed32_write(batch->rep.data + 8, count);
+ldb_batch_set_count(ldb_batch_t *batch, int count) {
+  ldb_fixed32_write(batch->rep.data + 8, count);
 }
 
-rdb_seqnum_t
-rdb_batch_sequence(const rdb_batch_t *batch) {
-  return rdb_fixed64_decode(batch->rep.data);
-}
-
-void
-rdb_batch_set_sequence(rdb_batch_t *batch, rdb_seqnum_t seq) {
-  rdb_fixed64_write(batch->rep.data, seq);
+ldb_seqnum_t
+ldb_batch_sequence(const ldb_batch_t *batch) {
+  return ldb_fixed64_decode(batch->rep.data);
 }
 
 void
-rdb_batch_put(rdb_batch_t *batch,
-              const rdb_slice_t *key,
-              const rdb_slice_t *value) {
-  rdb_batch_set_count(batch, rdb_batch_count(batch) + 1);
-  rdb_buffer_push(&batch->rep, RDB_TYPE_VALUE);
-  rdb_slice_export(&batch->rep, key);
-  rdb_slice_export(&batch->rep, value);
+ldb_batch_set_sequence(ldb_batch_t *batch, ldb_seqnum_t seq) {
+  ldb_fixed64_write(batch->rep.data, seq);
 }
 
 void
-rdb_batch_del(rdb_batch_t *batch, const rdb_slice_t *key) {
-  rdb_batch_set_count(batch, rdb_batch_count(batch) + 1);
-  rdb_buffer_push(&batch->rep, RDB_TYPE_DELETION);
-  rdb_slice_export(&batch->rep, key);
+ldb_batch_put(ldb_batch_t *batch,
+              const ldb_slice_t *key,
+              const ldb_slice_t *value) {
+  ldb_batch_set_count(batch, ldb_batch_count(batch) + 1);
+  ldb_buffer_push(&batch->rep, LDB_TYPE_VALUE);
+  ldb_slice_export(&batch->rep, key);
+  ldb_slice_export(&batch->rep, value);
 }
 
 void
-rdb_batch_append(rdb_batch_t *dst, const rdb_batch_t *src) {
-  assert(src->rep.size >= RDB_HEADER);
+ldb_batch_del(ldb_batch_t *batch, const ldb_slice_t *key) {
+  ldb_batch_set_count(batch, ldb_batch_count(batch) + 1);
+  ldb_buffer_push(&batch->rep, LDB_TYPE_DELETION);
+  ldb_slice_export(&batch->rep, key);
+}
 
-  rdb_batch_set_count(dst, rdb_batch_count(dst) + rdb_batch_count(src));
+void
+ldb_batch_append(ldb_batch_t *dst, const ldb_batch_t *src) {
+  assert(src->rep.size >= LDB_HEADER);
 
-  rdb_buffer_append(&dst->rep, src->rep.data + RDB_HEADER,
-                               src->rep.size - RDB_HEADER);
+  ldb_batch_set_count(dst, ldb_batch_count(dst) + ldb_batch_count(src));
+
+  ldb_buffer_append(&dst->rep, src->rep.data + LDB_HEADER,
+                               src->rep.size - LDB_HEADER);
 }
 
 static void
-memtable_put(rdb_handler_t *handler,
-             const rdb_slice_t *key,
-             const rdb_slice_t *value) {
-  rdb_memtable_t *table = handler->state;
-  rdb_seqnum_t seq = handler->number;
+memtable_put(ldb_handler_t *handler,
+             const ldb_slice_t *key,
+             const ldb_slice_t *value) {
+  ldb_memtable_t *table = handler->state;
+  ldb_seqnum_t seq = handler->number;
 
-  rdb_memtable_add(table, seq, RDB_TYPE_VALUE, key, value);
+  ldb_memtable_add(table, seq, LDB_TYPE_VALUE, key, value);
 
   handler->number++;
 }
 
 static void
-memtable_del(rdb_handler_t *handler, const rdb_slice_t *key) {
-  static const rdb_slice_t value = {NULL, 0, 0};
-  rdb_memtable_t *table = handler->state;
-  rdb_seqnum_t seq = handler->number;
+memtable_del(ldb_handler_t *handler, const ldb_slice_t *key) {
+  static const ldb_slice_t value = {NULL, 0, 0};
+  ldb_memtable_t *table = handler->state;
+  ldb_seqnum_t seq = handler->number;
 
-  rdb_memtable_add(table, seq, RDB_TYPE_DELETION, key, &value);
+  ldb_memtable_add(table, seq, LDB_TYPE_DELETION, key, &value);
 
   handler->number++;
 }
 
 int
-rdb_batch_insert_into(const rdb_batch_t *batch, rdb_memtable_t *table) {
-  rdb_handler_t handler;
+ldb_batch_insert_into(const ldb_batch_t *batch, ldb_memtable_t *table) {
+  ldb_handler_t handler;
 
   handler.state = table;
-  handler.number = rdb_batch_sequence(batch);
+  handler.number = ldb_batch_sequence(batch);
   handler.put = memtable_put;
   handler.del = memtable_del;
 
-  return rdb_batch_iterate(batch, &handler);
+  return ldb_batch_iterate(batch, &handler);
 }
 
 void
-rdb_batch_set_contents(rdb_batch_t *batch, const rdb_slice_t *contents) {
-  assert(contents->size >= RDB_HEADER);
+ldb_batch_set_contents(ldb_batch_t *batch, const ldb_slice_t *contents) {
+  assert(contents->size >= LDB_HEADER);
 
-  rdb_buffer_copy(&batch->rep, contents);
+  ldb_buffer_copy(&batch->rep, contents);
 }
 
-rdb_slice_t
-rdb_batch_contents(const rdb_batch_t *batch) {
+ldb_slice_t
+ldb_batch_contents(const ldb_batch_t *batch) {
   return batch->rep;
 }
 
 size_t
-rdb_batch_size(const rdb_batch_t *batch) {
+ldb_batch_size(const ldb_batch_t *batch) {
   return batch->rep.size;
 }

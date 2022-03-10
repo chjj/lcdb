@@ -28,7 +28,7 @@ long syscall(long, ...);
 #  include <unistd.h>
 #endif
 
-#if !defined(_WIN32) && defined(RDB_PTHREAD)
+#if !defined(_WIN32) && defined(LDB_PTHREAD)
 #  include <pthread.h>
 #endif
 
@@ -39,7 +39,7 @@ long syscall(long, ...);
  * Types
  */
 
-struct rdb_logger_s {
+struct ldb_logger_s {
   FILE *stream;
 };
 
@@ -48,7 +48,7 @@ struct rdb_logger_s {
  */
 
 static int
-rdb_date(char *zp, int64_t x) {
+ldb_date(char *zp, int64_t x) {
   /* https://stackoverflow.com/a/42936293 */
   /* https://howardhinnant.github.io/date_algorithms.html#civil_from_days */
   int64_t xx = x / 1000000;
@@ -76,25 +76,25 @@ rdb_date(char *zp, int64_t x) {
  * Logger
  */
 
-rdb_logger_t *
-rdb_logger_create(FILE *stream) {
-  rdb_logger_t *logger = rdb_malloc(sizeof(rdb_logger_t));
+ldb_logger_t *
+ldb_logger_create(FILE *stream) {
+  ldb_logger_t *logger = ldb_malloc(sizeof(ldb_logger_t));
   logger->stream = stream;
   return logger;
 }
 
 void
-rdb_logger_destroy(rdb_logger_t *logger) {
+ldb_logger_destroy(ldb_logger_t *logger) {
   if (logger != NULL) {
     if (logger->stream != NULL)
       fclose(logger->stream);
 
-    rdb_free(logger);
+    ldb_free(logger);
   }
 }
 
 void
-rdb_log(rdb_logger_t *logger, const char *fmt, ...) {
+ldb_log(ldb_logger_t *logger, const char *fmt, ...) {
   unsigned long tid = 0;
   char date[64];
   va_list ap;
@@ -102,17 +102,17 @@ rdb_log(rdb_logger_t *logger, const char *fmt, ...) {
   va_start(ap, fmt);
 
   if (logger != NULL && logger->stream != NULL) {
-    rdb_date(date, rdb_now_usec());
+    ldb_date(date, ldb_now_usec());
 
 #if defined(_WIN32)
     tid = GetCurrentThreadId();
 #elif defined(HAVE_GETTID)
     tid = syscall(__NR_gettid);
-#elif defined(RDB_PTHREAD)
+#elif defined(LDB_PTHREAD)
     {
       pthread_t thread = pthread_self();
 
-      memcpy(&tid, &thread, RDB_MIN(sizeof(tid), sizeof(thread)));
+      memcpy(&tid, &thread, LDB_MIN(sizeof(tid), sizeof(thread)));
     }
 #else
     tid = getpid();

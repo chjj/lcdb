@@ -25,51 +25,51 @@
  */
 
 void
-rdb_blockhandle_init(rdb_blockhandle_t *x) {
+ldb_blockhandle_init(ldb_blockhandle_t *x) {
   x->offset = ~UINT64_C(0);
   x->size = ~UINT64_C(0);
 }
 
 size_t
-rdb_blockhandle_size(const rdb_blockhandle_t *x) {
-  return rdb_varint64_size(x->offset) + rdb_varint64_size(x->size);
+ldb_blockhandle_size(const ldb_blockhandle_t *x) {
+  return ldb_varint64_size(x->offset) + ldb_varint64_size(x->size);
 }
 
 uint8_t *
-rdb_blockhandle_write(uint8_t *zp, const rdb_blockhandle_t *x) {
+ldb_blockhandle_write(uint8_t *zp, const ldb_blockhandle_t *x) {
   /* Sanity check that all fields have been set. */
   assert(x->offset != ~UINT64_C(0));
   assert(x->size != ~UINT64_C(0));
 
-  zp = rdb_varint64_write(zp, x->offset);
-  zp = rdb_varint64_write(zp, x->size);
+  zp = ldb_varint64_write(zp, x->offset);
+  zp = ldb_varint64_write(zp, x->size);
 
   return zp;
 }
 
 void
-rdb_blockhandle_export(rdb_buffer_t *z, const rdb_blockhandle_t *x) {
-  uint8_t *zp = rdb_buffer_expand(z, RDB_BLOCKHANDLE_MAX);
-  size_t xn = rdb_blockhandle_write(zp, x) - zp;
+ldb_blockhandle_export(ldb_buffer_t *z, const ldb_blockhandle_t *x) {
+  uint8_t *zp = ldb_buffer_expand(z, LDB_BLOCKHANDLE_MAX);
+  size_t xn = ldb_blockhandle_write(zp, x) - zp;
 
   z->size += xn;
 }
 
 int
-rdb_blockhandle_read(rdb_blockhandle_t *z, const uint8_t **xp, size_t *xn) {
-  if (!rdb_varint64_read(&z->offset, xp, xn))
+ldb_blockhandle_read(ldb_blockhandle_t *z, const uint8_t **xp, size_t *xn) {
+  if (!ldb_varint64_read(&z->offset, xp, xn))
     return 0;
 
-  if (!rdb_varint64_read(&z->size, xp, xn))
+  if (!ldb_varint64_read(&z->size, xp, xn))
     return 0;
 
   return 1;
 }
 
 int
-rdb_blockhandle_import(rdb_blockhandle_t *z, const rdb_slice_t *x) {
-  rdb_slice_t tmp = *x;
-  return rdb_blockhandle_read(z, (const uint8_t **)&tmp.data, &tmp.size);
+ldb_blockhandle_import(ldb_blockhandle_t *z, const ldb_slice_t *x) {
+  ldb_slice_t tmp = *x;
+  return ldb_blockhandle_read(z, (const uint8_t **)&tmp.data, &tmp.size);
 }
 
 /*
@@ -77,62 +77,62 @@ rdb_blockhandle_import(rdb_blockhandle_t *z, const rdb_slice_t *x) {
  */
 
 void
-rdb_footer_init(rdb_footer_t *x) {
-  rdb_blockhandle_init(&x->metaindex_handle);
-  rdb_blockhandle_init(&x->index_handle);
+ldb_footer_init(ldb_footer_t *x) {
+  ldb_blockhandle_init(&x->metaindex_handle);
+  ldb_blockhandle_init(&x->index_handle);
 }
 
 uint8_t *
-rdb_footer_write(uint8_t *zp, const rdb_footer_t *x) {
+ldb_footer_write(uint8_t *zp, const ldb_footer_t *x) {
   uint8_t *tp = zp;
   size_t pad;
 
-  zp = rdb_blockhandle_write(zp, &x->metaindex_handle);
-  zp = rdb_blockhandle_write(zp, &x->index_handle);
+  zp = ldb_blockhandle_write(zp, &x->metaindex_handle);
+  zp = ldb_blockhandle_write(zp, &x->index_handle);
 
-  pad = (2 * RDB_BLOCKHANDLE_MAX) - (zp - tp);
+  pad = (2 * LDB_BLOCKHANDLE_MAX) - (zp - tp);
 
-  zp = rdb_padding_write(zp, pad);
-  zp = rdb_fixed64_write(zp, RDB_TABLE_MAGIC);
+  zp = ldb_padding_write(zp, pad);
+  zp = ldb_fixed64_write(zp, LDB_TABLE_MAGIC);
 
   return zp;
 }
 
 void
-rdb_footer_export(rdb_buffer_t *z, const rdb_footer_t *x) {
-  uint8_t *zp = rdb_buffer_expand(z, RDB_FOOTER_SIZE);
-  size_t xn = rdb_footer_write(zp, x) - zp;
+ldb_footer_export(ldb_buffer_t *z, const ldb_footer_t *x) {
+  uint8_t *zp = ldb_buffer_expand(z, LDB_FOOTER_SIZE);
+  size_t xn = ldb_footer_write(zp, x) - zp;
 
   z->size += xn;
 }
 
 int
-rdb_footer_read(rdb_footer_t *z, const uint8_t **xp, size_t *xn) {
+ldb_footer_read(ldb_footer_t *z, const uint8_t **xp, size_t *xn) {
   const uint8_t *tp = *xp;
   size_t tn = *xn;
 
-  if (*xn < RDB_FOOTER_SIZE)
+  if (*xn < LDB_FOOTER_SIZE)
     return 0;
 
-  if (rdb_fixed64_decode(*xp + RDB_FOOTER_SIZE - 8) != RDB_TABLE_MAGIC)
+  if (ldb_fixed64_decode(*xp + LDB_FOOTER_SIZE - 8) != LDB_TABLE_MAGIC)
     return 0;
 
-  if (!rdb_blockhandle_read(&z->metaindex_handle, xp, xn))
+  if (!ldb_blockhandle_read(&z->metaindex_handle, xp, xn))
     return 0;
 
-  if (!rdb_blockhandle_read(&z->index_handle, xp, xn))
+  if (!ldb_blockhandle_read(&z->index_handle, xp, xn))
     return 0;
 
-  *xp = tp + RDB_FOOTER_SIZE;
-  *xn = tn - RDB_FOOTER_SIZE;
+  *xp = tp + LDB_FOOTER_SIZE;
+  *xn = tn - LDB_FOOTER_SIZE;
 
   return 1;
 }
 
 int
-rdb_footer_import(rdb_footer_t *z, const rdb_slice_t *x) {
-  rdb_slice_t tmp = *x;
-  return rdb_footer_read(z, (const uint8_t **)&tmp.data, &tmp.size);
+ldb_footer_import(ldb_footer_t *z, const ldb_slice_t *x) {
+  ldb_slice_t tmp = *x;
+  return ldb_footer_read(z, (const uint8_t **)&tmp.data, &tmp.size);
 }
 
 /*
@@ -140,8 +140,8 @@ rdb_footer_import(rdb_footer_t *z, const rdb_slice_t *x) {
  */
 
 void
-rdb_blockcontents_init(rdb_blockcontents_t *x) {
-  rdb_slice_init(&x->data);
+ldb_blockcontents_init(ldb_blockcontents_t *x) {
+  ldb_slice_init(&x->data);
 
   x->cachable = 0;
   x->heap_allocated = 0;
@@ -152,69 +152,69 @@ rdb_blockcontents_init(rdb_blockcontents_t *x) {
  */
 
 static void
-rdb_safe_free(void *ptr) {
+ldb_safe_free(void *ptr) {
   if (ptr != NULL)
-    rdb_free(ptr);
+    ldb_free(ptr);
 }
 
 int
-rdb_read_block(rdb_blockcontents_t *result,
-               rdb_rfile_t *file,
-               const rdb_readopt_t *options,
-               const rdb_blockhandle_t *handle) {
-  rdb_slice_t contents;
+ldb_read_block(ldb_blockcontents_t *result,
+               ldb_rfile_t *file,
+               const ldb_readopt_t *options,
+               const ldb_blockhandle_t *handle) {
+  ldb_slice_t contents;
   const uint8_t *data;
   uint8_t *buf = NULL;
   size_t n, len;
   int rc;
 
-  rdb_blockcontents_init(result);
+  ldb_blockcontents_init(result);
 
   /* Read the block contents as well as the type/crc footer. */
   /* See table_builder.c for the code that built this structure. */
   n = handle->size;
-  len = n + RDB_BLOCK_TRAILER_SIZE;
+  len = n + LDB_BLOCK_TRAILER_SIZE;
 
-  if (!rdb_rfile_mapped(file))
-    buf = rdb_malloc(len);
+  if (!ldb_rfile_mapped(file))
+    buf = ldb_malloc(len);
 
-  rc = rdb_rfile_pread(file, &contents, buf, len, handle->offset);
+  rc = ldb_rfile_pread(file, &contents, buf, len, handle->offset);
 
-  if (rc != RDB_OK) {
-    rdb_safe_free(buf);
+  if (rc != LDB_OK) {
+    ldb_safe_free(buf);
     return rc;
   }
 
   if (contents.size != len) {
-    rdb_safe_free(buf);
-    return RDB_IOERR; /* "truncated block read" */
+    ldb_safe_free(buf);
+    return LDB_IOERR; /* "truncated block read" */
   }
 
   /* Check the crc of the type and the block contents. */
   data = contents.data; /* Pointer to where Read put the data. */
 
   if (options->verify_checksums) {
-    uint32_t crc = rdb_crc32c_unmask(rdb_fixed32_decode(data + n + 1));
-    uint32_t actual = rdb_crc32c_value(data, n + 1);
+    uint32_t crc = ldb_crc32c_unmask(ldb_fixed32_decode(data + n + 1));
+    uint32_t actual = ldb_crc32c_value(data, n + 1);
 
     if (crc != actual) {
-      rdb_safe_free(buf);
-      return RDB_CORRUPTION; /* "block checksum mismatch" */
+      ldb_safe_free(buf);
+      return LDB_CORRUPTION; /* "block checksum mismatch" */
     }
   }
 
   switch (data[n]) {
-    case RDB_NO_COMPRESSION: {
+    case LDB_NO_COMPRESSION: {
       if (data != buf) {
         /* File implementation gave us pointer to some other data.
            Use it directly under the assumption that it will be live
            while the file is open. */
-        rdb_safe_free(buf);
-        rdb_slice_set(&result->data, data, n);
+        ldb_safe_free(buf);
+        ldb_slice_set(&result->data, data, n);
         result->heap_allocated = 0;
         result->cachable = 0; /* Do not double-cache. */
       } else {
-        rdb_slice_set(&result->data, buf, n);
+        ldb_slice_set(&result->data, buf, n);
         result->heap_allocated = 1;
         result->cachable = 1;
       }
@@ -223,26 +223,26 @@ rdb_read_block(rdb_blockcontents_t *result,
       break;
     }
 
-    case RDB_SNAPPY_COMPRESSION: {
+    case LDB_SNAPPY_COMPRESSION: {
       size_t ulength;
       uint8_t *ubuf;
 
       if (!snappy_decode_size(&ulength, data, n)) {
-        rdb_safe_free(buf);
-        return RDB_CORRUPTION; /* "corrupted compressed block contents" */
+        ldb_safe_free(buf);
+        return LDB_CORRUPTION; /* "corrupted compressed block contents" */
       }
 
-      ubuf = rdb_malloc(ulength);
+      ubuf = ldb_malloc(ulength);
 
       if (!snappy_decode(ubuf, data, n)) {
-        rdb_safe_free(buf);
-        rdb_free(ubuf);
-        return RDB_CORRUPTION; /* "corrupted compressed block contents" */
+        ldb_safe_free(buf);
+        ldb_free(ubuf);
+        return LDB_CORRUPTION; /* "corrupted compressed block contents" */
       }
 
-      rdb_safe_free(buf);
+      ldb_safe_free(buf);
 
-      rdb_slice_set(&result->data, ubuf, ulength);
+      ldb_slice_set(&result->data, ubuf, ulength);
 
       result->heap_allocated = 1;
       result->cachable = 1;
@@ -251,10 +251,10 @@ rdb_read_block(rdb_blockcontents_t *result,
     }
 
     default: {
-      rdb_safe_free(buf);
-      return RDB_CORRUPTION; /* "bad block type" */
+      ldb_safe_free(buf);
+      return LDB_CORRUPTION; /* "bad block type" */
     }
   }
 
-  return RDB_OK;
+  return LDB_OK;
 }

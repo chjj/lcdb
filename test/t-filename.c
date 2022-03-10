@@ -5,8 +5,8 @@
  */
 
 int
-rdb_test_filenames(void);
+ldb_test_filenames(void);
 
 int main(void) {
-  return rdb_test_filenames();
+  return ldb_test_filenames();
 }

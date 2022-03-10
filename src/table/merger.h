@@ -4,11 +4,11 @@
  * https://github.com/chjj/rdb
  */
 
-#ifndef RDB_MERGER_H
-#define RDB_MERGER_H
+#ifndef LDB_MERGER_H
+#define LDB_MERGER_H
 
-struct rdb_comparator_s;
-struct rdb_iter_s;
+struct ldb_comparator_s;
+struct ldb_iter_s;
 
 /* Return an iterator that provided the union of the data in
  * children[0,n-1].  Takes ownership of the child iterators and
@@ -19,9 +19,9 @@ struct rdb_iter_s;
  *
  * REQUIRES: n >= 0
  */
-struct rdb_iter_s *
-rdb_mergeiter_create(const struct rdb_comparator_s *comparator,
-                     struct rdb_iter_s **children,
+struct ldb_iter_s *
+ldb_mergeiter_create(const struct ldb_comparator_s *comparator,
+                     struct ldb_iter_s **children,
                      int n);
 
-#endif /* RDB_MERGER_H */
+#endif /* LDB_MERGER_H */

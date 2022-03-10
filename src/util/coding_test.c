@@ -16,23 +16,23 @@
 
 static void
 test_fixed32(void) {
-  uint8_t *scratch = rdb_malloc(100000 * 4);
+  uint8_t *scratch = ldb_malloc(100000 * 4);
   const uint8_t *xp = scratch;
   uint8_t *zp = scratch;
   uint32_t v, a;
 
   for (v = 0; v < 100000; v++)
-    zp = rdb_fixed32_write(zp, v);
+    zp = ldb_fixed32_write(zp, v);
 
   for (v = 0; v < 100000; v++) {
-    a = rdb_fixed32_decode(xp);
+    a = ldb_fixed32_decode(xp);
 
     ASSERT(v == a);
 
     xp += 4;
   }
 
-  rdb_free(scratch);
+  ldb_free(scratch);
 }
 
 static void
@@ -45,28 +45,28 @@ test_fixed64(void) {
   for (power = 0; power <= 63; power++) {
     uint64_t v = UINT64_C(1) << power;
 
-    zp = rdb_fixed64_write(zp, v - 1);
-    zp = rdb_fixed64_write(zp, v + 0);
-    zp = rdb_fixed64_write(zp, v + 1);
+    zp = ldb_fixed64_write(zp, v - 1);
+    zp = ldb_fixed64_write(zp, v + 0);
+    zp = ldb_fixed64_write(zp, v + 1);
   }
 
   for (power = 0; power <= 63; power++) {
     uint64_t v = UINT64_C(1) << power;
     uint64_t a;
 
-    a = rdb_fixed64_decode(xp);
+    a = ldb_fixed64_decode(xp);
 
     ASSERT(v - 1 == a);
 
     xp += 8;
 
-    a = rdb_fixed64_decode(xp);
+    a = ldb_fixed64_decode(xp);
 
     ASSERT(v + 0 == a);
 
     xp += 8;
 
-    a = rdb_fixed64_decode(xp);
+    a = ldb_fixed64_decode(xp);
 
     ASSERT(v + 1 == a);
 
@@ -79,14 +79,14 @@ static void
 test_encoding_output(void) {
   uint8_t dst[8];
 
-  rdb_fixed32_write(dst, 0x04030201);
+  ldb_fixed32_write(dst, 0x04030201);
 
   ASSERT(0x01 == (int)(dst[0]));
   ASSERT(0x02 == (int)(dst[1]));
   ASSERT(0x03 == (int)(dst[2]));
   ASSERT(0x04 == (int)(dst[3]));
 
-  rdb_fixed64_write(dst, UINT64_C(0x0807060504030201));
+  ldb_fixed64_write(dst, UINT64_C(0x0807060504030201));
 
   ASSERT(0x01 == (int)(dst[0]));
   ASSERT(0x02 == (int)(dst[1]));
@@ -109,7 +109,7 @@ test_varint32(void) {
   for (i = 0; i < (32 * 32); i++) {
     uint32_t v = (i / 32) << (i % 32);
 
-    zp = rdb_varint32_write(zp, v);
+    zp = ldb_varint32_write(zp, v);
   }
 
   xn = zp - xp;
@@ -120,11 +120,11 @@ test_varint32(void) {
     uint32_t actual;
     int rc;
 
-    rc = rdb_varint32_read(&actual, &xp, &xn);
+    rc = ldb_varint32_read(&actual, &xp, &xn);
 
     ASSERT(rc == 1);
     ASSERT(expected == actual);
-    ASSERT(rdb_varint32_size(actual) == (size_t)(xp - sp));
+    ASSERT(ldb_varint32_size(actual) == (size_t)(xp - sp));
   }
 
   ASSERT(xn == 0);
@@ -157,7 +157,7 @@ test_varint64(void) {
   }
 
   for (i = 0; i < len; i++)
-    zp = rdb_varint64_write(zp, values[i]);
+    zp = ldb_varint64_write(zp, values[i]);
 
   xn = zp - xp;
 
@@ -166,11 +166,11 @@ test_varint64(void) {
     uint64_t z;
     int rc;
 
-    rc = rdb_varint64_read(&z, &xp, &xn);
+    rc = ldb_varint64_read(&z, &xp, &xn);
 
     ASSERT(rc == 1);
     ASSERT(values[i] == z);
-    ASSERT(rdb_varint64_size(z) == (size_t)(xp - sp));
+    ASSERT(ldb_varint64_size(z) == (size_t)(xp - sp));
   }
 
   ASSERT(xn == 0);
@@ -184,7 +184,7 @@ test_varint32_overflow(void) {
   uint32_t z;
   int rc;
 
-  rc = rdb_varint32_read(&z, &xp, &xn);
+  rc = ldb_varint32_read(&z, &xp, &xn);
 
   ASSERT(rc == 0);
 }
@@ -200,19 +200,19 @@ test_varint32_truncation(void) {
   int rc;
 
   zp = scratch;
-  zn = rdb_varint32_write(zp, large_value) - zp;
+  zn = ldb_varint32_write(zp, large_value) - zp;
 
   for (i = 0; i < zn - 1; i++) {
     xp = scratch;
     xn = i;
-    rc = rdb_varint32_read(&z, &xp, &xn);
+    rc = ldb_varint32_read(&z, &xp, &xn);
 
     ASSERT(rc == 0);
   }
 
   xp = scratch;
   xn = zn;
-  rc = rdb_varint32_read(&z, &xp, &xn);
+  rc = ldb_varint32_read(&z, &xp, &xn);
 
   ASSERT(rc == 1);
   ASSERT(large_value == z);
@@ -227,7 +227,7 @@ test_varint64_overflow(void) {
   uint64_t z;
   int rc;
 
-  rc = rdb_varint64_read(&z, &xp, &xn);
+  rc = ldb_varint64_read(&z, &xp, &xn);
 
   ASSERT(rc == 0);
 }
@@ -243,19 +243,19 @@ test_varint64_truncation(void) {
   int rc;
 
   zp = scratch;
-  zn = rdb_varint64_write(zp, large_value) - zp;
+  zn = ldb_varint64_write(zp, large_value) - zp;
 
   for (i = 0; i < zn - 1; i++) {
     xp = scratch;
     xn = i;
-    rc = rdb_varint64_read(&z, &xp, &xn);
+    rc = ldb_varint64_read(&z, &xp, &xn);
 
     ASSERT(rc == 0);
   }
 
   xp = scratch;
   xn = zn;
-  rc = rdb_varint64_read(&z, &xp, &xn);
+  rc = ldb_varint64_read(&z, &xp, &xn);
 
   ASSERT(rc == 1);
   ASSERT(large_value == z);
@@ -269,44 +269,44 @@ test_strings(void) {
                          "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
                          "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
 
-  rdb_slice_t k, input;
-  rdb_buffer_t s;
+  ldb_slice_t k, input;
+  ldb_buffer_t s;
 
-  rdb_buffer_init(&s);
+  ldb_buffer_init(&s);
 
-  k = rdb_string(""); rdb_slice_export(&s, &k);
-  k = rdb_string("foo"); rdb_slice_export(&s, &k);
-  k = rdb_string("bar"); rdb_slice_export(&s, &k);
-  k = rdb_string(x); rdb_slice_export(&s, &k);
+  k = ldb_string(""); ldb_slice_export(&s, &k);
+  k = ldb_string("foo"); ldb_slice_export(&s, &k);
+  k = ldb_string("bar"); ldb_slice_export(&s, &k);
+  k = ldb_string(x); ldb_slice_export(&s, &k);
 
   input = s;
 
-  ASSERT(rdb_slice_slurp(&k, &input));
+  ASSERT(ldb_slice_slurp(&k, &input));
   ASSERT(k.size == 0);
 
-  ASSERT(rdb_slice_slurp(&k, &input));
+  ASSERT(ldb_slice_slurp(&k, &input));
   ASSERT(k.size == 3);
   ASSERT(memcmp(k.data, "foo", 3) == 0);
 
-  ASSERT(rdb_slice_slurp(&k, &input));
+  ASSERT(ldb_slice_slurp(&k, &input));
   ASSERT(k.size == 3);
   ASSERT(memcmp(k.data, "bar", 3) == 0);
 
-  ASSERT(rdb_slice_slurp(&k, &input));
+  ASSERT(ldb_slice_slurp(&k, &input));
   ASSERT(k.size == 200);
   ASSERT(memcmp(k.data, x, 200) == 0);
 
   ASSERT(input.size == 0);
-  ASSERT(!rdb_slice_slurp(&k, &input));
+  ASSERT(!ldb_slice_slurp(&k, &input));
 
-  rdb_buffer_clear(&s);
+  ldb_buffer_clear(&s);
 }
 
-RDB_EXTERN int
-rdb_test_coding(void);
+LDB_EXTERN int
+ldb_test_coding(void);
 
 int
-rdb_test_coding(void) {
+ldb_test_coding(void) {
   test_fixed32();
   test_fixed64();
   test_encoding_output();

@@ -18,7 +18,7 @@
 
 static void
 test_parse(void) {
-  rdb_filetype_t type;
+  ldb_filetype_t type;
   uint64_t number;
   size_t i;
 
@@ -26,19 +26,19 @@ test_parse(void) {
   static struct {
     const char *fname;
     uint64_t number;
-    rdb_filetype_t type;
+    ldb_filetype_t type;
   } cases[] = {
-    {"100.log", 100, RDB_FILE_LOG},
-    {"0.log", 0, RDB_FILE_LOG},
-    {"0.sst", 0, RDB_FILE_TABLE},
-    {"0.ldb", 0, RDB_FILE_TABLE},
-    {"CURRENT", 0, RDB_FILE_CURRENT},
-    {"LOCK", 0, RDB_FILE_LOCK},
-    {"MANIFEST-2", 2, RDB_FILE_DESC},
-    {"MANIFEST-7", 7, RDB_FILE_DESC},
-    {"LOG", 0, RDB_FILE_INFO},
-    {"LOG.old", 0, RDB_FILE_INFO},
-    {"18446744073709551615.log", UINT64_C(18446744073709551615), RDB_FILE_LOG},
+    {"100.log", 100, LDB_FILE_LOG},
+    {"0.log", 0, LDB_FILE_LOG},
+    {"0.sst", 0, LDB_FILE_TABLE},
+    {"0.ldb", 0, LDB_FILE_TABLE},
+    {"CURRENT", 0, LDB_FILE_CURRENT},
+    {"LOCK", 0, LDB_FILE_LOCK},
+    {"MANIFEST-2", 2, LDB_FILE_DESC},
+    {"MANIFEST-7", 7, LDB_FILE_DESC},
+    {"LOG", 0, LDB_FILE_INFO},
+    {"LOG.old", 0, LDB_FILE_INFO},
+    {"18446744073709551615.log", UINT64_C(18446744073709551615), LDB_FILE_LOG},
   };
 
   /* Errors. */
@@ -68,7 +68,7 @@ test_parse(void) {
   for (i = 0; i < lengthof(cases); i++) {
     const char *f = cases[i].fname;
 
-    ASSERT(rdb_parse_filename(&type, &number, f));
+    ASSERT(ldb_parse_filename(&type, &number, f));
     ASSERT(cases[i].type == type);
     ASSERT(cases[i].number == number);
   }
@@ -76,13 +76,13 @@ test_parse(void) {
   for (i = 0; i < lengthof(errors); i++) {
     const char *f = errors[i];
 
-    ASSERT(!rdb_parse_filename(&type, &number, f));
+    ASSERT(!ldb_parse_filename(&type, &number, f));
   }
 }
 
 static void
 test_construction(void) {
-  rdb_filetype_t type;
+  ldb_filetype_t type;
   uint64_t number;
   char fname[1024];
 
@@ -92,62 +92,62 @@ test_construction(void) {
 #  define S "/"
 #endif
 
-  ASSERT(rdb_current_filename(fname, sizeof(fname), "foo"));
-  ASSERT(rdb_starts_with(fname, "foo" S));
-  ASSERT(rdb_parse_filename(&type, &number, fname + 4));
+  ASSERT(ldb_current_filename(fname, sizeof(fname), "foo"));
+  ASSERT(ldb_starts_with(fname, "foo" S));
+  ASSERT(ldb_parse_filename(&type, &number, fname + 4));
   ASSERT(0 == number);
-  ASSERT(RDB_FILE_CURRENT == type);
+  ASSERT(LDB_FILE_CURRENT == type);
 
-  ASSERT(rdb_lock_filename(fname, sizeof(fname), "foo"));
-  ASSERT(rdb_starts_with(fname, "foo" S));
-  ASSERT(rdb_parse_filename(&type, &number, fname + 4));
+  ASSERT(ldb_lock_filename(fname, sizeof(fname), "foo"));
+  ASSERT(ldb_starts_with(fname, "foo" S));
+  ASSERT(ldb_parse_filename(&type, &number, fname + 4));
   ASSERT(0 == number);
-  ASSERT(RDB_FILE_LOCK == type);
+  ASSERT(LDB_FILE_LOCK == type);
 
-  ASSERT(rdb_log_filename(fname, sizeof(fname), "foo", 192));
-  ASSERT(rdb_starts_with(fname, "foo" S));
-  ASSERT(rdb_parse_filename(&type, &number, fname + 4));
+  ASSERT(ldb_log_filename(fname, sizeof(fname), "foo", 192));
+  ASSERT(ldb_starts_with(fname, "foo" S));
+  ASSERT(ldb_parse_filename(&type, &number, fname + 4));
   ASSERT(192 == number);
-  ASSERT(RDB_FILE_LOG == type);
+  ASSERT(LDB_FILE_LOG == type);
 
-  ASSERT(rdb_table_filename(fname, sizeof(fname), "bar", 200));
-  ASSERT(rdb_starts_with(fname, "bar" S));
-  ASSERT(rdb_parse_filename(&type, &number, fname + 4));
+  ASSERT(ldb_table_filename(fname, sizeof(fname), "bar", 200));
+  ASSERT(ldb_starts_with(fname, "bar" S));
+  ASSERT(ldb_parse_filename(&type, &number, fname + 4));
   ASSERT(200 == number);
-  ASSERT(RDB_FILE_TABLE == type);
+  ASSERT(LDB_FILE_TABLE == type);
 
-  ASSERT(rdb_desc_filename(fname, sizeof(fname), "bar", 100));
-  ASSERT(rdb_starts_with(fname, "bar" S));
-  ASSERT(rdb_parse_filename(&type, &number, fname + 4));
+  ASSERT(ldb_desc_filename(fname, sizeof(fname), "bar", 100));
+  ASSERT(ldb_starts_with(fname, "bar" S));
+  ASSERT(ldb_parse_filename(&type, &number, fname + 4));
   ASSERT(100 == number);
-  ASSERT(RDB_FILE_DESC == type);
+  ASSERT(LDB_FILE_DESC == type);
 
-  ASSERT(rdb_temp_filename(fname, sizeof(fname), "tmp", 999));
-  ASSERT(rdb_starts_with(fname, "tmp" S));
-  ASSERT(rdb_parse_filename(&type, &number, fname + 4));
+  ASSERT(ldb_temp_filename(fname, sizeof(fname), "tmp", 999));
+  ASSERT(ldb_starts_with(fname, "tmp" S));
+  ASSERT(ldb_parse_filename(&type, &number, fname + 4));
   ASSERT(999 == number);
-  ASSERT(RDB_FILE_TEMP == type);
+  ASSERT(LDB_FILE_TEMP == type);
 
-  ASSERT(rdb_info_filename(fname, sizeof(fname), "foo"));
-  ASSERT(rdb_starts_with(fname, "foo" S));
-  ASSERT(rdb_parse_filename(&type, &number, fname + 4));
+  ASSERT(ldb_info_filename(fname, sizeof(fname), "foo"));
+  ASSERT(ldb_starts_with(fname, "foo" S));
+  ASSERT(ldb_parse_filename(&type, &number, fname + 4));
   ASSERT(0 == number);
-  ASSERT(RDB_FILE_INFO == type);
+  ASSERT(LDB_FILE_INFO == type);
 
-  ASSERT(rdb_oldinfo_filename(fname, sizeof(fname), "foo"));
-  ASSERT(rdb_starts_with(fname, "foo" S));
-  ASSERT(rdb_parse_filename(&type, &number, fname + 4));
+  ASSERT(ldb_oldinfo_filename(fname, sizeof(fname), "foo"));
+  ASSERT(ldb_starts_with(fname, "foo" S));
+  ASSERT(ldb_parse_filename(&type, &number, fname + 4));
   ASSERT(0 == number);
-  ASSERT(RDB_FILE_INFO == type);
+  ASSERT(LDB_FILE_INFO == type);
 
 #undef S
 }
 
-RDB_EXTERN int
-rdb_test_filenames(void);
+LDB_EXTERN int
+ldb_test_filenames(void);
 
 int
-rdb_test_filenames(void) {
+ldb_test_filenames(void) {
   test_parse();
   test_construction();
   return 0;

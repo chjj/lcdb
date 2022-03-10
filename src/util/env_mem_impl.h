@@ -33,17 +33,17 @@
  * Types
  */
 
-typedef struct rdb_fstate_s rdb_fstate_t;
+typedef struct ldb_fstate_s ldb_fstate_t;
 
-struct rdb_filelock_s {
-  char path[RDB_PATH_MAX];
+struct ldb_filelock_s {
+  char path[LDB_PATH_MAX];
 };
 
 /*
  * Globals
  */
 
-static rdb_mutex_t file_mutex = RDB_MUTEX_INITIALIZER;
+static ldb_mutex_t file_mutex = LDB_MUTEX_INITIALIZER;
 static rb_map_t file_map_;
 static rb_set_t file_set;
 
@@ -52,9 +52,9 @@ static rb_set_t file_set;
  */
 
 static char *
-rdb_strdup(const char *xp) {
+ldb_strdup(const char *xp) {
   size_t xn = strlen(xp);
-  return memcpy(rdb_malloc(xn + 1), xp, xn + 1);
+  return memcpy(ldb_malloc(xn + 1), xp, xn + 1);
 }
 
 /*
@@ -63,24 +63,24 @@ rdb_strdup(const char *xp) {
 
 static const int k_block_size = 8 * 1024;
 
-struct rdb_fstate_s {
-  char path[RDB_PATH_MAX];
-  rdb_mutex_t refs_mutex;
-  rdb_mutex_t blocks_mutex;
-  rdb_vector_t blocks;
+struct ldb_fstate_s {
+  char path[LDB_PATH_MAX];
+  ldb_mutex_t refs_mutex;
+  ldb_mutex_t blocks_mutex;
+  ldb_vector_t blocks;
   uint64_t size;
   int refs;
 };
 
-static rdb_fstate_t *
-rdb_fstate_create(const char *path) {
-  rdb_fstate_t *state = rdb_malloc(sizeof(rdb_fstate_t));
+static ldb_fstate_t *
+ldb_fstate_create(const char *path) {
+  ldb_fstate_t *state = ldb_malloc(sizeof(ldb_fstate_t));
 
   strcpy(state->path, path);
 
-  rdb_mutex_init(&state->refs_mutex);
-  rdb_mutex_init(&state->blocks_mutex);
-  rdb_vector_init(&state->blocks);
+  ldb_mutex_init(&state->refs_mutex);
+  ldb_mutex_init(&state->blocks_mutex);
+  ldb_vector_init(&state->blocks);
 
   state->size = 0;
   state->refs = 0;
@@ -89,42 +89,42 @@ rdb_fstate_create(const char *path) {
 }
 
 static void
-rdb_fstate_truncate(rdb_fstate_t *state) {
+ldb_fstate_truncate(ldb_fstate_t *state) {
   size_t i;
 
-  rdb_mutex_lock(&state->blocks_mutex);
+  ldb_mutex_lock(&state->blocks_mutex);
 
   for (i = 0; i < state->blocks.length; i++)
-    rdb_free(state->blocks.items[i]);
+    ldb_free(state->blocks.items[i]);
 
   state->blocks.length = 0;
   state->size = 0;
 
-  rdb_mutex_unlock(&state->blocks_mutex);
+  ldb_mutex_unlock(&state->blocks_mutex);
 }
 
 static void
-rdb_fstate_destroy(rdb_fstate_t *state) {
-  rdb_fstate_truncate(state);
-  rdb_mutex_destroy(&state->refs_mutex);
-  rdb_mutex_destroy(&state->blocks_mutex);
-  rdb_vector_clear(&state->blocks);
-  rdb_free(state);
+ldb_fstate_destroy(ldb_fstate_t *state) {
+  ldb_fstate_truncate(state);
+  ldb_mutex_destroy(&state->refs_mutex);
+  ldb_mutex_destroy(&state->blocks_mutex);
+  ldb_vector_clear(&state->blocks);
+  ldb_free(state);
 }
 
-static rdb_fstate_t *
-rdb_fstate_ref(rdb_fstate_t *state) {
-  rdb_mutex_lock(&state->refs_mutex);
+static ldb_fstate_t *
+ldb_fstate_ref(ldb_fstate_t *state) {
+  ldb_mutex_lock(&state->refs_mutex);
   ++state->refs;
-  rdb_mutex_unlock(&state->refs_mutex);
+  ldb_mutex_unlock(&state->refs_mutex);
   return state;
 }
 
 static void
-rdb_fstate_unref(rdb_fstate_t *state) {
+ldb_fstate_unref(ldb_fstate_t *state) {
   int do_delete = 0;
 
-  rdb_mutex_lock(&state->refs_mutex);
+  ldb_mutex_lock(&state->refs_mutex);
 
   --state->refs;
 
@@ -133,42 +133,42 @@ rdb_fstate_unref(rdb_fstate_t *state) {
   if (state->refs <= 0)
     do_delete = 1;
 
-  rdb_mutex_unlock(&state->refs_mutex);
+  ldb_mutex_unlock(&state->refs_mutex);
 
   if (do_delete)
-    rdb_fstate_destroy(state);
+    ldb_fstate_destroy(state);
 }
 
 static uint64_t
-rdb_fstate_size(const rdb_fstate_t *state) {
-  rdb_mutex_t *mutex = (rdb_mutex_t *)&state->blocks_mutex;
+ldb_fstate_size(const ldb_fstate_t *state) {
+  ldb_mutex_t *mutex = (ldb_mutex_t *)&state->blocks_mutex;
   uint64_t size;
 
-  rdb_mutex_lock(mutex);
+  ldb_mutex_lock(mutex);
 
   size = state->size;
 
-  rdb_mutex_unlock(mutex);
+  ldb_mutex_unlock(mutex);
 
   return size;
 }
 
 static int
-rdb_fstate_pread(const rdb_fstate_t *state,
-                 rdb_slice_t *result,
+ldb_fstate_pread(const ldb_fstate_t *state,
+                 ldb_slice_t *result,
                  void *buf,
                  size_t count,
                  uint64_t offset) {
-  rdb_mutex_t *mutex = (rdb_mutex_t *)&state->blocks_mutex;
+  ldb_mutex_t *mutex = (ldb_mutex_t *)&state->blocks_mutex;
   size_t block, block_offset, bytes_to_copy;
   uint64_t available;
   unsigned char *dst;
 
-  rdb_mutex_lock(mutex);
+  ldb_mutex_lock(mutex);
 
   if (offset > state->size) {
-    rdb_mutex_unlock(mutex);
-    return RDB_IOERR; /* "Offset greater than file size." */
+    ldb_mutex_unlock(mutex);
+    return LDB_IOERR; /* "Offset greater than file size." */
   }
 
   available = state->size - offset;
@@ -177,9 +177,9 @@ rdb_fstate_pread(const rdb_fstate_t *state,
     count = (size_t)available;
 
   if (count == 0) {
-    rdb_mutex_unlock(mutex);
-    *result = rdb_slice(0, 0);
-    return RDB_OK;
+    ldb_mutex_unlock(mutex);
+    *result = ldb_slice(0, 0);
+    return LDB_OK;
   }
 
   assert(offset / k_block_size <= (size_t)-1);
@@ -203,19 +203,19 @@ rdb_fstate_pread(const rdb_fstate_t *state,
     block_offset = 0;
   }
 
-  rdb_mutex_unlock(mutex);
+  ldb_mutex_unlock(mutex);
 
-  *result = rdb_slice(buf, count);
+  *result = ldb_slice(buf, count);
 
-  return RDB_OK;
+  return LDB_OK;
 }
 
 static int
-rdb_fstate_append(rdb_fstate_t *state, const rdb_slice_t *data) {
+ldb_fstate_append(ldb_fstate_t *state, const ldb_slice_t *data) {
   unsigned const char *src = data->data;
   size_t src_len = data->size;
 
-  rdb_mutex_lock(&state->blocks_mutex);
+  ldb_mutex_lock(&state->blocks_mutex);
 
   while (src_len > 0) {
     size_t offset = state->size % k_block_size;
@@ -226,23 +226,23 @@ rdb_fstate_append(rdb_fstate_t *state, const rdb_slice_t *data) {
       avail = k_block_size - offset;
     } else {
       /* No room in the last block; push new one. */
-      rdb_vector_push(&state->blocks, rdb_malloc(k_block_size));
+      ldb_vector_push(&state->blocks, ldb_malloc(k_block_size));
       avail = k_block_size;
     }
 
     if (avail > src_len)
       avail = src_len;
 
-    memcpy((char *)rdb_vector_top(&state->blocks) + offset, src, avail);
+    memcpy((char *)ldb_vector_top(&state->blocks) + offset, src, avail);
 
     src_len -= avail;
     src += avail;
     state->size += avail;
   }
 
-  rdb_mutex_unlock(&state->blocks_mutex);
+  ldb_mutex_unlock(&state->blocks_mutex);
 
-  return RDB_OK;
+  return LDB_OK;
 }
 
 /*
@@ -270,7 +270,7 @@ ensure_map(void) {
  */
 
 int
-rdb_path_absolute(char *buf, size_t size, const char *name) {
+ldb_path_absolute(char *buf, size_t size, const char *name) {
   size_t len = strlen(name);
 
   if (len == 0 || len + 1 > size)
@@ -293,18 +293,18 @@ rdb_path_absolute(char *buf, size_t size, const char *name) {
 }
 
 int
-rdb_file_exists(const char *filename) {
+ldb_file_exists(const char *filename) {
   int result;
-  rdb_mutex_lock(&file_mutex);
+  ldb_mutex_lock(&file_mutex);
   result = rb_map_has(&file_map, filename);
-  rdb_mutex_unlock(&file_mutex);
+  ldb_mutex_unlock(&file_mutex);
   return result;
 }
 
 int
-rdb_get_children(const char *path, char ***out) {
+ldb_get_children(const char *path, char ***out) {
   size_t plen = strlen(path);
-  rdb_vector_t names;
+  ldb_vector_t names;
   void *key;
 
 #if defined(_WIN32)
@@ -315,10 +315,10 @@ rdb_get_children(const char *path, char ***out) {
     plen -= 1;
 #endif
 
-  rdb_vector_init(&names);
-  rdb_vector_grow(&names, 1);
+  ldb_vector_init(&names);
+  ldb_vector_grow(&names, 1);
 
-  rdb_mutex_lock(&file_mutex);
+  ldb_mutex_lock(&file_mutex);
 
   rb_map_keys(&file_map, key) {
     const char *name = key;
@@ -331,11 +331,11 @@ rdb_get_children(const char *path, char ***out) {
 #endif
     {
       if (memcmp(name, path, plen) == 0)
-        rdb_vector_push(&names, rdb_strdup(name + plen + 1));
+        ldb_vector_push(&names, ldb_strdup(name + plen + 1));
     }
   }
 
-  rdb_mutex_unlock(&file_mutex);
+  ldb_mutex_unlock(&file_mutex);
 
   *out = (char **)names.items;
 
@@ -343,21 +343,21 @@ rdb_get_children(const char *path, char ***out) {
 }
 
 void
-rdb_free_children(char **list, int len) {
+ldb_free_children(char **list, int len) {
   int i;
 
   for (i = 0; i < len; i++)
-    rdb_free(list[i]);
+    ldb_free(list[i]);
 
-  rdb_free(list);
+  ldb_free(list);
 }
 
 static int
-rdb_delete_file(const char *filename) {
+ldb_delete_file(const char *filename) {
   rb_node_t *node = rb_map_del(&file_map, filename);
 
   if (node != NULL) {
-    rdb_fstate_unref(node->value.p);
+    ldb_fstate_unref(node->value.p);
     rb_node_destroy(node);
     return 1;
   }
@@ -366,121 +366,121 @@ rdb_delete_file(const char *filename) {
 }
 
 int
-rdb_remove_file(const char *filename) {
+ldb_remove_file(const char *filename) {
   int result;
 
-  rdb_mutex_lock(&file_mutex);
+  ldb_mutex_lock(&file_mutex);
 
-  result = rdb_delete_file(filename);
+  result = ldb_delete_file(filename);
 
-  rdb_mutex_unlock(&file_mutex);
+  ldb_mutex_unlock(&file_mutex);
 
-  return result ? RDB_OK : RDB_NOTFOUND; /* "File not found" */
+  return result ? LDB_OK : LDB_NOTFOUND; /* "File not found" */
 }
 
 int
-rdb_create_dir(const char *dirname) {
+ldb_create_dir(const char *dirname) {
   (void)dirname;
-  return RDB_OK;
+  return LDB_OK;
 }
 
 int
-rdb_remove_dir(const char *dirname) {
+ldb_remove_dir(const char *dirname) {
   (void)dirname;
-  return RDB_OK;
+  return LDB_OK;
 }
 
 int
-rdb_get_file_size(const char *filename, uint64_t *size) {
-  rdb_fstate_t *state;
+ldb_get_file_size(const char *filename, uint64_t *size) {
+  ldb_fstate_t *state;
 
-  rdb_mutex_lock(&file_mutex);
+  ldb_mutex_lock(&file_mutex);
 
   state = rb_map_get(&file_map, filename);
 
   if (state != NULL)
-    *size = rdb_fstate_size(state);
+    *size = ldb_fstate_size(state);
 
-  rdb_mutex_unlock(&file_mutex);
+  ldb_mutex_unlock(&file_mutex);
 
-  return state ? RDB_OK : RDB_NOTFOUND; /* "File not found" */
+  return state ? LDB_OK : LDB_NOTFOUND; /* "File not found" */
 }
 
 int
-rdb_rename_file(const char *from, const char *to) {
+ldb_rename_file(const char *from, const char *to) {
   size_t len = strlen(to);
   rb_node_t *node;
 
-  if (len + 1 > RDB_PATH_MAX)
-    return RDB_INVALID;
+  if (len + 1 > LDB_PATH_MAX)
+    return LDB_INVALID;
 
-  rdb_mutex_lock(&file_mutex);
+  ldb_mutex_lock(&file_mutex);
 
   node = rb_map_del(&file_map, from);
 
   if (node != NULL) {
-    rdb_fstate_t *state = node->value.p;
+    ldb_fstate_t *state = node->value.p;
 
     memcpy(state->path, to, len + 1);
 
-    rdb_delete_file(to);
+    ldb_delete_file(to);
     rb_map_put(&file_map, state->path, state);
     rb_node_destroy(node);
   }
 
-  rdb_mutex_unlock(&file_mutex);
+  ldb_mutex_unlock(&file_mutex);
 
-  return node ? RDB_OK : RDB_NOTFOUND; /* "File not found" */
+  return node ? LDB_OK : LDB_NOTFOUND; /* "File not found" */
 }
 
 int
-rdb_lock_file(const char *filename, rdb_filelock_t **lock) {
+ldb_lock_file(const char *filename, ldb_filelock_t **lock) {
   size_t len = strlen(filename);
 
-  if (len + 1 > RDB_PATH_MAX)
-    return RDB_INVALID;
+  if (len + 1 > LDB_PATH_MAX)
+    return LDB_INVALID;
 
-  rdb_mutex_lock(&file_mutex);
+  ldb_mutex_lock(&file_mutex);
 
   if (file_set.root == NULL)
     rb_set_init(&file_set, by_string, NULL);
 
   if (rb_set_has(&file_set, filename)) {
-    rdb_mutex_unlock(&file_mutex);
-    return RDB_IOERR;
+    ldb_mutex_unlock(&file_mutex);
+    return LDB_IOERR;
   }
 
-  *lock = rdb_malloc(sizeof(rdb_filelock_t));
+  *lock = ldb_malloc(sizeof(ldb_filelock_t));
 
   memcpy((*lock)->path, filename, len + 1);
 
   rb_set_put(&file_set, (*lock)->path);
 
-  rdb_mutex_unlock(&file_mutex);
+  ldb_mutex_unlock(&file_mutex);
 
-  return RDB_OK;
+  return LDB_OK;
 }
 
 int
-rdb_unlock_file(rdb_filelock_t *lock) {
-  int rc = RDB_IOERR;
+ldb_unlock_file(ldb_filelock_t *lock) {
+  int rc = LDB_IOERR;
 
-  rdb_mutex_lock(&file_mutex);
+  ldb_mutex_lock(&file_mutex);
 
   if (file_set.root && rb_set_has(&file_set, lock->path)) {
     rb_set_del(&file_set, lock->path);
-    rc = RDB_OK;
+    rc = LDB_OK;
   }
 
-  rdb_free(lock);
+  ldb_free(lock);
 
-  rdb_mutex_unlock(&file_mutex);
+  ldb_mutex_unlock(&file_mutex);
 
   return rc;
 }
 
 int
-rdb_test_directory(char *result, size_t size) {
+ldb_test_directory(char *result, size_t size) {
 #if defined(_WIN32)
   if (size < 8)
     return 0;
@@ -500,60 +500,60 @@ rdb_test_directory(char *result, size_t size) {
  * Readable File
  */
 
-struct rdb_rfile_s {
-  rdb_fstate_t *state;
+struct ldb_rfile_s {
+  ldb_fstate_t *state;
   size_t pos;
 };
 
 static void
-rdb_rfile_init(rdb_rfile_t *file, rdb_fstate_t *state) {
-  file->state = rdb_fstate_ref(state);
+ldb_rfile_init(ldb_rfile_t *file, ldb_fstate_t *state) {
+  file->state = ldb_fstate_ref(state);
   file->pos = 0;
 }
 
 int
-rdb_rfile_mapped(rdb_rfile_t *file) {
+ldb_rfile_mapped(ldb_rfile_t *file) {
   (void)file;
   return 0;
 }
 
 int
-rdb_rfile_read(rdb_rfile_t *file,
-               rdb_slice_t *result,
+ldb_rfile_read(ldb_rfile_t *file,
+               ldb_slice_t *result,
                void *buf,
                size_t count) {
-  int rc = rdb_fstate_pread(file->state, result, buf, count, file->pos);
+  int rc = ldb_fstate_pread(file->state, result, buf, count, file->pos);
 
-  if (rc == RDB_OK)
+  if (rc == LDB_OK)
     file->pos += result->size;
 
   return rc;
 }
 
 int
-rdb_rfile_skip(rdb_rfile_t *file, uint64_t offset) {
+ldb_rfile_skip(ldb_rfile_t *file, uint64_t offset) {
   uint64_t available;
 
-  if (file->pos > rdb_fstate_size(file->state))
-    return RDB_IOERR;
+  if (file->pos > ldb_fstate_size(file->state))
+    return LDB_IOERR;
 
-  available = rdb_fstate_size(file->state) - file->pos;
+  available = ldb_fstate_size(file->state) - file->pos;
 
   if (offset > available)
     offset = available;
 
   file->pos += offset;
 
-  return RDB_OK;
+  return LDB_OK;
 }
 
 int
-rdb_rfile_pread(rdb_rfile_t *file,
-                rdb_slice_t *result,
+ldb_rfile_pread(ldb_rfile_t *file,
+                ldb_slice_t *result,
                 void *buf,
                 size_t count,
                 uint64_t offset) {
-  return rdb_fstate_pread(file->state, result, buf, count, offset);
+  return ldb_fstate_pread(file->state, result, buf, count, offset);
 }
 
 /*
@@ -561,70 +561,70 @@ rdb_rfile_pread(rdb_rfile_t *file,
  */
 
 int
-rdb_seqfile_create(const char *filename, rdb_rfile_t **file) {
-  rdb_fstate_t *state;
+ldb_seqfile_create(const char *filename, ldb_rfile_t **file) {
+  ldb_fstate_t *state;
 
-  rdb_mutex_lock(&file_mutex);
+  ldb_mutex_lock(&file_mutex);
 
   state = rb_map_get(&file_map, filename);
 
   if (state != NULL) {
-    *file = rdb_malloc(sizeof(rdb_rfile_t));
+    *file = ldb_malloc(sizeof(ldb_rfile_t));
 
-    rdb_rfile_init(*file, state);
+    ldb_rfile_init(*file, state);
   }
 
-  rdb_mutex_unlock(&file_mutex);
+  ldb_mutex_unlock(&file_mutex);
 
-  return state ? RDB_OK : RDB_NOTFOUND; /* "File not found" */
+  return state ? LDB_OK : LDB_NOTFOUND; /* "File not found" */
 }
 
 int
-rdb_randfile_create(const char *filename, rdb_rfile_t **file, int use_mmap) {
+ldb_randfile_create(const char *filename, ldb_rfile_t **file, int use_mmap) {
   (void)use_mmap;
-  return rdb_seqfile_create(filename, file);
+  return ldb_seqfile_create(filename, file);
 }
 
 void
-rdb_rfile_destroy(rdb_rfile_t *file) {
-  rdb_fstate_unref(file->state);
-  rdb_free(file);
+ldb_rfile_destroy(ldb_rfile_t *file) {
+  ldb_fstate_unref(file->state);
+  ldb_free(file);
 }
 
 /*
  * Writable File
  */
 
-struct rdb_wfile_s {
-  rdb_fstate_t *state;
+struct ldb_wfile_s {
+  ldb_fstate_t *state;
 };
 
 static void
-rdb_wfile_init(rdb_wfile_t *file, rdb_fstate_t *state) {
-  file->state = rdb_fstate_ref(state);
+ldb_wfile_init(ldb_wfile_t *file, ldb_fstate_t *state) {
+  file->state = ldb_fstate_ref(state);
 }
 
 int
-rdb_wfile_close(rdb_wfile_t *file) {
+ldb_wfile_close(ldb_wfile_t *file) {
   (void)file;
-  return RDB_OK;
+  return LDB_OK;
 }
 
 int
-rdb_wfile_append(rdb_wfile_t *file, const rdb_slice_t *data) {
-  return rdb_fstate_append(file->state, data);
+ldb_wfile_append(ldb_wfile_t *file, const ldb_slice_t *data) {
+  return ldb_fstate_append(file->state, data);
 }
 
 int
-rdb_wfile_flush(rdb_wfile_t *file) {
+ldb_wfile_flush(ldb_wfile_t *file) {
   (void)file;
-  return RDB_OK;
+  return LDB_OK;
 }
 
 int
-rdb_wfile_sync(rdb_wfile_t *file) {
+ldb_wfile_sync(ldb_wfile_t *file) {
   (void)file;
-  return RDB_OK;
+  return LDB_OK;
 }
 
 /*
@@ -632,75 +632,75 @@ rdb_wfile_sync(rdb_wfile_t *file) {
  */
 
 int
-rdb_truncfile_create(const char *filename, rdb_wfile_t **file) {
-  rdb_fstate_t *state;
+ldb_truncfile_create(const char *filename, ldb_wfile_t **file) {
+  ldb_fstate_t *state;
 
-  if (strlen(filename) + 1 > RDB_PATH_MAX)
-    return RDB_INVALID;
+  if (strlen(filename) + 1 > LDB_PATH_MAX)
+    return LDB_INVALID;
 
-  rdb_mutex_lock(&file_mutex);
+  ldb_mutex_lock(&file_mutex);
 
   state = rb_map_get(&file_map, filename);
 
   if (state == NULL) {
-    state = rdb_fstate_ref(rdb_fstate_create(filename));
+    state = ldb_fstate_ref(ldb_fstate_create(filename));
     rb_map_put(&file_map, state->path, state);
   } else {
-    rdb_fstate_truncate(state);
+    ldb_fstate_truncate(state);
   }
 
-  *file = rdb_malloc(sizeof(rdb_wfile_t));
+  *file = ldb_malloc(sizeof(ldb_wfile_t));
 
-  rdb_wfile_init(*file, state);
+  ldb_wfile_init(*file, state);
 
-  rdb_mutex_unlock(&file_mutex);
+  ldb_mutex_unlock(&file_mutex);
 
-  return RDB_OK;
+  return LDB_OK;
 }
 
 int
-rdb_appendfile_create(const char *filename, rdb_wfile_t **file) {
-  rdb_fstate_t *state;
+ldb_appendfile_create(const char *filename, ldb_wfile_t **file) {
+  ldb_fstate_t *state;
 
-  if (strlen(filename) + 1 > RDB_PATH_MAX)
-    return RDB_INVALID;
+  if (strlen(filename) + 1 > LDB_PATH_MAX)
+    return LDB_INVALID;
 
-  rdb_mutex_lock(&file_mutex);
+  ldb_mutex_lock(&file_mutex);
 
   state = rb_map_get(&file_map, filename);
 
   if (state == NULL) {
-    state = rdb_fstate_ref(rdb_fstate_create(filename));
+    state = ldb_fstate_ref(ldb_fstate_create(filename));
     rb_map_put(&file_map, state->path, state);
   }
 
-  *file = rdb_malloc(sizeof(rdb_wfile_t));
+  *file = ldb_malloc(sizeof(ldb_wfile_t));
 
-  rdb_wfile_init(*file, state);
+  ldb_wfile_init(*file, state);
 
-  rdb_mutex_unlock(&file_mutex);
+  ldb_mutex_unlock(&file_mutex);
 
-  return RDB_OK;
+  return LDB_OK;
 }
 
 void
-rdb_wfile_destroy(rdb_wfile_t *file) {
-  rdb_fstate_unref(file->state);
-  rdb_free(file);
+ldb_wfile_destroy(ldb_wfile_t *file) {
+  ldb_fstate_unref(file->state);
+  ldb_free(file);
 }
 
 /*
  * Logging
  */
 
-rdb_logger_t *
-rdb_logger_create(FILE *stream);
+ldb_logger_t *
+ldb_logger_create(FILE *stream);
 
 int
-rdb_logger_open(const char *filename, rdb_logger_t **result) {
+ldb_logger_open(const char *filename, ldb_logger_t **result) {
   (void)filename;
-  *result = rdb_logger_create(NULL);
-  return RDB_OK;
+  *result = ldb_logger_create(NULL);
+  return LDB_OK;
 }
 
 /*
@@ -708,7 +708,7 @@ rdb_logger_open(const char *filename, rdb_logger_t **result) {
  */
 
 int64_t
-rdb_now_usec(void) {
+ldb_now_usec(void) {
 #if defined(_WIN32)
   uint64_t ticks;
   FILETIME ft;
@@ -729,7 +729,7 @@ rdb_now_usec(void) {
 }
 
 void
-rdb_sleep_usec(int64_t usec) {
+ldb_sleep_usec(int64_t usec) {
 #if defined(_WIN32)
   if (usec < 0)
     usec = 0;

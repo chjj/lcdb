@@ -26,129 +26,129 @@
  * Types
  */
 
-struct rdb_tcache_s {
+struct ldb_tcache_s {
   const char *prefix;
-  const rdb_dbopt_t *options;
-  rdb_lru_t *lru;
+  const ldb_dbopt_t *options;
+  ldb_lru_t *lru;
 };
 
-typedef struct rdb_entry_s {
-  rdb_rfile_t *file;
-  rdb_table_t *table;
-} rdb_entry_t;
+typedef struct ldb_entry_s {
+  ldb_rfile_t *file;
+  ldb_table_t *table;
+} ldb_entry_t;
 
 /*
  * Helpers
  */
 
 static void
-delete_entry(const rdb_slice_t *key, void *value) {
-  rdb_entry_t *entry = (rdb_entry_t *)value;
+delete_entry(const ldb_slice_t *key, void *value) {
+  ldb_entry_t *entry = (ldb_entry_t *)value;
 
   (void)key;
 
-  rdb_table_destroy(entry->table);
-  rdb_rfile_destroy(entry->file);
-  rdb_free(entry);
+  ldb_table_destroy(entry->table);
+  ldb_rfile_destroy(entry->file);
+  ldb_free(entry);
 }
 
 static void
 unref_entry(void *arg1, void *arg2) {
-  rdb_lru_t *lru = (rdb_lru_t *)arg1;
-  rdb_lruhandle_t *h = (rdb_lruhandle_t *)arg2;
+  ldb_lru_t *lru = (ldb_lru_t *)arg1;
+  ldb_lruhandle_t *h = (ldb_lruhandle_t *)arg2;
 
-  rdb_lru_release(lru, h);
+  ldb_lru_release(lru, h);
 }
 
 /*
  * TableCache
  */
 
-rdb_tcache_t *
-rdb_tcache_create(const char *prefix, const rdb_dbopt_t *options, int entries) {
-  rdb_tcache_t *cache = rdb_malloc(sizeof(rdb_tcache_t));
+ldb_tcache_t *
+ldb_tcache_create(const char *prefix, const ldb_dbopt_t *options, int entries) {
+  ldb_tcache_t *cache = ldb_malloc(sizeof(ldb_tcache_t));
 
   cache->prefix = prefix;
   cache->options = options;
-  cache->lru = rdb_lru_create(entries);
+  cache->lru = ldb_lru_create(entries);
 
   return cache;
 }
 
 void
-rdb_tcache_destroy(rdb_tcache_t *cache) {
-  rdb_lru_destroy(cache->lru);
-  rdb_free(cache);
+ldb_tcache_destroy(ldb_tcache_t *cache) {
+  ldb_lru_destroy(cache->lru);
+  ldb_free(cache);
 }
 
 static int
-find_table(rdb_tcache_t *cache,
+find_table(ldb_tcache_t *cache,
            uint64_t file_number,
            uint64_t file_size,
-           rdb_lruhandle_t **handle) {
-  rdb_slice_t key;
-  int rc = RDB_OK;
+           ldb_lruhandle_t **handle) {
+  ldb_slice_t key;
+  int rc = LDB_OK;
   uint8_t buf[8];
 
-  rdb_fixed64_write(buf, file_number);
+  ldb_fixed64_write(buf, file_number);
 
-  rdb_slice_set(&key, buf, sizeof(buf));
+  ldb_slice_set(&key, buf, sizeof(buf));
 
-  *handle = rdb_lru_lookup(cache->lru, &key);
+  *handle = ldb_lru_lookup(cache->lru, &key);
 
   if (*handle == NULL) {
     int use_mmap = cache->options->use_mmap;
-    char fname[RDB_PATH_MAX];
-    rdb_rfile_t *file = NULL;
-    rdb_table_t *table = NULL;
+    char fname[LDB_PATH_MAX];
+    ldb_rfile_t *file = NULL;
+    ldb_table_t *table = NULL;
 
-    if (!rdb_table_filename(fname, sizeof(fname), cache->prefix, file_number))
-      return RDB_INVALID;
+    if (!ldb_table_filename(fname, sizeof(fname), cache->prefix, file_number))
+      return LDB_INVALID;
 
-    rc = rdb_randfile_create(fname, &file, use_mmap);
+    rc = ldb_randfile_create(fname, &file, use_mmap);
 
-    if (rc != RDB_OK) {
-      if (!rdb_sstable_filename(fname, sizeof(fname), cache->prefix,
+    if (rc != LDB_OK) {
+      if (!ldb_sstable_filename(fname, sizeof(fname), cache->prefix,
                                                       file_number)) {
-        return RDB_INVALID;
+        return LDB_INVALID;
       }
 
-      if (rdb_randfile_create(fname, &file, use_mmap) == RDB_OK)
-        rc = RDB_OK;
+      if (ldb_randfile_create(fname, &file, use_mmap) == LDB_OK)
+        rc = LDB_OK;
     }
 
-    if (rc == RDB_OK)
-      rc = rdb_table_open(cache->options, file, file_size, &table);
+    if (rc == LDB_OK)
+      rc = ldb_table_open(cache->options, file, file_size, &table);
 
-    if (rc != RDB_OK) {
+    if (rc != LDB_OK) {
       assert(table == NULL);
 
-      rdb_rfile_destroy(file);
+      ldb_rfile_destroy(file);
 
       /* We do not cache error results so that if the error is transient,
          or somebody repairs the file, we recover automatically. */
     } else {
-      rdb_entry_t *entry = rdb_malloc(sizeof(rdb_entry_t));
+      ldb_entry_t *entry = ldb_malloc(sizeof(ldb_entry_t));
 
       entry->file = file;
       entry->table = table;
 
-      *handle = rdb_lru_insert(cache->lru, &key, entry, 1, &delete_entry);
+      *handle = ldb_lru_insert(cache->lru, &key, entry, 1, &delete_entry);
     }
   }
 
   return rc;
 }
 
-rdb_iter_t *
-rdb_tcache_iterate(rdb_tcache_t *cache,
-                   const rdb_readopt_t *options,
+ldb_iter_t *
+ldb_tcache_iterate(ldb_tcache_t *cache,
+                   const ldb_readopt_t *options,
                    uint64_t file_number,
                    uint64_t file_size,
-                   rdb_table_t **tableptr) {
-  rdb_lruhandle_t *handle = NULL;
-  rdb_table_t *table;
-  rdb_iter_t *result;
+                   ldb_table_t **tableptr) {
+  ldb_lruhandle_t *handle = NULL;
+  ldb_table_t *table;
+  ldb_iter_t *result;
   int rc;
 
   if (tableptr != NULL)
@@ -156,13 +156,13 @@ rdb_tcache_iterate(rdb_tcache_t *cache,
 
   rc = find_table(cache, file_number, file_size, &handle);
 
-  if (rc != RDB_OK)
-    return rdb_emptyiter_create(rc);
+  if (rc != LDB_OK)
+    return ldb_emptyiter_create(rc);
 
-  table = ((rdb_entry_t *)rdb_lru_value(handle))->table;
-  result = rdb_tableiter_create(table, options);
+  table = ((ldb_entry_t *)ldb_lru_value(handle))->table;
+  result = ldb_tableiter_create(table, options);
 
-  rdb_iter_register_cleanup(result, &unref_entry, cache->lru, handle);
+  ldb_iter_register_cleanup(result, &unref_entry, cache->lru, handle);
 
   if (tableptr != NULL)
     *tableptr = table;
@@ -171,38 +171,38 @@ rdb_tcache_iterate(rdb_tcache_t *cache,
 }
 
 int
-rdb_tcache_get(rdb_tcache_t *cache,
-               const rdb_readopt_t *options,
+ldb_tcache_get(ldb_tcache_t *cache,
+               const ldb_readopt_t *options,
                uint64_t file_number,
                uint64_t file_size,
-               const rdb_slice_t *k,
+               const ldb_slice_t *k,
                void *arg,
                void (*handle_result)(void *,
-                                     const rdb_slice_t *,
-                                     const rdb_slice_t *)) {
-  rdb_lruhandle_t *handle = NULL;
+                                     const ldb_slice_t *,
+                                     const ldb_slice_t *)) {
+  ldb_lruhandle_t *handle = NULL;
   int rc;
 
   rc = find_table(cache, file_number, file_size, &handle);
 
-  if (rc == RDB_OK) {
-    rdb_table_t *table = ((rdb_entry_t *)rdb_lru_value(handle))->table;
+  if (rc == LDB_OK) {
+    ldb_table_t *table = ((ldb_entry_t *)ldb_lru_value(handle))->table;
 
-    rc = rdb_table_internal_get(table, options, k, arg, handle_result);
+    rc = ldb_table_internal_get(table, options, k, arg, handle_result);
 
-    rdb_lru_release(cache->lru, handle);
+    ldb_lru_release(cache->lru, handle);
   }
 
   return rc;
 }
 
 void
-rdb_tcache_evict(rdb_tcache_t *cache, uint64_t file_number) {
-  rdb_slice_t key;
+ldb_tcache_evict(ldb_tcache_t *cache, uint64_t file_number) {
+  ldb_slice_t key;
   uint8_t buf[8];
 
-  rdb_fixed64_write(buf, file_number);
-  rdb_slice_set(&key, buf, sizeof(buf));
+  ldb_fixed64_write(buf, file_number);
+  ldb_slice_set(&key, buf, sizeof(buf));
 
-  rdb_lru_erase(cache->lru, &key);
+  ldb_lru_erase(cache->lru, &key);
 }

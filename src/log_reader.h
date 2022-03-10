@@ -4,8 +4,8 @@
  * https://github.com/chjj/rdb
  */
 
-#ifndef RDB_LOG_READER_H
-#define RDB_LOG_READER_H
+#ifndef LDB_LOG_READER_H
+#define LDB_LOG_READER_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -16,31 +16,31 @@
  * Types
  */
 
-struct rdb_logger_s;
-struct rdb_rfile_s;
+struct ldb_logger_s;
+struct ldb_rfile_s;
 
 /* Interface for reporting errors. */
-typedef struct rdb_reporter_s {
+typedef struct ldb_reporter_s {
   /* Some corruption was detected. "bytes" is the approximate number
      of bytes dropped due to the corruption. */
   const char *fname;
   int *status;
-  struct rdb_logger_s *info_log;
+  struct ldb_logger_s *info_log;
   uint64_t lognum;
   void *dst; /* FILE */
   size_t dropped_bytes;
-  void (*corruption)(struct rdb_reporter_s *reporter, size_t bytes, int status);
-} rdb_reporter_t;
+  void (*corruption)(struct ldb_reporter_s *reporter, size_t bytes, int status);
+} ldb_reporter_t;
 
-typedef struct rdb_logreader_s {
-  struct rdb_rfile_s *file; /* SequentialFile */
-  rdb_slice_t *src; /* For testing. */
+typedef struct ldb_logreader_s {
+  struct ldb_rfile_s *file; /* SequentialFile */
+  ldb_slice_t *src; /* For testing. */
   int error; /* For testing. */
-  rdb_reporter_t *reporter;
+  ldb_reporter_t *reporter;
   int checksum;
   uint8_t *backing_store;
-  rdb_slice_t buffer;
-  int eof; /* Last read() indicated EOF by returning < RDB_BLOCK_SIZE. */
+  ldb_slice_t buffer;
+  int eof; /* Last read() indicated EOF by returning < LDB_BLOCK_SIZE. */
 
   /* Offset of the last record returned by read_record. */
   uint64_t last_offset;
@@ -52,10 +52,10 @@ typedef struct rdb_logreader_s {
   uint64_t initial_offset;
 
   /* True if we are resynchronizing after a seek (initial_offset > 0). In
-     particular, a run of RDB_TYPE_MIDDLE and RDB_TYPE_LAST records can
+     particular, a run of LDB_TYPE_MIDDLE and LDB_TYPE_LAST records can
      be silently skipped in this mode. */
   int resyncing;
-} rdb_logreader_t;
+} ldb_logreader_t;
 
 /*
  * LogWriter
@@ -74,14 +74,14 @@ typedef struct rdb_logreader_s {
  * position >= initial_offset within the file.
  */
 void
-rdb_logreader_init(rdb_logreader_t *lr,
-                   struct rdb_rfile_s *file,
-                   rdb_reporter_t *reporter,
+ldb_logreader_init(ldb_logreader_t *lr,
+                   struct ldb_rfile_s *file,
+                   ldb_reporter_t *reporter,
                    int checksum,
                    uint64_t initial_offset);
 
 void
-rdb_logreader_clear(rdb_logreader_t *lr);
+ldb_logreader_clear(ldb_logreader_t *lr);
 
 /* Read the next record into *record. Returns true if read
  * successfully, false if we hit end of the input. May use
@@ -90,15 +90,15 @@ rdb_logreader_clear(rdb_logreader_t *lr);
  * reader or the next mutation to *scratch.
  */
 int
-rdb_logreader_read_record(rdb_logreader_t *lr,
-                          rdb_slice_t *record,
-                          rdb_buffer_t *scratch);
+ldb_logreader_read_record(ldb_logreader_t *lr,
+                          ldb_slice_t *record,
+                          ldb_buffer_t *scratch);
 
 /* Returns the physical offset of the last record returned by read_record.
  *
  * Undefined before the first call to ReadRecord.
  */
 uint64_t
-rdb_logreader_last_offset(const rdb_logreader_t *lr);
+ldb_logreader_last_offset(const ldb_logreader_t *lr);
 
-#endif /* RDB_LOG_READER_H */
+#endif /* LDB_LOG_READER_H */

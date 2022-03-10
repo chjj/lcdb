@@ -4,8 +4,8 @@
  * https://github.com/chjj/rdb
  */
 
-#ifndef RDB_ARENA_H
-#define RDB_ARENA_H
+#ifndef LDB_ARENA_H
+#define LDB_ARENA_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -17,37 +17,37 @@
  * Types
  */
 
-typedef struct rdb_arena_s {
+typedef struct ldb_arena_s {
   /* Allocation state. */
   uint8_t *data;
   size_t left;
   /* Total memory usage of the arena. */
-  rdb_atomic(size_t) usage;
+  ldb_atomic(size_t) usage;
   /* Array of allocated memory blocks. */
-  rdb_vector_t blocks;
-} rdb_arena_t;
+  ldb_vector_t blocks;
+} ldb_arena_t;
 
 /*
  * Arena
  */
 
 void
-rdb_arena_init(rdb_arena_t *arena);
+ldb_arena_init(ldb_arena_t *arena);
 
 void
-rdb_arena_clear(rdb_arena_t *arena);
+ldb_arena_clear(ldb_arena_t *arena);
 
 /* Returns an estimate of the total memory usage of data allocated
    by the arena. */
 size_t
-rdb_arena_usage(const rdb_arena_t *arena);
+ldb_arena_usage(const ldb_arena_t *arena);
 
 /* Return a pointer to a newly allocated memory block of "bytes" bytes. */
 void *
-rdb_arena_alloc(rdb_arena_t *arena, size_t size);
+ldb_arena_alloc(ldb_arena_t *arena, size_t size);
 
 /* Allocate memory with the normal alignment guarantees provided by malloc. */
-RDB_MALLOC void *
-rdb_arena_alloc_aligned(rdb_arena_t *arena, size_t size);
+LDB_MALLOC void *
+ldb_arena_alloc_aligned(ldb_arena_t *arena, size_t size);
 
-#endif /* RDB_ARENA_H */
+#endif /* LDB_ARENA_H */

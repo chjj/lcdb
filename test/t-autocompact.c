@@ -5,8 +5,8 @@
  */
 
 int
-rdb_test_autocompact(void);
+ldb_test_autocompact(void);
 
 int main(void) {
-  return rdb_test_autocompact();
+  return ldb_test_autocompact();
 }

@@ -26,71 +26,71 @@
  * MemTable
  */
 
-struct rdb_memtable_s {
-  rdb_comparator_t comparator;
+struct ldb_memtable_s {
+  ldb_comparator_t comparator;
   int refs;
-  rdb_arena_t arena;
-  rdb_skiplist_t table;
+  ldb_arena_t arena;
+  ldb_skiplist_t table;
 };
 
 static void
-rdb_memtable_init(rdb_memtable_t *mt, const rdb_comparator_t *comparator) {
+ldb_memtable_init(ldb_memtable_t *mt, const ldb_comparator_t *comparator) {
   assert(comparator->user_comparator != NULL);
 
   mt->comparator = *comparator;
   mt->refs = 0;
 
-  rdb_arena_init(&mt->arena);
+  ldb_arena_init(&mt->arena);
 
-  rdb_skiplist_init(&mt->table, &mt->comparator, &mt->arena);
+  ldb_skiplist_init(&mt->table, &mt->comparator, &mt->arena);
 }
 
 static void
-rdb_memtable_clear(rdb_memtable_t *mt) {
+ldb_memtable_clear(ldb_memtable_t *mt) {
   assert(mt->refs == 0);
 
-  rdb_arena_clear(&mt->arena);
+  ldb_arena_clear(&mt->arena);
 }
 
-rdb_memtable_t *
-rdb_memtable_create(const rdb_comparator_t *comparator) {
-  rdb_memtable_t *mt = rdb_malloc(sizeof(rdb_memtable_t));
-  rdb_memtable_init(mt, comparator);
+ldb_memtable_t *
+ldb_memtable_create(const ldb_comparator_t *comparator) {
+  ldb_memtable_t *mt = ldb_malloc(sizeof(ldb_memtable_t));
+  ldb_memtable_init(mt, comparator);
   return mt;
 }
 
 void
-rdb_memtable_destroy(rdb_memtable_t *mt) {
-  rdb_memtable_clear(mt);
-  rdb_free(mt);
+ldb_memtable_destroy(ldb_memtable_t *mt) {
+  ldb_memtable_clear(mt);
+  ldb_free(mt);
 }
 
 void
-rdb_memtable_ref(rdb_memtable_t *mt) {
+ldb_memtable_ref(ldb_memtable_t *mt) {
   ++mt->refs;
 }
 
 void
-rdb_memtable_unref(rdb_memtable_t *mt) {
+ldb_memtable_unref(ldb_memtable_t *mt) {
   --mt->refs;
 
   assert(mt->refs >= 0);
 
   if (mt->refs <= 0)
-    rdb_memtable_destroy(mt);
+    ldb_memtable_destroy(mt);
 }
 
 size_t
-rdb_memtable_usage(const rdb_memtable_t *mt) {
-  return rdb_arena_usage(&mt->arena);
+ldb_memtable_usage(const ldb_memtable_t *mt) {
+  return ldb_arena_usage(&mt->arena);
 }
 
 void
-rdb_memtable_add(rdb_memtable_t *mt,
-                 rdb_seqnum_t sequence,
-                 rdb_valtype_t type,
-                 const rdb_slice_t *key,
-                 const rdb_slice_t *value) {
+ldb_memtable_add(ldb_memtable_t *mt,
+                 ldb_seqnum_t sequence,
+                 ldb_valtype_t type,
+                 const ldb_slice_t *key,
+                 const ldb_slice_t *value) {
   /* Format of an entry is concatenation of:
    *
    *  key_size     : varint32 of internal_key.size()
@@ -104,36 +104,36 @@ rdb_memtable_add(rdb_memtable_t *mt,
   uint8_t *tp, *zp;
   size_t zn = 0;
 
-  zn += rdb_varint32_size(ikey_size) + ikey_size;
-  zn += rdb_varint32_size(val_size) + val_size;
+  zn += ldb_varint32_size(ikey_size) + ikey_size;
+  zn += ldb_varint32_size(val_size) + val_size;
 
-  tp = rdb_arena_alloc(&mt->arena, zn);
+  tp = ldb_arena_alloc(&mt->arena, zn);
   zp = tp;
 
-  zp = rdb_varint32_write(zp, ikey_size);
-  zp = rdb_raw_write(zp, key->data, key->size);
-  zp = rdb_fixed64_write(zp, (sequence << 8) | type);
+  zp = ldb_varint32_write(zp, ikey_size);
+  zp = ldb_raw_write(zp, key->data, key->size);
+  zp = ldb_fixed64_write(zp, (sequence << 8) | type);
 
-  zp = rdb_varint32_write(zp, val_size);
-  zp = rdb_raw_write(zp, value->data, value->size);
+  zp = ldb_varint32_write(zp, val_size);
+  zp = ldb_raw_write(zp, value->data, value->size);
 
   assert(zp == tp + zn);
 
-  rdb_skiplist_insert(&mt->table, tp);
+  ldb_skiplist_insert(&mt->table, tp);
 }
 
 int
-rdb_memtable_get(rdb_memtable_t *mt,
-                 const rdb_lkey_t *key,
-                 rdb_buffer_t *value,
+ldb_memtable_get(ldb_memtable_t *mt,
+                 const ldb_lkey_t *key,
+                 ldb_buffer_t *value,
                  int *status) {
-  rdb_slice_t mkey = rdb_lkey_memtable_key(key);
-  rdb_skipiter_t iter;
+  ldb_slice_t mkey = ldb_lkey_memtable_key(key);
+  ldb_skipiter_t iter;
 
-  rdb_skipiter_init(&iter, &mt->table);
-  rdb_skipiter_seek(&iter, mkey.data);
+  ldb_skipiter_init(&iter, &mt->table);
+  ldb_skipiter_seek(&iter, mkey.data);
 
-  if (rdb_skipiter_valid(&iter)) {
+  if (ldb_skipiter_valid(&iter)) {
     /* Entry format is:
      *
      *    klength  varint32
@@ -146,29 +146,29 @@ rdb_memtable_get(rdb_memtable_t *mt,
      * sequence number since the seek() call above should have skipped
      * all entries with overly large sequence numbers.
      */
-    const rdb_comparator_t *cmp = mt->comparator.user_comparator;
-    rdb_slice_t okey = rdb_slice_decode(rdb_skipiter_key(&iter));
-    rdb_slice_t ukey = rdb_lkey_user_key(key);
+    const ldb_comparator_t *cmp = mt->comparator.user_comparator;
+    ldb_slice_t okey = ldb_slice_decode(ldb_skipiter_key(&iter));
+    ldb_slice_t ukey = ldb_lkey_user_key(key);
 
     assert(okey.size >= 8);
 
     okey.size -= 8;
 
-    if (rdb_compare(cmp, &okey, &ukey) == 0) {
+    if (ldb_compare(cmp, &okey, &ukey) == 0) {
       /* Correct user key. */
-      uint64_t tag = rdb_fixed64_decode(okey.data + okey.size);
+      uint64_t tag = ldb_fixed64_decode(okey.data + okey.size);
 
-      switch ((rdb_valtype_t)(tag & 0xff)) {
-        case RDB_TYPE_VALUE: {
+      switch ((ldb_valtype_t)(tag & 0xff)) {
+        case LDB_TYPE_VALUE: {
           if (value != NULL) {
-            rdb_slice_t val = rdb_slice_decode(okey.data + okey.size + 8);
-            rdb_buffer_copy(value, &val);
+            ldb_slice_t val = ldb_slice_decode(okey.data + okey.size + 8);
+            ldb_buffer_copy(value, &val);
           }
           return 1;
         }
 
-        case RDB_TYPE_DELETION: {
-          *status = RDB_NOTFOUND;
+        case LDB_TYPE_DELETION: {
+          *status = LDB_NOTFOUND;
           return 1;
         }
       }
@@ -182,81 +182,81 @@ rdb_memtable_get(rdb_memtable_t *mt,
  * MemTable Iterator
  */
 
-typedef struct rdb_memiter_s {
-  rdb_skipiter_t iter;
-  rdb_buffer_t tmp;
-} rdb_memiter_t;
+typedef struct ldb_memiter_s {
+  ldb_skipiter_t iter;
+  ldb_buffer_t tmp;
+} ldb_memiter_t;
 
 static void
-rdb_memiter_init(rdb_memiter_t *iter, const rdb_skiplist_t *table) {
-  rdb_skipiter_init(&iter->iter, table);
-  rdb_buffer_init(&iter->tmp);
+ldb_memiter_init(ldb_memiter_t *iter, const ldb_skiplist_t *table) {
+  ldb_skipiter_init(&iter->iter, table);
+  ldb_buffer_init(&iter->tmp);
 }
 
 static void
-rdb_memiter_clear(rdb_memiter_t *iter) {
-  rdb_buffer_clear(&iter->tmp);
+ldb_memiter_clear(ldb_memiter_t *iter) {
+  ldb_buffer_clear(&iter->tmp);
 }
 
 static int
-rdb_memiter_valid(const rdb_memiter_t *iter) {
-  return rdb_skipiter_valid(&iter->iter);
+ldb_memiter_valid(const ldb_memiter_t *iter) {
+  return ldb_skipiter_valid(&iter->iter);
 }
 
 static void
-rdb_memiter_seek(rdb_memiter_t *iter, const rdb_slice_t *key) {
-  rdb_buffer_t *tmp = &iter->tmp;
+ldb_memiter_seek(ldb_memiter_t *iter, const ldb_slice_t *key) {
+  ldb_buffer_t *tmp = &iter->tmp;
 
-  rdb_buffer_reset(tmp);
-  rdb_slice_export(tmp, key);
+  ldb_buffer_reset(tmp);
+  ldb_slice_export(tmp, key);
 
-  rdb_skipiter_seek(&iter->iter, tmp->data);
+  ldb_skipiter_seek(&iter->iter, tmp->data);
 }
 
 static void
-rdb_memiter_seek_first(rdb_memiter_t *iter) {
-  rdb_skipiter_seek_first(&iter->iter);
+ldb_memiter_seek_first(ldb_memiter_t *iter) {
+  ldb_skipiter_seek_first(&iter->iter);
 }
 
 static void
-rdb_memiter_seek_last(rdb_memiter_t *iter) {
-  rdb_skipiter_seek_last(&iter->iter);
+ldb_memiter_seek_last(ldb_memiter_t *iter) {
+  ldb_skipiter_seek_last(&iter->iter);
 }
 
 static void
-rdb_memiter_next(rdb_memiter_t *iter) {
-  rdb_skipiter_next(&iter->iter);
+ldb_memiter_next(ldb_memiter_t *iter) {
+  ldb_skipiter_next(&iter->iter);
 }
 
 static void
-rdb_memiter_prev(rdb_memiter_t *iter) {
-  rdb_skipiter_prev(&iter->iter);
+ldb_memiter_prev(ldb_memiter_t *iter) {
+  ldb_skipiter_prev(&iter->iter);
 }
 
-static rdb_slice_t
-rdb_memiter_key(const rdb_memiter_t *iter) {
-  return rdb_slice_decode(rdb_skipiter_key(&iter->iter));
+static ldb_slice_t
+ldb_memiter_key(const ldb_memiter_t *iter) {
+  return ldb_slice_decode(ldb_skipiter_key(&iter->iter));
 }
 
-static rdb_slice_t
-rdb_memiter_value(const rdb_memiter_t *iter) {
-  rdb_slice_t key = rdb_memiter_key(iter);
-  return rdb_slice_decode(key.data + key.size);
+static ldb_slice_t
+ldb_memiter_value(const ldb_memiter_t *iter) {
+  ldb_slice_t key = ldb_memiter_key(iter);
+  return ldb_slice_decode(key.data + key.size);
 }
 
 static int
-rdb_memiter_status(const rdb_memiter_t *iter) {
+ldb_memiter_status(const ldb_memiter_t *iter) {
   (void)iter;
-  return RDB_OK;
+  return LDB_OK;
 }
 
-RDB_ITERATOR_FUNCTIONS(rdb_memiter);
+LDB_ITERATOR_FUNCTIONS(ldb_memiter);
 
-rdb_iter_t *
-rdb_memiter_create(const rdb_memtable_t *mt) {
-  rdb_memiter_t *iter = rdb_malloc(sizeof(rdb_memiter_t));
+ldb_iter_t *
+ldb_memiter_create(const ldb_memtable_t *mt) {
+  ldb_memiter_t *iter = ldb_malloc(sizeof(ldb_memiter_t));
 
-  rdb_memiter_init(iter, &mt->table);
+  ldb_memiter_init(iter, &mt->table);
 
-  return rdb_iter_create(iter, &rdb_memiter_table);
+  return ldb_iter_create(iter, &ldb_memiter_table);
 }

@@ -20,11 +20,11 @@
  * Slice
  */
 
-#undef rdb_slice
+#undef ldb_slice
 
-rdb_slice_t
-rdb_slice(const uint8_t *xp, size_t xn) {
-  rdb_slice_t z;
+ldb_slice_t
+ldb_slice(const uint8_t *xp, size_t xn) {
+  ldb_slice_t z;
 
   z.data = (uint8_t *)xp;
   z.size = xn;
@@ -33,28 +33,28 @@ rdb_slice(const uint8_t *xp, size_t xn) {
   return z;
 }
 
-rdb_slice_t
-rdb_string(const char *xp) {
-  return rdb_slice((const uint8_t *)xp, strlen(xp));
+ldb_slice_t
+ldb_string(const char *xp) {
+  return ldb_slice((const uint8_t *)xp, strlen(xp));
 }
 
 void
-rdb_slice_set_str(rdb_slice_t *z, const char *xp) {
-  rdb_slice_set(z, (const uint8_t *)xp, strlen(xp));
+ldb_slice_set_str(ldb_slice_t *z, const char *xp) {
+  ldb_slice_set(z, (const uint8_t *)xp, strlen(xp));
 }
 
 void
-rdb_slice_copy(rdb_slice_t *z, const rdb_slice_t *x) {
-  rdb_slice_set(z, x->data, x->size);
+ldb_slice_copy(ldb_slice_t *z, const ldb_slice_t *x) {
+  ldb_slice_set(z, x->data, x->size);
 }
 
 uint32_t
-rdb_slice_hash(const rdb_slice_t *x) {
-  return rdb_hash(x->data, x->size, 0);
+ldb_slice_hash(const ldb_slice_t *x) {
+  return ldb_hash(x->data, x->size, 0);
 }
 
 int
-rdb_slice_equal(const rdb_slice_t *x, const rdb_slice_t *y) {
+ldb_slice_equal(const ldb_slice_t *x, const ldb_slice_t *y) {
   if (x->size != y->size)
     return 0;
 
@@ -65,12 +65,12 @@ rdb_slice_equal(const rdb_slice_t *x, const rdb_slice_t *y) {
 }
 
 int
-rdb_slice_compare(const rdb_slice_t *x, const rdb_slice_t *y) {
-  return rdb_memcmp4(x->data, x->size, y->data, y->size);
+ldb_slice_compare(const ldb_slice_t *x, const ldb_slice_t *y) {
+  return ldb_memcmp4(x->data, x->size, y->data, y->size);
 }
 
 void
-rdb_slice_eat(rdb_slice_t *z, size_t xn) {
+ldb_slice_eat(ldb_slice_t *z, size_t xn) {
   assert(z->size >= xn);
 
   z->data += xn;
@@ -78,62 +78,62 @@ rdb_slice_eat(rdb_slice_t *z, size_t xn) {
 }
 
 size_t
-rdb_slice_size(const rdb_slice_t *x) {
-  return rdb_varint32_size(x->size) + x->size;
+ldb_slice_size(const ldb_slice_t *x) {
+  return ldb_varint32_size(x->size) + x->size;
 }
 
 uint8_t *
-rdb_slice_write(uint8_t *zp, const rdb_slice_t *x) {
-  zp = rdb_varint32_write(zp, x->size);
-  zp = rdb_raw_write(zp, x->data, x->size);
+ldb_slice_write(uint8_t *zp, const ldb_slice_t *x) {
+  zp = ldb_varint32_write(zp, x->size);
+  zp = ldb_raw_write(zp, x->data, x->size);
   return zp;
 }
 
 void
-rdb_slice_export(rdb_buffer_t *z, const rdb_slice_t *x) {
-  uint8_t *zp = rdb_buffer_expand(z, 5 + x->size);
-  size_t xn = rdb_slice_write(zp, x) - zp;
+ldb_slice_export(ldb_buffer_t *z, const ldb_slice_t *x) {
+  uint8_t *zp = ldb_buffer_expand(z, 5 + x->size);
+  size_t xn = ldb_slice_write(zp, x) - zp;
 
   z->size += xn;
 }
 
 int
-rdb_slice_read(rdb_slice_t *z, const uint8_t **xp, size_t *xn) {
+ldb_slice_read(ldb_slice_t *z, const uint8_t **xp, size_t *xn) {
   const uint8_t *zp;
   uint32_t zn;
 
-  if (!rdb_varint32_read(&zn, xp, xn))
+  if (!ldb_varint32_read(&zn, xp, xn))
     return 0;
 
-  if (!rdb_zraw_read(&zp, zn, xp, xn))
+  if (!ldb_zraw_read(&zp, zn, xp, xn))
     return 0;
 
-  rdb_slice_set(z, zp, zn);
+  ldb_slice_set(z, zp, zn);
 
   return 1;
 }
 
 int
-rdb_slice_slurp(rdb_slice_t *z, rdb_slice_t *x) {
-  return rdb_slice_read(z, (const uint8_t **)&x->data, &x->size);
+ldb_slice_slurp(ldb_slice_t *z, ldb_slice_t *x) {
+  return ldb_slice_read(z, (const uint8_t **)&x->data, &x->size);
 }
 
 int
-rdb_slice_import(rdb_slice_t *z, const rdb_slice_t *x) {
-  rdb_slice_t tmp = *x;
-  return rdb_slice_slurp(z, &tmp);
+ldb_slice_import(ldb_slice_t *z, const ldb_slice_t *x) {
+  ldb_slice_t tmp = *x;
+  return ldb_slice_slurp(z, &tmp);
 }
 
-rdb_slice_t
-rdb_slice_decode(const uint8_t *xp) {
+ldb_slice_t
+ldb_slice_decode(const uint8_t *xp) {
   uint32_t zn = 0;
   size_t xn = 5;
-  rdb_slice_t z;
+  ldb_slice_t z;
 
-  if (!rdb_varint32_read(&zn, &xp, &xn))
+  if (!ldb_varint32_read(&zn, &xp, &xn))
     abort(); /* LCOV_EXCL_LINE */
 
-  rdb_slice_set(&z, xp, zn);
+  ldb_slice_set(&z, xp, zn);
 
   return z;
 }

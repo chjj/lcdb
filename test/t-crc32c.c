@@ -5,8 +5,8 @@
  */
 
 int
-rdb_test_crc32c(void);
+ldb_test_crc32c(void);
 
 int main(void) {
-  return rdb_test_crc32c();
+  return ldb_test_crc32c();
 }

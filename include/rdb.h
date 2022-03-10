@@ -4,8 +4,8 @@
  * https://github.com/chjj/rdb
  */
 
-#ifndef RDB_H
-#define RDB_H
+#ifndef LDB_H
+#define LDB_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -18,337 +18,337 @@ extern "C" {
  * Constants
  */
 
-#define RDB_OK (0)
-#define RDB_NOTFOUND (-1)
-#define RDB_CORRUPTION (-2)
-#define RDB_NOSUPPORT (-3)
-#define RDB_INVALID (-4)
-#define RDB_IOERR (-5)
+#define LDB_OK (0)
+#define LDB_NOTFOUND (-1)
+#define LDB_CORRUPTION (-2)
+#define LDB_NOSUPPORT (-3)
+#define LDB_INVALID (-4)
+#define LDB_IOERR (-5)
 
-enum rdb_compression {
-  RDB_NO_COMPRESSION = 0,
-  RDB_SNAPPY_COMPRESSION = 1
+enum ldb_compression {
+  LDB_NO_COMPRESSION = 0,
+  LDB_SNAPPY_COMPRESSION = 1
 };
 
 /*
  * Types
  */
 
-typedef struct rdb_s rdb_t;
-typedef struct rdb_batch_s rdb_batch_t;
-typedef struct rdb_bloom_s rdb_bloom_t;
-typedef struct rdb_comparator_s rdb_comparator_t;
-typedef struct rdb_dbopt_s rdb_dbopt_t;
-typedef struct rdb_handler_s rdb_handler_t;
-typedef struct rdb_iter_s rdb_iter_t;
-typedef struct rdb_logger_s rdb_logger_t;
-typedef struct rdb_lru_s rdb_lru_t;
-typedef struct rdb_readopt_s rdb_readopt_t;
-typedef struct rdb_snapshot_s rdb_snapshot_t;
-typedef struct rdb_writeopt_s rdb_writeopt_t;
+typedef struct ldb_s ldb_t;
+typedef struct ldb_batch_s ldb_batch_t;
+typedef struct ldb_bloom_s ldb_bloom_t;
+typedef struct ldb_comparator_s ldb_comparator_t;
+typedef struct ldb_dbopt_s ldb_dbopt_t;
+typedef struct ldb_handler_s ldb_handler_t;
+typedef struct ldb_iter_s ldb_iter_t;
+typedef struct ldb_logger_s ldb_logger_t;
+typedef struct ldb_lru_s ldb_lru_t;
+typedef struct ldb_readopt_s ldb_readopt_t;
+typedef struct ldb_snapshot_s ldb_snapshot_t;
+typedef struct ldb_writeopt_s ldb_writeopt_t;
 
-typedef struct rdb_slice_s {
+typedef struct ldb_slice_s {
   void *data;
   size_t size;
   size_t _alloc;
-} rdb_slice_t;
+} ldb_slice_t;
 
-typedef struct rdb_range_s {
-  rdb_slice_t start;
-  rdb_slice_t limit;
-} rdb_range_t;
+typedef struct ldb_range_s {
+  ldb_slice_t start;
+  ldb_slice_t limit;
+} ldb_range_t;
 
 #if defined(UINT64_MAX)
-typedef uint64_t rdb_uint64_t;
+typedef uint64_t ldb_uint64_t;
 #elif defined(_WIN32) && !defined(__GNUC__)
-typedef unsigned __int64 rdb_uint64_t;
+typedef unsigned __int64 ldb_uint64_t;
 #elif ULONG_MAX >> 31 >> 31 >> 1 == 1
-typedef unsigned long rdb_uint64_t;
+typedef unsigned long ldb_uint64_t;
 #else
 #  ifdef __GNUC__
 __extension__
 #  endif
-typedef unsigned long long rdb_uint64_t;
+typedef unsigned long long ldb_uint64_t;
 #endif
 
 /*
  * Batch
  */
 
-struct rdb_handler_s {
+struct ldb_handler_s {
   void *state;
-  rdb_uint64_t number;
+  ldb_uint64_t number;
 
-  void (*put)(struct rdb_handler_s *handler,
-              const rdb_slice_t *key,
-              const rdb_slice_t *value);
+  void (*put)(struct ldb_handler_s *handler,
+              const ldb_slice_t *key,
+              const ldb_slice_t *value);
 
-  void (*del)(struct rdb_handler_s *handler,
-              const rdb_slice_t *key);
+  void (*del)(struct ldb_handler_s *handler,
+              const ldb_slice_t *key);
 };
 
-struct rdb_batch_s {
-  rdb_slice_t _rep;
+struct ldb_batch_s {
+  ldb_slice_t _rep;
 };
 
-rdb_batch_t *
-rdb_batch_create(void);
+ldb_batch_t *
+ldb_batch_create(void);
 
 void
-rdb_batch_destroy(rdb_batch_t *batch);
+ldb_batch_destroy(ldb_batch_t *batch);
 
 void
-rdb_batch_init(rdb_batch_t *batch);
+ldb_batch_init(ldb_batch_t *batch);
 
 void
-rdb_batch_clear(rdb_batch_t *batch);
+ldb_batch_clear(ldb_batch_t *batch);
 
 void
-rdb_batch_reset(rdb_batch_t *batch);
+ldb_batch_reset(ldb_batch_t *batch);
 
 size_t
-rdb_batch_approximate_size(const rdb_batch_t *batch);
+ldb_batch_approximate_size(const ldb_batch_t *batch);
 
 void
-rdb_batch_put(rdb_batch_t *batch,
-              const rdb_slice_t *key,
-              const rdb_slice_t *value);
+ldb_batch_put(ldb_batch_t *batch,
+              const ldb_slice_t *key,
+              const ldb_slice_t *value);
 
 void
-rdb_batch_del(rdb_batch_t *batch, const rdb_slice_t *key);
+ldb_batch_del(ldb_batch_t *batch, const ldb_slice_t *key);
 
 int
-rdb_batch_iterate(const rdb_batch_t *batch, rdb_handler_t *handler);
+ldb_batch_iterate(const ldb_batch_t *batch, ldb_handler_t *handler);
 
 void
-rdb_batch_append(rdb_batch_t *dst, const rdb_batch_t *src);
+ldb_batch_append(ldb_batch_t *dst, const ldb_batch_t *src);
 
 /*
  * Bloom
  */
 
-rdb_bloom_t *
-rdb_bloom_create(int bits_per_key);
+ldb_bloom_t *
+ldb_bloom_create(int bits_per_key);
 
 void
-rdb_bloom_destroy(rdb_bloom_t *bloom);
+ldb_bloom_destroy(ldb_bloom_t *bloom);
 
-extern const rdb_bloom_t *rdb_bloom_default;
+extern const ldb_bloom_t *ldb_bloom_default;
 
 /*
  * Cache
  */
 
-rdb_lru_t *
-rdb_lru_create(size_t capacity);
+ldb_lru_t *
+ldb_lru_create(size_t capacity);
 
 void
-rdb_lru_destroy(rdb_lru_t *lru);
+ldb_lru_destroy(ldb_lru_t *lru);
 
 /*
  * Comparator
  */
 
-struct rdb_comparator_s {
+struct ldb_comparator_s {
   const char *name;
-  int (*compare)(const rdb_comparator_t *,
-                 const rdb_slice_t *,
-                 const rdb_slice_t *);
-  void (*shortest_separator)(const rdb_comparator_t *,
-                             rdb_slice_t *,
-                             const rdb_slice_t *);
-  void (*short_successor)(const rdb_comparator_t *, rdb_slice_t *);
-  const rdb_comparator_t *user_comparator;
+  int (*compare)(const ldb_comparator_t *,
+                 const ldb_slice_t *,
+                 const ldb_slice_t *);
+  void (*shortest_separator)(const ldb_comparator_t *,
+                             ldb_slice_t *,
+                             const ldb_slice_t *);
+  void (*short_successor)(const ldb_comparator_t *, ldb_slice_t *);
+  const ldb_comparator_t *user_comparator;
   void *state;
 };
 
-extern const rdb_comparator_t *rdb_bytewise_comparator;
+extern const ldb_comparator_t *ldb_bytewise_comparator;
 
 /*
  * Database
  */
 
 int
-rdb_open(const char *dbname, const rdb_dbopt_t *options, rdb_t **dbptr);
+ldb_open(const char *dbname, const ldb_dbopt_t *options, ldb_t **dbptr);
 
 void
-rdb_close(rdb_t *db);
+ldb_close(ldb_t *db);
 
 int
-rdb_get(rdb_t *db, const rdb_slice_t *key,
-                   rdb_slice_t *value,
-                   const rdb_readopt_t *options);
+ldb_get(ldb_t *db, const ldb_slice_t *key,
+                   ldb_slice_t *value,
+                   const ldb_readopt_t *options);
 
 int
-rdb_has(rdb_t *db, const rdb_slice_t *key, const rdb_readopt_t *options);
+ldb_has(ldb_t *db, const ldb_slice_t *key, const ldb_readopt_t *options);
 
 int
-rdb_put(rdb_t *db, const rdb_slice_t *key,
-                   const rdb_slice_t *value,
-                   const rdb_writeopt_t *options);
+ldb_put(ldb_t *db, const ldb_slice_t *key,
+                   const ldb_slice_t *value,
+                   const ldb_writeopt_t *options);
 
 int
-rdb_del(rdb_t *db, const rdb_slice_t *key, const rdb_writeopt_t *options);
+ldb_del(ldb_t *db, const ldb_slice_t *key, const ldb_writeopt_t *options);
 
 int
-rdb_write(rdb_t *db, rdb_batch_t *updates, const rdb_writeopt_t *options);
+ldb_write(ldb_t *db, ldb_batch_t *updates, const ldb_writeopt_t *options);
 
-const rdb_snapshot_t *
-rdb_get_snapshot(rdb_t *db);
+const ldb_snapshot_t *
+ldb_get_snapshot(ldb_t *db);
 
 void
-rdb_release_snapshot(rdb_t *db, const rdb_snapshot_t *snapshot);
+ldb_release_snapshot(ldb_t *db, const ldb_snapshot_t *snapshot);
 
-rdb_iter_t *
-rdb_iterator(rdb_t *db, const rdb_readopt_t *options);
+ldb_iter_t *
+ldb_iterator(ldb_t *db, const ldb_readopt_t *options);
 
 int
-rdb_get_property(rdb_t *db, const char *property, char **value);
+ldb_get_property(ldb_t *db, const char *property, char **value);
 
 void
-rdb_get_approximate_sizes(rdb_t *db, const rdb_range_t *range,
+ldb_get_approximate_sizes(ldb_t *db, const ldb_range_t *range,
                                      size_t length,
-                                     rdb_uint64_t *sizes);
+                                     ldb_uint64_t *sizes);
 
 void
-rdb_compact_range(rdb_t *db, const rdb_slice_t *begin, const rdb_slice_t *end);
+ldb_compact_range(ldb_t *db, const ldb_slice_t *begin, const ldb_slice_t *end);
 
 int
-rdb_repair_db(const char *dbname, const rdb_dbopt_t *options);
+ldb_repair_db(const char *dbname, const ldb_dbopt_t *options);
 
 int
-rdb_destroy_db(const char *dbname, const rdb_dbopt_t *options);
+ldb_destroy_db(const char *dbname, const ldb_dbopt_t *options);
 
 /*
  * Filesystem
  */
 
 int
-rdb_test_directory(char *result, size_t size);
+ldb_test_directory(char *result, size_t size);
 
 int
-rdb_test_filename(char *result, size_t size, const char *name);
+ldb_test_filename(char *result, size_t size, const char *name);
 
 /*
  * Internal
  */
 
 void
-rdb_free(void *ptr);
+ldb_free(void *ptr);
 
 /*
  * Iterator
  */
 
-struct rdb_iter_s {
+struct ldb_iter_s {
   void *ptr;
-  struct rdb_cleanup_s {
+  struct ldb_cleanup_s {
     void (*func)(void *, void *);
     void *arg1;
     void *arg2;
-    struct rdb_cleanup_s *next;
+    struct ldb_cleanup_s *next;
   } cleanup_head;
-  const struct rdb_itertbl_s {
+  const struct ldb_itertbl_s {
     void (*clear)(void *iter);
     int (*valid)(const void *iter);
     void (*seek_first)(void *iter);
     void (*seek_last)(void *iter);
-    void (*seek)(void *iter, const rdb_slice_t *target);
+    void (*seek)(void *iter, const ldb_slice_t *target);
     void (*next)(void *iter);
     void (*prev)(void *iter);
-    rdb_slice_t (*key)(const void *iter);
-    rdb_slice_t (*value)(const void *iter);
+    ldb_slice_t (*key)(const void *iter);
+    ldb_slice_t (*value)(const void *iter);
     int (*status)(const void *iter);
   } *table;
 };
 
-#define rdb_iter_valid(x) (x)->table->valid((x)->ptr)
-#define rdb_iter_seek_first(x) (x)->table->seek_first((x)->ptr)
-#define rdb_iter_seek_last(x) (x)->table->seek_last((x)->ptr)
-#define rdb_iter_seek(x, y) (x)->table->seek((x)->ptr, y)
-#define rdb_iter_next(x) (x)->table->next((x)->ptr)
-#define rdb_iter_prev(x) (x)->table->prev((x)->ptr)
-#define rdb_iter_key(x) (x)->table->key((x)->ptr)
-#define rdb_iter_value(x) (x)->table->value((x)->ptr)
-#define rdb_iter_status(x) (x)->table->status((x)->ptr)
+#define ldb_iter_valid(x) (x)->table->valid((x)->ptr)
+#define ldb_iter_seek_first(x) (x)->table->seek_first((x)->ptr)
+#define ldb_iter_seek_last(x) (x)->table->seek_last((x)->ptr)
+#define ldb_iter_seek(x, y) (x)->table->seek((x)->ptr, y)
+#define ldb_iter_next(x) (x)->table->next((x)->ptr)
+#define ldb_iter_prev(x) (x)->table->prev((x)->ptr)
+#define ldb_iter_key(x) (x)->table->key((x)->ptr)
+#define ldb_iter_value(x) (x)->table->value((x)->ptr)
+#define ldb_iter_status(x) (x)->table->status((x)->ptr)
 
 void
-rdb_iter_destroy(rdb_iter_t *iter);
+ldb_iter_destroy(ldb_iter_t *iter);
 
 /*
  * Logging
  */
 
 int
-rdb_logger_open(const char *filename, rdb_logger_t **result);
+ldb_logger_open(const char *filename, ldb_logger_t **result);
 
 void
-rdb_logger_destroy(rdb_logger_t *logger);
+ldb_logger_destroy(ldb_logger_t *logger);
 
 void
-rdb_log(rdb_logger_t *logger, const char *fmt, ...);
+ldb_log(ldb_logger_t *logger, const char *fmt, ...);
 
 /*
  * Options
  */
 
-struct rdb_dbopt_s {
-  const rdb_comparator_t *comparator;
+struct ldb_dbopt_s {
+  const ldb_comparator_t *comparator;
   int create_if_missing;
   int error_if_exists;
   int paranoid_checks;
-  rdb_logger_t *info_log;
+  ldb_logger_t *info_log;
   size_t write_buffer_size;
   int max_open_files;
-  rdb_lru_t *block_cache;
+  ldb_lru_t *block_cache;
   size_t block_size;
   int block_restart_interval;
   size_t max_file_size;
-  enum rdb_compression compression;
+  enum ldb_compression compression;
   int reuse_logs;
-  const rdb_bloom_t *filter_policy;
+  const ldb_bloom_t *filter_policy;
   int use_mmap;
 };
 
-struct rdb_readopt_s {
+struct ldb_readopt_s {
   int verify_checksums;
   int fill_cache;
-  const rdb_snapshot_t *snapshot;
+  const ldb_snapshot_t *snapshot;
 };
 
-struct rdb_writeopt_s {
+struct ldb_writeopt_s {
   int sync;
 };
 
-extern const rdb_dbopt_t *rdb_dbopt_default;
-extern const rdb_readopt_t *rdb_readopt_default;
-extern const rdb_writeopt_t *rdb_writeopt_default;
-extern const rdb_readopt_t *rdb_iteropt_default;
+extern const ldb_dbopt_t *ldb_dbopt_default;
+extern const ldb_readopt_t *ldb_readopt_default;
+extern const ldb_writeopt_t *ldb_writeopt_default;
+extern const ldb_readopt_t *ldb_iteropt_default;
 
 /*
  * Slice
  */
 
-#define rdb_compare rdb_slice_compare
+#define ldb_compare ldb_slice_compare
 
-rdb_slice_t
-rdb_slice(const void *xp, size_t xn);
+ldb_slice_t
+ldb_slice(const void *xp, size_t xn);
 
-rdb_slice_t
-rdb_string(const char *xp);
+ldb_slice_t
+ldb_string(const char *xp);
 
 int
-rdb_compare(const rdb_slice_t *x, const rdb_slice_t *y);
+ldb_compare(const ldb_slice_t *x, const ldb_slice_t *y);
 
 /*
  * Status
  */
 
 const char *
-rdb_strerror(int code);
+ldb_strerror(int code);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* RDB_H */
+#endif /* LDB_H */

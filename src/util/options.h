@@ -4,8 +4,8 @@
  * https://github.com/chjj/rdb
  */
 
-#ifndef RDB_OPTIONS_H
-#define RDB_OPTIONS_H
+#ifndef LDB_OPTIONS_H
+#define LDB_OPTIONS_H
 
 #include <stddef.h>
 #include "extern.h"
@@ -14,11 +14,11 @@
  * Types
  */
 
-struct rdb_bloom_s;
-struct rdb_comparator_s;
-struct rdb_logger_s;
-struct rdb_lru_s;
-struct rdb_snapshot_s;
+struct ldb_bloom_s;
+struct ldb_comparator_s;
+struct ldb_logger_s;
+struct ldb_lru_s;
+struct ldb_snapshot_s;
 
 /*
  * Constants
@@ -29,11 +29,11 @@ struct rdb_snapshot_s;
  * being stored in a file.  The following enum describes which
  * compression method (if any) is used to compress a block.
  */
-enum rdb_compression {
+enum ldb_compression {
   /* NOTE: do not change the values of existing entries, as these are
      part of the persistent format on disk. */
-  RDB_NO_COMPRESSION = 0x0,
-  RDB_SNAPPY_COMPRESSION = 0x1
+  LDB_NO_COMPRESSION = 0x0,
+  LDB_SNAPPY_COMPRESSION = 0x1
 };
 
 /*
@@ -41,7 +41,7 @@ enum rdb_compression {
  */
 
 /* Options to control the behavior of a database (passed to DB::Open) */
-typedef struct rdb_dbopt_s {
+typedef struct ldb_dbopt_s {
   /* Parameters that affect behavior */
 
   /* Comparator used to define the order of keys in the table.
@@ -51,7 +51,7 @@ typedef struct rdb_dbopt_s {
    * here has the same name and orders keys *exactly* the same as the
    * comparator provided to previous open calls on the same DB.
    */
-  const struct rdb_comparator_s *comparator;
+  const struct ldb_comparator_s *comparator;
 
   /* If true, the database will be created if it is missing. */
   int create_if_missing; /* 0 */
@@ -71,7 +71,7 @@ typedef struct rdb_dbopt_s {
    * be written to info_log if it is non-null, or to a file stored
    * in the same directory as the DB contents if info_log is null.
    */
-  struct rdb_logger_s *info_log; /* NULL */
+  struct ldb_logger_s *info_log; /* NULL */
 
   /* Parameters that affect performance */
 
@@ -97,7 +97,7 @@ typedef struct rdb_dbopt_s {
 
   /* If non-null, use the specified cache for blocks. */
   /* If null, leveldb will automatically create and use an 8MB internal cache. */
-  struct rdb_lru_s *block_cache; /* NULL */
+  struct ldb_lru_s *block_cache; /* NULL */
 
   /* Approximate size of user data packed per block.  Note that the
    * block size specified here corresponds to uncompressed data.  The
@@ -126,18 +126,18 @@ typedef struct rdb_dbopt_s {
   /* Compress blocks using the specified compression algorithm.  This
    * parameter can be changed dynamically.
    *
-   * Default: RDB_NO_COMPRESSION, which gives no compression.
+   * Default: LDB_NO_COMPRESSION, which gives no compression.
    *
-   * Typical speeds of RDB_SNAPPY_COMPRESSION on an Intel(R) Core(TM)2 2.4GHz:
+   * Typical speeds of LDB_SNAPPY_COMPRESSION on an Intel(R) Core(TM)2 2.4GHz:
    *    ~200-500MB/s compression
    *    ~400-800MB/s decompression
    * Note that these speeds are significantly faster than most
    * persistent storage speeds, and therefore it is typically never
    * worth switching to kNoCompression.  Even if the input data is
-   * incompressible, the RDB_NO_COMPRESSION implementation will
+   * incompressible, the LDB_NO_COMPRESSION implementation will
    * efficiently detect that and will switch to uncompressed mode.
    */
-  enum rdb_compression compression; /* RDB_NO_COMPRESSION */
+  enum ldb_compression compression; /* LDB_NO_COMPRESSION */
 
   /* EXPERIMENTAL: If true, append to existing MANIFEST and log files
    * when a database is opened.  This can significantly speed up open.
@@ -150,18 +150,18 @@ typedef struct rdb_dbopt_s {
    * Many applications will benefit from passing the result of
    * NewBloomFilterPolicy() here.
    */
-  const struct rdb_bloom_s *filter_policy; /* NULL */
+  const struct ldb_bloom_s *filter_policy; /* NULL */
 
   /* Whether to utilize mmap() for random access files. */
   int use_mmap; /* 1 */
-} rdb_dbopt_t;
+} ldb_dbopt_t;
 
 /*
  * Read Options
  */
 
 /* Options that control read operations */
-typedef struct rdb_readopt_s {
+typedef struct ldb_readopt_s {
   /* If true, all data read from underlying storage will be
    * verified against corresponding checksums.
    */
@@ -177,15 +177,15 @@ typedef struct rdb_readopt_s {
    * not have been released).  If "snapshot" is null, use an implicit
    * snapshot of the state at the beginning of this read operation.
    */
-  const struct rdb_snapshot_s *snapshot; /* NULL */
-} rdb_readopt_t;
+  const struct ldb_snapshot_s *snapshot; /* NULL */
+} ldb_readopt_t;
 
 /*
  * Write Options
  */
 
 /* Options that control write operations */
-typedef struct rdb_writeopt_s {
+typedef struct ldb_writeopt_s {
   /* If true, the write will be flushed from the operating system
    * buffer cache (by calling WritableFile::Sync()) before the write
    * is considered complete.  If this flag is true, writes will be
@@ -202,15 +202,15 @@ typedef struct rdb_writeopt_s {
    * system call followed by "fsync()".
    */
   int sync; /* 0 */
-} rdb_writeopt_t;
+} ldb_writeopt_t;
 
 /*
  * Globals
  */
 
-RDB_EXTERN extern const rdb_dbopt_t *rdb_dbopt_default;
-RDB_EXTERN extern const rdb_readopt_t *rdb_readopt_default;
-RDB_EXTERN extern const rdb_writeopt_t *rdb_writeopt_default;
-RDB_EXTERN extern const rdb_readopt_t *rdb_iteropt_default;
+LDB_EXTERN extern const ldb_dbopt_t *ldb_dbopt_default;
+LDB_EXTERN extern const ldb_readopt_t *ldb_readopt_default;
+LDB_EXTERN extern const ldb_writeopt_t *ldb_writeopt_default;
+LDB_EXTERN extern const ldb_readopt_t *ldb_iteropt_default;
 
-#endif /* RDB_OPTIONS_H */
+#endif /* LDB_OPTIONS_H */

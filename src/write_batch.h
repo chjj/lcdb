@@ -4,8 +4,8 @@
  * https://github.com/chjj/rdb
  */
 
-#ifndef RDB_WRITE_BATCH_H
-#define RDB_WRITE_BATCH_H
+#ifndef LDB_WRITE_BATCH_H
+#define LDB_WRITE_BATCH_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -34,84 +34,84 @@
  * Types
  */
 
-struct rdb_memtable_s;
+struct ldb_memtable_s;
 
-typedef uint64_t rdb__seqnum_t;
+typedef uint64_t ldb__seqnum_t;
 
-typedef struct rdb_handler_s {
+typedef struct ldb_handler_s {
   void *state;
   uint64_t number;
 
-  void (*put)(struct rdb_handler_s *handler,
-              const rdb_slice_t *key,
-              const rdb_slice_t *value);
+  void (*put)(struct ldb_handler_s *handler,
+              const ldb_slice_t *key,
+              const ldb_slice_t *value);
 
-  void (*del)(struct rdb_handler_s *handler,
-              const rdb_slice_t *key);
-} rdb_handler_t;
+  void (*del)(struct ldb_handler_s *handler,
+              const ldb_slice_t *key);
+} ldb_handler_t;
 
-typedef struct rdb_batch_s {
-  rdb_buffer_t rep; /* See comment in write_batch.c for the format of rep. */
-} rdb_batch_t;
+typedef struct ldb_batch_s {
+  ldb_buffer_t rep; /* See comment in write_batch.c for the format of rep. */
+} ldb_batch_t;
 
 /*
  * Batch
  */
 
-RDB_EXTERN rdb_batch_t *
-rdb_batch_create(void);
+LDB_EXTERN ldb_batch_t *
+ldb_batch_create(void);
 
-RDB_EXTERN void
-rdb_batch_destroy(rdb_batch_t *batch);
+LDB_EXTERN void
+ldb_batch_destroy(ldb_batch_t *batch);
 
-RDB_EXTERN void
-rdb_batch_init(rdb_batch_t *batch);
+LDB_EXTERN void
+ldb_batch_init(ldb_batch_t *batch);
 
-RDB_EXTERN void
-rdb_batch_clear(rdb_batch_t *batch);
+LDB_EXTERN void
+ldb_batch_clear(ldb_batch_t *batch);
 
 /* Clear all updates buffered in this batch. */
-RDB_EXTERN void
-rdb_batch_reset(rdb_batch_t *batch);
+LDB_EXTERN void
+ldb_batch_reset(ldb_batch_t *batch);
 
 /* The size of the database changes caused by this batch.
  *
  * This number is tied to implementation details, and may change across
  * releases. It is intended for usage metrics.
  */
-RDB_EXTERN size_t
-rdb_batch_approximate_size(const rdb_batch_t *batch);
+LDB_EXTERN size_t
+ldb_batch_approximate_size(const ldb_batch_t *batch);
 
 /* Support for iterating over the contents of a batch. */
-RDB_EXTERN int
-rdb_batch_iterate(const rdb_batch_t *batch, rdb_handler_t *handler);
+LDB_EXTERN int
+ldb_batch_iterate(const ldb_batch_t *batch, ldb_handler_t *handler);
 
 /* Return the number of entries in the batch. */
 int
-rdb_batch_count(const rdb_batch_t *batch);
+ldb_batch_count(const ldb_batch_t *batch);
 
 /* Set the count for the number of entries in the batch. */
 void
-rdb_batch_set_count(rdb_batch_t *batch, int count);
+ldb_batch_set_count(ldb_batch_t *batch, int count);
 
 /* Return the sequence number for the start of this batch. */
-rdb__seqnum_t
-rdb_batch_sequence(const rdb_batch_t *batch);
+ldb__seqnum_t
+ldb_batch_sequence(const ldb_batch_t *batch);
 
 /* Store the specified number as the sequence number for the start of
    this batch. */
 void
-rdb_batch_set_sequence(rdb_batch_t *batch, rdb__seqnum_t seq);
+ldb_batch_set_sequence(ldb_batch_t *batch, ldb__seqnum_t seq);
 
 /* Store the mapping "key->value" in the database. */
-RDB_EXTERN void
-rdb_batch_put(rdb_batch_t *batch,
-              const rdb_slice_t *key,
-              const rdb_slice_t *value);
+LDB_EXTERN void
+ldb_batch_put(ldb_batch_t *batch,
+              const ldb_slice_t *key,
+              const ldb_slice_t *value);
 
 /* If the database contains a mapping for "key", erase it. Else do nothing. */
-RDB_EXTERN void
-rdb_batch_del(rdb_batch_t *batch, const rdb_slice_t *key);
+LDB_EXTERN void
+ldb_batch_del(ldb_batch_t *batch, const ldb_slice_t *key);
 
 /* Copies the operations in "src" to this batch.
  *
@@ -119,19 +119,19 @@ rdb_batch_del(rdb_batch_t *batch, const rdb_slice_t *key);
  * than calling iterate() over the source batch with a Handler that replicates
  * the operations into this batch.
  */
-RDB_EXTERN void
-rdb_batch_append(rdb_batch_t *dst, const rdb_batch_t *src);
+LDB_EXTERN void
+ldb_batch_append(ldb_batch_t *dst, const ldb_batch_t *src);
 
 int
-rdb_batch_insert_into(const rdb_batch_t *batch, struct rdb_memtable_s *table);
+ldb_batch_insert_into(const ldb_batch_t *batch, struct ldb_memtable_s *table);
 
 void
-rdb_batch_set_contents(rdb_batch_t *batch, const rdb_slice_t *contents);
+ldb_batch_set_contents(ldb_batch_t *batch, const ldb_slice_t *contents);
 
-rdb_slice_t
-rdb_batch_contents(const rdb_batch_t *batch);
+ldb_slice_t
+ldb_batch_contents(const ldb_batch_t *batch);
 
 size_t
-rdb_batch_size(const rdb_batch_t *batch);
+ldb_batch_size(const ldb_batch_t *batch);
 
-#endif /* RDB_WRITE_BATCH_H */
+#endif /* LDB_WRITE_BATCH_H */

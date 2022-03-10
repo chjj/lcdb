@@ -40,12 +40,12 @@
  */
 
 static void
-slice_reverse(rdb_buffer_t *z, const rdb_slice_t *x) {
+slice_reverse(ldb_buffer_t *z, const ldb_slice_t *x) {
   const uint8_t *xp = x->data;
   size_t xn = x->size;
   uint8_t *zp;
 
-  zp = rdb_buffer_resize(z, xn);
+  zp = ldb_buffer_resize(z, xn);
 
   xp += xn;
 
@@ -54,68 +54,68 @@ slice_reverse(rdb_buffer_t *z, const rdb_slice_t *x) {
 }
 
 static int
-rev_compare(const rdb_comparator_t *cmp,
-            const rdb_slice_t *x,
-            const rdb_slice_t *y) {
-  rdb_buffer_t a, b;
+rev_compare(const ldb_comparator_t *cmp,
+            const ldb_slice_t *x,
+            const ldb_slice_t *y) {
+  ldb_buffer_t a, b;
   int r;
 
   (void)cmp;
 
-  rdb_buffer_init(&a);
-  rdb_buffer_init(&b);
+  ldb_buffer_init(&a);
+  ldb_buffer_init(&b);
 
   slice_reverse(&a, x);
   slice_reverse(&b, y);
 
-  r = rdb_compare(rdb_bytewise_comparator, &a, &b);
+  r = ldb_compare(ldb_bytewise_comparator, &a, &b);
 
-  rdb_buffer_clear(&a);
-  rdb_buffer_clear(&b);
+  ldb_buffer_clear(&a);
+  ldb_buffer_clear(&b);
 
   return r;
 }
 
 static void
-rev_shortest_separator(const rdb_comparator_t *cmp,
-                       rdb_buffer_t *start,
-                       const rdb_slice_t *limit) {
-  rdb_buffer_t s, l;
+rev_shortest_separator(const ldb_comparator_t *cmp,
+                       ldb_buffer_t *start,
+                       const ldb_slice_t *limit) {
+  ldb_buffer_t s, l;
 
   (void)cmp;
 
-  rdb_buffer_init(&s);
-  rdb_buffer_init(&l);
+  ldb_buffer_init(&s);
+  ldb_buffer_init(&l);
 
   slice_reverse(&s, start);
   slice_reverse(&l, limit);
 
-  rdb_shortest_separator(rdb_bytewise_comparator, &s, &l);
+  ldb_shortest_separator(ldb_bytewise_comparator, &s, &l);
 
   slice_reverse(start, &s);
 
-  rdb_buffer_clear(&s);
-  rdb_buffer_clear(&l);
+  ldb_buffer_clear(&s);
+  ldb_buffer_clear(&l);
 }
 
 static void
-rev_short_successor(const rdb_comparator_t *cmp, rdb_buffer_t *key) {
-  rdb_buffer_t s;
+rev_short_successor(const ldb_comparator_t *cmp, ldb_buffer_t *key) {
+  ldb_buffer_t s;
 
   (void)cmp;
 
-  rdb_buffer_init(&s);
+  ldb_buffer_init(&s);
 
   slice_reverse(&s, key);
 
-  rdb_short_successor(rdb_bytewise_comparator, &s);
+  ldb_short_successor(ldb_bytewise_comparator, &s);
 
   slice_reverse(key, &s);
 
-  rdb_buffer_clear(&s);
+  ldb_buffer_clear(&s);
 }
 
-static const rdb_comparator_t reverse_comparator = {
+static const ldb_comparator_t reverse_comparator = {
   /* .name = */ "leveldb.ReverseBytewiseComparator",
   /* .compare = */ rev_compare,
   /* .shortest_separator = */ rev_shortest_separator,
@@ -125,23 +125,23 @@ static const rdb_comparator_t reverse_comparator = {
 };
 
 static void
-cmp_increment(const rdb_comparator_t *cmp, rdb_buffer_t *key) {
-  if (cmp == rdb_bytewise_comparator) {
-    rdb_buffer_push(key, '\0');
+cmp_increment(const ldb_comparator_t *cmp, ldb_buffer_t *key) {
+  if (cmp == ldb_bytewise_comparator) {
+    ldb_buffer_push(key, '\0');
   } else {
-    rdb_buffer_t rev;
+    ldb_buffer_t rev;
 
     ASSERT(cmp == &reverse_comparator);
 
-    rdb_buffer_init(&rev);
+    ldb_buffer_init(&rev);
 
     slice_reverse(&rev, key);
 
-    rdb_buffer_push(&rev, '\0');
+    ldb_buffer_push(&rev, '\0');
 
     slice_reverse(key, &rev);
 
-    rdb_buffer_clear(&rev);
+    ldb_buffer_clear(&rev);
   }
 }
 
@@ -151,20 +151,20 @@ cmp_increment(const rdb_comparator_t *cmp, rdb_buffer_t *key) {
 
 static int
 map_compare(rb_val_t x, rb_val_t y, void *arg) {
-  const rdb_comparator_t *cmp = arg;
-  rdb_buffer_t *a = x.p;
-  rdb_buffer_t *b = y.p;
+  const ldb_comparator_t *cmp = arg;
+  ldb_buffer_t *a = x.p;
+  ldb_buffer_t *b = y.p;
 
-  return rdb_compare(cmp, a, b);
+  return ldb_compare(cmp, a, b);
 }
 
 static void
 map_clear(rb_node_t *node) {
-  rdb_buffer_clear(node->key.p);
-  rdb_buffer_clear(node->value.p);
+  ldb_buffer_clear(node->key.p);
+  ldb_buffer_clear(node->value.p);
 
-  rdb_free(node->key.p);
-  rdb_free(node->value.p);
+  ldb_free(node->key.p);
+  ldb_free(node->value.p);
 }
 
 /*
@@ -187,17 +187,17 @@ struct ctortbl_s {
   void (*clear)(void *ctor);
   /* Construct the data structure from the data in "data". */
   int (*finish)(void *ctor,
-                const rdb_dbopt_t *options,
+                const ldb_dbopt_t *options,
                 const rb_map_t *data);
-  rdb_iter_t *(*iterator)(const void *ctor);
-  rdb_t *(*db)(const void *ctor);
+  ldb_iter_t *(*iterator)(const void *ctor);
+  ldb_t *(*db)(const void *ctor);
 };
 
 static void
 ctor_init(ctor_t *c,
           void *ctor,
           const ctortbl_t *tbl,
-          const rdb_comparator_t *cmp) {
+          const ldb_comparator_t *cmp) {
   c->ptr = ctor;
   c->table = tbl;
   rb_map_init(&c->data, map_compare, (void *)cmp);
@@ -207,12 +207,12 @@ static void
 ctor_clear(ctor_t *c) {
   c->table->clear(c->ptr);
   rb_map_clear(&c->data, map_clear);
-  rdb_free(c->ptr);
+  ldb_free(c->ptr);
 }
 
 static ctor_t *
-ctor_create(void *ctor, const ctortbl_t *tbl, const rdb_comparator_t *cmp) {
-  ctor_t *c = rdb_malloc(sizeof(ctor_t));
+ctor_create(void *ctor, const ctortbl_t *tbl, const ldb_comparator_t *cmp) {
+  ctor_t *c = ldb_malloc(sizeof(ctor_t));
   ctor_init(c, ctor, tbl, cmp);
   return c;
 }
@@ -220,7 +220,7 @@ ctor_create(void *ctor, const ctortbl_t *tbl, const rdb_comparator_t *cmp) {
 static void
 ctor_destroy(ctor_t *c) {
   ctor_clear(c);
-  rdb_free(c);
+  ldb_free(c);
 }
 
 #define CTOR_FUNCTIONS(name)                                   \
@@ -232,17 +232,17 @@ name ## _clear_wrapped(void *ctor) {                           \
                                                                \
 static int                                                     \
 name ## _finish_wrapped(void *ctor,                            \
-                        const rdb_dbopt_t *options,            \
+                        const ldb_dbopt_t *options,            \
                         const rb_map_t *data) {                \
   return name ## _finish((name ## _t *)ctor, options, data);   \
 }                                                              \
                                                                \
-static rdb_iter_t *                                            \
+static ldb_iter_t *                                            \
 name ## _iterator_wrapped(const void *ctor) {                  \
   return name ## _iterator((const name ## _t *)ctor);          \
 }                                                              \
                                                                \
-static rdb_t *                                                 \
+static ldb_t *                                                 \
 name ## _db_wrapped(const void *ctor) {                        \
   return name ## _db((const name ## _t *)ctor);                \
 }                                                              \
@@ -255,23 +255,23 @@ static const ctortbl_t name ## _table = {                      \
 }
 
 static void
-ctor_add(ctor_t *c, const rdb_slice_t *key, const rdb_slice_t *value) {
-  rdb_buffer_t *k;
-  rdb_buffer_t *v;
+ctor_add(ctor_t *c, const ldb_slice_t *key, const ldb_slice_t *value) {
+  ldb_buffer_t *k;
+  ldb_buffer_t *v;
 
   v = rb_map_get(&c->data, key);
 
   if (v != NULL) {
-    rdb_buffer_copy(v, value);
+    ldb_buffer_copy(v, value);
   } else {
-    k = rdb_malloc(sizeof(rdb_buffer_t));
-    v = rdb_malloc(sizeof(rdb_buffer_t));
+    k = ldb_malloc(sizeof(ldb_buffer_t));
+    v = ldb_malloc(sizeof(ldb_buffer_t));
 
-    rdb_buffer_init(k);
-    rdb_buffer_init(v);
+    ldb_buffer_init(k);
+    ldb_buffer_init(v);
 
-    rdb_buffer_copy(k, key);
-    rdb_buffer_copy(v, value);
+    ldb_buffer_copy(k, key);
+    ldb_buffer_copy(v, value);
 
     ASSERT(rb_map_put(&c->data, k, v));
   }
@@ -279,8 +279,8 @@ ctor_add(ctor_t *c, const rdb_slice_t *key, const rdb_slice_t *value) {
 
 static void
 ctor_add_str(ctor_t *c, const char *key, const char *value) {
-  rdb_slice_t k = rdb_string(key);
-  rdb_slice_t v = rdb_string(value);
+  ldb_slice_t k = ldb_string(key);
+  ldb_slice_t v = ldb_string(value);
 
   ctor_add(c, &k, &v);
 }
@@ -289,18 +289,18 @@ ctor_add_str(ctor_t *c, const char *key, const char *value) {
    been added so far. Returns the keys in sorted order in "*keys"
    and stores the key/value pairs in "*kvmap" */
 static void
-ctor_finish(ctor_t *c, const rdb_dbopt_t *options, rdb_vector_t *keys) {
+ctor_finish(ctor_t *c, const ldb_dbopt_t *options, ldb_vector_t *keys) {
   void *key;
   int rc;
 
   ASSERT(keys->length == 0);
 
   rb_map_keys(&c->data, key)
-    rdb_vector_push(keys, key);
+    ldb_vector_push(keys, key);
 
   rc = c->table->finish(c->ptr, options, &c->data);
 
-  ASSERT(rc == RDB_OK);
+  ASSERT(rc == LDB_OK);
 }
 
 #define ctor_iterator(ctor) (ctor)->table->iterator((ctor)->ptr)
@@ -311,69 +311,69 @@ ctor_finish(ctor_t *c, const rdb_dbopt_t *options, rdb_vector_t *keys) {
  */
 
 typedef struct blockctor_s {
-  const rdb_comparator_t *comparator;
-  rdb_buffer_t data;
-  rdb_block_t *block;
+  const ldb_comparator_t *comparator;
+  ldb_buffer_t data;
+  ldb_block_t *block;
 } blockctor_t;
 
 static void
-blockctor_init(blockctor_t *c, const rdb_comparator_t *cmp) {
+blockctor_init(blockctor_t *c, const ldb_comparator_t *cmp) {
   c->comparator = cmp;
 
-  rdb_buffer_init(&c->data);
+  ldb_buffer_init(&c->data);
 
   c->block = NULL;
 }
 
 static void
 blockctor_clear(blockctor_t *c) {
-  rdb_buffer_clear(&c->data);
+  ldb_buffer_clear(&c->data);
 
   if (c->block != NULL)
-    rdb_block_destroy(c->block);
+    ldb_block_destroy(c->block);
 }
 
 static int
 blockctor_finish(blockctor_t *c,
-                 const rdb_dbopt_t *options,
+                 const ldb_dbopt_t *options,
                  const rb_map_t *data) {
-  rdb_blockcontents_t contents;
-  rdb_blockbuilder_t bb;
+  ldb_blockcontents_t contents;
+  ldb_blockbuilder_t bb;
   void *key, *value;
-  rdb_slice_t ret;
+  ldb_slice_t ret;
 
   if (c->block != NULL)
-    rdb_block_destroy(c->block);
+    ldb_block_destroy(c->block);
 
   c->block = NULL;
 
-  rdb_blockbuilder_init(&bb, options);
+  ldb_blockbuilder_init(&bb, options);
 
   rb_map_iterate(data, key, value)
-    rdb_blockbuilder_add(&bb, key, value);
+    ldb_blockbuilder_add(&bb, key, value);
 
   /* Open the block. */
-  ret = rdb_blockbuilder_finish(&bb);
-  rdb_buffer_copy(&c->data, &ret);
+  ret = ldb_blockbuilder_finish(&bb);
+  ldb_buffer_copy(&c->data, &ret);
 
   contents.data = c->data;
   contents.cachable = 0;
   contents.heap_allocated = 0;
 
-  c->block = rdb_block_create(&contents);
+  c->block = ldb_block_create(&contents);
 
-  rdb_blockbuilder_clear(&bb);
+  ldb_blockbuilder_clear(&bb);
 
-  return RDB_OK;
+  return LDB_OK;
 }
 
-static rdb_iter_t *
+static ldb_iter_t *
 blockctor_iterator(const blockctor_t *c) {
   ASSERT(c->block != NULL);
-  return rdb_blockiter_create(c->block, c->comparator);
+  return ldb_blockiter_create(c->block, c->comparator);
 }
 
-static rdb_t *
+static ldb_t *
 blockctor_db(const blockctor_t *c) {
   (void)c;
   return NULL;
@@ -382,8 +382,8 @@ blockctor_db(const blockctor_t *c) {
 CTOR_FUNCTIONS(blockctor);
 
 static ctor_t *
-blockctor_create(const rdb_comparator_t *cmp) {
-  blockctor_t *c = rdb_malloc(sizeof(blockctor_t));
+blockctor_create(const ldb_comparator_t *cmp) {
+  blockctor_t *c = ldb_malloc(sizeof(blockctor_t));
 
   blockctor_init(c, cmp);
 
@@ -395,16 +395,16 @@ blockctor_create(const rdb_comparator_t *cmp) {
  */
 
 typedef struct tablector_s {
-  char path[RDB_PATH_MAX];
-  rdb_rfile_t *source;
-  rdb_table_t *table;
+  char path[LDB_PATH_MAX];
+  ldb_rfile_t *source;
+  ldb_table_t *table;
 } tablector_t;
 
 static void
 tablector_init(tablector_t *c) {
-  ASSERT(rdb_test_filename(c->path, sizeof(c->path), "test_table.ldb"));
+  ASSERT(ldb_test_filename(c->path, sizeof(c->path), "test_table.ldb"));
 
-  rdb_remove_file(c->path);
+  ldb_remove_file(c->path);
 
   c->source = NULL;
   c->table = NULL;
@@ -413,12 +413,12 @@ tablector_init(tablector_t *c) {
 static void
 tablector_clear(tablector_t *c) {
   if (c->table != NULL)
-    rdb_table_destroy(c->table);
+    ldb_table_destroy(c->table);
 
   if (c->source != NULL)
-    rdb_rfile_destroy(c->source);
+    ldb_rfile_destroy(c->source);
 
-  rdb_remove_file(c->path);
+  ldb_remove_file(c->path);
 
   c->table = NULL;
   c->source = NULL;
@@ -426,50 +426,50 @@ tablector_clear(tablector_t *c) {
 
 static int
 tablector_finish(tablector_t *c,
-                 const rdb_dbopt_t *options,
+                 const ldb_dbopt_t *options,
                  const rb_map_t *data) {
-  rdb_dbopt_t table_options = *rdb_dbopt_default;
-  rdb_tablebuilder_t *tb;
-  rdb_wfile_t *sink;
+  ldb_dbopt_t table_options = *ldb_dbopt_default;
+  ldb_tablebuilder_t *tb;
+  ldb_wfile_t *sink;
   void *key, *value;
   uint64_t fsize;
 
   tablector_clear(c);
 
-  ASSERT(rdb_truncfile_create(c->path, &sink) == RDB_OK);
+  ASSERT(ldb_truncfile_create(c->path, &sink) == LDB_OK);
 
-  tb = rdb_tablebuilder_create(options, sink);
+  tb = ldb_tablebuilder_create(options, sink);
 
   rb_map_iterate(data, key, value) {
-    rdb_tablebuilder_add(tb, key, value);
+    ldb_tablebuilder_add(tb, key, value);
 
-    ASSERT(rdb_tablebuilder_ok(tb));
+    ASSERT(ldb_tablebuilder_ok(tb));
   }
 
-  ASSERT(rdb_tablebuilder_finish(tb) == RDB_OK);
-  ASSERT(rdb_wfile_close(sink) == RDB_OK);
+  ASSERT(ldb_tablebuilder_finish(tb) == LDB_OK);
+  ASSERT(ldb_wfile_close(sink) == LDB_OK);
 
-  rdb_wfile_destroy(sink);
+  ldb_wfile_destroy(sink);
 
-  ASSERT(rdb_get_file_size(c->path, &fsize) == RDB_OK);
-  ASSERT(fsize == rdb_tablebuilder_file_size(tb));
+  ASSERT(ldb_get_file_size(c->path, &fsize) == LDB_OK);
+  ASSERT(fsize == ldb_tablebuilder_file_size(tb));
 
-  rdb_tablebuilder_destroy(tb);
+  ldb_tablebuilder_destroy(tb);
 
   /* Open the table. */
-  ASSERT(rdb_seqfile_create(c->path, &c->source) == RDB_OK);
+  ASSERT(ldb_seqfile_create(c->path, &c->source) == LDB_OK);
 
   table_options.comparator = options->comparator;
 
-  return rdb_table_open(&table_options, c->source, fsize, &c->table);
+  return ldb_table_open(&table_options, c->source, fsize, &c->table);
 }
 
-static rdb_iter_t *
+static ldb_iter_t *
 tablector_iterator(const tablector_t *c) {
-  return rdb_tableiter_create(c->table, rdb_readopt_default);
+  return ldb_tableiter_create(c->table, ldb_readopt_default);
 }
 
-static rdb_t *
+static ldb_t *
 tablector_db(const tablector_t *c) {
   (void)c;
   return NULL;
@@ -478,16 +478,16 @@ tablector_db(const tablector_t *c) {
 static uint64_t
 ctor_approximate_offsetof(const ctor_t *ctor, const char *key) {
   const tablector_t *c = ctor->ptr;
-  rdb_slice_t k = rdb_string(key);
+  ldb_slice_t k = ldb_string(key);
 
-  return rdb_table_approximate_offsetof(c->table, &k);
+  return ldb_table_approximate_offsetof(c->table, &k);
 }
 
 CTOR_FUNCTIONS(tablector);
 
 static ctor_t *
-tablector_create(const rdb_comparator_t *cmp) {
-  tablector_t *c = rdb_malloc(sizeof(tablector_t));
+tablector_create(const ldb_comparator_t *cmp) {
+  tablector_t *c = ldb_malloc(sizeof(tablector_t));
 
   tablector_init(c);
 
@@ -500,100 +500,100 @@ tablector_create(const rdb_comparator_t *cmp) {
 
 /* A helper class that converts internal format keys into user keys. */
 typedef struct conviter_s {
-  rdb_iter_t *it;
+  ldb_iter_t *it;
   int status;
 } conviter_t;
 
 static void
-conviter_init(conviter_t *iter, rdb_iter_t *it) {
+conviter_init(conviter_t *iter, ldb_iter_t *it) {
   iter->it = it;
-  iter->status = RDB_OK;
+  iter->status = LDB_OK;
 }
 
 static void
 conviter_clear(conviter_t *iter) {
-  rdb_iter_destroy(iter->it);
+  ldb_iter_destroy(iter->it);
 }
 
 static int
 conviter_valid(const conviter_t *iter) {
-  return rdb_iter_valid(iter->it);
+  return ldb_iter_valid(iter->it);
 }
 
 static void
-conviter_seek(conviter_t *iter, const rdb_slice_t *target) {
-  rdb_buffer_t encoded;
-  rdb_pkey_t ikey;
+conviter_seek(conviter_t *iter, const ldb_slice_t *target) {
+  ldb_buffer_t encoded;
+  ldb_pkey_t ikey;
 
-  rdb_buffer_init(&encoded);
+  ldb_buffer_init(&encoded);
 
-  rdb_pkey_init(&ikey, target, RDB_MAX_SEQUENCE, RDB_TYPE_VALUE);
-  rdb_pkey_export(&encoded, &ikey);
+  ldb_pkey_init(&ikey, target, LDB_MAX_SEQUENCE, LDB_TYPE_VALUE);
+  ldb_pkey_export(&encoded, &ikey);
 
-  rdb_iter_seek(iter->it, &encoded);
+  ldb_iter_seek(iter->it, &encoded);
 
-  rdb_buffer_clear(&encoded);
+  ldb_buffer_clear(&encoded);
 }
 
 static void
 conviter_seek_first(conviter_t *iter) {
-  rdb_iter_seek_first(iter->it);
+  ldb_iter_seek_first(iter->it);
 }
 
 static void
 conviter_seek_last(conviter_t *iter) {
-  rdb_iter_seek_last(iter->it);
+  ldb_iter_seek_last(iter->it);
 }
 
 static void
 conviter_next(conviter_t *iter) {
-  rdb_iter_next(iter->it);
+  ldb_iter_next(iter->it);
 }
 
 static void
 conviter_prev(conviter_t *iter) {
-  rdb_iter_prev(iter->it);
+  ldb_iter_prev(iter->it);
 }
 
-static rdb_slice_t
+static ldb_slice_t
 conviter_key(const conviter_t *iter) {
-  rdb_pkey_t key;
-  rdb_slice_t k;
+  ldb_pkey_t key;
+  ldb_slice_t k;
 
   ASSERT(conviter_valid(iter));
 
-  k = rdb_iter_key(iter->it);
+  k = ldb_iter_key(iter->it);
 
-  if (!rdb_pkey_import(&key, &k)) {
-    ((conviter_t *)iter)->status = RDB_CORRUPTION;
-    return rdb_string("corrupted key");
+  if (!ldb_pkey_import(&key, &k)) {
+    ((conviter_t *)iter)->status = LDB_CORRUPTION;
+    return ldb_string("corrupted key");
   }
 
   return key.user_key;
 }
 
-static rdb_slice_t
+static ldb_slice_t
 conviter_value(const conviter_t *iter) {
-  return rdb_iter_value(iter->it);
+  return ldb_iter_value(iter->it);
 }
 
 static int
 conviter_status(const conviter_t *iter) {
-  if (iter->status != RDB_OK)
+  if (iter->status != LDB_OK)
     return iter->status;
 
-  return rdb_iter_status(iter->it);
+  return ldb_iter_status(iter->it);
 }
 
-RDB_ITERATOR_FUNCTIONS(conviter);
+LDB_ITERATOR_FUNCTIONS(conviter);
 
-static rdb_iter_t *
-conviter_create(rdb_iter_t *it) {
-  conviter_t *iter = rdb_malloc(sizeof(conviter_t));
+static ldb_iter_t *
+conviter_create(ldb_iter_t *it) {
+  conviter_t *iter = ldb_malloc(sizeof(conviter_t));
 
   conviter_init(iter, it);
 
-  return rdb_iter_create(iter, &conviter_table);
+  return ldb_iter_create(iter, &conviter_table);
 }
 
 /*
@@ -601,53 +601,53 @@ conviter_create(rdb_iter_t *it) {
  */
 
 typedef struct memctor_s {
-  rdb_comparator_t icmp;
-  rdb_memtable_t *mt;
+  ldb_comparator_t icmp;
+  ldb_memtable_t *mt;
 } memctor_t;
 
 static void
-memctor_init(memctor_t *c, const rdb_comparator_t *cmp) {
-  rdb_ikc_init(&c->icmp, cmp);
+memctor_init(memctor_t *c, const ldb_comparator_t *cmp) {
+  ldb_ikc_init(&c->icmp, cmp);
 
-  c->mt = rdb_memtable_create(&c->icmp);
+  c->mt = ldb_memtable_create(&c->icmp);
 
-  rdb_memtable_ref(c->mt);
+  ldb_memtable_ref(c->mt);
 }
 
 static void
 memctor_clear(memctor_t *c) {
-  rdb_memtable_unref(c->mt);
+  ldb_memtable_unref(c->mt);
 }
 
 static int
 memctor_finish(memctor_t *c,
-               const rdb_dbopt_t *options,
+               const ldb_dbopt_t *options,
                const rb_map_t *data) {
   void *key, *value;
   int seq = 1;
 
   (void)options;
 
-  rdb_memtable_unref(c->mt);
+  ldb_memtable_unref(c->mt);
 
-  c->mt = rdb_memtable_create(&c->icmp);
+  c->mt = ldb_memtable_create(&c->icmp);
 
-  rdb_memtable_ref(c->mt);
+  ldb_memtable_ref(c->mt);
 
   rb_map_iterate(data, key, value) {
-    rdb_memtable_add(c->mt, seq, RDB_TYPE_VALUE, key, value);
+    ldb_memtable_add(c->mt, seq, LDB_TYPE_VALUE, key, value);
     seq++;
   }
 
-  return RDB_OK;
+  return LDB_OK;
 }
 
-static rdb_iter_t *
+static ldb_iter_t *
 memctor_iterator(const memctor_t *c) {
-  return conviter_create(rdb_memiter_create(c->mt));
+  return conviter_create(ldb_memiter_create(c->mt));
 }
 
-static rdb_t *
+static ldb_t *
 memctor_db(const memctor_t *c) {
   (void)c;
   return NULL;
@@ -656,8 +656,8 @@ memctor_db(const memctor_t *c) {
 CTOR_FUNCTIONS(memctor);
 
 static ctor_t *
-memctor_create(const rdb_comparator_t *cmp) {
-  memctor_t *c = rdb_malloc(sizeof(memctor_t));
+memctor_create(const ldb_comparator_t *cmp) {
+  memctor_t *c = ldb_malloc(sizeof(memctor_t));
 
   memctor_init(c, cmp);
 
@@ -669,34 +669,34 @@ memctor_create(const rdb_comparator_t *cmp) {
  */
 
 typedef struct dbctor_s {
-  char dbname[RDB_PATH_MAX];
-  const rdb_comparator_t *cmp;
-  rdb_t *db;
+  char dbname[LDB_PATH_MAX];
+  const ldb_comparator_t *cmp;
+  ldb_t *db;
 } dbctor_t;
 
 static void
 dbctor_newdb(dbctor_t *c) {
-  rdb_dbopt_t options = *rdb_dbopt_default;
+  ldb_dbopt_t options = *ldb_dbopt_default;
   int rc;
 
   options.comparator = c->cmp;
 
-  rc = rdb_destroy_db(c->dbname, &options);
+  rc = ldb_destroy_db(c->dbname, &options);
 
-  ASSERT(rc == RDB_OK);
+  ASSERT(rc == LDB_OK);
 
   options.create_if_missing = 1;
   options.error_if_exists = 1;
   options.write_buffer_size = 10000; /* Something small to force merging. */
 
-  rc = rdb_open(c->dbname, &options, &c->db);
+  rc = ldb_open(c->dbname, &options, &c->db);
 
-  ASSERT(rc == RDB_OK);
+  ASSERT(rc == LDB_OK);
 }
 
 static void
-dbctor_init(dbctor_t *c, const rdb_comparator_t *cmp) {
-  ASSERT(rdb_test_filename(c->dbname, sizeof(c->dbname), "table_testdb"));
+dbctor_init(dbctor_t *c, const ldb_comparator_t *cmp) {
+  ASSERT(ldb_test_filename(c->dbname, sizeof(c->dbname), "table_testdb"));
 
   c->cmp = cmp;
   c->db = NULL;
@@ -706,44 +706,44 @@ dbctor_init(dbctor_t *c, const rdb_comparator_t *cmp) {
 
 static void
 dbctor_clear(dbctor_t *c) {
-  rdb_close(c->db);
-  rdb_destroy_db(c->dbname, 0);
+  ldb_close(c->db);
+  ldb_destroy_db(c->dbname, 0);
 }
 
 static int
 dbctor_finish(dbctor_t *c,
-              const rdb_dbopt_t *options,
+              const ldb_dbopt_t *options,
               const rb_map_t *data) {
   void *key, *value;
 
   (void)options;
 
-  rdb_close(c->db);
+  ldb_close(c->db);
 
   c->db = NULL;
 
   dbctor_newdb(c);
 
   rb_map_iterate(data, key, value) {
-    rdb_batch_t batch;
+    ldb_batch_t batch;
 
-    rdb_batch_init(&batch);
-    rdb_batch_put(&batch, key, value);
+    ldb_batch_init(&batch);
+    ldb_batch_put(&batch, key, value);
 
-    ASSERT(rdb_write(c->db, &batch, 0) == RDB_OK);
+    ASSERT(ldb_write(c->db, &batch, 0) == LDB_OK);
 
-    rdb_batch_clear(&batch);
+    ldb_batch_clear(&batch);
   }
 
-  return RDB_OK;
+  return LDB_OK;
 }
 
-static rdb_iter_t *
+static ldb_iter_t *
 dbctor_iterator(const dbctor_t *c) {
-  return rdb_iterator(c->db, rdb_readopt_default);
+  return ldb_iterator(c->db, ldb_readopt_default);
 }
 
-static rdb_t *
+static ldb_t *
 dbctor_db(const dbctor_t *c) {
   return c->db;
 }
@@ -751,8 +751,8 @@ dbctor_db(const dbctor_t *c) {
 CTOR_FUNCTIONS(dbctor);
 
 static ctor_t *
-dbctor_create(const rdb_comparator_t *cmp) {
-  dbctor_t *c = rdb_malloc(sizeof(dbctor_t));
+dbctor_create(const ldb_comparator_t *cmp) {
+  dbctor_t *c = ldb_malloc(sizeof(dbctor_t));
 
   dbctor_init(c, cmp);
 
@@ -802,14 +802,14 @@ static const struct test_args test_arg_list[] = {
  */
 
 typedef struct harness {
-  rdb_dbopt_t options;
+  ldb_dbopt_t options;
   ctor_t *ctor;
 } harness_t;
 
 static void
 harness_init(harness_t *h) {
-  h->options = *rdb_dbopt_default;
-  h->options.comparator = rdb_bytewise_comparator;
+  h->options = *ldb_dbopt_default;
+  h->options.comparator = ldb_bytewise_comparator;
   h->ctor = NULL;
 }
 
@@ -823,7 +823,7 @@ harness_reset(harness_t *h, const struct test_args *args) {
   if (h->ctor != NULL)
     ctor_destroy(h->ctor);
 
-  h->options = *rdb_dbopt_default;
+  h->options = *ldb_dbopt_default;
   h->ctor = NULL;
 
   h->options.block_restart_interval = args->restart_interval;
@@ -835,7 +835,7 @@ harness_reset(harness_t *h, const struct test_args *args) {
   if (args->reverse_compare)
     h->options.comparator = &reverse_comparator;
   else
-    h->options.comparator = rdb_bytewise_comparator;
+    h->options.comparator = ldb_bytewise_comparator;
 
   switch (args->type) {
     case TABLE_TEST:
@@ -854,7 +854,7 @@ harness_reset(harness_t *h, const struct test_args *args) {
 }
 
 static void
-harness_add(harness_t *h, const rdb_slice_t *key, const rdb_slice_t *value) {
+harness_add(harness_t *h, const ldb_slice_t *key, const ldb_slice_t *value) {
   ctor_add(h->ctor, key, value);
 }
 
@@ -865,21 +865,21 @@ harness_add_str(harness_t *h, const char *key, const char *value) {
 
 static void
 harness_random_key(harness_t *h,
-                   rdb_buffer_t *result,
-                   rdb_rand_t *rnd,
-                   const rdb_vector_t *keys) {
+                   ldb_buffer_t *result,
+                   ldb_rand_t *rnd,
+                   const ldb_vector_t *keys) {
   size_t index;
 
   if (keys->length == 0) {
-    rdb_buffer_set_str(result, "foo");
+    ldb_buffer_set_str(result, "foo");
     return;
   }
 
-  index = rdb_rand_uniform(rnd, keys->length);
+  index = ldb_rand_uniform(rnd, keys->length);
 
-  rdb_buffer_copy(result, keys->items[index]);
+  ldb_buffer_copy(result, keys->items[index]);
 
-  switch (rdb_rand_uniform(rnd, 3)) {
+  switch (ldb_rand_uniform(rnd, 3)) {
     case 0:
       /* Return an existing key. */
       break;
@@ -898,91 +898,91 @@ harness_random_key(harness_t *h,
 }
 
 static int
-iter_equal(rdb_iter_t *iter, rb_iter_t *it) {
-  rdb_slice_t k1, v1;
+iter_equal(ldb_iter_t *iter, rb_iter_t *it) {
+  ldb_slice_t k1, v1;
   rb_val_t k2, v2;
 
-  if (!rdb_iter_valid(iter))
+  if (!ldb_iter_valid(iter))
     return !rb_iter_valid(it);
 
   if (!rb_iter_valid(it))
-    return !rdb_iter_valid(iter);
+    return !ldb_iter_valid(iter);
 
-  k1 = rdb_iter_key(iter);
-  v1 = rdb_iter_value(iter);
+  k1 = ldb_iter_key(iter);
+  v1 = ldb_iter_value(iter);
 
   k2 = rb_iter_key(it);
   v2 = rb_iter_value(it);
 
-  return rdb_buffer_equal(&k1, k2.p)
-      && rdb_buffer_equal(&v1, v2.p);
+  return ldb_buffer_equal(&k1, k2.p)
+      && ldb_buffer_equal(&v1, v2.p);
 }
 
 static void
 harness_test_forward_scan(harness_t *h,
-                          const rdb_vector_t *keys,
+                          const ldb_vector_t *keys,
                           const rb_map_t *data) {
-  rdb_iter_t *iter = ctor_iterator(h->ctor);
+  ldb_iter_t *iter = ctor_iterator(h->ctor);
   rb_iter_t it = rb_tree_iterator(data);
 
   (void)keys;
 
-  ASSERT(!rdb_iter_valid(iter));
+  ASSERT(!ldb_iter_valid(iter));
 
-  rdb_iter_seek_first(iter);
+  ldb_iter_seek_first(iter);
   rb_iter_seek_first(&it);
 
   while (rb_iter_valid(&it)) {
-    ASSERT(rdb_iter_valid(iter));
+    ASSERT(ldb_iter_valid(iter));
     ASSERT(iter_equal(iter, &it));
 
-    rdb_iter_next(iter);
+    ldb_iter_next(iter);
     rb_iter_next(&it);
   }
 
-  ASSERT(!rdb_iter_valid(iter));
+  ASSERT(!ldb_iter_valid(iter));
 
-  rdb_iter_destroy(iter);
+  ldb_iter_destroy(iter);
 }
 
 static void
 harness_test_backward_scan(harness_t *h,
-                           const rdb_vector_t *keys,
+                           const ldb_vector_t *keys,
                            const rb_map_t *data) {
-  rdb_iter_t *iter = ctor_iterator(h->ctor);
+  ldb_iter_t *iter = ctor_iterator(h->ctor);
   rb_iter_t it = rb_tree_iterator(data);
 
   (void)keys;
 
-  ASSERT(!rdb_iter_valid(iter));
+  ASSERT(!ldb_iter_valid(iter));
 
-  rdb_iter_seek_last(iter);
+  ldb_iter_seek_last(iter);
   rb_iter_seek_last(&it);
 
   while (rb_iter_valid(&it)) {
-    ASSERT(rdb_iter_valid(iter));
+    ASSERT(ldb_iter_valid(iter));
     ASSERT(iter_equal(iter, &it));
 
-    rdb_iter_prev(iter);
+    ldb_iter_prev(iter);
     rb_iter_prev(&it);
   }
 
-  ASSERT(!rdb_iter_valid(iter));
+  ASSERT(!ldb_iter_valid(iter));
 
-  rdb_iter_destroy(iter);
+  ldb_iter_destroy(iter);
 }
 
 static void
 harness_test_random_access(harness_t *h,
-                           rdb_rand_t *rnd,
-                           const rdb_vector_t *keys,
+                           ldb_rand_t *rnd,
+                           const ldb_vector_t *keys,
                            const rb_map_t *data) {
   static const int verbose = 0;
-  rdb_iter_t *iter = ctor_iterator(h->ctor);
+  ldb_iter_t *iter = ctor_iterator(h->ctor);
   rb_iter_t it = rb_tree_iterator(data);
   int i;
 
-  ASSERT(!rdb_iter_valid(iter));
+  ASSERT(!ldb_iter_valid(iter));
 
   rb_iter_seek_first(&it);
 
@@ -990,15 +990,15 @@ harness_test_random_access(harness_t *h,
     fprintf(stderr, "---\n");
 
   for (i = 0; i < 200; i++) {
-    const int toss = rdb_rand_uniform(rnd, 5);
+    const int toss = ldb_rand_uniform(rnd, 5);
 
     switch (toss) {
       case 0: {
-        if (rdb_iter_valid(iter)) {
+        if (ldb_iter_valid(iter)) {
           if (verbose)
             fprintf(stderr, "Next\n");
 
-          rdb_iter_next(iter);
+          ldb_iter_next(iter);
           rb_iter_next(&it);
 
           ASSERT(iter_equal(iter, &it));
@@ -1011,7 +1011,7 @@ harness_test_random_access(harness_t *h,
         if (verbose)
           fprintf(stderr, "SeekToFirst\n");
 
-        rdb_iter_seek_first(iter);
+        ldb_iter_seek_first(iter);
         rb_iter_seek_first(&it);
 
         ASSERT(iter_equal(iter, &it));
@@ -1020,7 +1020,7 @@ harness_test_random_access(harness_t *h,
       }
 
       case 2: {
-        rdb_buffer_t key;
+        ldb_buffer_t key;
         rb_val_t k;
 
         k.p = &key;
@@ -1028,26 +1028,26 @@ harness_test_random_access(harness_t *h,
         if (verbose)
           fprintf(stderr, "Seek\n");
 
-        rdb_buffer_init(&key);
+        ldb_buffer_init(&key);
 
         harness_random_key(h, &key, rnd, keys);
 
-        rdb_iter_seek(iter, &key);
+        ldb_iter_seek(iter, &key);
         rb_iter_seek(&it, k);
 
         ASSERT(iter_equal(iter, &it));
 
-        rdb_buffer_clear(&key);
+        ldb_buffer_clear(&key);
 
         break;
       }
 
       case 3: {
-        if (rdb_iter_valid(iter)) {
+        if (ldb_iter_valid(iter)) {
           if (verbose)
             fprintf(stderr, "Prev\n");
 
-          rdb_iter_prev(iter);
+          ldb_iter_prev(iter);
           rb_iter_prev(&it);
 
           ASSERT(iter_equal(iter, &it));
@@ -1060,7 +1060,7 @@ harness_test_random_access(harness_t *h,
         if (verbose)
           fprintf(stderr, "SeekToLast\n");
 
-        rdb_iter_seek_last(iter);
+        ldb_iter_seek_last(iter);
         rb_iter_seek_last(&it);
 
         ASSERT(iter_equal(iter, &it));
@@ -1070,15 +1070,15 @@ harness_test_random_access(harness_t *h,
     }
   }
 
-  rdb_iter_destroy(iter);
+  ldb_iter_destroy(iter);
 }
 
 static void
-harness_test(harness_t *h, rdb_rand_t *rnd) {
+harness_test(harness_t *h, ldb_rand_t *rnd) {
   rb_map_t *data = &h->ctor->data;
-  rdb_vector_t keys;
+  ldb_vector_t keys;
 
-  rdb_vector_init(&keys);
+  ldb_vector_init(&keys);
 
   ctor_finish(h->ctor, &h->options, &keys);
 
@@ -1086,11 +1086,11 @@ harness_test(harness_t *h, rdb_rand_t *rnd) {
   harness_test_backward_scan(h, &keys, data);
   harness_test_random_access(h, rnd, &keys, data);
 
-  rdb_vector_clear(&keys);
+  ldb_vector_clear(&keys);
   rb_map_clear(data, map_clear);
 }
 
-static rdb_t *
+static ldb_t *
 harness_db(harness_t *h) {
   /* Returns nullptr if not running against a DB. */
   return ctor_db(h->ctor);
@@ -1102,12 +1102,12 @@ harness_db(harness_t *h) {
 
 static void
 test_empty(harness_t *h) {
-  rdb_rand_t rnd;
+  ldb_rand_t rnd;
   int i;
 
   for (i = 0; i < num_test_args; i++) {
     harness_reset(h, &test_arg_list[i]);
-    rdb_rand_init(&rnd, rdb_random_seed() + 1);
+    ldb_rand_init(&rnd, ldb_random_seed() + 1);
     harness_test(h, &rnd);
   }
 }
@@ -1117,47 +1117,47 @@ test_empty(harness_t *h) {
    seems to. */
 static void
 test_zero_restart_points_in_block(void) {
-  rdb_blockcontents_t contents;
-  rdb_block_t block;
-  rdb_iter_t *iter;
-  rdb_slice_t key;
+  ldb_blockcontents_t contents;
+  ldb_block_t block;
+  ldb_iter_t *iter;
+  ldb_slice_t key;
   uint8_t data[4];
 
   memset(data, 0, sizeof(data));
 
-  contents.data = rdb_slice(data, sizeof(data));
+  contents.data = ldb_slice(data, sizeof(data));
   contents.cachable = 0;
   contents.heap_allocated = 0;
 
-  rdb_block_init(&block, &contents);
+  ldb_block_init(&block, &contents);
 
-  iter = rdb_blockiter_create(&block, rdb_bytewise_comparator);
+  iter = ldb_blockiter_create(&block, ldb_bytewise_comparator);
 
-  rdb_iter_seek_first(iter);
+  ldb_iter_seek_first(iter);
 
-  ASSERT(!rdb_iter_valid(iter));
+  ASSERT(!ldb_iter_valid(iter));
 
-  rdb_iter_seek_last(iter);
+  ldb_iter_seek_last(iter);
 
-  ASSERT(!rdb_iter_valid(iter));
+  ASSERT(!ldb_iter_valid(iter));
 
-  key = rdb_string("foo");
-  rdb_iter_seek(iter, &key);
+  key = ldb_string("foo");
+  ldb_iter_seek(iter, &key);
 
-  ASSERT(!rdb_iter_valid(iter));
+  ASSERT(!ldb_iter_valid(iter));
 
-  rdb_iter_destroy(iter);
+  ldb_iter_destroy(iter);
 }
 
 /* Test the empty key. */
 static void
 test_simple_empty_key(harness_t *h) {
-  rdb_rand_t rnd;
+  ldb_rand_t rnd;
   int i;
 
   for (i = 0; i < num_test_args; i++) {
     harness_reset(h, &test_arg_list[i]);
-    rdb_rand_init(&rnd, rdb_random_seed() + 1);
+    ldb_rand_init(&rnd, ldb_random_seed() + 1);
     harness_add_str(h, "", "v");
     harness_test(h, &rnd);
   }
@@ -1165,12 +1165,12 @@ test_simple_empty_key(harness_t *h) {
 
 static void
 test_simple_single(harness_t *h) {
-  rdb_rand_t rnd;
+  ldb_rand_t rnd;
   int i;
 
   for (i = 0; i < num_test_args; i++) {
     harness_reset(h, &test_arg_list[i]);
-    rdb_rand_init(&rnd, rdb_random_seed() + 2);
+    ldb_rand_init(&rnd, ldb_random_seed() + 2);
     harness_add_str(h, "abc", "v");
     harness_test(h, &rnd);
   }
@@ -1178,12 +1178,12 @@ test_simple_single(harness_t *h) {
 
 static void
 test_simple_multi(harness_t *h) {
-  rdb_rand_t rnd;
+  ldb_rand_t rnd;
   int i;
 
   for (i = 0; i < num_test_args; i++) {
     harness_reset(h, &test_arg_list[i]);
-    rdb_rand_init(&rnd, rdb_random_seed() + 3);
+    ldb_rand_init(&rnd, ldb_random_seed() + 3);
     harness_add_str(h, "abc", "v");
     harness_add_str(h, "abcd", "v");
     harness_add_str(h, "ac", "v2");
@@ -1193,12 +1193,12 @@ test_simple_multi(harness_t *h) {
 
 static void
 test_simple_special_key(harness_t *h) {
-  rdb_rand_t rnd;
+  ldb_rand_t rnd;
   int i;
 
   for (i = 0; i < num_test_args; i++) {
     harness_reset(h, &test_arg_list[i]);
-    rdb_rand_init(&rnd, rdb_random_seed() + 4);
+    ldb_rand_init(&rnd, ldb_random_seed() + 4);
     harness_add_str(h, "\xff\xff", "v3");
     harness_test(h, &rnd);
   }
@@ -1207,16 +1207,16 @@ test_simple_special_key(harness_t *h) {
 static void
 test_randomized(harness_t *h) {
   int i, num_entries, e;
-  rdb_buffer_t key, val;
-  rdb_rand_t rnd;
+  ldb_buffer_t key, val;
+  ldb_rand_t rnd;
 
-  rdb_buffer_init(&key);
-  rdb_buffer_init(&val);
+  ldb_buffer_init(&key);
+  ldb_buffer_init(&val);
 
   for (i = 0; i < num_test_args; i++) {
     harness_reset(h, &test_arg_list[i]);
 
-    rdb_rand_init(&rnd, rdb_random_seed() + 5);
+    ldb_rand_init(&rnd, ldb_random_seed() + 5);
 
     for (num_entries = 0; num_entries < 2000;
          num_entries += (num_entries < 50 ? 1 : 200)) {
@@ -1226,8 +1226,8 @@ test_randomized(harness_t *h) {
       }
 
       for (e = 0; e < num_entries; e++) {
-        rdb_random_key(&key, &rnd, rdb_rand_skewed(&rnd, 4));
-        rdb_random_string(&val, &rnd, rdb_rand_skewed(&rnd, 5));
+        ldb_random_key(&key, &rnd, ldb_rand_skewed(&rnd, 4));
+        ldb_random_string(&val, &rnd, ldb_rand_skewed(&rnd, 5));
 
         harness_add(h, &key, &val);
       }
@@ -1236,29 +1236,29 @@ test_randomized(harness_t *h) {
     }
   }
 
-  rdb_buffer_clear(&key);
-  rdb_buffer_clear(&val);
+  ldb_buffer_clear(&key);
+  ldb_buffer_clear(&val);
 }
 
 static void
 test_randomized_long_db(harness_t *h) {
   struct test_args args = {DB_TEST, 0, 16};
   int num_entries = 100000;
-  rdb_buffer_t key, val;
-  rdb_rand_t rnd;
+  ldb_buffer_t key, val;
+  ldb_rand_t rnd;
   int files = 0;
   int e, level;
 
-  rdb_buffer_init(&key);
-  rdb_buffer_init(&val);
+  ldb_buffer_init(&key);
+  ldb_buffer_init(&val);
 
-  rdb_rand_init(&rnd, rdb_random_seed());
+  ldb_rand_init(&rnd, ldb_random_seed());
 
   harness_reset(h, &args);
 
   for (e = 0; e < num_entries; e++) {
-    rdb_random_key(&key, &rnd, rdb_rand_skewed(&rnd, 4));
-    rdb_random_string(&val, &rnd, rdb_rand_skewed(&rnd, 5));
+    ldb_random_key(&key, &rnd, ldb_rand_skewed(&rnd, 4));
+    ldb_random_string(&val, &rnd, ldb_rand_skewed(&rnd, 5));
 
     harness_add(h, &key, &val);
   }
@@ -1266,69 +1266,69 @@ test_randomized_long_db(harness_t *h) {
   harness_test(h, &rnd);
 
   /* We must have created enough data to force merging. */
-  for (level = 0; level < RDB_NUM_LEVELS; level++) {
+  for (level = 0; level < LDB_NUM_LEVELS; level++) {
     char name[100];
     char *value;
 
     sprintf(name, "leveldb.num-files-at-level%d", level);
 
-    ASSERT(rdb_get_property(harness_db(h), name, &value));
+    ASSERT(ldb_get_property(harness_db(h), name, &value));
 
     files += atoi(value);
 
-    rdb_free(value);
+    ldb_free(value);
   }
 
   ASSERT(files > 0);
 
-  rdb_buffer_clear(&key);
-  rdb_buffer_clear(&val);
+  ldb_buffer_clear(&key);
+  ldb_buffer_clear(&val);
 }
 
 static void
 test_memtable_simple(void) {
-  rdb_memtable_t *memtable;
-  rdb_comparator_t icmp;
-  rdb_slice_t key, val;
-  rdb_batch_t batch;
-  rdb_iter_t *iter;
+  ldb_memtable_t *memtable;
+  ldb_comparator_t icmp;
+  ldb_slice_t key, val;
+  ldb_batch_t batch;
+  ldb_iter_t *iter;
   char kbuf[100];
   char vbuf[100];
 
-  rdb_ikc_init(&icmp, rdb_bytewise_comparator);
+  ldb_ikc_init(&icmp, ldb_bytewise_comparator);
 
-  memtable = rdb_memtable_create(&icmp);
+  memtable = ldb_memtable_create(&icmp);
 
-  rdb_memtable_ref(memtable);
+  ldb_memtable_ref(memtable);
 
-  rdb_batch_init(&batch);
-  rdb_batch_set_sequence(&batch, 100);
+  ldb_batch_init(&batch);
+  ldb_batch_set_sequence(&batch, 100);
 
-  key = rdb_string("k1");
-  val = rdb_string("v1");
-  rdb_batch_put(&batch, &key, &val);
+  key = ldb_string("k1");
+  val = ldb_string("v1");
+  ldb_batch_put(&batch, &key, &val);
 
-  key = rdb_string("k2");
-  val = rdb_string("v2");
-  rdb_batch_put(&batch, &key, &val);
+  key = ldb_string("k2");
+  val = ldb_string("v2");
+  ldb_batch_put(&batch, &key, &val);
 
-  key = rdb_string("k3");
-  val = rdb_string("v3");
-  rdb_batch_put(&batch, &key, &val);
+  key = ldb_string("k3");
+  val = ldb_string("v3");
+  ldb_batch_put(&batch, &key, &val);
 
-  key = rdb_string("largekey");
-  val = rdb_string("vlarge");
-  rdb_batch_put(&batch, &key, &val);
+  key = ldb_string("largekey");
+  val = ldb_string("vlarge");
+  ldb_batch_put(&batch, &key, &val);
 
-  ASSERT(rdb_batch_insert_into(&batch, memtable) == RDB_OK);
+  ASSERT(ldb_batch_insert_into(&batch, memtable) == LDB_OK);
 
-  iter = rdb_memiter_create(memtable);
+  iter = ldb_memiter_create(memtable);
 
-  rdb_iter_seek_first(iter);
+  ldb_iter_seek_first(iter);
 
-  while (rdb_iter_valid(iter)) {
-    key = rdb_iter_key(iter);
-    val = rdb_iter_value(iter);
+  while (ldb_iter_valid(iter)) {
+    key = ldb_iter_key(iter);
+    val = ldb_iter_value(iter);
 
     ASSERT(key.size < sizeof(kbuf));
     ASSERT(val.size < sizeof(vbuf));
@@ -1341,12 +1341,12 @@ test_memtable_simple(void) {
 
     fprintf(stderr, "key: '%s' -> '%s'\n", kbuf, vbuf);
 
-    rdb_iter_next(iter);
+    ldb_iter_next(iter);
   }
 
-  rdb_iter_destroy(iter);
-  rdb_memtable_unref(memtable);
-  rdb_batch_clear(&batch);
+  ldb_iter_destroy(iter);
+  ldb_memtable_unref(memtable);
+  ldb_batch_clear(&batch);
 }
 
 static int
@@ -1364,40 +1364,40 @@ check_range(uint64_t val, uint64_t low, uint64_t high) {
 
 static void
 test_approximate_offsetof_plain(void) {
-  ctor_t *c = tablector_create(rdb_bytewise_comparator);
-  rdb_dbopt_t options = *rdb_dbopt_default;
-  uint8_t *buf = rdb_malloc(300000);
-  rdb_slice_t key, val;
-  rdb_vector_t keys;
+  ctor_t *c = tablector_create(ldb_bytewise_comparator);
+  ldb_dbopt_t options = *ldb_dbopt_default;
+  uint8_t *buf = ldb_malloc(300000);
+  ldb_slice_t key, val;
+  ldb_vector_t keys;
 
-  rdb_vector_init(&keys);
+  ldb_vector_init(&keys);
 
   memset(buf, 'x', 300000);
 
   ctor_add_str(c, "k01", "hello");
   ctor_add_str(c, "k02", "hello2");
 
-  key = rdb_string("k03");
-  val = rdb_slice(buf, 10000);
+  key = ldb_string("k03");
+  val = ldb_slice(buf, 10000);
   ctor_add(c, &key, &val);
 
-  key = rdb_string("k04");
-  val = rdb_slice(buf, 200000);
+  key = ldb_string("k04");
+  val = ldb_slice(buf, 200000);
   ctor_add(c, &key, &val);
 
-  key = rdb_string("k05");
-  val = rdb_slice(buf, 300000);
+  key = ldb_string("k05");
+  val = ldb_slice(buf, 300000);
   ctor_add(c, &key, &val);
 
   ctor_add_str(c, "k06", "hello3");
 
-  key = rdb_string("k07");
-  val = rdb_slice(buf, 100000);
+  key = ldb_string("k07");
+  val = ldb_slice(buf, 100000);
   ctor_add(c, &key, &val);
 
   options.block_size = 1024;
-  options.compression = RDB_NO_COMPRESSION;
-  options.comparator = rdb_bytewise_comparator;
+  options.compression = LDB_NO_COMPRESSION;
+  options.comparator = ldb_bytewise_comparator;
 
   ctor_finish(c, &options, &keys);
 
@@ -1413,19 +1413,19 @@ test_approximate_offsetof_plain(void) {
   ASSERT(check_range(ctor_approximate_offsetof(c, "k07"), 510000, 511000));
   ASSERT(check_range(ctor_approximate_offsetof(c, "xyz"), 610000, 612000));
 
-  rdb_vector_clear(&keys);
-  rdb_free(buf);
+  ldb_vector_clear(&keys);
+  ldb_free(buf);
   ctor_destroy(c);
 }
 
 static void
 test_approximate_offsetof_compressed(void) {
-  ctor_t *c = tablector_create(rdb_bytewise_comparator);
-  rdb_dbopt_t options = *rdb_dbopt_default;
-  rdb_vector_t keys;
-  rdb_buffer_t val;
-  rdb_slice_t key;
-  rdb_rand_t rnd;
+  ctor_t *c = tablector_create(ldb_bytewise_comparator);
+  ldb_dbopt_t options = *ldb_dbopt_default;
+  ldb_vector_t keys;
+  ldb_buffer_t val;
+  ldb_slice_t key;
+  ldb_rand_t rnd;
 
   /* Expected upper and lower bounds of space used by compressible strings. */
   static const int slop = 1000; /* Compressor effectiveness varies. */
@@ -1433,26 +1433,26 @@ test_approximate_offsetof_compressed(void) {
   const int min_z = expected - slop;
   const int max_z = expected + slop;
 
-  rdb_rand_init(&rnd, 301);
+  ldb_rand_init(&rnd, 301);
 
-  rdb_buffer_init(&val);
-  rdb_vector_init(&keys);
+  ldb_buffer_init(&val);
+  ldb_vector_init(&keys);
 
   ctor_add_str(c, "k01", "hello");
 
-  key = rdb_string("k02");
-  rdb_compressible_string(&val, &rnd, 0.25, 10000);
+  key = ldb_string("k02");
+  ldb_compressible_string(&val, &rnd, 0.25, 10000);
   ctor_add(c, &key, &val);
 
   ctor_add_str(c, "k03", "hello3");
 
-  key = rdb_string("k04");
-  rdb_compressible_string(&val, &rnd, 0.25, 10000);
+  key = ldb_string("k04");
+  ldb_compressible_string(&val, &rnd, 0.25, 10000);
   ctor_add(c, &key, &val);
 
   options.block_size = 1024;
-  options.compression = RDB_SNAPPY_COMPRESSION;
-  options.comparator = rdb_bytewise_comparator;
+  options.compression = LDB_SNAPPY_COMPRESSION;
+  options.comparator = ldb_bytewise_comparator;
 
   ctor_finish(c, &options, &keys);
 
@@ -1466,8 +1466,8 @@ test_approximate_offsetof_compressed(void) {
   ASSERT(check_range(ctor_approximate_offsetof(c, "xyz"), 2 * min_z,
                                                           2 * max_z));
 
-  rdb_vector_clear(&keys);
-  rdb_buffer_clear(&val);
+  ldb_vector_clear(&keys);
+  ldb_buffer_clear(&val);
   ctor_destroy(c);
 }
 
@@ -1475,11 +1475,11 @@ test_approximate_offsetof_compressed(void) {
  * Execute
  */
 
-RDB_EXTERN int
-rdb_test_table(void);
+LDB_EXTERN int
+ldb_test_table(void);
 
 int
-rdb_test_table(void) {
+ldb_test_table(void) {
   harness_t h;
 
   harness_init(&h);

@@ -4,8 +4,8 @@
  * https://github.com/chjj/rdb
  */
 
-#ifndef RDB_DUMPFILE_H
-#define RDB_DUMPFILE_H
+#ifndef LDB_DUMPFILE_H
+#define LDB_DUMPFILE_H
 
 #include <stdio.h>
 #include "util/extern.h"
@@ -18,7 +18,7 @@
  * Returns a non-OK result if fname does not name a leveldb storage
  * file, or if the file cannot be read.
  */
-RDB_EXTERN int
-rdb_dump_file(const char *fname, FILE *dst);
+LDB_EXTERN int
+ldb_dump_file(const char *fname, FILE *dst);
 
-#endif /* RDB_DUMPFILE_H */
+#endif /* LDB_DUMPFILE_H */

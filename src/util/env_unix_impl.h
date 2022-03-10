@@ -21,7 +21,7 @@
 
 #include <dirent.h>
 #include <fcntl.h>
-#ifdef RDB_PTHREAD
+#ifdef LDB_PTHREAD
 #include <pthread.h>
 #endif
 #include <unistd.h>
@@ -97,21 +97,21 @@
  * Constants
  */
 
-#define RDB_WRITE_BUFFER 65536
-#define RDB_MMAP_LIMIT (sizeof(void *) >= 8 ? 1000 : 0)
-#define RDB_POSIX_ERROR(rc) ((rc) == ENOENT ? RDB_NOTFOUND : RDB_IOERR)
+#define LDB_WRITE_BUFFER 65536
+#define LDB_MMAP_LIMIT (sizeof(void *) >= 8 ? 1000 : 0)
+#define LDB_POSIX_ERROR(rc) ((rc) == ENOENT ? LDB_NOTFOUND : LDB_IOERR)
 
 /*
  * Types
  */
 
-typedef struct rdb_limiter_s {
-  rdb_atomic(int) acquires_allowed;
+typedef struct ldb_limiter_s {
+  ldb_atomic(int) acquires_allowed;
   int max_acquires;
-} rdb_limiter_t;
+} ldb_limiter_t;
 
-struct rdb_filelock_s {
-  char path[RDB_PATH_MAX];
+struct ldb_filelock_s {
+  char path[LDB_PATH_MAX];
   int fd;
 };
 
@@ -119,11 +119,11 @@ struct rdb_filelock_s {
  * Globals
  */
 
-static rdb_limiter_t rdb_fd_limiter = {1638, 1638};
+static ldb_limiter_t ldb_fd_limiter = {1638, 1638};
 #ifdef HAVE_MMAP
-static rdb_limiter_t rdb_mmap_limiter = {RDB_MMAP_LIMIT, RDB_MMAP_LIMIT};
+static ldb_limiter_t ldb_mmap_limiter = {LDB_MMAP_LIMIT, LDB_MMAP_LIMIT};
 #endif
-static rdb_mutex_t file_mutex = RDB_MUTEX_INITIALIZER;
+static ldb_mutex_t file_mutex = LDB_MUTEX_INITIALIZER;
 static rb_set_t file_set;
 
 /*
@@ -131,7 +131,7 @@ static rb_set_t file_set;
  */
 
 static void
-rdb_limiter_init(rdb_limiter_t *lim, int max_acquires) {
+ldb_limiter_init(ldb_limiter_t *lim, int max_acquires) {
   assert(max_acquires >= 0);
 
   lim->acquires_allowed = max_acquires;
@@ -139,15 +139,15 @@ rdb_limiter_init(rdb_limiter_t *lim, int max_acquires) {
 }
 
 static int
-rdb_limiter_acquire(rdb_limiter_t *lim) {
+ldb_limiter_acquire(ldb_limiter_t *lim) {
   int old;
 
-  old = rdb_atomic_fetch_sub(&lim->acquires_allowed, 1, rdb_order_relaxed);
+  old = ldb_atomic_fetch_sub(&lim->acquires_allowed, 1, ldb_order_relaxed);
 
   if (old > 0)
     return 1;
 
-  old = rdb_atomic_fetch_add(&lim->acquires_allowed, 1, rdb_order_relaxed);
+  old = ldb_atomic_fetch_add(&lim->acquires_allowed, 1, ldb_order_relaxed);
 
   assert(old < lim->max_acquires);
 
@@ -157,8 +157,8 @@ rdb_limiter_acquire(rdb_limiter_t *lim) {
 }
 
 static void
-rdb_limiter_release(rdb_limiter_t *lim) {
-  int old = rdb_atomic_fetch_add(&lim->acquires_allowed, 1, rdb_order_relaxed);
+ldb_limiter_release(ldb_limiter_t *lim) {
+  int old = ldb_atomic_fetch_add(&lim->acquires_allowed, 1, ldb_order_relaxed);
 
   assert(old < lim->max_acquires);
 
@@ -180,7 +180,7 @@ by_string(rb_val_t x, rb_val_t y, void *arg) {
  */
 
 static int
-rdb_is_manifest(const char *filename) {
+ldb_is_manifest(const char *filename) {
   const char *base = strrchr(filename, '/');
 
   if (base == NULL)
@@ -188,7 +188,7 @@ rdb_is_manifest(const char *filename) {
   else
     base += 1;
 
-  return rdb_starts_with(base, "MANIFEST");
+  return ldb_starts_with(base, "MANIFEST");
 }
 
 /*
@@ -196,7 +196,7 @@ rdb_is_manifest(const char *filename) {
  */
 
 static int
-rdb_try_open(const char *name, int flags, uint32_t mode) {
+ldb_try_open(const char *name, int flags, uint32_t mode) {
   int fd;
 
 #ifdef O_CLOEXEC
@@ -227,36 +227,36 @@ rdb_try_open(const char *name, int flags, uint32_t mode) {
 }
 
 static int
-rdb_open(const char *name, int flags, uint32_t mode) {
+ldb_open(const char *name, int flags, uint32_t mode) {
   int fd;
 
   do {
-    fd = rdb_try_open(name, flags, mode);
+    fd = ldb_try_open(name, flags, mode);
   } while (fd < 0 && errno == EINTR);
 
   return fd;
 }
 
 static int
-rdb_sync_fd(int fd) {
+ldb_sync_fd(int fd) {
 #if defined(__APPLE__) && defined(F_FULLFSYNC)
   if (fcntl(fd, F_FULLFSYNC) == 0)
-    return RDB_OK;
+    return LDB_OK;
 #endif
 
 #ifdef HAVE_FDATASYNC
   if (fdatasync(fd) == 0)
-    return RDB_OK;
+    return LDB_OK;
 #else
   if (fsync(fd) == 0)
-    return RDB_OK;
+    return LDB_OK;
 #endif
 
-  return RDB_IOERR;
+  return LDB_IOERR;
 }
 
 static int
-rdb_lock_or_unlock(int fd, int lock) {
+ldb_lock_or_unlock(int fd, int lock) {
 #if defined(HAVE_SETLK)
   struct flock info;
 
@@ -278,7 +278,7 @@ rdb_lock_or_unlock(int fd, int lock) {
 }
 
 static int
-rdb_max_open_files(void) {
+ldb_max_open_files(void) {
 #if defined(__Fuchsia__)
   return 1638;
 #elif defined(RLIMIT_NOFILE)
@@ -302,12 +302,12 @@ rdb_max_open_files(void) {
 
 static void
 env_init(void) {
-  rdb_limiter_init(&rdb_fd_limiter, rdb_max_open_files());
+  ldb_limiter_init(&ldb_fd_limiter, ldb_max_open_files());
 }
 
 static void
-rdb_env_init(void) {
-#if defined(RDB_PTHREAD)
+ldb_env_init(void) {
+#if defined(LDB_PTHREAD)
   static pthread_once_t guard = PTHREAD_ONCE_INIT;
   pthread_once(&guard, env_init);
 #else
@@ -324,7 +324,7 @@ rdb_env_init(void) {
  */
 
 int
-rdb_path_absolute(char *buf, size_t size, const char *name) {
+ldb_path_absolute(char *buf, size_t size, const char *name) {
 #if defined(__wasi__)
   size_t len = strlen(name);
 
@@ -338,7 +338,7 @@ rdb_path_absolute(char *buf, size_t size, const char *name) {
 
   return 1;
 #else
-  char cwd[RDB_PATH_MAX];
+  char cwd[LDB_PATH_MAX];
 
   if (name[0] == '/') {
     size_t len = strlen(name);
@@ -356,17 +356,17 @@ rdb_path_absolute(char *buf, size_t size, const char *name) {
 
   cwd[sizeof(cwd) - 1] = '\0';
 
-  return rdb_join(buf, size, cwd, name);
+  return ldb_join(buf, size, cwd, name);
 #endif
 }
 
 int
-rdb_file_exists(const char *filename) {
+ldb_file_exists(const char *filename) {
   return access(filename, F_OK) == 0;
 }
 
 int
-rdb_get_children(const char *path, char ***out) {
+ldb_get_children(const char *path, char ***out) {
   struct dirent *entry;
   char **list = NULL;
   char *name = NULL;
@@ -427,13 +427,13 @@ rdb_get_children(const char *path, char ***out) {
   return i;
 fail:
   for (j = 0; j < i; j++)
-    rdb_free(list[j]);
+    ldb_free(list[j]);
 
   if (list != NULL)
-    rdb_free(list);
+    ldb_free(list);
 
   if (name != NULL)
-    rdb_free(name);
+    ldb_free(name);
 
   if (dir != NULL)
     closedir(dir);
@@ -444,91 +444,91 @@ fail:
 }
 
 void
-rdb_free_children(char **list, int len) {
+ldb_free_children(char **list, int len) {
   int i;
 
   for (i = 0; i < len; i++)
-    rdb_free(list[i]);
+    ldb_free(list[i]);
 
-  rdb_free(list);
+  ldb_free(list);
 }
 
 int
-rdb_remove_file(const char *filename) {
+ldb_remove_file(const char *filename) {
   if (unlink(filename) != 0)
-    return RDB_POSIX_ERROR(errno);
+    return LDB_POSIX_ERROR(errno);
 
-  return RDB_OK;
+  return LDB_OK;
 }
 
 int
-rdb_create_dir(const char *dirname) {
+ldb_create_dir(const char *dirname) {
   if (mkdir(dirname, 0755) != 0)
-    return RDB_POSIX_ERROR(errno);
+    return LDB_POSIX_ERROR(errno);
 
-  return RDB_OK;
+  return LDB_OK;
 }
 
 int
-rdb_remove_dir(const char *dirname) {
+ldb_remove_dir(const char *dirname) {
   if (rmdir(dirname) != 0)
-    return RDB_POSIX_ERROR(errno);
+    return LDB_POSIX_ERROR(errno);
 
-  return RDB_OK;
+  return LDB_OK;
 }
 
 int
-rdb_get_file_size(const char *filename, uint64_t *size) {
+ldb_get_file_size(const char *filename, uint64_t *size) {
   struct stat st;
 
   if (stat(filename, &st) != 0)
-    return RDB_POSIX_ERROR(errno);
+    return LDB_POSIX_ERROR(errno);
 
   *size = st.st_size;
 
-  return RDB_OK;
+  return LDB_OK;
 }
 
 int
-rdb_rename_file(const char *from, const char *to) {
+ldb_rename_file(const char *from, const char *to) {
   if (rename(from, to) != 0)
-    return RDB_POSIX_ERROR(errno);
+    return LDB_POSIX_ERROR(errno);
 
-  return RDB_OK;
+  return LDB_OK;
 }
 
 int
-rdb_lock_file(const char *filename, rdb_filelock_t **lock) {
+ldb_lock_file(const char *filename, ldb_filelock_t **lock) {
   size_t len = strlen(filename);
   int fd;
 
-  if (len + 1 > RDB_PATH_MAX)
-    return RDB_INVALID;
+  if (len + 1 > LDB_PATH_MAX)
+    return LDB_INVALID;
 
-  rdb_mutex_lock(&file_mutex);
+  ldb_mutex_lock(&file_mutex);
 
   if (file_set.root == NULL)
     rb_set_init(&file_set, by_string, NULL);
 
   if (rb_set_has(&file_set, filename)) {
-    rdb_mutex_unlock(&file_mutex);
-    return RDB_IOERR;
+    ldb_mutex_unlock(&file_mutex);
+    return LDB_IOERR;
   }
 
-  fd = rdb_open(filename, O_RDWR | O_CREAT, 0644);
+  fd = ldb_open(filename, O_RDWR | O_CREAT, 0644);
 
   if (fd < 0) {
-    rdb_mutex_unlock(&file_mutex);
-    return RDB_POSIX_ERROR(errno);
+    ldb_mutex_unlock(&file_mutex);
+    return LDB_POSIX_ERROR(errno);
   }
 
-  if (!rdb_lock_or_unlock(fd, 1)) {
-    rdb_mutex_unlock(&file_mutex);
+  if (!ldb_lock_or_unlock(fd, 1)) {
+    ldb_mutex_unlock(&file_mutex);
     close(fd);
-    return RDB_IOERR;
+    return LDB_IOERR;
   }
 
-  *lock = rdb_malloc(sizeof(rdb_filelock_t));
+  *lock = ldb_malloc(sizeof(ldb_filelock_t));
 
   (*lock)->fd = fd;
 
@@ -536,35 +536,35 @@ rdb_lock_file(const char *filename, rdb_filelock_t **lock) {
 
   rb_set_put(&file_set, (*lock)->path);
 
-  rdb_mutex_unlock(&file_mutex);
+  ldb_mutex_unlock(&file_mutex);
 
-  return RDB_OK;
+  return LDB_OK;
 }
 
 int
-rdb_unlock_file(rdb_filelock_t *lock) {
+ldb_unlock_file(ldb_filelock_t *lock) {
   int ok = 0;
 
-  rdb_mutex_lock(&file_mutex);
+  ldb_mutex_lock(&file_mutex);
 
   if (file_set.root && rb_set_has(&file_set, lock->path)) {
     rb_set_del(&file_set, lock->path);
     ok = 1;
   }
 
-  ok &= rdb_lock_or_unlock(lock->fd, 0);
+  ok &= ldb_lock_or_unlock(lock->fd, 0);
 
   close(lock->fd);
 
-  rdb_free(lock);
+  ldb_free(lock);
 
-  rdb_mutex_unlock(&file_mutex);
+  ldb_mutex_unlock(&file_mutex);
 
-  return ok ? RDB_OK : RDB_IOERR;
+  return ok ? LDB_OK : LDB_IOERR;
 }
 
 int
-rdb_test_directory(char *result, size_t size) {
+ldb_test_directory(char *result, size_t size) {
   const char *dir = getenv("TEST_TMPDIR");
   char tmp[100];
   size_t len;
@@ -590,21 +590,21 @@ rdb_test_directory(char *result, size_t size) {
  * Readable File
  */
 
-struct rdb_rfile_s {
-  char filename[RDB_PATH_MAX];
+struct ldb_rfile_s {
+  char filename[LDB_PATH_MAX];
   int fd;
-  rdb_limiter_t *limiter;
+  ldb_limiter_t *limiter;
   int mapped;
   unsigned char *base;
   size_t length;
 #ifndef HAVE_PREAD
-  rdb_mutex_t mutex;
+  ldb_mutex_t mutex;
   int has_mutex;
 #endif
 };
 
 static void
-rdb_seqfile_init(rdb_rfile_t *file, const char *filename, int fd) {
+ldb_seqfile_init(ldb_rfile_t *file, const char *filename, int fd) {
   strcpy(file->filename, filename);
 
   file->fd = fd;
@@ -618,11 +618,11 @@ rdb_seqfile_init(rdb_rfile_t *file, const char *filename, int fd) {
 }
 
 static void
-rdb_randfile_init(rdb_rfile_t *file,
+ldb_randfile_init(ldb_rfile_t *file,
                   const char *filename,
                   int fd,
-                  rdb_limiter_t *limiter) {
-  int acquired = rdb_limiter_acquire(limiter);
+                  ldb_limiter_t *limiter) {
+  int acquired = ldb_limiter_acquire(limiter);
 
   strcpy(file->filename, filename);
 
@@ -633,7 +633,7 @@ rdb_randfile_init(rdb_rfile_t *file,
   file->length = 0;
 
 #ifndef HAVE_PREAD
-  rdb_mutex_init(&file->mutex);
+  ldb_mutex_init(&file->mutex);
   file->has_mutex = 1;
 #endif
 
@@ -643,11 +643,11 @@ rdb_randfile_init(rdb_rfile_t *file,
 
 #ifdef HAVE_MMAP
 static void
-rdb_mapfile_init(rdb_rfile_t *file,
+ldb_mapfile_init(ldb_rfile_t *file,
                  const char *filename,
                  unsigned char *base,
                  size_t length,
-                 rdb_limiter_t *limiter) {
+                 ldb_limiter_t *limiter) {
   strcpy(file->filename, filename);
 
   file->fd = -1;
@@ -662,13 +662,13 @@ rdb_mapfile_init(rdb_rfile_t *file,
 #endif
 
 int
-rdb_rfile_mapped(rdb_rfile_t *file) {
+ldb_rfile_mapped(ldb_rfile_t *file) {
   return file->mapped;
 }
 
 int
-rdb_rfile_read(rdb_rfile_t *file,
-               rdb_slice_t *result,
+ldb_rfile_read(ldb_rfile_t *file,
+               ldb_slice_t *result,
                void *buf,
                size_t count) {
   ssize_t nread;
@@ -678,24 +678,24 @@ rdb_rfile_read(rdb_rfile_t *file,
   } while (nread < 0 && errno == EINTR);
 
   if (nread < 0)
-    return RDB_IOERR;
+    return LDB_IOERR;
 
-  rdb_slice_set(result, buf, nread);
+  ldb_slice_set(result, buf, nread);
 
-  return RDB_OK;
+  return LDB_OK;
 }
 
 int
-rdb_rfile_skip(rdb_rfile_t *file, uint64_t offset) {
+ldb_rfile_skip(ldb_rfile_t *file, uint64_t offset) {
   if (lseek(file->fd, offset, SEEK_CUR) == -1)
-    return RDB_IOERR;
+    return LDB_IOERR;
 
-  return RDB_OK;
+  return LDB_OK;
 }
 
 int
-rdb_rfile_pread(rdb_rfile_t *file,
-                rdb_slice_t *result,
+ldb_rfile_pread(ldb_rfile_t *file,
+                ldb_slice_t *result,
                 void *buf,
                 size_t count,
                 uint64_t offset) {
@@ -704,21 +704,21 @@ rdb_rfile_pread(rdb_rfile_t *file,
 
   if (file->mapped) {
     if (offset + count > file->length)
-      return RDB_IOERR;
+      return LDB_IOERR;
 
-    rdb_slice_set(result, file->base + offset, count);
+    ldb_slice_set(result, file->base + offset, count);
 
-    return RDB_OK;
+    return LDB_OK;
   }
 
   if (buf == NULL)
-    return RDB_INVALID;
+    return LDB_INVALID;
 
   if (file->fd == -1) {
-    fd = rdb_open(file->filename, O_RDONLY, 0);
+    fd = ldb_open(file->filename, O_RDONLY, 0);
 
     if (fd < 0)
-      return RDB_POSIX_ERROR(errno);
+      return LDB_POSIX_ERROR(errno);
   }
 
 #ifdef HAVE_PREAD
@@ -726,7 +726,7 @@ rdb_rfile_pread(rdb_rfile_t *file,
     nread = pread(fd, buf, count, offset);
   } while (nread < 0 && errno == EINTR);
 #else
-  rdb_mutex_lock(&file->mutex);
+  ldb_mutex_lock(&file->mutex);
 
   if ((uint64_t)lseek(fd, offset, SEEK_SET) == offset) {
     do {
@@ -736,29 +736,29 @@ rdb_rfile_pread(rdb_rfile_t *file,
     nread = -1;
   }
 
-  rdb_mutex_unlock(&file->mutex);
+  ldb_mutex_unlock(&file->mutex);
 #endif
 
   if (nread >= 0)
-    rdb_slice_set(result, buf, nread);
+    ldb_slice_set(result, buf, nread);
 
   if (file->fd == -1)
     close(fd);
 
-  return nread < 0 ? RDB_IOERR : RDB_OK;
+  return nread < 0 ? LDB_IOERR : LDB_OK;
 }
 
 static int
-rdb_rfile_close(rdb_rfile_t *file) {
-  int rc = RDB_OK;
+ldb_rfile_close(ldb_rfile_t *file) {
+  int rc = LDB_OK;
 
   if (file->fd != -1) {
     if (close(file->fd) < 0)
-      rc = RDB_IOERR;
+      rc = LDB_IOERR;
   }
 
   if (file->limiter != NULL)
-    rdb_limiter_release(file->limiter);
+    ldb_limiter_release(file->limiter);
 
 #ifdef HAVE_MMAP
   if (file->mapped)
@@ -773,7 +773,7 @@ rdb_rfile_close(rdb_rfile_t *file) {
 
 #ifndef HAVE_PREAD
   if (file->has_mutex) {
-    rdb_mutex_destroy(&file->mutex);
+    ldb_mutex_destroy(&file->mutex);
     file->has_mutex = 0;
   }
 #endif
@@ -786,29 +786,29 @@ rdb_rfile_close(rdb_rfile_t *file) {
  */
 
 int
-rdb_seqfile_create(const char *filename, rdb_rfile_t **file) {
+ldb_seqfile_create(const char *filename, ldb_rfile_t **file) {
   int fd;
 
-  if (strlen(filename) + 1 > RDB_PATH_MAX)
-    return RDB_INVALID;
+  if (strlen(filename) + 1 > LDB_PATH_MAX)
+    return LDB_INVALID;
 
-  fd = rdb_open(filename, O_RDONLY, 0);
+  fd = ldb_open(filename, O_RDONLY, 0);
 
   if (fd < 0)
-    return RDB_POSIX_ERROR(errno);
+    return LDB_POSIX_ERROR(errno);
 
-  *file = rdb_malloc(sizeof(rdb_rfile_t));
+  *file = ldb_malloc(sizeof(ldb_rfile_t));
 
-  rdb_seqfile_init(*file, filename, fd);
+  ldb_seqfile_init(*file, filename, fd);
 
-  return RDB_OK;
+  return LDB_OK;
 }
 
 int
-rdb_randfile_create(const char *filename, rdb_rfile_t **file, int use_mmap) {
+ldb_randfile_create(const char *filename, ldb_rfile_t **file, int use_mmap) {
 #ifdef HAVE_MMAP
   uint64_t size = 0;
-  int rc = RDB_OK;
+  int rc = LDB_OK;
   struct stat st;
 #endif
   int fd;
@@ -817,92 +817,92 @@ rdb_randfile_create(const char *filename, rdb_rfile_t **file, int use_mmap) {
   (void)use_mmap;
 #endif
 
-  if (strlen(filename) + 1 > RDB_PATH_MAX)
-    return RDB_INVALID;
+  if (strlen(filename) + 1 > LDB_PATH_MAX)
+    return LDB_INVALID;
 
-  fd = rdb_open(filename, O_RDONLY, 0);
+  fd = ldb_open(filename, O_RDONLY, 0);
 
   if (fd < 0)
-    return RDB_POSIX_ERROR(errno);
+    return LDB_POSIX_ERROR(errno);
 
 #ifdef HAVE_MMAP
-  if (!use_mmap || !rdb_limiter_acquire(&rdb_mmap_limiter))
+  if (!use_mmap || !ldb_limiter_acquire(&ldb_mmap_limiter))
 #endif
   {
-    *file = rdb_malloc(sizeof(rdb_rfile_t));
+    *file = ldb_malloc(sizeof(ldb_rfile_t));
 
-    rdb_env_init();
-    rdb_randfile_init(*file, filename, fd, &rdb_fd_limiter);
+    ldb_env_init();
+    ldb_randfile_init(*file, filename, fd, &ldb_fd_limiter);
 
-    return RDB_OK;
+    return LDB_OK;
   }
 
 #ifdef HAVE_MMAP
   if (fstat(fd, &st) != 0)
-    rc = RDB_POSIX_ERROR(errno);
+    rc = LDB_POSIX_ERROR(errno);
   else
     size = st.st_size;
 
-  if (rc == RDB_OK && size > (((size_t)-1) / 2))
-    rc = RDB_IOERR;
+  if (rc == LDB_OK && size > (((size_t)-1) / 2))
+    rc = LDB_IOERR;
 
-  if (rc == RDB_OK) {
+  if (rc == LDB_OK) {
     void *base = mmap(NULL, size, PROT_READ, MAP_SHARED, fd, 0);
 
     if (base != MAP_FAILED) {
-      *file = rdb_malloc(sizeof(rdb_rfile_t));
+      *file = ldb_malloc(sizeof(ldb_rfile_t));
 
-      rdb_mapfile_init(*file, filename, base, size, &rdb_mmap_limiter);
+      ldb_mapfile_init(*file, filename, base, size, &ldb_mmap_limiter);
     } else {
-      rc = RDB_IOERR;
+      rc = LDB_IOERR;
     }
   }
 
   close(fd);
 
-  if (rc != RDB_OK)
-    rdb_limiter_release(&rdb_mmap_limiter);
+  if (rc != LDB_OK)
+    ldb_limiter_release(&ldb_mmap_limiter);
 
   return rc;
 #endif
 }
 
 void
-rdb_rfile_destroy(rdb_rfile_t *file) {
-  rdb_rfile_close(file);
-  rdb_free(file);
+ldb_rfile_destroy(ldb_rfile_t *file) {
+  ldb_rfile_close(file);
+  ldb_free(file);
 }
 
 /*
  * Writable File
  */
 
-struct rdb_wfile_s {
-  char filename[RDB_PATH_MAX];
-  char dirname[RDB_PATH_MAX];
+struct ldb_wfile_s {
+  char filename[LDB_PATH_MAX];
+  char dirname[LDB_PATH_MAX];
   int fd, manifest;
-  unsigned char buf[RDB_WRITE_BUFFER];
+  unsigned char buf[LDB_WRITE_BUFFER];
   size_t pos;
 };
 
 static void
-rdb_wfile_init(rdb_wfile_t *file, const char *filename, int fd) {
+ldb_wfile_init(ldb_wfile_t *file, const char *filename, int fd) {
   strcpy(file->filename, filename);
 
-  if (!rdb_dirname(file->dirname, RDB_PATH_MAX, filename))
+  if (!ldb_dirname(file->dirname, LDB_PATH_MAX, filename))
     abort(); /* LCOV_EXCL_LINE */
 
   file->fd = fd;
-  file->manifest = rdb_is_manifest(filename);
+  file->manifest = ldb_is_manifest(filename);
   file->pos = 0;
 }
 
 int
-rdb_wfile_close(rdb_wfile_t *file) {
-  int rc = rdb_wfile_flush(file);
+ldb_wfile_close(ldb_wfile_t *file) {
+  int rc = ldb_wfile_flush(file);
 
-  if (close(file->fd) < 0 && rc == RDB_OK)
-    rc = RDB_IOERR;
+  if (close(file->fd) < 0 && rc == LDB_OK)
+    rc = LDB_IOERR;
 
   file->fd = -1;
 
@@ -910,7 +910,7 @@ rdb_wfile_close(rdb_wfile_t *file) {
 }
 
 static int
-rdb_wfile_write(rdb_wfile_t *file, const unsigned char *data, size_t size) {
+ldb_wfile_write(ldb_wfile_t *file, const unsigned char *data, size_t size) {
   while (size > 0) {
     ssize_t nwrite = write(file->fd, data, size);
 
@@ -918,29 +918,29 @@ rdb_wfile_write(rdb_wfile_t *file, const unsigned char *data, size_t size) {
       if (errno == EINTR)
         continue;
 
-      return RDB_IOERR;
+      return LDB_IOERR;
     }
 
     data += nwrite;
     size -= nwrite;
   }
 
-  return RDB_OK;
+  return LDB_OK;
 }
 
 static int
-rdb_wfile_sync_dir(rdb_wfile_t *file) {
+ldb_wfile_sync_dir(ldb_wfile_t *file) {
   int fd, rc;
 
   if (!file->manifest)
-    return RDB_OK;
+    return LDB_OK;
 
-  fd = rdb_open(file->dirname, O_RDONLY, 0);
+  fd = ldb_open(file->dirname, O_RDONLY, 0);
 
   if (fd < 0) {
-    rc = RDB_POSIX_ERROR(errno);
+    rc = LDB_POSIX_ERROR(errno);
   } else {
-    rc = rdb_sync_fd(fd);
+    rc = ldb_sync_fd(fd);
     close(fd);
   }
 
@@ -948,13 +948,13 @@ rdb_wfile_sync_dir(rdb_wfile_t *file) {
 }
 
 int
-rdb_wfile_append(rdb_wfile_t *file, const rdb_slice_t *data) {
+ldb_wfile_append(ldb_wfile_t *file, const ldb_slice_t *data) {
   const unsigned char *write_data = data->data;
   size_t write_size = data->size;
   size_t copy_size;
   int rc;
 
-  copy_size = RDB_MIN(write_size, RDB_WRITE_BUFFER - file->pos);
+  copy_size = LDB_MIN(write_size, LDB_WRITE_BUFFER - file->pos);
 
   memcpy(file->buf + file->pos, write_data, copy_size);
 
@@ -963,38 +963,38 @@ rdb_wfile_append(rdb_wfile_t *file, const rdb_slice_t *data) {
   file->pos += copy_size;
 
   if (write_size == 0)
-    return RDB_OK;
+    return LDB_OK;
 
-  if ((rc = rdb_wfile_flush(file)))
+  if ((rc = ldb_wfile_flush(file)))
     return rc;
 
-  if (write_size < RDB_WRITE_BUFFER) {
+  if (write_size < LDB_WRITE_BUFFER) {
     memcpy(file->buf, write_data, write_size);
     file->pos = write_size;
-    return RDB_OK;
+    return LDB_OK;
   }
 
-  return rdb_wfile_write(file, write_data, write_size);
+  return ldb_wfile_write(file, write_data, write_size);
 }
 
 int
-rdb_wfile_flush(rdb_wfile_t *file) {
-  int rc = rdb_wfile_write(file, file->buf, file->pos);
+ldb_wfile_flush(ldb_wfile_t *file) {
+  int rc = ldb_wfile_write(file, file->buf, file->pos);
   file->pos = 0;
   return rc;
 }
 
 int
-rdb_wfile_sync(rdb_wfile_t *file) {
+ldb_wfile_sync(ldb_wfile_t *file) {
   int rc;
 
-  if ((rc = rdb_wfile_sync_dir(file)))
+  if ((rc = ldb_wfile_sync_dir(file)))
     return rc;
 
-  if ((rc = rdb_wfile_flush(file)))
+  if ((rc = ldb_wfile_flush(file)))
     return rc;
 
-  return rdb_sync_fd(file->fd);
+  return ldb_sync_fd(file->fd);
 }
 
 /*
@@ -1002,42 +1002,42 @@ rdb_wfile_sync(rdb_wfile_t *file) {
  */
 
 static int
-rdb_wfile_create(const char *filename, int flags, rdb_wfile_t **file) {
+ldb_wfile_create(const char *filename, int flags, ldb_wfile_t **file) {
   int fd;
 
-  if (strlen(filename) + 1 > RDB_PATH_MAX)
-    return RDB_INVALID;
+  if (strlen(filename) + 1 > LDB_PATH_MAX)
+    return LDB_INVALID;
 
-  fd = rdb_open(filename, flags, 0644);
+  fd = ldb_open(filename, flags, 0644);
 
   if (fd < 0)
-    return RDB_POSIX_ERROR(errno);
+    return LDB_POSIX_ERROR(errno);
 
-  *file = rdb_malloc(sizeof(rdb_wfile_t));
+  *file = ldb_malloc(sizeof(ldb_wfile_t));
 
-  rdb_wfile_init(*file, filename, fd);
+  ldb_wfile_init(*file, filename, fd);
 
-  return RDB_OK;
+  return LDB_OK;
 }
 
 int
-rdb_truncfile_create(const char *filename, rdb_wfile_t **file) {
+ldb_truncfile_create(const char *filename, ldb_wfile_t **file) {
   int flags = O_TRUNC | O_WRONLY | O_CREAT;
-  return rdb_wfile_create(filename, flags, file);
+  return ldb_wfile_create(filename, flags, file);
 }
 
 int
-rdb_appendfile_create(const char *filename, rdb_wfile_t **file) {
+ldb_appendfile_create(const char *filename, ldb_wfile_t **file) {
   int flags = O_APPEND | O_WRONLY | O_CREAT;
-  return rdb_wfile_create(filename, flags, file);
+  return ldb_wfile_create(filename, flags, file);
 }
 
 void
-rdb_wfile_destroy(rdb_wfile_t *file) {
+ldb_wfile_destroy(ldb_wfile_t *file) {
   if (file->fd >= 0)
     close(file->fd);
 
-  rdb_free(file);
+  ldb_free(file);
 }
 
 /*
@@ -1048,27 +1048,27 @@ rdb_wfile_destroy(rdb_wfile_t *file) {
 FILE *fdopen(int, const char *);
 #endif
 
-rdb_logger_t *
-rdb_logger_create(FILE *stream);
+ldb_logger_t *
+ldb_logger_create(FILE *stream);
 
 int
-rdb_logger_open(const char *filename, rdb_logger_t **result) {
-  int fd = rdb_open(filename, O_APPEND | O_WRONLY | O_CREAT, 0644);
+ldb_logger_open(const char *filename, ldb_logger_t **result) {
+  int fd = ldb_open(filename, O_APPEND | O_WRONLY | O_CREAT, 0644);
   FILE *stream;
 
   if (fd < 0)
-    return RDB_POSIX_ERROR(errno);
+    return LDB_POSIX_ERROR(errno);
 
   stream = fdopen(fd, "w");
 
   if (stream == NULL) {
     close(fd);
-    return RDB_POSIX_ERROR(errno);
+    return LDB_POSIX_ERROR(errno);
   }
 
-  *result = rdb_logger_create(stream);
+  *result = ldb_logger_create(stream);
 
-  return RDB_OK;
+  return LDB_OK;
 }
 
 /*
@@ -1076,7 +1076,7 @@ rdb_logger_open(const char *filename, rdb_logger_t **result) {
  */
 
 int64_t
-rdb_now_usec(void) {
+ldb_now_usec(void) {
   struct timeval tv;
 
   if (gettimeofday(&tv, NULL) != 0)
@@ -1086,7 +1086,7 @@ rdb_now_usec(void) {
 }
 
 void
-rdb_sleep_usec(int64_t usec) {
+ldb_sleep_usec(int64_t usec) {
   struct timeval tv;
 
   memset(&tv, 0, sizeof(tv));

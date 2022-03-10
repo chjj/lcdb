@@ -4,8 +4,8 @@
  * https://github.com/chjj/rdb
  */
 
-#ifndef RDB_BLOCK_H
-#define RDB_BLOCK_H
+#ifndef LDB_BLOCK_H
+#define LDB_BLOCK_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -14,39 +14,39 @@
  * Types
  */
 
-struct rdb_blockcontents_s;
-struct rdb_comparator_s;
-struct rdb_iter_s;
+struct ldb_blockcontents_s;
+struct ldb_comparator_s;
+struct ldb_iter_s;
 
-typedef struct rdb_block_s {
+typedef struct ldb_block_s {
   const uint8_t *data;
   size_t size;
   uint32_t restart_offset;  /* Offset in data of restart array. */
   int owned;                /* Block owns data[]. */
-} rdb_block_t;
+} ldb_block_t;
 
 /*
  * Block
  */
 
-rdb_block_t *
-rdb_block_create(const struct rdb_blockcontents_s *contents);
+ldb_block_t *
+ldb_block_create(const struct ldb_blockcontents_s *contents);
 
 void
-rdb_block_destroy(rdb_block_t *block);
+ldb_block_destroy(ldb_block_t *block);
 
 void
-rdb_block_init(rdb_block_t *block, const struct rdb_blockcontents_s *contents);
+ldb_block_init(ldb_block_t *block, const struct ldb_blockcontents_s *contents);
 
 void
-rdb_block_clear(rdb_block_t *block);
+ldb_block_clear(ldb_block_t *block);
 
 /*
  * Block Iterator
  */
 
-struct rdb_iter_s *
-rdb_blockiter_create(const rdb_block_t *block,
-                     const struct rdb_comparator_s *comparator);
+struct ldb_iter_s *
+ldb_blockiter_create(const ldb_block_t *block,
+                     const struct ldb_comparator_s *comparator);
 
-#endif /* RDB_BLOCK_H */
+#endif /* LDB_BLOCK_H */

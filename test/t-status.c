@@ -5,8 +5,8 @@
  */
 
 int
-rdb_test_status(void);
+ldb_test_status(void);
 
 int main(void) {
-  return rdb_test_status();
+  return ldb_test_status();
 }

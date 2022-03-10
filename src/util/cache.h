@@ -4,8 +4,8 @@
  * https://github.com/chjj/rdb
  */
 
-#ifndef RDB_CACHE_H
-#define RDB_CACHE_H
+#ifndef LDB_CACHE_H
+#define LDB_CACHE_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -16,10 +16,10 @@
  * Types
  */
 
-typedef struct rdb_lru_s rdb_lru_t;
+typedef struct ldb_lru_s ldb_lru_t;
 
 /* Opaque handle to an entry stored in the cache. */
-typedef struct rdb_lruhandle_s rdb_lruhandle_t;
+typedef struct ldb_lruhandle_s ldb_lruhandle_t;
 
 /*
  * LRU Cache
@@ -27,13 +27,13 @@ typedef struct rdb_lruhandle_s rdb_lruhandle_t;
 
 /* Create a new cache with a fixed size capacity. This implementation
    of Cache uses a least-recently-used eviction policy. */
-RDB_EXTERN rdb_lru_t *
-rdb_lru_create(size_t capacity);
+LDB_EXTERN ldb_lru_t *
+ldb_lru_create(size_t capacity);
 
 /* Destroys all existing entries by calling the "deleter"
    function that was passed to the constructor. */
-RDB_EXTERN void
-rdb_lru_destroy(rdb_lru_t *lru);
+LDB_EXTERN void
+ldb_lru_destroy(ldb_lru_t *lru);
 
 /* Insert a mapping from key->value into the cache and assign it
  * the specified charge against the total cache capacity.
@@ -45,12 +45,12 @@ rdb_lru_destroy(rdb_lru_t *lru);
  * When the inserted entry is no longer needed, the key and
  * value will be passed to "deleter".
  */
-rdb_lruhandle_t *
-rdb_lru_insert(rdb_lru_t *lru,
-               const rdb_slice_t *key,
+ldb_lruhandle_t *
+ldb_lru_insert(ldb_lru_t *lru,
+               const ldb_slice_t *key,
                void *value,
                size_t charge,
-               void (*deleter)(const rdb_slice_t *key, void *value));
+               void (*deleter)(const ldb_slice_t *key, void *value));
 
 /* If the cache has no mapping for "key", returns NULL.
  *
@@ -58,22 +58,22 @@ rdb_lru_insert(rdb_lru_t *lru,
  * must call release(handle) when the returned mapping is no
  * longer needed.
  */
-rdb_lruhandle_t *
-rdb_lru_lookup(rdb_lru_t *lru, const rdb_slice_t *key);
+ldb_lruhandle_t *
+ldb_lru_lookup(ldb_lru_t *lru, const ldb_slice_t *key);
 
 /* Release a mapping returned by a previous lookup().
  * REQUIRES: handle must not have been released yet.
  * REQUIRES: handle must have been returned by a method on *this.
  */
 void
-rdb_lru_release(rdb_lru_t *lru, rdb_lruhandle_t *handle);
+ldb_lru_release(ldb_lru_t *lru, ldb_lruhandle_t *handle);
 
 /* If the cache contains entry for key, erase it. Note that the
  * underlying entry will be kept around until all existing handles
  * to it have been released.
  */
 void
-rdb_lru_erase(rdb_lru_t *lru, const rdb_slice_t *key);
+ldb_lru_erase(ldb_lru_t *lru, const ldb_slice_t *key);
 
 /* Return the value encapsulated in a handle returned by a
  * successful lookup().
@@ -81,7 +81,7 @@ rdb_lru_erase(rdb_lru_t *lru, const rdb_slice_t *key);
  * REQUIRES: handle must have been returned by a method on *this.
  */
 void *
-rdb_lru_value(rdb_lruhandle_t *handle);
+ldb_lru_value(ldb_lruhandle_t *handle);
 
 /* Return a new numeric id. May be used by multiple clients who are
  * sharing the same cache to partition the key space. Typically the
@@ -89,7 +89,7 @@ rdb_lru_value(rdb_lruhandle_t *handle);
  * its cache keys.
  */
 uint32_t
-rdb_lru_newid(rdb_lru_t *lru);
+ldb_lru_newid(ldb_lru_t *lru);
 
 /* Remove all cache entries that are not actively in use. Memory-constrained
  * applications may wish to call this method to reduce memory usage.
@@ -98,11 +98,11 @@ rdb_lru_newid(rdb_lru_t *lru);
  * leveldb may change prune() to a pure abstract method.
  */
 void
-rdb_lru_prune(rdb_lru_t *lru);
+ldb_lru_prune(ldb_lru_t *lru);
 
 /* Return an estimate of the combined charges of all elements stored in the
    cache. */
 size_t
-rdb_lru_total_charge(rdb_lru_t *lru);
+ldb_lru_total_charge(ldb_lru_t *lru);
 
-#endif /* RDB_CACHE_H */
+#endif /* LDB_CACHE_H */

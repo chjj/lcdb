@@ -4,24 +4,24 @@
  * https://github.com/chjj/rdb
  */
 
-#ifndef RDB_LOG_FORMAT_H
-#define RDB_LOG_FORMAT_H
+#ifndef LDB_LOG_FORMAT_H
+#define LDB_LOG_FORMAT_H
 
-typedef enum rdb_rectype {
+typedef enum ldb_rectype {
   /* Zero is reserved for preallocated files. */
-  RDB_TYPE_ZERO = 0,
-  RDB_TYPE_FULL = 1,
+  LDB_TYPE_ZERO = 0,
+  LDB_TYPE_FULL = 1,
   /* For fragments. */
-  RDB_TYPE_FIRST = 2,
-  RDB_TYPE_MIDDLE = 3,
-  RDB_TYPE_LAST = 4
-} rdb_rectype_t;
+  LDB_TYPE_FIRST = 2,
+  LDB_TYPE_MIDDLE = 3,
+  LDB_TYPE_LAST = 4
+} ldb_rectype_t;
 
-#define RDB_MAX_RECTYPE RDB_TYPE_LAST
+#define LDB_MAX_RECTYPE LDB_TYPE_LAST
 
-#define RDB_BLOCK_SIZE 32768
+#define LDB_BLOCK_SIZE 32768
 
 /* Header is checksum (4 bytes), length (2 bytes), type (1 byte). */
-#define RDB_HEADER_SIZE (4 + 2 + 1)
+#define LDB_HEADER_SIZE (4 + 2 + 1)
 
-#endif /* RDB_LOG_FORMAT_H */
+#endif /* LDB_LOG_FORMAT_H */

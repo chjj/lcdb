@@ -5,8 +5,8 @@
  */
 
 int
-rdb_test_recovery(void);
+ldb_test_recovery(void);
 
 int main(void) {
-  return rdb_test_recovery();
+  return ldb_test_recovery();
 }

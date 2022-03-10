@@ -18,10 +18,10 @@ handle_dump_command(char **files, int num) {
   int i;
 
   for (i = 0; i < num; i++) {
-    int rc = rdb_dump_file(files[i], stdout);
+    int rc = ldb_dump_file(files[i], stdout);
 
-    if (rc != RDB_OK) {
-      fprintf(stderr, "%s\n", rdb_strerror(rc));
+    if (rc != LDB_OK) {
+      fprintf(stderr, "%s\n", ldb_strerror(rc));
       ok = 0;
     }
   }

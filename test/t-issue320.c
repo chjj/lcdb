@@ -12,16 +12,16 @@
 #include "tests.h"
 
 static void
-batch_put(rdb_batch_t *batch, const char *k, const char *v) {
-  rdb_slice_t key = rdb_string(k);
-  rdb_slice_t val = rdb_string(v);
-  rdb_batch_put(batch, &key, &val);
+batch_put(ldb_batch_t *batch, const char *k, const char *v) {
+  ldb_slice_t key = ldb_string(k);
+  ldb_slice_t val = ldb_string(v);
+  ldb_batch_put(batch, &key, &val);
 }
 
 static void
-batch_del(rdb_batch_t *batch, const char *k) {
-  rdb_slice_t key = rdb_string(k);
-  rdb_batch_del(batch, &key);
+batch_del(ldb_batch_t *batch, const char *k) {
+  ldb_slice_t key = ldb_string(k);
+  ldb_batch_del(batch, &key);
 }
 
 static int
@@ -53,8 +53,8 @@ random_string(int index) {
 
 int
 main(void) {
-  rdb_dbopt_t options = *rdb_dbopt_default;
-  const rdb_snapshot_t **snapshots;
+  ldb_dbopt_t options = *ldb_dbopt_default;
+  const ldb_snapshot_t **snapshots;
   char **test_keys, **test_vals;
   uint32_t target_size = 10000;
   int delete_before_put = 0;
@@ -62,18 +62,18 @@ main(void) {
   uint32_t num_items = 0;
   uint32_t count = 0;
   char dbpath[1024];
-  rdb_t *db;
+  ldb_t *db;
 
   /* Get rid of any state from an old run. */
-  ASSERT(rdb_test_filename(dbpath, sizeof(dbpath), "leveldb_issue320_test"));
+  ASSERT(ldb_test_filename(dbpath, sizeof(dbpath), "leveldb_issue320_test"));
 
-  rdb_destroy_db(dbpath, 0);
+  ldb_destroy_db(dbpath, 0);
 
   options.create_if_missing = 1;
 
-  ASSERT(rdb_open(dbpath, &options, &db) == RDB_OK);
+  ASSERT(ldb_open(dbpath, &options, &db) == LDB_OK);
 
-  snapshots = calloc(100, sizeof(rdb_snapshot_t *));
+  snapshots = calloc(100, sizeof(ldb_snapshot_t *));
   test_keys = calloc(10000, sizeof(char *));
   test_vals = calloc(10000, sizeof(char *));
 
@@ -85,9 +85,9 @@ main(void) {
 
   while (count < 200000) {
     int index = random_number(10000);
-    rdb_batch_t batch;
+    ldb_batch_t batch;
 
-    rdb_batch_init(&batch);
+    ldb_batch_init(&batch);
 
     if ((++count % 1000) == 0)
       printf("count: %d\n", (int)count);
@@ -100,23 +100,23 @@ main(void) {
 
       batch_put(&batch, test_keys[index], test_vals[index]);
     } else {
-      rdb_slice_t key = rdb_string(test_keys[index]);
-      rdb_slice_t exp = rdb_string(test_vals[index]);
-      rdb_slice_t val;
+      ldb_slice_t key = ldb_string(test_keys[index]);
+      ldb_slice_t exp = ldb_string(test_vals[index]);
+      ldb_slice_t val;
 
-      ASSERT(rdb_get(db, &key, &val, 0) == RDB_OK);
+      ASSERT(ldb_get(db, &key, &val, 0) == LDB_OK);
 
-      if (rdb_compare(&val, &exp) != 0) {
+      if (ldb_compare(&val, &exp) != 0) {
         printf("ERROR incorrect value returned by Get\n");
         printf("  count=%d\n", (int)count);
         printf("  test_keys[index]=%s\n", test_keys[index]);
         printf("  test_vals[index]=%s\n", test_vals[index]);
         printf("  index=%d\n", index);
 
-        ASSERT(rdb_compare(&val, &exp) == 0);
+        ASSERT(ldb_compare(&val, &exp) == 0);
       }
 
-      rdb_free(val.data);
+      ldb_free(val.data);
 
       if (num_items >= target_size && random_number(100) > 30) {
         batch_del(&batch, test_keys[index]);
@@ -140,18 +140,18 @@ main(void) {
       }
     }
 
-    ASSERT(rdb_write(db, &batch, 0) == RDB_OK);
+    ASSERT(ldb_write(db, &batch, 0) == LDB_OK);
 
     if (keep_snapshots && random_number(10) == 0) {
       int i = random_number(100);
 
       if (snapshots[i] != NULL)
-        rdb_release_snapshot(db, snapshots[i]);
+        ldb_release_snapshot(db, snapshots[i]);
 
-      snapshots[i] = rdb_get_snapshot(db);
+      snapshots[i] = ldb_get_snapshot(db);
     }
 
-    rdb_batch_clear(&batch);
+    ldb_batch_clear(&batch);
   }
 
   {
@@ -166,7 +166,7 @@ main(void) {
 
     for (i = 0; i < 100; i++) {
       if (snapshots[i] != NULL)
-        rdb_release_snapshot(db, snapshots[i]);
+        ldb_release_snapshot(db, snapshots[i]);
     }
 
     free(test_keys);
@@ -174,8 +174,8 @@ main(void) {
     free(snapshots);
   }
 
-  rdb_close(db);
-  rdb_destroy_db(dbpath, 0);
+  ldb_close(db);
+  ldb_destroy_db(dbpath, 0);
 
   return 0;
 }

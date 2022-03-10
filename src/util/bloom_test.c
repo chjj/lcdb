@@ -16,49 +16,49 @@
 #include "slice.h"
 #include "testutil.h"
 
-static rdb_slice_t
+static ldb_slice_t
 bloom_key(int i, uint8_t *buffer) {
-  rdb_fixed32_write(buffer, i);
-  return rdb_slice(buffer, 4);
+  ldb_fixed32_write(buffer, i);
+  return ldb_slice(buffer, 4);
 }
 
 static void
 test_empty_filter(void) {
-  const rdb_bloom_t *bloom = rdb_bloom_default;
+  const ldb_bloom_t *bloom = ldb_bloom_default;
   static uint8_t filter_[8] = {0, 0, 0, 0, 0, 0, 0, 6};
-  static const rdb_slice_t filter = {filter_, 8, 0};
-  rdb_slice_t key;
+  static const ldb_slice_t filter = {filter_, 8, 0};
+  ldb_slice_t key;
 
-  key = rdb_string("hello");
-  ASSERT(!rdb_bloom_match(bloom, &filter, &key));
+  key = ldb_string("hello");
+  ASSERT(!ldb_bloom_match(bloom, &filter, &key));
 
-  key = rdb_string("world");
-  ASSERT(!rdb_bloom_match(bloom, &filter, &key));
+  key = ldb_string("world");
+  ASSERT(!ldb_bloom_match(bloom, &filter, &key));
 }
 
 static void
 test_small_filter(void) {
-  const rdb_bloom_t *bloom = rdb_bloom_default;
-  rdb_slice_t keys[2];
-  rdb_buffer_t filter;
-  rdb_slice_t key;
+  const ldb_bloom_t *bloom = ldb_bloom_default;
+  ldb_slice_t keys[2];
+  ldb_buffer_t filter;
+  ldb_slice_t key;
 
-  keys[0] = rdb_string("hello");
-  keys[1] = rdb_string("world");
+  keys[0] = ldb_string("hello");
+  keys[1] = ldb_string("world");
 
-  rdb_buffer_init(&filter);
-  rdb_bloom_build(bloom, &filter, keys, 2);
+  ldb_buffer_init(&filter);
+  ldb_bloom_build(bloom, &filter, keys, 2);
 
-  ASSERT(rdb_bloom_match(bloom, &filter, &keys[0]));
-  ASSERT(rdb_bloom_match(bloom, &filter, &keys[1]));
+  ASSERT(ldb_bloom_match(bloom, &filter, &keys[0]));
+  ASSERT(ldb_bloom_match(bloom, &filter, &keys[1]));
 
-  key = rdb_string("x");
-  ASSERT(!rdb_bloom_match(bloom, &filter, &key));
+  key = ldb_string("x");
+  ASSERT(!ldb_bloom_match(bloom, &filter, &key));
 
-  key = rdb_string("foo");
-  ASSERT(!rdb_bloom_match(bloom, &filter, &key));
+  key = ldb_string("foo");
+  ASSERT(!ldb_bloom_match(bloom, &filter, &key));
 
-  rdb_buffer_clear(&filter);
+  ldb_buffer_clear(&filter);
 }
 
 static int
@@ -77,17 +77,17 @@ next_length(int length) {
 
 static void
 test_varying_lengths(int verbose) {
-  rdb_slice_t *keys = rdb_malloc(10000 * sizeof(rdb_slice_t));
-  const rdb_bloom_t *bloom = rdb_bloom_default;
-  uint8_t *bufs = rdb_malloc(10000 * 4);
+  ldb_slice_t *keys = ldb_malloc(10000 * sizeof(ldb_slice_t));
+  const ldb_bloom_t *bloom = ldb_bloom_default;
+  uint8_t *bufs = ldb_malloc(10000 * 4);
   int mediocre_filters = 0;
   int good_filters = 0;
-  rdb_buffer_t filter;
+  ldb_buffer_t filter;
   uint8_t buffer[4];
-  rdb_slice_t key;
+  ldb_slice_t key;
   int length;
 
-  rdb_buffer_init(&filter);
+  ldb_buffer_init(&filter);
 
   /* Count number of filters that significantly exceed the FPR. */
   for (length = 1; length <= 10000; length = next_length(length)) {
@@ -97,8 +97,8 @@ test_varying_lengths(int verbose) {
     for (i = 0; i < length; i++)
       keys[i] = bloom_key(i, &bufs[i * 4]);
 
-    rdb_buffer_reset(&filter);
-    rdb_bloom_build(bloom, &filter, keys, length);
+    ldb_buffer_reset(&filter);
+    ldb_bloom_build(bloom, &filter, keys, length);
 
     ASSERT(filter.size <= ((size_t)length * 10 / 8) + 40);
 
@@ -106,7 +106,7 @@ test_varying_lengths(int verbose) {
     for (i = 0; i < length; i++) {
       key = bloom_key(i, buffer);
 
-      ASSERT(rdb_bloom_match(bloom, &filter, &key));
+      ASSERT(ldb_bloom_match(bloom, &filter, &key));
     }
 
     /* Check false positive rate. */
@@ -116,7 +116,7 @@ test_varying_lengths(int verbose) {
       for (i = 0; i < 10000; i++) {
         key = bloom_key(i + 1000000000, buffer);
 
-        if (rdb_bloom_match(bloom, &filter, &key))
+        if (ldb_bloom_match(bloom, &filter, &key))
           result++;
       }
 
@@ -143,16 +143,16 @@ test_varying_lengths(int verbose) {
 
   ASSERT(mediocre_filters <= good_filters / 5);
 
-  rdb_buffer_clear(&filter);
-  rdb_free(keys);
-  rdb_free(bufs);
+  ldb_buffer_clear(&filter);
+  ldb_free(keys);
+  ldb_free(bufs);
 }
 
-RDB_EXTERN int
-rdb_test_bloom(void);
+LDB_EXTERN int
+ldb_test_bloom(void);
 
 int
-rdb_test_bloom(void) {
+ldb_test_bloom(void) {
   test_empty_filter();
   test_small_filter();
   test_varying_lengths(1);

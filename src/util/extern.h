@@ -4,24 +4,24 @@
  * https://github.com/chjj/rdb
  */
 
-#ifndef RDB_EXTERN_H
-#define RDB_EXTERN_H
+#ifndef LDB_EXTERN_H
+#define LDB_EXTERN_H
 
-#ifdef RDB_EXPORT
+#ifdef LDB_EXPORT
 #  if defined(__EMSCRIPTEN__)
 #    include <emscripten.h>
-#    define RDB_EXTERN EMSCRIPTEN_KEEPALIVE
+#    define LDB_EXTERN EMSCRIPTEN_KEEPALIVE
 #  elif defined(__wasm__)
-#    define RDB_EXTERN __attribute__((visibility("default")))
+#    define LDB_EXTERN __attribute__((visibility("default")))
 #  elif defined(_WIN32)
-#    define RDB_EXTERN __declspec(dllexport)
+#    define LDB_EXTERN __declspec(dllexport)
 #  elif defined(__GNUC__) && __GNUC__ >= 4
-#    define RDB_EXTERN __attribute__((visibility("default")))
+#    define LDB_EXTERN __attribute__((visibility("default")))
 #  endif
 #endif
 
-#ifndef RDB_EXTERN
-#  define RDB_EXTERN
+#ifndef LDB_EXTERN
+#  define LDB_EXTERN
 #endif
 
-#endif /* RDB_EXTERN_H */
+#endif /* LDB_EXTERN_H */

@@ -4,8 +4,8 @@
  * https://github.com/chjj/rdb
  */
 
-#ifndef RDB_TABLE_CACHE_H
-#define RDB_TABLE_CACHE_H
+#ifndef LDB_TABLE_CACHE_H
+#define LDB_TABLE_CACHE_H
 
 #include <stdint.h>
 
@@ -17,19 +17,19 @@
  * Types
  */
 
-struct rdb_iter_s;
+struct ldb_iter_s;
 
-typedef struct rdb_tcache_s rdb_tcache_t;
+typedef struct ldb_tcache_s ldb_tcache_t;
 
 /*
  * TableCache
  */
 
-rdb_tcache_t *
-rdb_tcache_create(const char *prefix, const rdb_dbopt_t *options, int entries);
+ldb_tcache_t *
+ldb_tcache_create(const char *prefix, const ldb_dbopt_t *options, int entries);
 
 void
-rdb_tcache_destroy(rdb_tcache_t *cache);
+ldb_tcache_destroy(ldb_tcache_t *cache);
 
 /* Return an iterator for the specified file number (the corresponding
  * file length must be exactly "file_size" bytes).  If "tableptr" is
@@ -39,28 +39,28 @@ rdb_tcache_destroy(rdb_tcache_t *cache);
  * by the cache and should not be deleted, and is valid for as long as the
  * returned iterator is live.
  */
-struct rdb_iter_s *
-rdb_tcache_iterate(rdb_tcache_t *cache,
-                   const rdb_readopt_t *options,
+struct ldb_iter_s *
+ldb_tcache_iterate(ldb_tcache_t *cache,
+                   const ldb_readopt_t *options,
                    uint64_t file_number,
                    uint64_t file_size,
-                   rdb_table_t **tableptr);
+                   ldb_table_t **tableptr);
 
 /* If a seek to internal key "k" in specified file finds an entry,
    call (*handle_result)(arg, found_key, found_value). */
 int
-rdb_tcache_get(rdb_tcache_t *cache,
-               const rdb_readopt_t *options,
+ldb_tcache_get(ldb_tcache_t *cache,
+               const ldb_readopt_t *options,
                uint64_t file_number,
                uint64_t file_size,
-               const rdb_slice_t *k,
+               const ldb_slice_t *k,
                void *arg,
                void (*handle_result)(void *,
-                                     const rdb_slice_t *,
-                                     const rdb_slice_t *));
+                                     const ldb_slice_t *,
+                                     const ldb_slice_t *));
 
 /* Evict any entry for the specified file number. */
 void
-rdb_tcache_evict(rdb_tcache_t *cache, uint64_t file_number);
+ldb_tcache_evict(ldb_tcache_t *cache, uint64_t file_number);
 
-#endif /* RDB_TABLE_CACHE_H */
+#endif /* LDB_TABLE_CACHE_H */

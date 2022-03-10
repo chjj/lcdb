@@ -36,8 +36,8 @@ enum {
  * Helpers
  */
 
-#define load32 rdb_fixed32_decode
-#define load64 rdb_fixed64_decode
+#define load32 ldb_fixed32_decode
+#define load64 ldb_fixed64_decode
 
 static uint32_t
 hash32(uint32_t x, int shift) {
@@ -363,7 +363,7 @@ size_t
 snappy_encode(uint8_t *zp, const uint8_t *xp, size_t xn) {
   uint8_t *sp = zp;
 
-  zp = rdb_varint32_write(zp, xn);
+  zp = ldb_varint32_write(zp, xn);
 
   while (xn >= MAX_BLOCK_SIZE) {
     zp = encode_block(zp, xp, MAX_BLOCK_SIZE);
@@ -385,7 +385,7 @@ int
 snappy_decode_size(size_t *zn, const uint8_t *xp, size_t xn) {
   uint32_t n;
 
-  if (!rdb_varint32_read(&n, &xp, &xn))
+  if (!ldb_varint32_read(&n, &xp, &xn))
     return 0;
 
   if (n > 0x7fffffff)
@@ -400,7 +400,7 @@ int
 snappy_decode(uint8_t *zp, const uint8_t *xp, size_t xn) {
   uint32_t zn;
 
-  if (!rdb_varint32_read(&zn, &xp, &xn))
+  if (!ldb_varint32_read(&zn, &xp, &xn))
     return 0;
 
   if (zn > 0x7fffffff)

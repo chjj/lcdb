@@ -4,7 +4,7 @@
  * https://github.com/chjj/rdb
  */
 
-#if defined(RDB_MEMENV)
+#if defined(LDB_MEMENV)
 #  include "env_mem_impl.h"
 #elif defined(_WIN32)
 #  include "env_win_impl.h"
@@ -16,62 +16,62 @@
 #include "strutil.h"
 
 int
-rdb_write_file(const char *fname, const rdb_slice_t *data, int should_sync) {
-  rdb_wfile_t *file;
+ldb_write_file(const char *fname, const ldb_slice_t *data, int should_sync) {
+  ldb_wfile_t *file;
   int rc;
 
-  if ((rc = rdb_truncfile_create(fname, &file)))
+  if ((rc = ldb_truncfile_create(fname, &file)))
     return rc;
 
-  rc = rdb_wfile_append(file, data);
+  rc = ldb_wfile_append(file, data);
 
-  if (rc == RDB_OK && should_sync)
-    rc = rdb_wfile_sync(file);
+  if (rc == LDB_OK && should_sync)
+    rc = ldb_wfile_sync(file);
 
-  if (rc == RDB_OK)
-    rc = rdb_wfile_close(file);
+  if (rc == LDB_OK)
+    rc = ldb_wfile_close(file);
 
-  rdb_wfile_destroy(file);
+  ldb_wfile_destroy(file);
 
-  if (rc != RDB_OK)
-    rdb_remove_file(fname);
+  if (rc != LDB_OK)
+    ldb_remove_file(fname);
 
   return rc;
 }
 
 int
-rdb_read_file(const char *fname, rdb_buffer_t *data) {
-  rdb_rfile_t *file;
-  rdb_slice_t chunk;
+ldb_read_file(const char *fname, ldb_buffer_t *data) {
+  ldb_rfile_t *file;
+  ldb_slice_t chunk;
   char space[8192];
   int rc;
 
-  if ((rc = rdb_seqfile_create(fname, &file)))
+  if ((rc = ldb_seqfile_create(fname, &file)))
     return rc;
 
-  rdb_buffer_reset(data);
+  ldb_buffer_reset(data);
 
   for (;;) {
-    rc = rdb_rfile_read(file, &chunk, space, sizeof(space));
+    rc = ldb_rfile_read(file, &chunk, space, sizeof(space));
 
-    if (rc != RDB_OK)
+    if (rc != LDB_OK)
       break;
 
     if (chunk.size == 0)
       break;
 
-    rdb_buffer_append(data, chunk.data, chunk.size);
+    ldb_buffer_append(data, chunk.data, chunk.size);
   }
 
-  rdb_rfile_destroy(file);
+  ldb_rfile_destroy(file);
 
   return rc;
 }
 
 int
-rdb_test_filename(char *result, size_t size, const char *name) {
-  if (!rdb_test_directory(result, size))
+ldb_test_filename(char *result, size_t size, const char *name) {
+  if (!ldb_test_directory(result, size))
     return 0;
 
-  return rdb_join(result, size, result, name);
+  return ldb_join(result, size, result, name);
 }

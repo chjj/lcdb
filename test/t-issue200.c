@@ -12,65 +12,65 @@
 #include "tests.h"
 
 static int
-db_put(rdb_t *db, const char *k, const char *v) {
-  rdb_slice_t key = rdb_string(k);
-  rdb_slice_t val = rdb_string(v);
-  return rdb_put(db, &key, &val, 0);
+db_put(ldb_t *db, const char *k, const char *v) {
+  ldb_slice_t key = ldb_string(k);
+  ldb_slice_t val = ldb_string(v);
+  return ldb_put(db, &key, &val, 0);
 }
 
 static void
-iter_seek(rdb_iter_t *iter, const char *k) {
-  rdb_slice_t key = rdb_string(k);
-  rdb_iter_seek(iter, &key);
+iter_seek(ldb_iter_t *iter, const char *k) {
+  ldb_slice_t key = ldb_string(k);
+  ldb_iter_seek(iter, &key);
 }
 
 static int
-iter_equal(rdb_iter_t *iter, int num) {
-  rdb_slice_t key = rdb_iter_key(iter);
+iter_equal(ldb_iter_t *iter, int num) {
+  ldb_slice_t key = ldb_iter_key(iter);
   return key.size == 1 && ((char *)key.data)[0] == ('0' + num);
 }
 
 int
 main(void) {
-  rdb_dbopt_t options = *rdb_dbopt_default;
+  ldb_dbopt_t options = *ldb_dbopt_default;
   char dbpath[1024];
-  rdb_iter_t *iter;
-  rdb_t *db;
+  ldb_iter_t *iter;
+  ldb_t *db;
 
   /* Get rid of any state from an old run. */
-  ASSERT(rdb_test_filename(dbpath, sizeof(dbpath), "leveldb_issue200_test"));
+  ASSERT(ldb_test_filename(dbpath, sizeof(dbpath), "leveldb_issue200_test"));
 
-  rdb_destroy_db(dbpath, 0);
+  ldb_destroy_db(dbpath, 0);
 
   options.create_if_missing = 1;
 
-  ASSERT(rdb_open(dbpath, &options, &db) == RDB_OK);
+  ASSERT(ldb_open(dbpath, &options, &db) == LDB_OK);
 
-  ASSERT(db_put(db, "1", "b") == RDB_OK);
-  ASSERT(db_put(db, "2", "c") == RDB_OK);
-  ASSERT(db_put(db, "3", "d") == RDB_OK);
-  ASSERT(db_put(db, "4", "e") == RDB_OK);
-  ASSERT(db_put(db, "5", "f") == RDB_OK);
+  ASSERT(db_put(db, "1", "b") == LDB_OK);
+  ASSERT(db_put(db, "2", "c") == LDB_OK);
+  ASSERT(db_put(db, "3", "d") == LDB_OK);
+  ASSERT(db_put(db, "4", "e") == LDB_OK);
+  ASSERT(db_put(db, "5", "f") == LDB_OK);
 
-  iter = rdb_iterator(db, 0);
+  iter = ldb_iterator(db, 0);
 
   /* Add an element that should not be reflected in the iterator. */
-  ASSERT(db_put(db, "25", "cd") == RDB_OK);
+  ASSERT(db_put(db, "25", "cd") == LDB_OK);
 
   iter_seek(iter, "5");
   ASSERT(iter_equal(iter, 5));
-  rdb_iter_prev(iter);
+  ldb_iter_prev(iter);
   ASSERT(iter_equal(iter, 4));
-  rdb_iter_prev(iter);
+  ldb_iter_prev(iter);
   ASSERT(iter_equal(iter, 3));
-  rdb_iter_next(iter);
+  ldb_iter_next(iter);
   ASSERT(iter_equal(iter, 4));
-  rdb_iter_next(iter);
+  ldb_iter_next(iter);
   ASSERT(iter_equal(iter, 5));
 
-  rdb_iter_destroy(iter);
-  rdb_close(db);
-  rdb_destroy_db(dbpath, 0);
+  ldb_iter_destroy(iter);
+  ldb_close(db);
+  ldb_destroy_db(dbpath, 0);
 
   return 0;
 }

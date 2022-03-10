@@ -5,8 +5,8 @@
  */
 
 int
-rdb_test_dbformat(void);
+ldb_test_dbformat(void);
 
 int main(void) {
-  return rdb_test_dbformat();
+  return ldb_test_dbformat();
 }

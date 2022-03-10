@@ -5,8 +5,8 @@
  */
 
 int
-rdb_test_cache(void);
+ldb_test_cache(void);
 
 int main(void) {
-  return rdb_test_cache();
+  return ldb_test_cache();
 }
