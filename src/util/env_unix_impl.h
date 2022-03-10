@@ -119,7 +119,7 @@ struct rdb_filelock_s {
  * Globals
  */
 
-static rdb_limiter_t rdb_fd_limiter = {8192, 8192};
+static rdb_limiter_t rdb_fd_limiter = {1638, 1638};
 #ifdef HAVE_MMAP
 static rdb_limiter_t rdb_mmap_limiter = {RDB_MMAP_LIMIT, RDB_MMAP_LIMIT};
 #endif
@@ -280,19 +280,19 @@ rdb_lock_or_unlock(int fd, int lock) {
 static int
 rdb_max_open_files(void) {
 #if defined(__Fuchsia__)
-  return 50;
+  return 1638;
 #elif defined(RLIMIT_NOFILE)
   struct rlimit rlim;
 
   if (getrlimit(RLIMIT_NOFILE, &rlim) != 0)
-    return 50;
+    return 1638;
 
   if (rlim.rlim_cur == RLIM_INFINITY)
     return INT_MAX / 2;
 
   return rlim.rlim_cur / 5;
 #else
-  return 1024;
+  return 1638;
 #endif
 }
 
