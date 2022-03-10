@@ -4,8 +4,8 @@
  * https://github.com/chjj/lcdb
  */
 
-#ifndef LDB_H
-#define LDB_H
+#ifndef LCDB_H
+#define LCDB_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -351,4 +351,4 @@ ldb_strerror(int code);
 }
 #endif
 
-#endif /* LDB_H */
+#endif /* LCDB_H */

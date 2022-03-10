@@ -4,8 +4,8 @@
  * https://github.com/chjj/lcdb
  */
 
-#ifndef LDB_C_H
-#define LDB_C_H
+#ifndef LCDB_C_H
+#define LCDB_C_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -389,4 +389,4 @@ leveldb_minor_version();
 }
 #endif
 
-#endif /* LDB_C_H */
+#endif /* LCDB_C_H */
