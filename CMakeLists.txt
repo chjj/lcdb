@@ -127,8 +127,8 @@ target_include_directories(lcdb PUBLIC ${PROJECT_SOURCE_DIR}/include)
 target_link_options(lcdb INTERFACE ${ldb_ldflags})
 target_link_libraries(lcdb PRIVATE ${ldb_libs} pthread)
 
-add_executable(rdbutil src/dbutil.c)
-target_link_libraries(rdbutil PRIVATE lcdb)
+add_executable(lcdbutil src/dbutil.c)
+target_link_libraries(lcdbutil PRIVATE lcdb)
 
 if(LDB_TESTS)
   set(tests arena

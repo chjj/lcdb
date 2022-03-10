@@ -48,8 +48,8 @@ static ldb_limiter_t ldb_mmap_limiter = {LDB_MMAP_LIMIT, LDB_MMAP_LIMIT};
  * Compat
  */
 
-static BOOL (FAR WINAPI *RDBMoveFileExA)(LPCSTR, LPCSTR, DWORD) = NULL;
-static BOOL (FAR WINAPI *RDBGetFileAttributesExA)(LPCSTR,
+static BOOL (FAR WINAPI *LDBMoveFileExA)(LPCSTR, LPCSTR, DWORD) = NULL;
+static BOOL (FAR WINAPI *LDBGetFileAttributesExA)(LPCSTR,
                                                   GET_FILEEX_INFO_LEVELS,
                                                   LPVOID) = NULL;
 
@@ -69,10 +69,10 @@ ldb_load_functions(void) {
       abort(); /* LCOV_EXCL_LINE */
 
     /* Available only on Windows NT (not 9x). */
-    RDBMoveFileExA = GetProcAddress(mod, "MoveFileExA");
+    LDBMoveFileExA = GetProcAddress(mod, "MoveFileExA");
 
     /* Available only on Windows 98 and above. */
-    RDBGetFileAttributesExA = GetProcAddress(mod, "GetFileAttributesExA");
+    LDBGetFileAttributesExA = GetProcAddress(mod, "GetFileAttributesExA");
 
     if (InterlockedExchange(&state, 2) != 1)
       abort(); /* LCOV_EXCL_LINE */
@@ -82,7 +82,7 @@ ldb_load_functions(void) {
 }
 
 static BOOL
-RDBSetFilePointerEx(HANDLE file,
+LDBSetFilePointerEx(HANDLE file,
                     LARGE_INTEGER pos,
                     LARGE_INTEGER *rpos,
                     DWORD method) {
@@ -100,7 +100,7 @@ RDBSetFilePointerEx(HANDLE file,
 }
 
 static BOOL
-RDBGetFileSizeEx(HANDLE file, LARGE_INTEGER *size) {
+LDBGetFileSizeEx(HANDLE file, LARGE_INTEGER *size) {
   size->LowPart = GetFileSize(file, &size->HighPart);
 
   if (size->LowPart == (DWORD)-1) { /* INVALID_FILE_SIZE */
@@ -333,10 +333,10 @@ ldb_get_file_size(const char *filename, uint64_t *size) {
   ldb_load_functions();
 
   /* Windows 98 and above only. */
-  if (RDBGetFileAttributesExA != NULL) {
+  if (LDBGetFileAttributesExA != NULL) {
     WIN32_FILE_ATTRIBUTE_DATA attrs;
 
-    if (!RDBGetFileAttributesExA(filename, GetFileExInfoStandard, &attrs))
+    if (!LDBGetFileAttributesExA(filename, GetFileExInfoStandard, &attrs))
       return LDB_WIN32_ERROR(GetLastError());
 
     result.HighPart = attrs.nFileSizeHigh;
@@ -359,7 +359,7 @@ ldb_get_file_size(const char *filename, uint64_t *size) {
   if (handle == INVALID_HANDLE_VALUE)
     return LDB_WIN32_ERROR(GetLastError());
 
-  if (!RDBGetFileSizeEx(handle, &result)) {
+  if (!LDBGetFileSizeEx(handle, &result)) {
     DWORD code = GetLastError();
     CloseHandle(handle);
     return LDB_WIN32_ERROR(code);
@@ -377,8 +377,8 @@ ldb_rename_file(const char *from, const char *to) {
   ldb_load_functions();
 
   /* Windows NT only. */
-  if (RDBMoveFileExA != NULL) {
-    if (!RDBMoveFileExA(from, to, MOVEFILE_REPLACE_EXISTING))
+  if (LDBMoveFileExA != NULL) {
+    if (!LDBMoveFileExA(from, to, MOVEFILE_REPLACE_EXISTING))
       return LDB_WIN32_ERROR(GetLastError());
 
     return LDB_OK;
@@ -524,7 +524,7 @@ ldb_rfile_skip(ldb_rfile_t *file, uint64_t offset) {
 
   dist.QuadPart = offset;
 
-  if (!RDBSetFilePointerEx(file->handle, dist, NULL, FILE_CURRENT))
+  if (!LDBSetFilePointerEx(file->handle, dist, NULL, FILE_CURRENT))
     return LDB_IOERR;
 
   return LDB_OK;
@@ -643,7 +643,7 @@ ldb_randfile_create(const char *filename, ldb_rfile_t **file, int use_mmap) {
     return LDB_OK;
   }
 
-  if (!RDBGetFileSizeEx(handle, &size))
+  if (!LDBGetFileSizeEx(handle, &size))
     rc = LDB_WIN32_ERROR(GetLastError());
 
   if (rc == LDB_OK && size.QuadPart > (((size_t)-1) / 2))
