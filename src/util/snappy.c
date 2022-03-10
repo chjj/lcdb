@@ -8,6 +8,7 @@
  *   https://github.com/golang/snappy
  */
 
+#include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
@@ -19,7 +20,6 @@
  */
 
 #define MAX_TABLE_SIZE (1 << 14)
-#define TABLE_MASK (MAX_TABLE_SIZE - 1)
 #define INPUT_MARGIN (16 - 1)
 #define MIN_BLOCK_SIZE (1 + 1 + INPUT_MARGIN)
 #define MAX_BLOCK_SIZE 65536
@@ -117,10 +117,7 @@ encode_block(uint8_t *zp, const uint8_t *xp, size_t xn) {
     shift--;
   }
 
-  size = (1U << (32 - shift));
-
-  if (size > MAX_TABLE_SIZE)
-    size = MAX_TABLE_SIZE;
+  assert(size <= MAX_TABLE_SIZE);
 
   memset(table, 0, size * sizeof(uint16_t));
 
@@ -139,9 +136,9 @@ encode_block(uint8_t *zp, const uint8_t *xp, size_t xn) {
       if (npos > limit)
         goto finish;
 
-      cand = table[next & TABLE_MASK];
+      cand = table[next];
 
-      table[next & TABLE_MASK] = pos;
+      table[next] = pos;
 
       next = hash32(load32(xp + npos), shift);
 
@@ -168,12 +165,12 @@ encode_block(uint8_t *zp, const uint8_t *xp, size_t xn) {
       x = load64(xp + pos - 1);
       prev = hash32((x >> 0), shift);
 
-      table[prev & TABLE_MASK] = pos - 1;
+      table[prev] = pos - 1;
 
       cur = hash32((x >> 8), shift);
-      cand = table[cur & TABLE_MASK];
+      cand = table[cur];
 
-      table[cur & TABLE_MASK] = pos;
+      table[cur] = pos;
 
       if ((x >> 8) != load32(xp + cand)) {
         next = hash32((x >> 16), shift);
