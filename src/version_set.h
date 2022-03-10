@@ -1,7 +1,7 @@
 /*!
- * version_set.h - version set for rdb
+ * version_set.h - version set for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
- * https://github.com/chjj/rdb
+ * https://github.com/chjj/lcdb
  */
 
 #ifndef LDB_VERSION_SET_H

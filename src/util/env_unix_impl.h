@@ -1,7 +1,7 @@
 /*!
- * env_unix_impl.h - unix environment for rdb
+ * env_unix_impl.h - unix environment for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
- * https://github.com/chjj/rdb
+ * https://github.com/chjj/lcdb
  */
 
 #include <assert.h>

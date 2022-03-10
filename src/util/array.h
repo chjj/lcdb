@@ -1,7 +1,7 @@
 /*!
- * array.h - integer vector for rdb
+ * array.h - integer vector for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
- * https://github.com/chjj/rdb
+ * https://github.com/chjj/lcdb
  */
 
 #ifndef LDB_ARRAY_H

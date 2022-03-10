@@ -1,14 +1,14 @@
 /*!
- * t-issue320.c - issue320 test for rdb
+ * t-issue320.c - issue320 test for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
- * https://github.com/chjj/rdb
+ * https://github.com/chjj/lcdb
  */
 
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <rdb.h>
+#include <lcdb.h>
 #include "tests.h"
 
 static void

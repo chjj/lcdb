@@ -1,10 +1,10 @@
 # CMakeLists.txt - cmake build for leveldb wrapper
 # Copyright (c) 2022, Christopher Jeffrey (MIT License).
-# https://github.com/chjj/rdb
+# https://github.com/chjj/lcdb
 
 cmake_minimum_required(VERSION 3.4)
-project(rdb LANGUAGES C)
+project(lcdb LANGUAGES C)
 
-add_library(rdb STATIC wrap.c)
+add_library(lcdb STATIC wrap.c)
 
-target_link_libraries(rdb PRIVATE leveldb)
+target_link_libraries(lcdb PRIVATE leveldb)

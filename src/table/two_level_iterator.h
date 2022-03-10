@@ -1,7 +1,7 @@
 /*!
- * two_level_iterator.h - two-level iterator for rdb
+ * two_level_iterator.h - two-level iterator for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
- * https://github.com/chjj/rdb
+ * https://github.com/chjj/lcdb
  */
 
 #ifndef LDB_TWO_LEVEL_ITERATOR_H

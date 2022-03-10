@@ -1,7 +1,7 @@
 /*!
- * dbformat_test.c - dbformat test for rdb
+ * dbformat_test.c - dbformat test for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
- * https://github.com/chjj/rdb
+ * https://github.com/chjj/lcdb
  */
 
 #include <stdint.h>

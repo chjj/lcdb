@@ -1,7 +1,7 @@
 /*!
- * snappy.c - snappy for rdb
+ * snappy.c - snappy for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
- * https://github.com/chjj/rdb
+ * https://github.com/chjj/lcdb
  *
  * Parts of this software are based on golang/snappy:
  *   Copyright (c) 2011 The Snappy-Go Authors. All rights reserved.

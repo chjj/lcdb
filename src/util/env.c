@@ -1,7 +1,7 @@
 /*!
- * env.c - platform-specific functions for rdb
+ * env.c - platform-specific functions for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
- * https://github.com/chjj/rdb
+ * https://github.com/chjj/lcdb
  */
 
 #if defined(LDB_MEMENV)

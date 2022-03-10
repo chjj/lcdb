@@ -1,7 +1,7 @@
 /*!
- * random.c - random number generator for rdb
+ * random.c - random number generator for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
- * https://github.com/chjj/rdb
+ * https://github.com/chjj/lcdb
  */
 
 #include <stdint.h>

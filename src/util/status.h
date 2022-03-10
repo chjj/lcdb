@@ -1,7 +1,7 @@
 /*!
- * status.h - error codes for rdb
+ * status.h - error codes for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
- * https://github.com/chjj/rdb
+ * https://github.com/chjj/lcdb
  */
 
 #ifndef LDB_STATUS_H

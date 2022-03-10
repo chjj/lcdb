@@ -1,7 +1,7 @@
 /*!
- * table.h - sorted string table for rdb
+ * table.h - sorted string table for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
- * https://github.com/chjj/rdb
+ * https://github.com/chjj/lcdb
  */
 
 #ifndef LDB_TABLE_H

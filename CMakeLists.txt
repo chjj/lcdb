@@ -1,9 +1,9 @@
-# CMakeLists.txt - cmake build for rdb
+# CMakeLists.txt - cmake build for lcdb
 # Copyright (c) 2022, Christopher Jeffrey (MIT License).
-# https://github.com/chjj/rdb
+# https://github.com/chjj/lcdb
 
 cmake_minimum_required(VERSION 3.4)
-project(rdb LANGUAGES C)
+project(lcdb LANGUAGES C)
 
 include(CTest)
 
@@ -120,15 +120,15 @@ else()
                          -Wshadow)
 endif()
 
-add_library(rdb STATIC ${ldb_sources})
-target_compile_definitions(rdb PRIVATE ${ldb_defines})
-target_compile_options(rdb PUBLIC ${ldb_cflags})
-target_include_directories(rdb PUBLIC ${PROJECT_SOURCE_DIR}/include)
-target_link_options(rdb INTERFACE ${ldb_ldflags})
-target_link_libraries(rdb PRIVATE ${ldb_libs} pthread)
+add_library(lcdb STATIC ${ldb_sources})
+target_compile_definitions(lcdb PRIVATE ${ldb_defines})
+target_compile_options(lcdb PUBLIC ${ldb_cflags})
+target_include_directories(lcdb PUBLIC ${PROJECT_SOURCE_DIR}/include)
+target_link_options(lcdb INTERFACE ${ldb_ldflags})
+target_link_libraries(lcdb PRIVATE ${ldb_libs} pthread)
 
 add_executable(rdbutil src/dbutil.c)
-target_link_libraries(rdbutil PRIVATE rdb)
+target_link_libraries(rdbutil PRIVATE lcdb)
 
 if(LDB_TESTS)
   set(tests arena
@@ -163,7 +163,7 @@ if(LDB_TESTS)
 
   foreach(name ${tests})
     add_executable(t-${name} test/t-${name}.c)
-    target_link_libraries(t-${name} PRIVATE rdb)
+    target_link_libraries(t-${name} PRIVATE lcdb)
     add_test(NAME ${name} COMMAND t-${name})
   endforeach()
 endif()

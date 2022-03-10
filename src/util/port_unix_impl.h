@@ -1,7 +1,7 @@
 /*!
- * port_unix_impl.h - unix port for rdb
+ * port_unix_impl.h - unix port for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
- * https://github.com/chjj/rdb
+ * https://github.com/chjj/lcdb
  */
 
 #include <errno.h>

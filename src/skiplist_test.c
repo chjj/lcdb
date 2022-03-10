@@ -1,7 +1,7 @@
 /*!
- * skiplist_test.c - skiplist test for rdb
+ * skiplist_test.c - skiplist test for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
- * https://github.com/chjj/rdb
+ * https://github.com/chjj/lcdb
  */
 
 #include <stdint.h>

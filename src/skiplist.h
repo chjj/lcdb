@@ -1,7 +1,7 @@
 /*!
- * skiplist.h - skiplist for rdb
+ * skiplist.h - skiplist for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
- * https://github.com/chjj/rdb
+ * https://github.com/chjj/lcdb
  */
 
 #ifndef LDB_SKIPLIST_H

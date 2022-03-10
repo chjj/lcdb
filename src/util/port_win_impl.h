@@ -1,7 +1,7 @@
 /*!
- * port_win_impl.h - windows port for rdb
+ * port_win_impl.h - windows port for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
- * https://github.com/chjj/rdb
+ * https://github.com/chjj/lcdb
  *
  * Parts of this software are based on libuv/libuv:
  *   Copyright (c) 2015-2020, libuv project contributors (MIT License).

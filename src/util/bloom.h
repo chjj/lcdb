@@ -1,7 +1,7 @@
 /*!
- * bloom.c - bloom filter for rdb
+ * bloom.c - bloom filter for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
- * https://github.com/chjj/rdb
+ * https://github.com/chjj/lcdb
  */
 
 #ifndef LDB_BLOOM_H

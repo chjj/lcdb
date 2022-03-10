@@ -1,7 +1,7 @@
 /*!
- * table_cache.c - sstable cache for rdb
+ * table_cache.c - sstable cache for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
- * https://github.com/chjj/rdb
+ * https://github.com/chjj/lcdb
  */
 
 #include <assert.h>

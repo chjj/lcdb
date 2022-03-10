@@ -1,7 +1,7 @@
 /*!
- * types.h - types for rdb
+ * types.h - types for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
- * https://github.com/chjj/rdb
+ * https://github.com/chjj/lcdb
  */
 
 #ifndef LDB_TYPES_H

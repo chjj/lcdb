@@ -1,7 +1,7 @@
 /*!
- * table_builder.h - sorted string table builder for rdb
+ * table_builder.h - sorted string table builder for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
- * https://github.com/chjj/rdb
+ * https://github.com/chjj/lcdb
  */
 
 #ifndef LDB_TABLE_BUILDER_H

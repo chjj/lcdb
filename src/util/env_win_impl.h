@@ -1,7 +1,7 @@
 /*!
- * env_win_impl.h - win32 environment for rdb
+ * env_win_impl.h - win32 environment for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
- * https://github.com/chjj/rdb
+ * https://github.com/chjj/lcdb
  */
 
 #include <assert.h>

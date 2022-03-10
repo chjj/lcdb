@@ -1,7 +1,7 @@
 /*!
- * snappy.h - snappy for rdb
+ * snappy.h - snappy for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
- * https://github.com/chjj/rdb
+ * https://github.com/chjj/lcdb
  */
 
 #ifndef LDB_SNAPPY_H

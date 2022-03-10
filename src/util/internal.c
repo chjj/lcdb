@@ -1,7 +1,7 @@
 /*!
- * internal.c - internal utils for rdb
+ * internal.c - internal utils for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
- * https://github.com/chjj/rdb
+ * https://github.com/chjj/lcdb
  */
 
 #include <stdio.h>

@@ -1,7 +1,7 @@
 /*!
- * t-status.c - status test for rdb
+ * t-status.c - status test for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
- * https://github.com/chjj/rdb
+ * https://github.com/chjj/lcdb
  */
 
 int

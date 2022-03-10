@@ -1,7 +1,7 @@
 /*!
- * snapshot.h - snapshots for rdb
+ * snapshot.h - snapshots for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
- * https://github.com/chjj/rdb
+ * https://github.com/chjj/lcdb
  */
 
 #ifndef LDB_SNAPSHOT_H

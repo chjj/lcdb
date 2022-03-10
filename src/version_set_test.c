@@ -1,7 +1,7 @@
 /*!
- * version_set_test.c - version_set test for rdb
+ * version_set_test.c - version_set test for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
- * https://github.com/chjj/rdb
+ * https://github.com/chjj/lcdb
  */
 
 #include <stdint.h>

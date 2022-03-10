@@ -1,7 +1,7 @@
 /*!
- * log_format.h - log format for rdb
+ * log_format.h - log format for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
- * https://github.com/chjj/rdb
+ * https://github.com/chjj/lcdb
  */
 
 #ifndef LDB_LOG_FORMAT_H

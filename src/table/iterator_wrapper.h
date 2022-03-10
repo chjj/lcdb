@@ -1,7 +1,7 @@
 /*!
- * iterator_wrapper.h - iterator wrapper for rdb
+ * iterator_wrapper.h - iterator wrapper for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
- * https://github.com/chjj/rdb
+ * https://github.com/chjj/lcdb
  */
 
 #ifndef LDB_ITERATOR_WRAPPER_H

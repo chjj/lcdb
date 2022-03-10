@@ -1,7 +1,7 @@
 /*!
- * block_builder.h - block builder for rdb
+ * block_builder.h - block builder for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
- * https://github.com/chjj/rdb
+ * https://github.com/chjj/lcdb
  */
 
 #ifndef LDB_BLOCK_BUILDER_H

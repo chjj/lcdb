@@ -1,7 +1,7 @@
 /*!
- * arena_test.c - arena test for rdb
+ * arena_test.c - arena test for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
- * https://github.com/chjj/rdb
+ * https://github.com/chjj/lcdb
  */
 
 #include <stdint.h>

@@ -1,7 +1,7 @@
 /*!
- * merger.c - merging iterator for rdb
+ * merger.c - merging iterator for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
- * https://github.com/chjj/rdb
+ * https://github.com/chjj/lcdb
  */
 
 #include <assert.h>

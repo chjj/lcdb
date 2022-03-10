@@ -1,7 +1,7 @@
 /*!
- * block_builder.c - block builder for rdb
+ * block_builder.c - block builder for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
- * https://github.com/chjj/rdb
+ * https://github.com/chjj/lcdb
  */
 
 /* BlockBuilder generates blocks where keys are prefix-compressed:
