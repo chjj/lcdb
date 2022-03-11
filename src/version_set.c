@@ -861,7 +861,7 @@ ldb_version_debug(ldb_buffer_t *z, const ldb_version_t *x) {
     ldb_buffer_string(z, " ---\n");
 
     for (i = 0; i < files->length; i++) {
-      const ldb_filemeta_t *file = files->items[i++];
+      const ldb_filemeta_t *file = files->items[i];
 
       ldb_buffer_push(z, ' ');
       ldb_buffer_number(z, file->number);
