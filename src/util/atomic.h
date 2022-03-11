@@ -51,7 +51,7 @@
 #  define LDB_GNUC_ATOMICS
 #elif defined(__clang__) && defined(__ATOMIC_RELAXED)
 #  define LDB_CLANG_ATOMICS
-#elif defined(_MSC_VER) && defined(_WIN32)
+#elif defined(_WIN32)
 #  define LDB_MSVC_ATOMICS
 #endif
 

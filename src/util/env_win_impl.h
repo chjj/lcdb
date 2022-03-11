@@ -54,36 +54,38 @@ static ldb_limiter_t ldb_mmap_limiter = {LDB_MMAP_LIMIT, LDB_MMAP_LIMIT};
  * Compat
  */
 
-static BOOL (FAR WINAPI *LDBMoveFileExA)(LPCSTR, LPCSTR, DWORD) = NULL;
-static BOOL (FAR WINAPI *LDBGetFileAttributesExA)(LPCSTR,
-                                                  GET_FILEEX_INFO_LEVELS,
-                                                  LPVOID) = NULL;
+static BOOL (WINAPI *LDBMoveFileExA)(LPCSTR, LPCSTR, DWORD) = NULL;
+static BOOL (WINAPI *LDBGetFileAttributesExA)(LPCSTR,
+                                              GET_FILEEX_INFO_LEVELS,
+                                              LPVOID) = NULL;
 
 static void
 ldb_load_functions(void) {
   static volatile long state = 0;
-  static HMODULE mod;
-  long s;
+  HMODULE handle;
+  long value;
 
-  while ((s = InterlockedCompareExchange(&state, 1, 0)) == 1)
+  /* Logic from libsodium/core.c */
+  while ((value = InterlockedCompareExchange(&state, 1, 0)) == 1)
     Sleep(0);
 
-  if (s == 0) {
-    mod = GetModuleHandleA("kernel32.dll");
+  if (value == 0) {
+    handle = GetModuleHandleA("kernel32.dll");
 
-    if (mod == NULL)
+    if (handle == NULL)
       abort(); /* LCOV_EXCL_LINE */
 
     /* Available only on Windows NT (not 9x). */
-    LDBMoveFileExA = GetProcAddress(mod, "MoveFileExA");
+    *((FARPROC *)&LDBMoveFileExA) = GetProcAddress(handle, "MoveFileExA");
 
     /* Available only on Windows 98 and above. */
-    LDBGetFileAttributesExA = GetProcAddress(mod, "GetFileAttributesExA");
+    *((FARPROC *)&LDBGetFileAttributesExA) = GetProcAddress(handle,
+                                               "GetFileAttributesExA");
 
     if (InterlockedExchange(&state, 2) != 1)
       abort(); /* LCOV_EXCL_LINE */
   } else {
-    assert(s == 2);
+    assert(value == 2);
   }
 }
 
