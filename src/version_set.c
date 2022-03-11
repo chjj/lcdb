@@ -221,7 +221,7 @@ some_file_overlaps_range(const ldb_comparator_t *icmp,
    16-byte value containing the file number and file size, both
    encoded using ldb_fixed64_write. */
 typedef struct ldb_numiter_s {
-  ldb_comparator_t icmp; /* not a pointer? */
+  ldb_comparator_t icmp;
   const ldb_vector_t *flist; /* ldb_filemeta_t */
   uint32_t index;
   uint8_t value[16];
@@ -238,7 +238,7 @@ ldb_numiter_init(ldb_numiter_t *iter,
 
 static void
 ldb_numiter_clear(ldb_numiter_t *iter) {
-  (void)iter; /* nothing?? */
+  (void)iter;
 }
 
 static int

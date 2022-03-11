@@ -771,7 +771,7 @@ ldb_test_filename(char *result, size_t size, const char *name) {
   if (!ldb_test_directory(path, sizeof(path)))
     return 0;
 
-  if (strlen(path) + strlen(name) + 1 > size)
+  if (strlen(path) + strlen(name) + 2 > size)
     return 0;
 
   sprintf(result, "%s/%s", path, name);
@@ -782,6 +782,15 @@ ldb_test_filename(char *result, size_t size, const char *name) {
 /*
  * Internal
  */
+
+LDB_EXTERN void
+ldb_assert_fail(const char *file, int line, const char *expr) {
+  /* LCOV_EXCL_START */
+  fprintf(stderr, "%s:%d: Assertion `%s' failed.\n", file, line, expr);
+  fflush(stderr);
+  abort();
+  /* LCOV_EXCL_STOP */
+}
 
 LDB_EXTERN void
 ldb_free(void *ptr) {
