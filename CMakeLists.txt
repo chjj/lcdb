@@ -45,7 +45,7 @@ include(GNUInstallDirs)
 option(LDB_COVERAGE "Enable coverage" OFF)
 option(LDB_PIC "Enable PIC" OFF)
 option(LDB_SHARED "Build shared library" OFF)
-option(LDB_TESTS "Build tests" ON)
+option(LDB_TESTS "Build tests" OFF)
 
 #
 # Variables
