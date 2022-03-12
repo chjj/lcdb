@@ -44,12 +44,8 @@ include(GNUInstallDirs)
 
 option(LDB_COVERAGE "Enable coverage" OFF)
 option(LDB_PIC "Enable PIC" OFF)
-option(LDB_SHARED "Build shared library" ON)
-option(LDB_TESTS "Build tests" OFF)
-
-if(WASI OR EMSCRIPTEN)
-  set(LDB_SHARED OFF)
-endif()
+option(LDB_SHARED "Build shared library" OFF)
+option(LDB_TESTS "Build tests" ON)
 
 #
 # Variables
@@ -110,8 +106,6 @@ if(LDB_CHIBICC)
   set(CMAKE_SHARED_LIBRARY_C_FLAGS "-fPIC")
 endif()
 
-check_symbol_exists(__WATCOMC__ "" LDB_WATCOM)
-
 #
 # Feature Testing
 #
@@ -121,7 +115,9 @@ check_symbol_exists(pread unistd.h LDB_HAVE_PREAD)
 
 set(LDB_HAVE_PTHREAD 0)
 
-if(NOT (WIN32 OR WASI OR EMSCRIPTEN OR LDB_WATCOM))
+if(CMAKE_C_COMPILER_ID MATCHES "Watcom$")
+  set(LDB_HAVE_PTHREAD 1)
+elseif(NOT WIN32 AND NOT WASI AND NOT EMSCRIPTEN)
   set(THREADS_PREFER_PTHREAD_FLAG ON)
 
   find_package(Threads)
@@ -306,7 +302,7 @@ list(APPEND ldb_includes ${PROJECT_SOURCE_DIR}/include)
 
 if(WIN32)
   list(APPEND ldb_libs kernel32)
-elseif(LDB_HAVE_PTHREAD)
+elseif(LDB_HAVE_PTHREAD AND NOT CMAKE_C_COMPILER_ID MATCHES "Watcom$")
   list(APPEND ldb_libs Threads::Threads)
 endif()
 
