@@ -8,9 +8,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <lcdb_c.h>
-
 #include "util/extern.h"
+
+#include <lcdb_c.h>
 
 static const char* phase = "";
 
