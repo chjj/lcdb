@@ -329,7 +329,7 @@ if(NOT PROJECT_NAME STREQUAL CMAKE_PROJECT_NAME)
 endif()
 
 #
-# Build
+# Targets
 #
 
 add_library(lcdb_static STATIC ${ldb_sources})
