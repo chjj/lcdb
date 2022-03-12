@@ -428,6 +428,10 @@ endif()
 # Install
 #
 
+if(WASI OR EMSCRIPTEN)
+  return()
+endif()
+
 if(UNIX)
   configure_file(lcdb-cmake.pc.in lcdb.pc @ONLY)
 

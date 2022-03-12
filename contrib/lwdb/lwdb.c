@@ -1,5 +1,5 @@
 /*!
- * leveldb_wrapper.c - wrap leveldb to look like lcdb
+ * lwdb.c - wrap leveldb to look like lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
  * https://github.com/chjj/lcdb
  *
