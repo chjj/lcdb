@@ -83,6 +83,9 @@ ldb_date(char *zp, int64_t x) {
  */
 
 ldb_logger_t *
+ldb_logger_create(FILE *stream);
+
+ldb_logger_t *
 ldb_logger_create(FILE *stream) {
   ldb_logger_t *logger = ldb_malloc(sizeof(ldb_logger_t));
   logger->stream = stream;

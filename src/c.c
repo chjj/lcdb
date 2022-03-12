@@ -697,11 +697,11 @@ leveldb_free(void *ptr) {
 }
 
 int
-leveldb_major_version() {
+leveldb_major_version(void) {
   return 1;
 }
 
 int
-leveldb_minor_version() {
+leveldb_minor_version(void) {
   return 23;
 }

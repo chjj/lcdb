@@ -21,6 +21,7 @@
 #include "util/options.h"
 #include "util/status.h"
 
+#include "builder.h"
 #include "dbformat.h"
 #include "filename.h"
 #include "table_cache.h"

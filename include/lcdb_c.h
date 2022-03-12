@@ -386,10 +386,10 @@ LDB_EXTERN void
 leveldb_free(void *ptr);
 
 LDB_EXTERN int
-leveldb_major_version();
+leveldb_major_version(void);
 
 LDB_EXTERN int
-leveldb_minor_version();
+leveldb_minor_version(void);
 
 #ifdef __cplusplus
 }
