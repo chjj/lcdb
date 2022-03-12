@@ -110,6 +110,8 @@ if(LDB_CHIBICC)
   set(CMAKE_SHARED_LIBRARY_C_FLAGS "-fPIC")
 endif()
 
+check_symbol_exists(__WATCOMC__ "" LDB_WATCOM)
+
 #
 # Feature Testing
 #
@@ -119,7 +121,7 @@ check_symbol_exists(pread unistd.h LDB_HAVE_PREAD)
 
 set(LDB_HAVE_PTHREAD 0)
 
-if(NOT WIN32 AND NOT WASI AND NOT EMSCRIPTEN)
+if(NOT (WIN32 OR WASI OR EMSCRIPTEN OR LDB_WATCOM))
   set(THREADS_PREFER_PTHREAD_FLAG ON)
 
   find_package(Threads)

@@ -61,9 +61,6 @@
 #  define LDB_HAVE_ATOMICS
 #endif
 
-#undef LDB_CLANG_ATOMICS
-#define LDB_GNUC_ATOMICS
-
 /*
  * Backend Selection
  */
