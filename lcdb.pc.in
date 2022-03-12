@@ -1,0 +1,13 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: lcdb
+Version: @PACKAGE_VERSION@
+Description: Bitcoin library.
+URL: https://github.com/chjj/lcdb
+
+Cflags: -I${includedir}
+Libs: -L${libdir} -llcdb
+Libs.private: @PTHREAD_LIBS@
