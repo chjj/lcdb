@@ -123,7 +123,7 @@ ldb_log(ldb_logger_t *logger, const char *fmt, ...) {
 
       memcpy(&tid, &thread, LDB_MIN(sizeof(tid), sizeof(thread)));
     }
-#else
+#elif !defined(__wasi__)
     tid = getpid();
 #endif
 

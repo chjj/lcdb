@@ -16,6 +16,7 @@
 #include "buffer.h"
 #include "random.h"
 #include "slice.h"
+#include "testutil.h"
 
 /*
  * Test Utils

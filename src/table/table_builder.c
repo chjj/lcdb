@@ -310,9 +310,9 @@ ldb_tablebuilder_status(const ldb_tablebuilder_t *tb) {
 
 int
 ldb_tablebuilder_finish(ldb_tablebuilder_t *tb) {
+  ldb_blockhandle_t metaindex_handle = {0, 0};
+  ldb_blockhandle_t index_handle = {0, 0};
   ldb_blockhandle_t filter_handle;
-  ldb_blockhandle_t metaindex_handle;
-  ldb_blockhandle_t index_handle;
 
   ldb_tablebuilder_flush(tb);
 

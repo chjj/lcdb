@@ -1994,7 +1994,7 @@ static int
 find_largest_key(const ldb_comparator_t *icmp,
                  const ldb_vector_t *files,
                  ldb_slice_t *largest_key) {
-  ldb_ikey_t *large;
+  ldb_ikey_t *large = NULL;
   size_t i;
 
   if (files->length == 0)

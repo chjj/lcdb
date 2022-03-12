@@ -578,7 +578,11 @@ ldb_test_directory(char *result, size_t size) {
   if (dir && dir[0] != '\0') {
     len = strlen(dir);
   } else {
+#ifdef __wasi__
+    len = sprintf(tmp, "/leveldbtest");
+#else
     len = sprintf(tmp, "/tmp/leveldbtest-%d", (int)geteuid());
+#endif
     dir = tmp;
   }
 
