@@ -109,7 +109,10 @@ LDBSetFilePointerEx(HANDLE file,
 
 static BOOL
 LDBGetFileSizeEx(HANDLE file, LARGE_INTEGER *size) {
-  size->LowPart = GetFileSize(file, &size->HighPart);
+  DWORD HighPart = 0;
+
+  size->LowPart = GetFileSize(file, &HighPart);
+  size->HighPart = HighPart;
 
   if (size->LowPart == (DWORD)-1) { /* INVALID_FILE_SIZE */
     if (GetLastError() != NO_ERROR)
@@ -277,9 +280,8 @@ ldb_get_children(const char *path, char ***out) {
 
 succeed:
   *out = list;
-  *count = i;
 
-  return 1;
+  return i;
 fail:
   for (j = 0; j < i; j++)
     ldb_free(list[j]);
@@ -294,9 +296,8 @@ fail:
     FindClose(handle);
 
   *out = NULL;
-  *count = 0;
 
-  return 0;
+  return -1;
 }
 
 void
@@ -473,7 +474,7 @@ ldb_test_directory(char *result, size_t size) {
 
 struct ldb_rfile_s {
   char filename[LDB_PATH_MAX];
-  HANDLE file;
+  HANDLE handle;
   ldb_limiter_t *limiter;
   int mapped;
   unsigned char *base;
@@ -481,10 +482,10 @@ struct ldb_rfile_s {
 };
 
 static void
-ldb_rfile_init(ldb_rfile_t *file, const char *filename, HANDLE file) {
+ldb_rfile_init(ldb_rfile_t *file, const char *filename, HANDLE handle) {
   strcpy(file->filename, filename);
 
-  file->handle = file;
+  file->handle = handle;
   file->limiter = NULL;
   file->mapped = 0;
   file->base = NULL;
@@ -523,7 +524,7 @@ ldb_rfile_read(ldb_rfile_t *file,
 
   ldb_slice_set(result, buf, nread);
 
-  return rc;
+  return LDB_OK;
 }
 
 int
@@ -654,7 +655,7 @@ ldb_randfile_create(const char *filename, ldb_rfile_t **file, int use_mmap) {
   if (!LDBGetFileSizeEx(handle, &size))
     rc = LDB_WIN32_ERROR(GetLastError());
 
-  if (rc == LDB_OK && size.QuadPart > (((size_t)-1) / 2))
+  if (rc == LDB_OK && (uint64_t)size.QuadPart > (((size_t)-1) / 2))
     rc = LDB_IOERR;
 
   if (rc == LDB_OK) {
@@ -706,7 +707,7 @@ struct ldb_wfile_s {
 };
 
 static void
-ldb_wfile_init(ldb_wfile_t *file, const char *filename, HANDLE file) {
+ldb_wfile_init(ldb_wfile_t *file, const char *filename, HANDLE handle) {
   strcpy(file->filename, filename);
 
   file->handle = handle;
