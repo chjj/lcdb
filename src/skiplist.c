@@ -17,7 +17,6 @@
 
 #include "util/arena.h"
 #include "util/atomic.h"
-#include "util/coding.h" /* don't need */
 #include "util/comparator.h"
 #include "util/internal.h"
 #include "util/random.h"

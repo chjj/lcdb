@@ -575,7 +575,7 @@ ldb_test_directory(char *result, size_t size) {
   char tmp[100];
   size_t len;
 
-  if (dir && dir[0] != '\0') {
+  if (dir != NULL && dir[0] != '\0') {
     len = strlen(dir);
   } else {
 #ifdef __wasi__
@@ -1053,10 +1053,6 @@ ldb_wfile_destroy(ldb_wfile_t *file) {
 /*
  * Logging
  */
-
-#ifdef __GLIBC__
-FILE *fdopen(int, const char *);
-#endif
 
 ldb_logger_t *
 ldb_logger_create(FILE *stream);
