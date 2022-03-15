@@ -68,13 +68,13 @@ ldb_bloom_destroy(ldb_bloom_t *bloom) {
 }
 
 void
-ldb_bloom_init(ldb_bloom_t *bloom, int bits_per_key) {
+ldb_bloom_init(ldb_bloom_t *bloom, size_t bits_per_key) {
   /* We intentionally round down to reduce probing cost a little bit. */
   bloom->name = bloom_default.name;
   bloom->build = bloom_default.build;
   bloom->match = bloom_default.match;
   bloom->bits_per_key = bits_per_key;
-  bloom->k = bits_per_key * 0.69; /* 0.69 =~ ln(2). */
+  bloom->k = (size_t)((double) bits_per_key * 0.69); /* 0.69 =~ ln(2). */
   bloom->user_policy = NULL;
   bloom->state = NULL;
 
@@ -152,7 +152,7 @@ bloom_build(const ldb_bloom_t *bloom,
   for (i = 0; i < length; i++)
     bloom_add(bloom, data, &keys[i], bits);
 
-  data[bytes] = bloom->k; /* Remember # of probes in filter. */
+  data[bytes] = (uint8_t) bloom->k; /* Remember # of probes in filter. */
 }
 
 static int

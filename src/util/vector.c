@@ -93,18 +93,18 @@ ldb_vector_swap(ldb_vector_t *x, ldb_vector_t *y) {
  */
 
 static void
-ldb_swap(void **items, int i, int j) {
+ldb_swap(void **items, size_t i, size_t j) {
   void *item = items[i];
 
   items[i] = items[j];
   items[j] = item;
 }
 
-static int
-ldb_partition(void **items, int lo, int hi, int (*cmp)(void *, void *)) {
+static size_t
+ldb_partition(void **items, size_t lo, size_t hi, int (*cmp)(void *, void *)) {
   void *pivot = items[(hi + lo) >> 1];
-  int i = lo - 1;
-  int j = hi + 1;
+  size_t i = lo - 1;
+  size_t j = hi + 1;
 
   for (;;) {
     do i++; while (cmp(items[i], pivot) < 0);
@@ -118,9 +118,9 @@ ldb_partition(void **items, int lo, int hi, int (*cmp)(void *, void *)) {
 }
 
 static void
-ldb_qsort(void **items, int lo, int hi, int (*cmp)(void *, void *)) {
-  if (lo >= 0 && hi >= 0 && lo < hi) {
-    int p = ldb_partition(items, lo, hi, cmp);
+ldb_qsort(void **items, size_t lo, size_t hi, int (*cmp)(void *, void *)) {
+  if (lo < hi) {
+    size_t p = ldb_partition(items, lo, hi, cmp);
 
     ldb_qsort(items, lo, p, cmp);
     ldb_qsort(items, p + 1, hi, cmp);
