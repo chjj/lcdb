@@ -6,7 +6,6 @@
 
 #include <assert.h>
 #include <stdint.h>
-#include <stdlib.h>
 #include <string.h>
 #include "array.h"
 #include "internal.h"
@@ -94,18 +93,18 @@ ldb_array_swap(ldb_array_t *x, ldb_array_t *y) {
  */
 
 static void
-ldb_swap(int64_t *items, int i, int j) {
+ldb_swap(int64_t *items, size_t i, size_t j) {
   int64_t item = items[i];
 
   items[i] = items[j];
   items[j] = item;
 }
 
-static int
-ldb_partition(int64_t *items, int lo, int hi, int (*cmp)(int64_t, int64_t)) {
+static size_t
+ldb_partition(int64_t *items, size_t lo, size_t hi, int (*cmp)(int64_t, int64_t)) {
   int64_t pivot = items[(hi + lo) >> 1];
-  int i = lo - 1;
-  int j = hi + 1;
+  size_t i = lo - 1;
+  size_t j = hi + 1;
 
   for (;;) {
     do i++; while (cmp(items[i], pivot) < 0);
@@ -119,9 +118,9 @@ ldb_partition(int64_t *items, int lo, int hi, int (*cmp)(int64_t, int64_t)) {
 }
 
 static void
-ldb_qsort(int64_t *items, int lo, int hi, int (*cmp)(int64_t, int64_t)) {
-  if (lo >= 0 && hi >= 0 && lo < hi) {
-    int p = ldb_partition(items, lo, hi, cmp);
+ldb_qsort(int64_t *items, size_t lo, size_t hi, int (*cmp)(int64_t, int64_t)) {
+  if (lo < hi) {
+    size_t p = ldb_partition(items, lo, hi, cmp);
 
     ldb_qsort(items, lo, p, cmp);
     ldb_qsort(items, p + 1, hi, cmp);

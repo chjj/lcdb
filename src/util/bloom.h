@@ -90,7 +90,7 @@ LDB_EXTERN void
 ldb_bloom_destroy(ldb_bloom_t *bloom);
 
 void
-ldb_bloom_init(ldb_bloom_t *bloom, int bits_per_key);
+ldb_bloom_init(ldb_bloom_t *bloom, size_t bits_per_key);
 
 int
 ldb_bloom_name(char *buf, size_t size, const ldb_bloom_t *bloom);
