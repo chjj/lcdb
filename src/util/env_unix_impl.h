@@ -1068,8 +1068,9 @@ ldb_logger_open(const char *filename, ldb_logger_t **result) {
   stream = fdopen(fd, "w");
 
   if (stream == NULL) {
+    int code = errno;
     close(fd);
-    return LDB_POSIX_ERROR(errno);
+    return LDB_POSIX_ERROR(code);
   }
 
   *result = ldb_logger_create(stream);
