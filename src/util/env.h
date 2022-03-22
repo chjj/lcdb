@@ -23,11 +23,7 @@
  * Constants
  */
 
-#if defined(_WIN32)
-#  define LDB_PATH_MAX 260
-#else
-#  define LDB_PATH_MAX 1024
-#endif
+#define LDB_PATH_MAX 1024
 
 /*
  * Types
