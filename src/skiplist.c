@@ -105,8 +105,6 @@ ldb_skipnode_create(ldb_skiplist_t *list, const uint8_t *key, int height) {
 
   ldb_skipnode_t *node = ldb_arena_alloc_aligned(list->arena, size);
 
-  memset(node, 0, size);
-
   ldb_skipnode_init(node, key);
 
   return node;
