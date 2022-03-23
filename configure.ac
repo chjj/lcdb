@@ -83,6 +83,7 @@ AX_CHECK_DEFINE([limits.h], [__GLIBC__], [
   AX_CHECK_COMPILE_FLAG([-std=c90], [CFLAGS="$CFLAGS -std=c90"], [
     AX_CHECK_COMPILE_FLAG([-std=c89], [CFLAGS="$CFLAGS -std=c89"])
   ])
+  AC_DEFINE([_GNU_SOURCE])
 ])
 
 AC_COMPILE_IFELSE([
@@ -233,10 +234,6 @@ AS_IF([test x"$has_pthread" = x'yes'], [
 
 AS_IF([test x"$MINGW" != x''], [
   AC_DEFINE([_WIN32_WINNT], [0x501])
-])
-
-AX_CHECK_DEFINE([limits.h], [__GLIBC__], [
-  AC_DEFINE([_GNU_SOURCE])
 ])
 
 AS_CASE([$host_os], [solaris*], [
