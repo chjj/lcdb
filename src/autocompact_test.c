@@ -99,7 +99,7 @@ actest_size(actest_t *t, int start, int limit) {
   r.start = actest_key(start, buf1);
   r.limit = actest_key(limit, buf2);
 
-  ldb_get_approximate_sizes(t->db, &r, 1, &size);
+  ldb_approximate_sizes(t->db, &r, 1, &size);
 
   return size;
 }

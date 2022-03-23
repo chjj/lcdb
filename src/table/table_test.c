@@ -457,7 +457,7 @@ tablector_finish(tablector_t *c,
 
   ldb_wfile_destroy(sink);
 
-  ASSERT(ldb_get_file_size(c->path, &fsize) == LDB_OK);
+  ASSERT(ldb_file_size(c->path, &fsize) == LDB_OK);
   ASSERT(fsize == ldb_tablebuilder_file_size(tb));
 
   ldb_tablebuilder_destroy(tb);
@@ -1278,7 +1278,7 @@ test_randomized_long_db(harness_t *h) {
 
     sprintf(name, "leveldb.num-files-at-level%d", level);
 
-    ASSERT(ldb_get_property(harness_db(h), name, &value));
+    ASSERT(ldb_property(harness_db(h), name, &value));
 
     files += atoi(value);
 

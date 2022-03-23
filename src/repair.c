@@ -501,14 +501,14 @@ scan_table(ldb_repair_t *rep, uint64_t number) {
   if (!ldb_table_filename(fname, sizeof(fname), rep->dbname, number))
     abort(); /* LCOV_EXCL_LINE */
 
-  rc = ldb_get_file_size(fname, &file_size);
+  rc = ldb_file_size(fname, &file_size);
 
   if (rc != LDB_OK) {
     /* Try alternate file name. */
     if (!ldb_sstable_filename(fname, sizeof(fname), rep->dbname, number))
       abort(); /* LCOV_EXCL_LINE */
 
-    status = ldb_get_file_size(fname, &file_size);
+    status = ldb_file_size(fname, &file_size);
 
     if (status == LDB_OK)
       rc = LDB_OK;

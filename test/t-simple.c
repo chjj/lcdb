@@ -77,7 +77,7 @@ main(void) {
     {
       char *prop;
 
-      if (ldb_get_property(db, "leveldb.stats", &prop)) {
+      if (ldb_property(db, "leveldb.stats", &prop)) {
         puts(prop);
         ldb_free(prop);
       }
@@ -86,7 +86,7 @@ main(void) {
     {
       char *prop;
 
-      if (ldb_get_property(db, "leveldb.sstables", &prop)) {
+      if (ldb_property(db, "leveldb.sstables", &prop)) {
         puts(prop);
         ldb_free(prop);
       }

@@ -1363,7 +1363,7 @@ ldb_vset_reuse_manifest(ldb_vset_t *vset, const char *dscname) {
 
   if (!ldb_parse_filename(&manifest_type, &manifest_number, dscbase)
       || manifest_type != LDB_FILE_DESC
-      || ldb_get_file_size(dscname, &manifest_size) != LDB_OK
+      || ldb_file_size(dscname, &manifest_size) != LDB_OK
       /* Make new compacted MANIFEST if old one is too big. */
       || manifest_size >= target_file_size(vset->options)) {
     return 0;

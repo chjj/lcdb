@@ -521,7 +521,7 @@ test_files_at_level(test_t *t, int level) {
 
   sprintf(name, "leveldb.num-files-at-level%d", level);
 
-  ASSERT(ldb_get_property(t->db, name, &value));
+  ASSERT(ldb_property(t->db, name, &value));
   ASSERT(sscanf(value, "%d", &result) == 1);
 
   ldb_free(value);
@@ -588,7 +588,7 @@ test_size(test_t *t, const char *start, const char *limit) {
   r.start = ldb_string(start);
   r.limit = ldb_string(limit);
 
-  ldb_get_approximate_sizes(t->db, &r, 1, &size);
+  ldb_approximate_sizes(t->db, &r, 1, &size);
 
   return size;
 }
@@ -598,7 +598,7 @@ test_compact(test_t *t, const char *start, const char *limit) {
   ldb_slice_t s = ldb_string(start);
   ldb_slice_t l = ldb_string(limit);
 
-  ldb_compact_range(t->db, &s, &l);
+  ldb_compact(t->db, &s, &l);
 }
 
 /* Do n memtable compactions, each of which produces an sstable
@@ -643,7 +643,7 @@ LDB_UNUSED static const char *
 test_dump_sst_list(test_t *t) {
   char *value;
 
-  ASSERT(ldb_get_property(t->db, "leveldb.sstables", &value));
+  ASSERT(ldb_property(t->db, "leveldb.sstables", &value));
 
   ldb_vector_push(&t->arena, value);
 
@@ -817,7 +817,7 @@ test_db_get_memusage(test_t *t) {
 
   do {
     ASSERT(test_put(t, "foo", "v1") == LDB_OK);
-    ASSERT(ldb_get_property(t->db, "leveldb.approximate-memory-usage", &val));
+    ASSERT(ldb_property(t->db, "leveldb.approximate-memory-usage", &val));
 
     mem_usage = atoi(val);
 
@@ -840,7 +840,7 @@ test_db_get_snapshot(test_t *t) {
 
       ASSERT(test_put(t, key, "v1") == LDB_OK);
 
-      s1 = ldb_get_snapshot(t->db);
+      s1 = ldb_snapshot(t->db);
 
       ASSERT(test_put(t, key, "v2") == LDB_OK);
       ASSERT_EQ("v2", test_get(t, key));
@@ -851,7 +851,7 @@ test_db_get_snapshot(test_t *t) {
       ASSERT_EQ("v2", test_get(t, key));
       ASSERT_EQ("v1", test_get2(t, key, s1));
 
-      ldb_release_snapshot(t->db, s1);
+      ldb_release(t->db, s1);
     }
   } while (test_change_options(t));
 }
@@ -870,9 +870,9 @@ test_db_get_identical_snapshots(test_t *t) {
 
       ASSERT(test_put(t, key, "v1") == LDB_OK);
 
-      s1 = ldb_get_snapshot(t->db);
-      s2 = ldb_get_snapshot(t->db);
-      s3 = ldb_get_snapshot(t->db);
+      s1 = ldb_snapshot(t->db);
+      s2 = ldb_snapshot(t->db);
+      s3 = ldb_snapshot(t->db);
 
       ASSERT(test_put(t, key, "v2") == LDB_OK);
 
@@ -881,18 +881,18 @@ test_db_get_identical_snapshots(test_t *t) {
       ASSERT_EQ("v1", test_get2(t, key, s2));
       ASSERT_EQ("v1", test_get2(t, key, s3));
 
-      ldb_release_snapshot(t->db, s1);
+      ldb_release(t->db, s1);
 
       ldb_test_compact_memtable(t->db);
 
       ASSERT_EQ("v2", test_get(t, key));
       ASSERT_EQ("v1", test_get2(t, key, s2));
 
-      ldb_release_snapshot(t->db, s2);
+      ldb_release(t->db, s2);
 
       ASSERT_EQ("v1", test_get2(t, key, s3));
 
-      ldb_release_snapshot(t->db, s3);
+      ldb_release(t->db, s3);
     }
   } while (test_change_options(t));
 }
@@ -904,7 +904,7 @@ test_db_iterate_over_empty_snapshot(test_t *t) {
     const ldb_snapshot_t *snapshot;
     ldb_iter_t *iter;
 
-    snapshot = ldb_get_snapshot(t->db);
+    snapshot = ldb_snapshot(t->db);
 
     options.snapshot = snapshot;
 
@@ -929,7 +929,7 @@ test_db_iterate_over_empty_snapshot(test_t *t) {
 
     ldb_iter_destroy(iter);
 
-    ldb_release_snapshot(t->db, snapshot);
+    ldb_release(t->db, snapshot);
   } while (test_change_options(t));
 }
 
@@ -1727,15 +1727,15 @@ test_db_snapshot(test_t *t) {
   do {
     test_put(t, "foo", "v1");
 
-    s1 = ldb_get_snapshot(t->db);
+    s1 = ldb_snapshot(t->db);
 
     test_put(t, "foo", "v2");
 
-    s2 = ldb_get_snapshot(t->db);
+    s2 = ldb_snapshot(t->db);
 
     test_put(t, "foo", "v3");
 
-    s3 = ldb_get_snapshot(t->db);
+    s3 = ldb_snapshot(t->db);
 
     test_put(t, "foo", "v4");
 
@@ -1744,18 +1744,18 @@ test_db_snapshot(test_t *t) {
     ASSERT_EQ("v3", test_get2(t, "foo", s3));
     ASSERT_EQ("v4", test_get(t, "foo"));
 
-    ldb_release_snapshot(t->db, s3);
+    ldb_release(t->db, s3);
 
     ASSERT_EQ("v1", test_get2(t, "foo", s1));
     ASSERT_EQ("v2", test_get2(t, "foo", s2));
     ASSERT_EQ("v4", test_get(t, "foo"));
 
-    ldb_release_snapshot(t->db, s1);
+    ldb_release(t->db, s1);
 
     ASSERT_EQ("v2", test_get2(t, "foo", s2));
     ASSERT_EQ("v4", test_get(t, "foo"));
 
-    ldb_release_snapshot(t->db, s2);
+    ldb_release(t->db, s2);
 
     ASSERT_EQ("v4", test_get(t, "foo"));
   } while (test_change_options(t));
@@ -1779,7 +1779,7 @@ test_db_hidden_values_are_removed(test_t *t) {
     test_put(t, "foo", big);
     test_put(t, "pastfoo", "v");
 
-    snapshot = ldb_get_snapshot(t->db);
+    snapshot = ldb_snapshot(t->db);
 
     test_put(t, "foo", "tiny");
     test_put(t, "pastfoo2", "v2"); /* Advance sequence number one more */
@@ -1790,7 +1790,7 @@ test_db_hidden_values_are_removed(test_t *t) {
     ASSERT_EQ(big, test_get2(t, "foo", snapshot));
     ASSERT_RANGE(test_size(t, "", "pastfoo"), 50000, 60000);
 
-    ldb_release_snapshot(t->db, snapshot);
+    ldb_release(t->db, snapshot);
 
     expect = ldb_malloc(50100);
 
@@ -2154,7 +2154,7 @@ test_db_manual_compaction(test_t *t) {
   test_make_tables(t, 1, "a", "z");
   ASSERT_EQ("0,1,2", test_files_per_level(t));
 
-  ldb_compact_range(t->db, NULL, NULL);
+  ldb_compact(t->db, NULL, NULL);
   ASSERT_EQ("0,0,1", test_files_per_level(t));
 }
 
@@ -2932,7 +2932,7 @@ test_db_randomized(test_t *t) {
           rb_map_clear(map_snap, NULL);
 
         if (db_snap != NULL)
-          ldb_release_snapshot(t->db, db_snap);
+          ldb_release(t->db, db_snap);
 
         test_reopen(t, 0);
 
@@ -2942,7 +2942,7 @@ test_db_randomized(test_t *t) {
         rb_map_copy(&tmp, &map, NULL);
 
         map_snap = &tmp;
-        db_snap = ldb_get_snapshot(t->db);
+        db_snap = ldb_snapshot(t->db);
       }
     }
 
@@ -2950,7 +2950,7 @@ test_db_randomized(test_t *t) {
       rb_map_clear(map_snap, NULL);
 
     if (db_snap != NULL)
-      ldb_release_snapshot(t->db, db_snap);
+      ldb_release(t->db, db_snap);
 
     rb_map_clear(&map, NULL);
     rb_map_clear(&tmp, NULL);

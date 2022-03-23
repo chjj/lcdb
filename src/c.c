@@ -179,19 +179,19 @@ leveldb_create_iterator(leveldb_t *db, const leveldb_readoptions_t *options) {
 
 const leveldb_snapshot_t *
 leveldb_create_snapshot(leveldb_t *db) {
-  return ldb_get_snapshot(db);
+  return ldb_snapshot(db);
 }
 
 void
 leveldb_release_snapshot(leveldb_t *db, const leveldb_snapshot_t *snapshot) {
-  ldb_release_snapshot(db, snapshot);
+  ldb_release(db, snapshot);
 }
 
 char *
 leveldb_property_value(leveldb_t *db, const char *propname) {
   char *result;
 
-  if (ldb_get_property(db, propname, &result))
+  if (ldb_property(db, propname, &result))
     return result;
 
   return NULL;
@@ -215,7 +215,7 @@ leveldb_approximate_sizes(leveldb_t *db, int num_ranges,
                                                      range_limit_key_len[i]);
   }
 
-  ldb_get_approximate_sizes(db, ranges, num_ranges, sizes);
+  ldb_approximate_sizes(db, ranges, num_ranges, sizes);
   ldb_free(ranges);
 }
 
@@ -228,7 +228,7 @@ leveldb_compact_range(leveldb_t *db,
   ldb_slice_set(&start, (const uint8_t *)start_key, start_key_len);
   ldb_slice_set(&limit, (const uint8_t *)limit_key, limit_key_len);
 
-  ldb_compact_range(db, &start, &limit);
+  ldb_compact(db, &start, &limit);
 }
 
 void

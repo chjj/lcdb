@@ -98,7 +98,7 @@ main(void) {
   greatest = test_key1(NUM_KEYS - 1, buf2);
 
   /* Commenting out the line below causes the example to work correctly. */
-  ldb_compact_range(db, &least, &greatest);
+  ldb_compact(db, &least, &greatest);
 
   /* Count the keys. */
   iter = ldb_iterator(db, 0);

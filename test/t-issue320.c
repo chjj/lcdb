@@ -152,9 +152,9 @@ main(void) {
       int i = random_number(100);
 
       if (snapshots[i] != NULL)
-        ldb_release_snapshot(db, snapshots[i]);
+        ldb_release(db, snapshots[i]);
 
-      snapshots[i] = ldb_get_snapshot(db);
+      snapshots[i] = ldb_snapshot(db);
     }
 
     ldb_batch_clear(&batch);
@@ -172,7 +172,7 @@ main(void) {
 
     for (i = 0; i < 100; i++) {
       if (snapshots[i] != NULL)
-        ldb_release_snapshot(db, snapshots[i]);
+        ldb_release(db, snapshots[i]);
     }
 
     free(test_keys);

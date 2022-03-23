@@ -634,25 +634,25 @@ ldb_write(ldb_t *db, ldb_batch_t *updates, const ldb_writeopt_t *options) {
 }
 
 LDB_EXTERN const ldb_snapshot_t *
-ldb_get_snapshot(ldb_t *db) {
+ldb_snapshot(ldb_t *db) {
   return leveldb_create_snapshot(db->level);
 }
 
 LDB_EXTERN void
-ldb_release_snapshot(ldb_t *db, const ldb_snapshot_t *snapshot) {
+ldb_release(ldb_t *db, const ldb_snapshot_t *snapshot) {
   leveldb_release_snapshot(db->level, snapshot);
 }
 
 LDB_EXTERN int
-ldb_get_property(ldb_t *db, const char *property, char **value) {
+ldb_property(ldb_t *db, const char *property, char **value) {
   *value = leveldb_property_value(db->level, property);
   return *value != NULL;
 }
 
 LDB_EXTERN void
-ldb_get_approximate_sizes(ldb_t *db, const ldb_range_t *range,
-                                     size_t length,
-                                     uint64_t *sizes) {
+ldb_approximate_sizes(ldb_t *db, const ldb_range_t *range,
+                                 size_t length,
+                                 uint64_t *sizes) {
   const char **start_keys = safe_malloc(length * sizeof(char *));
   const char **limit_keys = safe_malloc(length * sizeof(char *));
   size_t *start_lens = safe_malloc(length * sizeof(size_t));
@@ -678,7 +678,7 @@ ldb_get_approximate_sizes(ldb_t *db, const ldb_range_t *range,
 }
 
 LDB_EXTERN void
-ldb_compact_range(ldb_t *db, const ldb_slice_t *begin, const ldb_slice_t *end) {
+ldb_compact(ldb_t *db, const ldb_slice_t *begin, const ldb_slice_t *end) {
   static const ldb_slice_t empty = {NULL, 0, 0};
 
   if (begin == NULL)

@@ -200,24 +200,24 @@ int
 ldb_write(ldb_t *db, ldb_batch_t *updates, const ldb_writeopt_t *options);
 
 const ldb_snapshot_t *
-ldb_get_snapshot(ldb_t *db);
+ldb_snapshot(ldb_t *db);
 
 void
-ldb_release_snapshot(ldb_t *db, const ldb_snapshot_t *snapshot);
+ldb_release(ldb_t *db, const ldb_snapshot_t *snapshot);
 
 ldb_iter_t *
 ldb_iterator(ldb_t *db, const ldb_readopt_t *options);
 
 int
-ldb_get_property(ldb_t *db, const char *property, char **value);
+ldb_property(ldb_t *db, const char *property, char **value);
 
 void
-ldb_get_approximate_sizes(ldb_t *db, const ldb_range_t *range,
-                                     size_t length,
-                                     ldb_uint64_t *sizes);
+ldb_approximate_sizes(ldb_t *db, const ldb_range_t *range,
+                                 size_t length,
+                                 ldb_uint64_t *sizes);
 
 void
-ldb_compact_range(ldb_t *db, const ldb_slice_t *begin, const ldb_slice_t *end);
+ldb_compact(ldb_t *db, const ldb_slice_t *begin, const ldb_slice_t *end);
 
 int
 ldb_repair(const char *dbname, const ldb_dbopt_t *options);

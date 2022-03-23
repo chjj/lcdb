@@ -261,7 +261,7 @@ ctest_corrupt(ctest_t *t, ldb_filetype_t target, int offset, int bytes) {
   ldb_free_children(filenames, len);
 
   ASSERT(picked_number != -1);
-  ASSERT(ldb_get_file_size(fname, &file_size) == LDB_OK);
+  ASSERT(ldb_file_size(fname, &file_size) == LDB_OK);
   ASSERT(file_size <= (INT_MAX / 2));
 
   if (offset < 0) {
@@ -303,7 +303,7 @@ ctest_files_at_level(ctest_t *t, int level) {
 
   sprintf(name, "leveldb.num-files-at-level%d", level);
 
-  ASSERT(ldb_get_property(t->db, name, &value));
+  ASSERT(ldb_property(t->db, name, &value));
   ASSERT(sscanf(value, "%d", &result) == 1);
 
   ldb_free(value);
@@ -537,7 +537,7 @@ test_corrupt_compaction_input_error_paranoid(ctest_t *t) {
     ldb_sleep_usec(100000);
   }
 
-  ldb_compact_range(t->db, NULL, NULL);
+  ldb_compact(t->db, NULL, NULL);
 
   /* Write must fail because of corrupted table. */
   rc = ldb_put(t->db, ctest_key(5, &tmp1), ctest_val(5, &tmp2), 0);

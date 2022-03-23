@@ -233,7 +233,7 @@ dump_table(const char *fname, FILE *dst) {
   ldb_buffer_t r;
   int rc;
 
-  rc = ldb_get_file_size(fname, &file_size);
+  rc = ldb_file_size(fname, &file_size);
 
   if (rc == LDB_OK)
     rc = ldb_randfile_create(fname, &file, 1);

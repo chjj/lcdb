@@ -282,7 +282,7 @@ rtest_num_tables(rtest_t *t) {
 static uint64_t
 get_file_size(const char *fname) {
   uint64_t result;
-  ASSERT(ldb_get_file_size(fname, &result) == LDB_OK);
+  ASSERT(ldb_file_size(fname, &result) == LDB_OK);
   return result;
 }
 

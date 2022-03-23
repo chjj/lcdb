@@ -931,7 +931,7 @@ ldb_recover_log_file(ldb_t *db, uint64_t log_number,
     assert(db->log == NULL);
     assert(db->mem == NULL);
 
-    if (ldb_get_file_size(fname, &lfile_size) == LDB_OK &&
+    if (ldb_file_size(fname, &lfile_size) == LDB_OK &&
         ldb_appendfile_create(fname, &db->logfile) == LDB_OK) {
       ldb_log(db->options.info_log, "Reusing old log %s", fname);
 
@@ -2171,7 +2171,7 @@ ldb_write(ldb_t *db, ldb_batch_t *updates, const ldb_writeopt_t *options) {
 }
 
 const ldb_snapshot_t *
-ldb_get_snapshot(ldb_t *db) {
+ldb_snapshot(ldb_t *db) {
   ldb_snapshot_t *snap;
   ldb_seqnum_t seq;
 
@@ -2186,7 +2186,7 @@ ldb_get_snapshot(ldb_t *db) {
 }
 
 void
-ldb_release_snapshot(ldb_t *db, const ldb_snapshot_t *snapshot) {
+ldb_release(ldb_t *db, const ldb_snapshot_t *snapshot) {
   ldb_mutex_lock(&db->mutex);
 
   ldb_snaplist_delete(&db->snapshots, snapshot);
@@ -2214,7 +2214,7 @@ ldb_iterator(ldb_t *db, const ldb_readopt_t *options) {
 }
 
 int
-ldb_get_property(ldb_t *db, const char *property, char **value) {
+ldb_property(ldb_t *db, const char *property, char **value) {
   const char *in = property;
 
   *value = NULL;
@@ -2325,9 +2325,9 @@ ldb_get_property(ldb_t *db, const char *property, char **value) {
 }
 
 void
-ldb_get_approximate_sizes(ldb_t *db, const ldb_range_t *range,
-                                     size_t length,
-                                     uint64_t *sizes) {
+ldb_approximate_sizes(ldb_t *db, const ldb_range_t *range,
+                                 size_t length,
+                                 uint64_t *sizes) {
   uint64_t start, limit;
   ldb_ikey_t k1, k2;
   ldb_version_t *v;
@@ -2362,7 +2362,7 @@ ldb_get_approximate_sizes(ldb_t *db, const ldb_range_t *range,
 }
 
 void
-ldb_compact_range(ldb_t *db, const ldb_slice_t *begin, const ldb_slice_t *end) {
+ldb_compact(ldb_t *db, const ldb_slice_t *begin, const ldb_slice_t *end) {
   int max_level_with_files = 1;
   int level;
 

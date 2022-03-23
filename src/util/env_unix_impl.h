@@ -484,7 +484,7 @@ ldb_remove_dir(const char *dirname) {
 }
 
 int
-ldb_get_file_size(const char *filename, uint64_t *size) {
+ldb_file_size(const char *filename, uint64_t *size) {
   struct stat st;
 
   if (stat(filename, &st) != 0)
