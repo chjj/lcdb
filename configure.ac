@@ -159,7 +159,9 @@ AC_LINK_IFELSE([
 AC_MSG_RESULT([$has_pread])
 
 AS_IF([test x"$MINGW$WASI$EMSCRIPTEN" = x''], [
-  AX_PTHREAD([has_pthread=yes])
+  AC_CHECK_DEFINE([__WATCOMC__], [], [
+    AX_PTHREAD([has_pthread=yes])
+  ])
 ])
 
 #
