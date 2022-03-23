@@ -521,7 +521,7 @@ ldb_create(const char *dbname, const ldb_dbopt_t *options) {
 }
 
 static void
-ldb_destroy(ldb_t *db) {
+ldb_destroy_inner(ldb_t *db) {
   /* Wait for background work to finish. */
   ldb_mutex_lock(&db->mutex);
 
@@ -1935,7 +1935,7 @@ ldb_open(const char *dbname, const ldb_dbopt_t *options, ldb_t **dbptr) {
     assert(db->mem != NULL);
     *dbptr = db;
   } else {
-    ldb_destroy(db);
+    ldb_destroy_inner(db);
   }
 
   ldb_vedit_clear(&edit);
@@ -1945,7 +1945,7 @@ ldb_open(const char *dbname, const ldb_dbopt_t *options, ldb_t **dbptr) {
 
 void
 ldb_close(ldb_t *db) {
-  ldb_destroy(db);
+  ldb_destroy_inner(db);
 }
 
 int
@@ -2392,7 +2392,7 @@ ldb_compact_range(ldb_t *db, const ldb_slice_t *begin, const ldb_slice_t *end) {
  */
 
 int
-ldb_destroy_db(const char *dbname, const ldb_dbopt_t *options) {
+ldb_destroy(const char *dbname, const ldb_dbopt_t *options) {
   char lockname[LDB_PATH_MAX];
   char path[LDB_PATH_MAX];
   ldb_filelock_t *lock;

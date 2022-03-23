@@ -71,8 +71,8 @@ ctest_destroy(ctest_t *t) {
 
   ASSERT(ldb_join(lost, sizeof(lost), t->dbname, "lost"));
 
-  ldb_destroy_db(lost, 0);
-  ldb_destroy_db(t->dbname, 0);
+  ldb_destroy(lost, 0);
+  ldb_destroy(t->dbname, 0);
 }
 
 static void
@@ -109,7 +109,7 @@ ctest_repair(ctest_t *t) {
 
   t->db = NULL;
 
-  ASSERT(ldb_repair_db(t->dbname, &t->options) == LDB_OK);
+  ASSERT(ldb_repair(t->dbname, &t->options) == LDB_OK);
 }
 
 /* Return the ith key. */

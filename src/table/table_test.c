@@ -687,7 +687,7 @@ dbctor_newdb(dbctor_t *c) {
 
   options.comparator = c->cmp;
 
-  rc = ldb_destroy_db(c->dbname, &options);
+  rc = ldb_destroy(c->dbname, &options);
 
   ASSERT(rc == LDB_OK);
 
@@ -713,7 +713,7 @@ dbctor_init(dbctor_t *c, const ldb_comparator_t *cmp) {
 static void
 dbctor_clear(dbctor_t *c) {
   ldb_close(c->db);
-  ldb_destroy_db(c->dbname, 0);
+  ldb_destroy(c->dbname, 0);
 }
 
 static int

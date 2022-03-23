@@ -84,7 +84,7 @@ rtest_init(rtest_t *t) {
 
   t->db = NULL;
 
-  ldb_destroy_db(t->dbname, 0);
+  ldb_destroy(t->dbname, 0);
 
   rtest_open(t, 0);
 }
@@ -92,7 +92,7 @@ rtest_init(rtest_t *t) {
 static void
 rtest_clear(rtest_t *t) {
   rtest_close(t);
-  ldb_destroy_db(t->dbname, 0);
+  ldb_destroy(t->dbname, 0);
 }
 
 static int

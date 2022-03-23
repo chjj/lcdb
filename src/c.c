@@ -234,13 +234,13 @@ leveldb_compact_range(leveldb_t *db,
 void
 leveldb_destroy_db(const leveldb_options_t *options,
                    const char *name, char **errptr) {
-  save_error(errptr, ldb_destroy_db(name, options));
+  save_error(errptr, ldb_destroy(name, options));
 }
 
 void
 leveldb_repair_db(const leveldb_options_t *options,
                   const char *name, char **errptr) {
-  save_error(errptr, ldb_repair_db(name, options));
+  save_error(errptr, ldb_repair(name, options));
 }
 
 void

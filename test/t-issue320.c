@@ -73,7 +73,7 @@ main(void) {
   /* Get rid of any state from an old run. */
   ASSERT(ldb_test_filename(dbpath, sizeof(dbpath), "leveldb_issue320_test"));
 
-  ldb_destroy_db(dbpath, 0);
+  ldb_destroy(dbpath, 0);
 
   options.create_if_missing = 1;
 
@@ -181,7 +181,7 @@ main(void) {
   }
 
   ldb_close(db);
-  ldb_destroy_db(dbpath, 0);
+  ldb_destroy(dbpath, 0);
 
   return 0;
 }

@@ -55,7 +55,7 @@ actest_init(actest_t *t) {
 
   ldb_slice_init(&t->tmp);
 
-  ldb_destroy_db(t->dbname, &t->options);
+  ldb_destroy(t->dbname, &t->options);
 
   ASSERT(ldb_open(t->dbname, &t->options, &t->db) == LDB_OK);
 }
@@ -63,7 +63,7 @@ actest_init(actest_t *t) {
 static void
 actest_clear(actest_t *t) {
   ldb_close(t->db);
-  ldb_destroy_db(t->dbname, &t->options);
+  ldb_destroy(t->dbname, &t->options);
   ldb_lru_destroy(t->tiny_cache);
 }
 

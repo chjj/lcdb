@@ -96,10 +96,10 @@ ldb_compact_range(ldb_t *db, const ldb_slice_t *begin, const ldb_slice_t *end);
  */
 
 LDB_EXTERN int
-ldb_repair_db(const char *dbname, const ldb_dbopt_t *options);
+ldb_repair(const char *dbname, const ldb_dbopt_t *options);
 
 LDB_EXTERN int
-ldb_destroy_db(const char *dbname, const ldb_dbopt_t *options);
+ldb_destroy(const char *dbname, const ldb_dbopt_t *options);
 
 /*
  * Testing

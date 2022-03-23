@@ -24,7 +24,7 @@ main(void) {
 
   ASSERT(ldb_test_filename(path, sizeof(path), "simpledb"));
 
-  ldb_destroy_db(path, 0);
+  ldb_destroy(path, 0);
 
   {
     opt.create_if_missing = 1;
@@ -143,7 +143,7 @@ main(void) {
     ldb_close(db);
   }
 
-  ldb_destroy_db(path, 0);
+  ldb_destroy(path, 0);
 
   return 0;
 }

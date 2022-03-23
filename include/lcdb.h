@@ -220,10 +220,10 @@ void
 ldb_compact_range(ldb_t *db, const ldb_slice_t *begin, const ldb_slice_t *end);
 
 int
-ldb_repair_db(const char *dbname, const ldb_dbopt_t *options);
+ldb_repair(const char *dbname, const ldb_dbopt_t *options);
 
 int
-ldb_destroy_db(const char *dbname, const ldb_dbopt_t *options);
+ldb_destroy(const char *dbname, const ldb_dbopt_t *options);
 
 /*
  * Filesystem

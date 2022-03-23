@@ -94,7 +94,7 @@ test_init(test_t *t) {
 
   ldb_vector_init(&t->arena);
 
-  ldb_destroy_db(t->dbname, 0);
+  ldb_destroy(t->dbname, 0);
 
   test_reopen(t, 0);
 }
@@ -106,7 +106,7 @@ test_clear(test_t *t) {
   if (t->db != NULL)
     ldb_close(t->db);
 
-  ldb_destroy_db(t->dbname, 0);
+  ldb_destroy(t->dbname, 0);
   ldb_bloom_destroy(t->policy);
 
   for (i = 0; i < t->arena.length; i++)
@@ -286,7 +286,7 @@ test_destroy_and_reopen(test_t *t, const ldb_dbopt_t *options) {
 
   t->db = NULL;
 
-  ldb_destroy_db(t->dbname, 0);
+  ldb_destroy(t->dbname, 0);
 
   ASSERT(test_try_reopen(t, options) == LDB_OK);
 }
@@ -2168,7 +2168,7 @@ test_db_open_options(test_t *t) {
 
   ASSERT(ldb_test_filename(dbname, sizeof(dbname), "db_options_test"));
 
-  ldb_destroy_db(dbname, 0);
+  ldb_destroy(dbname, 0);
 
   /* Does not exist, and create_if_missing == 0: error */
   opts.create_if_missing = 0;
@@ -2201,7 +2201,7 @@ test_db_open_options(test_t *t) {
 
   ldb_close(db);
 
-  ldb_destroy_db(dbname, 0);
+  ldb_destroy(dbname, 0);
 }
 
 static void
@@ -2224,7 +2224,7 @@ test_db_destroy_empty_dir(test_t *t) {
 #endif
   ASSERT((len = ldb_get_children(dbname, &names)) >= 0);
   ASSERT(0 == len);
-  ASSERT(ldb_destroy_db(dbname, &opts) == LDB_OK);
+  ASSERT(ldb_destroy(dbname, &opts) == LDB_OK);
   ASSERT(!ldb_file_exists(dbname));
 
   ldb_free_children(names, len);
@@ -2241,7 +2241,7 @@ test_db_destroy_open_db(test_t *t) {
   ASSERT(ldb_test_filename(dbname, sizeof(dbname), "open_db_dir"));
 
   /* ldb_remove_dir(dbname); */
-  ldb_destroy_db(dbname, 0);
+  ldb_destroy(dbname, 0);
 
   ASSERT(!ldb_file_exists(dbname));
 
@@ -2254,7 +2254,7 @@ test_db_destroy_open_db(test_t *t) {
 #ifndef LDB_MEMENV
   ASSERT(ldb_file_exists(dbname));
 #endif
-  ASSERT(ldb_destroy_db(dbname, 0) != LDB_OK);
+  ASSERT(ldb_destroy(dbname, 0) != LDB_OK);
 #ifndef LDB_MEMENV
   ASSERT(ldb_file_exists(dbname));
 #endif
@@ -2262,7 +2262,7 @@ test_db_destroy_open_db(test_t *t) {
   ldb_close(db);
 
   /* Should succeed destroying a closed db. */
-  ASSERT(ldb_destroy_db(dbname, 0) == LDB_OK);
+  ASSERT(ldb_destroy(dbname, 0) == LDB_OK);
   ASSERT(!ldb_file_exists(dbname));
 }
 

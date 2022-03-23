@@ -703,7 +703,7 @@ repair_run(ldb_repair_t *rep) {
 }
 
 int
-ldb_repair_db(const char *dbname, const ldb_dbopt_t *options) {
+ldb_repair(const char *dbname, const ldb_dbopt_t *options) {
   ldb_repair_t rep;
   int rc;
 

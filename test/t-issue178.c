@@ -46,7 +46,7 @@ main(void) {
   /* Get rid of any state from an old run. */
   ASSERT(ldb_test_filename(dbpath, sizeof(dbpath), "leveldb_cbug_test"));
 
-  ldb_destroy_db(dbpath, 0);
+  ldb_destroy(dbpath, 0);
 
   /* Open database. Disable compression since it affects the creation
      of layers and the code below is trying to test against a very
@@ -113,7 +113,7 @@ main(void) {
 
   /* Close database. */
   ldb_close(db);
-  ldb_destroy_db(dbpath, 0);
+  ldb_destroy(dbpath, 0);
 
   return 0;
 }
