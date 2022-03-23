@@ -252,12 +252,12 @@ ldb_numiter_seek(ldb_numiter_t *iter, const ldb_slice_t *target) {
 }
 
 static void
-ldb_numiter_seek_first(ldb_numiter_t *iter) {
+ldb_numiter_first(ldb_numiter_t *iter) {
   iter->index = 0;
 }
 
 static void
-ldb_numiter_seek_last(ldb_numiter_t *iter) {
+ldb_numiter_last(ldb_numiter_t *iter) {
   iter->index = iter->flist->length == 0 ? 0 : iter->flist->length - 1;
 }
 

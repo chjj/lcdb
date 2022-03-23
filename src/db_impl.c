@@ -1327,7 +1327,7 @@ ldb_do_compaction_work(ldb_t *db, ldb_cstate_t *compact) {
   /* Release mutex while we're actually doing the compaction work. */
   ldb_mutex_unlock(&db->mutex);
 
-  ldb_iter_seek_first(input);
+  ldb_iter_first(input);
 
   while (ldb_iter_valid(input) &&
         !ldb_atomic_load(&db->shutting_down, ldb_order_acquire)) {

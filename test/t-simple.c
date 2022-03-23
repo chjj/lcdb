@@ -117,7 +117,7 @@ main(void) {
       ldb_iter_t *it = ldb_iterator(db, 0);
       int total = 0;
 
-      ldb_iter_seek_first(it);
+      ldb_iter_first(it);
 
       while (ldb_iter_valid(it)) {
         ldb_slice_t k = ldb_iter_key(it);

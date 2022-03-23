@@ -434,7 +434,7 @@ repair_table(ldb_repair_t *rep, const char *src, ldb_tabinfo_t *t) {
   iter = tableiter_create(rep, &t->meta);
   counter = 0;
 
-  for (ldb_iter_seek_first(iter); ldb_iter_valid(iter); ldb_iter_next(iter)) {
+  for (ldb_iter_first(iter); ldb_iter_valid(iter); ldb_iter_next(iter)) {
     ldb_slice_t key = ldb_iter_key(iter);
     ldb_slice_t val = ldb_iter_value(iter);
 
@@ -539,7 +539,7 @@ scan_table(ldb_repair_t *rep, uint64_t number) {
 
   t->max_sequence = 0;
 
-  for (ldb_iter_seek_first(iter); ldb_iter_valid(iter); ldb_iter_next(iter)) {
+  for (ldb_iter_first(iter); ldb_iter_valid(iter); ldb_iter_next(iter)) {
     ldb_slice_t key = ldb_iter_key(iter);
 
     if (!ldb_pkey_import(&parsed, &key)) {

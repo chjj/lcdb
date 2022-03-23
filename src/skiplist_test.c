@@ -100,8 +100,8 @@ skiplist_contains(const skiplist_t *list, uint64_t key) {
 #define skipiter_valid ldb_skipiter_valid
 #define skipiter_next ldb_skipiter_next
 #define skipiter_prev ldb_skipiter_prev
-#define skipiter_seek_first ldb_skipiter_seek_first
-#define skipiter_seek_last ldb_skipiter_seek_last
+#define skipiter_first ldb_skipiter_first
+#define skipiter_last ldb_skipiter_last
 
 static uint64_t
 skipiter_key(const skipiter_t *iter) {
@@ -135,7 +135,7 @@ test_skip_empty(void) {
 
   ASSERT(!skipiter_valid(&iter));
 
-  skipiter_seek_first(&iter);
+  skipiter_first(&iter);
 
   ASSERT(!skipiter_valid(&iter));
 
@@ -143,7 +143,7 @@ test_skip_empty(void) {
 
   ASSERT(!skipiter_valid(&iter));
 
-  skipiter_seek_last(&iter);
+  skipiter_last(&iter);
 
   ASSERT(!skipiter_valid(&iter));
 
@@ -199,14 +199,14 @@ test_skip_insert_and_lookup(void) {
     ASSERT(skipiter_valid(&iter));
     ASSERT(rb_iter_key(&it).ui == skipiter_key(&iter));
 
-    skipiter_seek_first(&iter);
-    rb_iter_seek_first(&it);
+    skipiter_first(&iter);
+    rb_iter_first(&it);
 
     ASSERT(skipiter_valid(&iter));
     ASSERT(rb_iter_key(&it).ui == skipiter_key(&iter));
 
-    skipiter_seek_last(&iter);
-    rb_iter_seek_last(&it);
+    skipiter_last(&iter);
+    rb_iter_last(&it);
 
     ASSERT(skipiter_valid(&iter));
     ASSERT(rb_iter_key(&it).ui == skipiter_key(&iter));
@@ -246,8 +246,8 @@ test_skip_insert_and_lookup(void) {
 
     skipiter_init(&iter, &list);
 
-    skipiter_seek_last(&iter);
-    rb_iter_seek_last(&it);
+    skipiter_last(&iter);
+    rb_iter_last(&it);
 
     /* Compare against model iterator. */
     while (rb_iter_valid(&it)) {

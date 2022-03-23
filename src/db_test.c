@@ -407,7 +407,7 @@ test_contents(test_t *t) {
 
   iter = ldb_iterator(t->db, 0);
 
-  for (ldb_iter_seek_first(iter); ldb_iter_valid(iter); ldb_iter_next(iter)) {
+  for (ldb_iter_first(iter); ldb_iter_valid(iter); ldb_iter_next(iter)) {
     const char *s = iter_status(t, iter);
 
     ldb_buffer_push(&z, '(');
@@ -420,7 +420,7 @@ test_contents(test_t *t) {
   ldb_buffer_push(&z, 0);
 
   /* Check reverse iteration results are the reverse of forward results. */
-  for (ldb_iter_seek_last(iter); ldb_iter_valid(iter); ldb_iter_prev(iter)) {
+  for (ldb_iter_last(iter); ldb_iter_valid(iter); ldb_iter_prev(iter)) {
     size_t index = forward.length - matched - 1;
 
     ASSERT(matched < forward.length);
@@ -913,7 +913,7 @@ test_db_iterate_over_empty_snapshot(test_t *t) {
 
     iter = ldb_iterator(t->db, &options);
 
-    ldb_iter_seek_first(iter);
+    ldb_iter_first(iter);
 
     ASSERT(!ldb_iter_valid(iter));
 
@@ -923,7 +923,7 @@ test_db_iterate_over_empty_snapshot(test_t *t) {
 
     iter = ldb_iterator(t->db, &options);
 
-    ldb_iter_seek_first(iter);
+    ldb_iter_first(iter);
 
     ASSERT(!ldb_iter_valid(iter));
 
@@ -1043,11 +1043,11 @@ static void
 test_db_iter_empty(test_t *t) {
   ldb_iter_t *iter = ldb_iterator(t->db, 0);
 
-  ldb_iter_seek_first(iter);
+  ldb_iter_first(iter);
 
   ASSERT_EQ(iter_status(t, iter), "(invalid)");
 
-  ldb_iter_seek_last(iter);
+  ldb_iter_last(iter);
 
   ASSERT_EQ(iter_status(t, iter), "(invalid)");
 
@@ -1066,20 +1066,20 @@ test_db_iter_single(test_t *t) {
 
   iter = ldb_iterator(t->db, 0);
 
-  ldb_iter_seek_first(iter);
+  ldb_iter_first(iter);
   ASSERT_EQ(iter_status(t, iter), "a->va");
   ldb_iter_next(iter);
   ASSERT_EQ(iter_status(t, iter), "(invalid)");
-  ldb_iter_seek_first(iter);
+  ldb_iter_first(iter);
   ASSERT_EQ(iter_status(t, iter), "a->va");
   ldb_iter_prev(iter);
   ASSERT_EQ(iter_status(t, iter), "(invalid)");
 
-  ldb_iter_seek_last(iter);
+  ldb_iter_last(iter);
   ASSERT_EQ(iter_status(t, iter), "a->va");
   ldb_iter_next(iter);
   ASSERT_EQ(iter_status(t, iter), "(invalid)");
-  ldb_iter_seek_last(iter);
+  ldb_iter_last(iter);
   ASSERT_EQ(iter_status(t, iter), "a->va");
   ldb_iter_prev(iter);
   ASSERT_EQ(iter_status(t, iter), "(invalid)");
@@ -1110,7 +1110,7 @@ test_db_iter_multi(test_t *t) {
 
   iter = ldb_iterator(t->db, 0);
 
-  ldb_iter_seek_first(iter);
+  ldb_iter_first(iter);
   ASSERT_EQ(iter_status(t, iter), "a->va");
   ldb_iter_next(iter);
   ASSERT_EQ(iter_status(t, iter), "b->vb");
@@ -1118,12 +1118,12 @@ test_db_iter_multi(test_t *t) {
   ASSERT_EQ(iter_status(t, iter), "c->vc");
   ldb_iter_next(iter);
   ASSERT_EQ(iter_status(t, iter), "(invalid)");
-  ldb_iter_seek_first(iter);
+  ldb_iter_first(iter);
   ASSERT_EQ(iter_status(t, iter), "a->va");
   ldb_iter_prev(iter);
   ASSERT_EQ(iter_status(t, iter), "(invalid)");
 
-  ldb_iter_seek_last(iter);
+  ldb_iter_last(iter);
   ASSERT_EQ(iter_status(t, iter), "c->vc");
   ldb_iter_prev(iter);
   ASSERT_EQ(iter_status(t, iter), "b->vb");
@@ -1131,7 +1131,7 @@ test_db_iter_multi(test_t *t) {
   ASSERT_EQ(iter_status(t, iter), "a->va");
   ldb_iter_prev(iter);
   ASSERT_EQ(iter_status(t, iter), "(invalid)");
-  ldb_iter_seek_last(iter);
+  ldb_iter_last(iter);
   ASSERT_EQ(iter_status(t, iter), "c->vc");
   ldb_iter_next(iter);
   ASSERT_EQ(iter_status(t, iter), "(invalid)");
@@ -1148,14 +1148,14 @@ test_db_iter_multi(test_t *t) {
   ASSERT_EQ(iter_status(t, iter), "(invalid)");
 
   /* Switch from reverse to forward */
-  ldb_iter_seek_last(iter);
+  ldb_iter_last(iter);
   ldb_iter_prev(iter);
   ldb_iter_prev(iter);
   ldb_iter_next(iter);
   ASSERT_EQ(iter_status(t, iter), "b->vb");
 
   /* Switch from forward to reverse */
-  ldb_iter_seek_first(iter);
+  ldb_iter_first(iter);
   ldb_iter_next(iter);
   ldb_iter_next(iter);
   ldb_iter_prev(iter);
@@ -1168,7 +1168,7 @@ test_db_iter_multi(test_t *t) {
   ASSERT(test_put(t, "c", "vc2") == LDB_OK);
   ASSERT(test_del(t, "b") == LDB_OK);
 
-  ldb_iter_seek_first(iter);
+  ldb_iter_first(iter);
   ASSERT_EQ(iter_status(t, iter), "a->va");
   ldb_iter_next(iter);
   ASSERT_EQ(iter_status(t, iter), "b->vb");
@@ -1176,7 +1176,7 @@ test_db_iter_multi(test_t *t) {
   ASSERT_EQ(iter_status(t, iter), "c->vc");
   ldb_iter_next(iter);
   ASSERT_EQ(iter_status(t, iter), "(invalid)");
-  ldb_iter_seek_last(iter);
+  ldb_iter_last(iter);
   ASSERT_EQ(iter_status(t, iter), "c->vc");
   ldb_iter_prev(iter);
   ASSERT_EQ(iter_status(t, iter), "b->vb");
@@ -1200,7 +1200,7 @@ test_db_iter_small_and_large_mix(test_t *t) {
 
   iter = ldb_iterator(t->db, 0);
 
-  ldb_iter_seek_first(iter);
+  ldb_iter_first(iter);
   ASSERT_EQ(iter_status(t, iter), "a->va");
   ldb_iter_next(iter);
   ASSERT_EQ(iter_status(t, iter), string_fill2(t, "b->", 'b', 100000));
@@ -1213,7 +1213,7 @@ test_db_iter_small_and_large_mix(test_t *t) {
   ldb_iter_next(iter);
   ASSERT_EQ(iter_status(t, iter), "(invalid)");
 
-  ldb_iter_seek_last(iter);
+  ldb_iter_last(iter);
   ASSERT_EQ(iter_status(t, iter), string_fill2(t, "e->", 'e', 100000));
   ldb_iter_prev(iter);
   ASSERT_EQ(iter_status(t, iter), string_fill2(t, "d->", 'd', 100000));
@@ -1707,7 +1707,7 @@ test_db_iterator_pins_ref(test_t *t) {
 
   test_put(t, "foo", "newvalue2");
 
-  ldb_iter_seek_first(iter);
+  ldb_iter_first(iter);
 
   ASSERT(ldb_iter_valid(iter));
 
@@ -2750,7 +2750,7 @@ check_get(ldb_t *db, const ldb_snapshot_t *db_snap,
 
   it = rb_tree_iterator(map_snap);
 
-  rb_iter_seek_first(&it);
+  rb_iter_first(&it);
 
   while (rb_iter_valid(&it)) {
     const char *k = rb_iter_key(&it).p;
@@ -2817,8 +2817,8 @@ check_iter(ldb_t *db, const ldb_snapshot_t *db_snap,
 
   ASSERT(!ldb_iter_valid(iter));
 
-  ldb_iter_seek_first(iter);
-  rb_iter_seek_first(&it);
+  ldb_iter_first(iter);
+  rb_iter_first(&it);
 
   while (rb_iter_valid(&it)) {
     ASSERT(ldb_iter_valid(iter));

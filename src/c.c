@@ -255,12 +255,12 @@ leveldb_iter_valid(const leveldb_iterator_t *iter) {
 
 void
 leveldb_iter_seek_to_first(leveldb_iterator_t *iter) {
-  ldb_iter_seek_first(iter);
+  ldb_iter_first(iter);
 }
 
 void
 leveldb_iter_seek_to_last(leveldb_iterator_t *iter) {
-  ldb_iter_seek_last(iter);
+  ldb_iter_last(iter);
 }
 
 void

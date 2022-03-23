@@ -257,8 +257,8 @@ struct ldb_iter_s {
   const struct ldb_itertbl_s {
     void (*clear)(void *iter);
     int (*valid)(const void *iter);
-    void (*seek_first)(void *iter);
-    void (*seek_last)(void *iter);
+    void (*first)(void *iter);
+    void (*last)(void *iter);
     void (*seek)(void *iter, const ldb_slice_t *target);
     void (*next)(void *iter);
     void (*prev)(void *iter);
@@ -269,8 +269,8 @@ struct ldb_iter_s {
 };
 
 #define ldb_iter_valid(x) (x)->table->valid((x)->ptr)
-#define ldb_iter_seek_first(x) (x)->table->seek_first((x)->ptr)
-#define ldb_iter_seek_last(x) (x)->table->seek_last((x)->ptr)
+#define ldb_iter_first(x) (x)->table->first((x)->ptr)
+#define ldb_iter_last(x) (x)->table->last((x)->ptr)
 #define ldb_iter_seek(x, y) (x)->table->seek((x)->ptr, y)
 #define ldb_iter_next(x) (x)->table->next((x)->ptr)
 #define ldb_iter_prev(x) (x)->table->prev((x)->ptr)

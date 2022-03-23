@@ -50,7 +50,7 @@ print_contents(ldb_batch_t *b) {
 
   ldb_buffer_rwset(&state, buf, sizeof(buf));
 
-  for (ldb_iter_seek_first(iter); ldb_iter_valid(iter); ldb_iter_next(iter)) {
+  for (ldb_iter_first(iter); ldb_iter_valid(iter); ldb_iter_next(iter)) {
     ldb_slice_t key = ldb_iter_key(iter);
     ldb_slice_t val = ldb_iter_value(iter);
     ldb_pkey_t ikey;

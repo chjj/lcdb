@@ -141,8 +141,8 @@ struct ldb_handler_s {
 struct ldb_itertbl_s {
   void (*clear)(leveldb_iterator_t *iter);
   int (*valid)(const leveldb_iterator_t *iter);
-  void (*seek_first)(leveldb_iterator_t *iter);
-  void (*seek_last)(leveldb_iterator_t *iter);
+  void (*first)(leveldb_iterator_t *iter);
+  void (*last)(leveldb_iterator_t *iter);
   void (*seek)(leveldb_iterator_t *iter, const ldb_slice_t *target);
   void (*next)(leveldb_iterator_t *iter);
   void (*prev)(leveldb_iterator_t *iter);
@@ -807,12 +807,12 @@ iter_valid(const leveldb_iterator_t *iter) {
 }
 
 static void
-iter_seek_first(leveldb_iterator_t *iter) {
+iter_first(leveldb_iterator_t *iter) {
   leveldb_iter_seek_to_first(iter);
 }
 
 static void
-iter_seek_last(leveldb_iterator_t *iter) {
+iter_last(leveldb_iterator_t *iter) {
   leveldb_iter_seek_to_last(iter);
 }
 
@@ -857,8 +857,8 @@ iter_status(const leveldb_iterator_t *iter) {
 static const ldb_itertbl_t iter_table = {
   /* .clear = */ NULL,
   /* .valid = */ iter_valid,
-  /* .seek_first = */ iter_seek_first,
-  /* .seek_last = */ iter_seek_last,
+  /* .first = */ iter_first,
+  /* .last = */ iter_last,
   /* .seek = */ iter_seek,
   /* .next = */ iter_next,
   /* .prev = */ iter_prev,

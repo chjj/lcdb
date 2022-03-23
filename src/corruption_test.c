@@ -180,7 +180,7 @@ ctest_check(ctest_t *t, int min_expected, int max_expected) {
 
   iter = ldb_iterator(t->db, 0);
 
-  for (ldb_iter_seek_first(iter); ldb_iter_valid(iter); ldb_iter_next(iter)) {
+  for (ldb_iter_first(iter); ldb_iter_valid(iter); ldb_iter_next(iter)) {
     const char *sp = buf;
     ldb_slice_t key = ldb_iter_key(iter);
     ldb_slice_t val;

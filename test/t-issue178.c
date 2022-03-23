@@ -104,7 +104,7 @@ main(void) {
   iter = ldb_iterator(db, 0);
   num_keys = 0;
 
-  for (ldb_iter_seek_first(iter); ldb_iter_valid(iter); ldb_iter_next(iter))
+  for (ldb_iter_first(iter); ldb_iter_valid(iter); ldb_iter_next(iter))
     num_keys++;
 
   ldb_iter_destroy(iter);

@@ -542,13 +542,13 @@ conviter_seek(conviter_t *iter, const ldb_slice_t *target) {
 }
 
 static void
-conviter_seek_first(conviter_t *iter) {
-  ldb_iter_seek_first(iter->it);
+conviter_first(conviter_t *iter) {
+  ldb_iter_first(iter->it);
 }
 
 static void
-conviter_seek_last(conviter_t *iter) {
-  ldb_iter_seek_last(iter->it);
+conviter_last(conviter_t *iter) {
+  ldb_iter_last(iter->it);
 }
 
 static void
@@ -935,8 +935,8 @@ harness_test_forward_scan(harness_t *h,
 
   ASSERT(!ldb_iter_valid(iter));
 
-  ldb_iter_seek_first(iter);
-  rb_iter_seek_first(&it);
+  ldb_iter_first(iter);
+  rb_iter_first(&it);
 
   while (rb_iter_valid(&it)) {
     ASSERT(ldb_iter_valid(iter));
@@ -962,8 +962,8 @@ harness_test_backward_scan(harness_t *h,
 
   ASSERT(!ldb_iter_valid(iter));
 
-  ldb_iter_seek_last(iter);
-  rb_iter_seek_last(&it);
+  ldb_iter_last(iter);
+  rb_iter_last(&it);
 
   while (rb_iter_valid(&it)) {
     ASSERT(ldb_iter_valid(iter));
@@ -990,7 +990,7 @@ harness_test_random_access(harness_t *h,
 
   ASSERT(!ldb_iter_valid(iter));
 
-  rb_iter_seek_first(&it);
+  rb_iter_first(&it);
 
   if (verbose)
     fprintf(stderr, "---\n");
@@ -1017,8 +1017,8 @@ harness_test_random_access(harness_t *h,
         if (verbose)
           fprintf(stderr, "SeekToFirst\n");
 
-        ldb_iter_seek_first(iter);
-        rb_iter_seek_first(&it);
+        ldb_iter_first(iter);
+        rb_iter_first(&it);
 
         ASSERT(iter_equal(iter, &it));
 
@@ -1066,8 +1066,8 @@ harness_test_random_access(harness_t *h,
         if (verbose)
           fprintf(stderr, "SeekToLast\n");
 
-        ldb_iter_seek_last(iter);
-        rb_iter_seek_last(&it);
+        ldb_iter_last(iter);
+        rb_iter_last(&it);
 
         ASSERT(iter_equal(iter, &it));
 
@@ -1139,11 +1139,11 @@ test_zero_restart_points_in_block(void) {
 
   iter = ldb_blockiter_create(&block, ldb_bytewise_comparator);
 
-  ldb_iter_seek_first(iter);
+  ldb_iter_first(iter);
 
   ASSERT(!ldb_iter_valid(iter));
 
-  ldb_iter_seek_last(iter);
+  ldb_iter_last(iter);
 
   ASSERT(!ldb_iter_valid(iter));
 
@@ -1330,7 +1330,7 @@ test_memtable_simple(void) {
 
   iter = ldb_memiter_create(memtable);
 
-  ldb_iter_seek_first(iter);
+  ldb_iter_first(iter);
 
   while (ldb_iter_valid(iter)) {
     key = ldb_iter_key(iter);

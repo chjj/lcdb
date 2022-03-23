@@ -159,7 +159,7 @@ test_auto_compact_read(int n) {
 
     iter = ldb_iterator(t.db, 0);
 
-    ldb_iter_seek_first(iter);
+    ldb_iter_first(iter);
 
     while (ldb_iter_valid(iter)) {
       ldb_slice_t key = ldb_iter_key(iter);
