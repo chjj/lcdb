@@ -123,13 +123,13 @@ name ## _seek_wrapped(void *iter, const ldb_slice_t *target) { \
 }                                                              \
                                                                \
 static void                                                    \
-name ## _first_wrapped(void *iter) {                      \
-  name ## _first((name ## _t *)iter);                     \
+name ## _first_wrapped(void *iter) {                           \
+  name ## _first((name ## _t *)iter);                          \
 }                                                              \
                                                                \
 static void                                                    \
-name ## _last_wrapped(void *iter) {                       \
-  name ## _last((name ## _t *)iter);                      \
+name ## _last_wrapped(void *iter) {                            \
+  name ## _last((name ## _t *)iter);                           \
 }                                                              \
                                                                \
 static void                                                    \
@@ -160,8 +160,8 @@ name ## _status_wrapped(const void *iter) {                    \
 static const ldb_itertbl_t name ## _table = {                  \
   /* .clear = */ name ## _clear_wrapped,                       \
   /* .valid = */ name ## _valid_wrapped,                       \
-  /* .first = */ name ## _first_wrapped,             \
-  /* .last = */ name ## _last_wrapped,               \
+  /* .first = */ name ## _first_wrapped,                       \
+  /* .last = */ name ## _last_wrapped,                         \
   /* .seek = */ name ## _seek_wrapped,                         \
   /* .next = */ name ## _next_wrapped,                         \
   /* .prev = */ name ## _prev_wrapped,                         \
