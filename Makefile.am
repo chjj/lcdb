@@ -28,10 +28,10 @@ EXTRA_DIST = cmake/           \
 # Dependencies
 #
 
-if ENABLE_TESTS
-SUBDIRS = . test
-else
 SUBDIRS = .
+
+if ENABLE_TESTS
+SUBDIRS += test
 endif
 
 #
@@ -189,18 +189,17 @@ endif
 # Targets
 #
 
-if MINGW
-lcdb_ldflags = -avoid-version -Wl,--output-def,.libs/lcdb.def
-else
-lcdb_ldflags = -version-info @ABI_VERSION@
-endif
-
 liblcdb_la_SOURCES = $(lcdb_sources)
-if ENABLE_SHARED
-liblcdb_la_CFLAGS = $(WARN_FLAGS) -DLDB_EXPORT
-liblcdb_la_LDFLAGS = -no-undefined $(lcdb_ldflags)
-else
 liblcdb_la_CFLAGS = $(WARN_FLAGS)
+
+if ENABLE_SHARED
+liblcdb_la_CFLAGS += -DLDB_EXPORT
+liblcdb_la_LDFLAGS = -no-undefined
+if MINGW
+liblcdb_la_LDFLAGS += -avoid-version -Wl,--output-def,.libs/lcdb.def
+else
+liblcdb_la_LDFLAGS += -version-info @ABI_VERSION@
+endif
 endif
 
 lib_LTLIBRARIES = liblcdb.la
