@@ -125,7 +125,6 @@ ldb_wide_export(char *zp, size_t zn, const ldb_wide_t *x) {
 
 static int
 LDBIsWindowsNT(void) {
-  /* Logic from libsodium/core.c */
   static volatile long state = 0;
   static DWORD version = 0;
   long value;
