@@ -405,3 +405,10 @@ ldb_dbiter_create(ldb_t *db,
   ldb_dbiter_init(iter, db, user_comparator, internal_iter, sequence, seed);
   return ldb_iter_create(iter, &ldb_dbiter_table);
 }
+
+int
+ldb_iter_compare(ldb_iter_t *iter, const ldb_slice_t *key) {
+  ldb_dbiter_t *it = iter->ptr;
+  ldb_slice_t x = ldb_dbiter_key(it);
+  return ldb_compare(it->ucmp, &x, key);
+}

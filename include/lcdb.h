@@ -278,6 +278,9 @@ struct ldb_iter_s {
 #define ldb_iter_value(x) (x)->table->value((x)->ptr)
 #define ldb_iter_status(x) (x)->table->status((x)->ptr)
 
+int
+ldb_iter_compare(ldb_iter_t *iter, const ldb_slice_t *key);
+
 void
 ldb_iter_destroy(ldb_iter_t *iter);
 
