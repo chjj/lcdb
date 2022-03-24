@@ -117,19 +117,15 @@ main(void) {
       ldb_iter_t *it = ldb_iterator(db, 0);
       int total = 0;
 
-      ldb_iter_first(it);
-
-      while (ldb_iter_valid(it)) {
+      ldb_iter_each(it) {
         ldb_slice_t k = ldb_iter_key(it);
-        ldb_slice_t v = ldb_iter_value(it);
+        ldb_slice_t v = ldb_iter_val(it);
 
         ASSERT(k.size >= 7);
         ASSERT(v.size >= 7);
 
         ASSERT(memcmp(k.data, "hello ", 6) == 0);
         ASSERT(memcmp(v.data, "world ", 6) == 0);
-
-        ldb_iter_next(it);
 
         total++;
       }
