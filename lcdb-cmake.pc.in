@@ -5,7 +5,7 @@ includedir=${prefix}/@CMAKE_INSTALL_INCLUDEDIR@
 
 Name: lcdb
 Version: @PROJECT_VERSION@
-Description: Bitcoin library.
+Description: Database for C.
 URL: https://github.com/chjj/lcdb
 
 Cflags: -I${includedir}
