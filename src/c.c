@@ -60,8 +60,7 @@ struct leveldb_filterpolicy_s {
 };
 
 struct leveldb_env_s {
-  void *rep;
-  int is_default;
+  void *dummy;
 };
 
 typedef struct iterate_opts_s {
@@ -468,21 +467,6 @@ slice_compare(const ldb_comparator_t *comparator,
                                   (const char *)y->data, y->size);
 }
 
-static void
-shortest_separator(const ldb_comparator_t *comparator,
-                   ldb_buffer_t *start,
-                   const ldb_slice_t *limit) {
-  (void)comparator;
-  (void)start;
-  (void)limit;
-}
-
-static void
-short_successor(const ldb_comparator_t *comparator, ldb_buffer_t *key) {
-  (void)comparator;
-  (void)key;
-}
-
 leveldb_comparator_t *
 leveldb_comparator_create(void *state,
                           void (*destructor)(void *),
@@ -493,8 +477,8 @@ leveldb_comparator_create(void *state,
 
   cmp->rep.name = name(state);
   cmp->rep.compare = slice_compare;
-  cmp->rep.shortest_separator = shortest_separator;
-  cmp->rep.short_successor = short_successor;
+  cmp->rep.shortest_separator = NULL;
+  cmp->rep.short_successor = NULL;
   cmp->rep.user_comparator = NULL;
   cmp->rep.state = cmp;
 
@@ -661,12 +645,7 @@ leveldb_cache_destroy(leveldb_cache_t *cache) {
 
 leveldb_env_t *
 leveldb_create_default_env(void) {
-  leveldb_env_t *env = ldb_malloc(sizeof(leveldb_env_t));
-
-  env->rep = NULL;
-  env->is_default = 1;
-
-  return env;
+  return ldb_malloc(sizeof(leveldb_env_t));
 }
 
 void
