@@ -826,7 +826,9 @@ ldb_test_directory_wide(char *result, size_t size) {
   } else {
     ldb_wide_init(&tmp, 1024);
 
-    if (GetTempPathW(1024, tmp.data)) {
+    len = GetTempPathW(1024, tmp.data);
+
+    if (len > 0 && len < 1024) {
       DWORD tid = GetCurrentThreadId();
       int count;
 
