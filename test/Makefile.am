@@ -2,9 +2,9 @@
 # Copyright (c) 2022, Christopher Jeffrey (MIT License).
 # https://github.com/chjj/lcdb
 
-AM_CPPFLAGS = $(WARN_FLAGS) -I$(top_builddir)/include
-AM_LDFLAGS = -no-install
-LDADD = $(top_builddir)/liblcdb.la
+AM_CPPFLAGS = $(WARN_FLAGS) -I$(top_srcdir)/include
+AM_LDFLAGS = -static
+LDADD = $(top_builddir)/libtest.la
 
 tests_lib = t-arena        \
             t-autocompact  \
@@ -40,4 +40,6 @@ check_PROGRAMS = $(tests_lib)
 
 TESTS = $(check_PROGRAMS)
 
+if ENABLE_TESTS
 all-local: $(check_PROGRAMS)
+endif

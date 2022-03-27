@@ -28,11 +28,7 @@ EXTRA_DIST = cmake/           \
 # Dependencies
 #
 
-SUBDIRS = .
-
-if ENABLE_TESTS
-SUBDIRS += test
-endif
+SUBDIRS = . test
 
 #
 # Headers
@@ -181,10 +177,6 @@ test_sources = src/util/arena_test.c         \
                src/version_set_test.c        \
                src/write_batch_test.c
 
-if ENABLE_TESTS
-lcdb_sources += $(test_sources)
-endif
-
 #
 # Targets
 #
@@ -203,6 +195,15 @@ endif
 endif
 
 lib_LTLIBRARIES = liblcdb.la
+
+if ENABLE_TESTS
+libtest_la_SOURCES = $(test_sources)
+libtest_la_CFLAGS = $(WARN_FLAGS)
+libtest_la_LDFLAGS = -static
+libtest_la_LIBADD = liblcdb.la
+
+noinst_LTLIBRARIES = libtest.la
+endif
 
 lcdbutil_SOURCES = src/dbutil.c
 lcdbutil_CFLAGS = $(WARN_FLAGS)

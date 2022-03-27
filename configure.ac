@@ -68,11 +68,19 @@ AC_ARG_ENABLE(
 )
 
 AC_ARG_ENABLE(
+  portable,
+  AS_HELP_STRING([--enable-portable],
+                 [be as portable as possible [default=no]]),
+  [enable_portable=$enableval],
+  [enable_portable=no]
+)
+
+AC_ARG_ENABLE(
   tests,
   AS_HELP_STRING([--enable-tests],
-                 [enable tests [default=no]]),
+                 [enable tests [default=yes]]),
   [enable_tests=$enableval],
-  [enable_tests=no]
+  [enable_tests=yes]
 )
 
 #
@@ -132,32 +140,34 @@ has_fdatasync=no
 has_pread=no
 has_pthread=no
 
-AC_MSG_CHECKING(for fdatasync support)
-AC_LINK_IFELSE([
-  AC_LANG_SOURCE([[
-#   include <unistd.h>
-    int main(void) {
-      return fdatasync(1);
-    }
-  ]])
-], [
-  has_fdatasync=yes
-])
-AC_MSG_RESULT([$has_fdatasync])
+AS_IF([test x"$enable_portable" != x'yes'], [
+  AC_MSG_CHECKING(for fdatasync support)
+  AC_LINK_IFELSE([
+    AC_LANG_SOURCE([[
+#     include <unistd.h>
+      int main(void) {
+        return fdatasync(1);
+      }
+    ]])
+  ], [
+    has_fdatasync=yes
+  ])
+  AC_MSG_RESULT([$has_fdatasync])
 
-AC_MSG_CHECKING(for pread support)
-AC_LINK_IFELSE([
-  AC_LANG_SOURCE([[
-#   include <unistd.h>
-    int main(void) {
-      char buf[32];
-      return pread(0, buf, sizeof(buf), 0);
-    }
-  ]])
-], [
-  has_pread=yes
+  AC_MSG_CHECKING(for pread support)
+  AC_LINK_IFELSE([
+    AC_LANG_SOURCE([[
+#     include <unistd.h>
+      int main(void) {
+        char buf[32];
+        return pread(0, buf, sizeof(buf), 0);
+      }
+    ]])
+  ], [
+    has_pread=yes
+  ])
+  AC_MSG_RESULT([$has_pread])
 ])
-AC_MSG_RESULT([$has_pread])
 
 AS_IF([test x"$MINGW$WASI$EMSCRIPTEN" = x''], [
   AC_CHECK_DEFINE([__WATCOMC__], [], [
@@ -298,6 +308,7 @@ AC_MSG_NOTICE([Build Options:
   coverage   = $enable_coverage
   emscripten = $EMSCRIPTEN
   fdatasync  = $has_fdatasync
+  portable   = $enable_portable
   pread      = $has_pread
   pthread    = $has_pthread
   tests      = $enable_tests
