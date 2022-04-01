@@ -1106,7 +1106,24 @@ builder_save_to(builder_t *b, ldb_version_t *v) {
  */
 
 static void
-ldb_vset_append_version(ldb_vset_t *vset, ldb_version_t *v);
+ldb_vset_append_version(ldb_vset_t *vset, ldb_version_t *v) {
+  /* Make "v" current. */
+  assert(v->refs == 0);
+  assert(v != vset->current);
+
+  if (vset->current != NULL)
+    ldb_version_unref(vset->current);
+
+  vset->current = v;
+
+  ldb_version_ref(v);
+
+  /* Append to linked list. */
+  v->prev = vset->dummy_versions.prev;
+  v->next = &vset->dummy_versions;
+  v->prev->next = v;
+  v->next->prev = v;
+}
 
 static void
 ldb_vset_init(ldb_vset_t *vset,
@@ -1217,26 +1234,6 @@ int
 ldb_vset_needs_compaction(const ldb_vset_t *vset) {
   ldb_version_t *v = vset->current;
   return (v->compaction_score >= 1) || (v->file_to_compact != NULL);
-}
-
-static void
-ldb_vset_append_version(ldb_vset_t *vset, ldb_version_t *v) {
-  /* Make "v" current. */
-  assert(v->refs == 0);
-  assert(v != vset->current);
-
-  if (vset->current != NULL)
-    ldb_version_unref(vset->current);
-
-  vset->current = v;
-
-  ldb_version_ref(v);
-
-  /* Append to linked list. */
-  v->prev = vset->dummy_versions.prev;
-  v->next = &vset->dummy_versions;
-  v->prev->next = v;
-  v->next->prev = v;
 }
 
 static void
