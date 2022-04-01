@@ -9,7 +9,6 @@
 ACLOCAL_AMFLAGS = -I m4
 AM_CPPFLAGS = -I$(top_srcdir)/include
 
-includedir = $(prefix)/include
 licensedir = $(datadir)/licenses/$(PACKAGE_NAME)
 pkgconfigdir = $(libdir)/pkgconfig
 

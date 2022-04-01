@@ -10,4 +10,4 @@ URL: https://github.com/chjj/lcdb
 
 Cflags: -I${includedir}
 Libs: -L${libdir} -llcdb
-Libs.private: @CMAKE_THREAD_LIBS_INIT@
+Libs.private: @PKGCONF_LIBS@

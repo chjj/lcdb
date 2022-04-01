@@ -55,11 +55,28 @@ AC_CHECK_DEFINE([__EMSCRIPTEN__], [
   ])
 ])
 
+AC_CHECK_DEFINE([__WATCOMC__], [
+  AS_IF([test x"$WATCOM" = x''], [
+    AC_MSG_ERROR([./configure must be run with ./scripts/watcom-configure])
+  ])
+], [
+  AC_MSG_WARN([WATCOM env var set but environment is not watcom])
+  AS_UNSET([WATCOM])
+])
+
 AS_CASE([$host_os], [mingw*], [MINGW="$CC"], [AS_UNSET([MINGW])])
 
 #
 # Options
 #
+
+AC_ARG_ENABLE(
+  bench,
+  AS_HELP_STRING([--enable-bench],
+                 [build benchmarks [default=no]]),
+  [enable_bench=$enableval],
+  [enable_bench=no]
+)
 
 AC_ARG_ENABLE(
   coverage,
@@ -70,11 +87,27 @@ AC_ARG_ENABLE(
 )
 
 AC_ARG_ENABLE(
+  debug,
+  AS_HELP_STRING([--enable-debug],
+                 [enable debug build [default=no]]),
+  [enable_debug=$enableval],
+  [enable_debug=no]
+)
+
+AC_ARG_ENABLE(
   portable,
   AS_HELP_STRING([--enable-portable],
                  [be as portable as possible [default=no]]),
   [enable_portable=$enableval],
   [enable_portable=no]
+)
+
+AC_ARG_ENABLE(
+  pthread,
+  AS_HELP_STRING([--enable-pthread],
+                 [use pthread [default=yes]]),
+  [enable_pthread=$enableval],
+  [enable_pthread=yes]
 )
 
 AC_ARG_ENABLE(
@@ -93,7 +126,6 @@ AX_CHECK_DEFINE([limits.h], [__GLIBC__], [
   AX_CHECK_COMPILE_FLAG([-std=c90], [CFLAGS="$CFLAGS -std=c90"], [
     AX_CHECK_COMPILE_FLAG([-std=c89], [CFLAGS="$CFLAGS -std=c89"])
   ])
-  AC_DEFINE([_GNU_SOURCE])
 ])
 
 AC_COMPILE_IFELSE([
@@ -113,12 +145,49 @@ AS_CASE([$host_os], [darwin*], [
 ])
 
 #
+# Feature Test Macros
+#
+
+AS_IF([test x"$MINGW" != x''], [
+  AC_DEFINE([_WIN32_WINNT], [0x501])
+])
+
+AX_CHECK_DEFINE([limits.h], [__GLIBC__], [
+  AC_DEFINE([_GNU_SOURCE])
+])
+
+AS_CASE([$host_os], [solaris*], [
+  AC_DEFINE([_TS_ERRNO])
+])
+
+AS_CASE([$host_os], [aix*], [
+  AC_DEFINE([_THREAD_SAFE_ERRNO])
+])
+
+#
+# System Libraries
+#
+
+AS_IF([test x"$MINGW" != x''], [
+  LIBS="$LIBS -lkernel32"
+], [
+  AS_IF([test x"$enable_pthread$WATCOM$WASI$EMSCRIPTEN" = x'yes'], [
+    AX_PTHREAD([
+      CC="$PTHREAD_CC"
+      CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
+      LIBS="$PTHREAD_LIBS $LIBS"
+
+      AC_DEFINE([LDB_PTHREAD])
+    ])
+  ])
+])
+
+#
 # Feature Testing
 #
 
 has_fdatasync=no
 has_pread=no
-has_pthread=no
 
 AS_IF([test x"$enable_portable" != x'yes'], [
   AC_MSG_CHECKING(for fdatasync support)
@@ -147,12 +216,6 @@ AS_IF([test x"$enable_portable" != x'yes'], [
     has_pread=yes
   ])
   AC_MSG_RESULT([$has_pread])
-])
-
-AS_IF([test x"$MINGW$WASI$EMSCRIPTEN" = x''], [
-  AC_CHECK_DEFINE([__WATCOMC__], [], [
-    AX_PTHREAD([has_pthread=yes])
-  ])
 ])
 
 #
@@ -188,13 +251,17 @@ CFLAGS="$ldb_save_CFLAGS"
 
 AC_SUBST([WARN_FLAGS])
 
-AC_CHECK_DEFINE([__WATCOMC__], [
+AS_IF([test x"$WATCOM" != x''], [
   AX_CHECK_COMPILE_FLAG([-Wno-n201], [CFLAGS="$CFLAGS -Wno-n201"])
   AX_CHECK_COMPILE_FLAG([-Wno-n202], [CFLAGS="$CFLAGS -Wno-n202"])
 ])
 
 AS_IF([test x"$enable_coverage" = x'yes'], [
   CFLAGS="$CFLAGS -O0 --coverage"
+])
+
+AS_IF([test x"$enable_debug" = x'yes'], [
+  AX_CHECK_COMPILE_FLAG([-g], [CFLAGS="$CFLAGS -g"])
 ])
 
 AS_IF([test x"$MINGW" != x''], [
@@ -210,6 +277,14 @@ AS_IF([test x"$MINGW" != x''], [
 # Defines
 #
 
+AS_IF([test x"$enable_coverage" = x'yes'], [
+  AC_DEFINE([LDB_COVERAGE])
+])
+
+AS_IF([test x"$enable_debug" = x'yes'], [
+  AC_DEFINE([LDB_DEBUG])
+])
+
 AS_IF([test x"$has_fdatasync" = x'yes'], [
   AC_DEFINE([LDB_HAVE_FDATASYNC])
 ])
@@ -218,37 +293,20 @@ AS_IF([test x"$has_pread" = x'yes'], [
   AC_DEFINE([LDB_HAVE_PREAD])
 ])
 
-AS_IF([test x"$has_pthread" = x'yes'], [
-  AC_DEFINE([LDB_PTHREAD])
-])
-
-#
-# Feature Test Macros
-#
-
-AS_IF([test x"$MINGW" != x''], [
-  AC_DEFINE([_WIN32_WINNT], [0x501])
-])
-
-AS_CASE([$host_os], [solaris*], [
-  AC_DEFINE([_TS_ERRNO])
-])
-
-AS_CASE([$host_os], [aix*], [
-  AC_DEFINE([_THREAD_SAFE_ERRNO])
-])
-
 #
 # Libraries
 #
 
-AS_IF([test x"$MINGW" != x''], [
-  LIBS="$LIBS -lkernel32"
-], [
-  AS_IF([test x"$has_pthread" = x'yes'], [
-    CC="$PTHREAD_CC"
-    CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
-    LIBS="$LIBS $PTHREAD_LIBS"
+AS_IF([test x"$enable_bench" = x'yes'], [
+  AC_LINK_IFELSE([
+    AC_LANG_SOURCE([[
+#     include <math.h>
+      int main(int argc, char **argv) {
+        return (int)sqrt((double)argc);
+      }
+    ]])
+  ], [], [
+    AC_SUBST([MATHLIB], ['-m'])
   ])
 ])
 
@@ -272,7 +330,6 @@ AS_IF([test x"$EMSCRIPTEN" != x''], [
 
 AM_CONDITIONAL([ENABLE_SHARED], [test x"$enable_shared" = x'yes'])
 AM_CONDITIONAL([ENABLE_TESTS], [test x"$enable_tests" = x'yes'])
-AM_CONDITIONAL([HAVE_PTHREAD], [test x"$has_pthread" = x'yes'])
 AM_CONDITIONAL([MINGW], [test x"$MINGW" != x''])
 
 AC_CONFIG_FILES([Makefile test/Makefile lcdb.pc])
@@ -286,13 +343,8 @@ AC_OUTPUT
 AC_MSG_NOTICE([Build Options:
 
   coverage   = $enable_coverage
-  emscripten = $EMSCRIPTEN
-  fdatasync  = $has_fdatasync
   portable   = $enable_portable
-  pread      = $has_pread
-  pthread    = $has_pthread
   tests      = $enable_tests
-  wasi       = $WASI
 
   PREFIX     = $prefix
   HOST       = $host
