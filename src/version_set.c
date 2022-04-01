@@ -320,6 +320,10 @@ ldb_numiter_create(const ldb_comparator_t *icmp, const ldb_vector_t *flist) {
   return ldb_iter_create(iter, &ldb_numiter_table);
 }
 
+/*
+ * Version::NewConcatenatingIterator
+ */
+
 static ldb_iter_t *
 get_file_iterator(void *arg,
                   const ldb_readopt_t *options,
@@ -1863,57 +1867,6 @@ ldb_vset_get_range2(ldb_vset_t *vset,
   ldb_vector_clear(&all);
 }
 
-ldb_iter_t *
-ldb_inputiter_create(ldb_vset_t *vset, ldb_compaction_t *c) {
-  ldb_readopt_t options = *ldb_readopt_default;
-  ldb_iter_t *result;
-  ldb_iter_t **list;
-  int num = 0;
-  int space, which;
-  size_t i;
-
-  options.verify_checksums = vset->options->paranoid_checks;
-  options.fill_cache = 0;
-
-  /* Level-0 files have to be merged together. For other levels,
-     we will make a concatenating iterator per level. */
-  space = (ldb_compaction_level(c) == 0 ? c->inputs[0].length + 1 : 2);
-  list = ldb_malloc(space * sizeof(ldb_iter_t *));
-
-  for (which = 0; which < 2; which++) {
-    if (c->inputs[which].length > 0) {
-      if (ldb_compaction_level(c) + which == 0) {
-        const ldb_vector_t *files = &c->inputs[which];
-
-        for (i = 0; i < files->length; i++) {
-          const ldb_filemeta_t *file = files->items[i];
-
-          list[num++] = ldb_tcache_iterate(vset->table_cache,
-                                           &options,
-                                           file->number,
-                                           file->file_size,
-                                           NULL);
-        }
-      } else {
-        /* Create concatenating iterator for the files from this level. */
-        list[num++] = ldb_twoiter_create(ldb_numiter_create(&vset->icmp,
-                                                            &c->inputs[which]),
-                                         &get_file_iterator,
-                                         vset->table_cache,
-                                         &options);
-      }
-    }
-  }
-
-  assert(num <= space);
-
-  result = ldb_mergeiter_create(&vset->icmp, list, num);
-
-  ldb_free(list);
-
-  return result;
-}
-
 /* Finds the largest key in a vector of files. Returns true if files is not
    empty. */
 static int
@@ -2241,6 +2194,61 @@ ldb_vset_compact_range(ldb_vset_t *vset,
   ldb_vector_clear(&inputs);
 
   return c;
+}
+
+/*
+ * VersionSet::MakeInputIterator
+ */
+
+ldb_iter_t *
+ldb_inputiter_create(ldb_vset_t *vset, ldb_compaction_t *c) {
+  ldb_readopt_t options = *ldb_readopt_default;
+  ldb_iter_t *result;
+  ldb_iter_t **list;
+  int num = 0;
+  int space, which;
+  size_t i;
+
+  options.verify_checksums = vset->options->paranoid_checks;
+  options.fill_cache = 0;
+
+  /* Level-0 files have to be merged together. For other levels,
+     we will make a concatenating iterator per level. */
+  space = (ldb_compaction_level(c) == 0 ? c->inputs[0].length + 1 : 2);
+  list = ldb_malloc(space * sizeof(ldb_iter_t *));
+
+  for (which = 0; which < 2; which++) {
+    if (c->inputs[which].length > 0) {
+      if (ldb_compaction_level(c) + which == 0) {
+        const ldb_vector_t *files = &c->inputs[which];
+
+        for (i = 0; i < files->length; i++) {
+          const ldb_filemeta_t *file = files->items[i];
+
+          list[num++] = ldb_tcache_iterate(vset->table_cache,
+                                           &options,
+                                           file->number,
+                                           file->file_size,
+                                           NULL);
+        }
+      } else {
+        /* Create concatenating iterator for the files from this level. */
+        list[num++] = ldb_twoiter_create(ldb_numiter_create(&vset->icmp,
+                                                            &c->inputs[which]),
+                                         &get_file_iterator,
+                                         vset->table_cache,
+                                         &options);
+      }
+    }
+  }
+
+  assert(num <= space);
+
+  result = ldb_mergeiter_create(&vset->icmp, list, num);
+
+  ldb_free(list);
+
+  return result;
 }
 
 /*
