@@ -351,17 +351,21 @@ ldb_iter_destroy(ldb_iter_t *iter);
 #define ldb_iter_key(x) (x)->table->key((x)->ptr)
 #define ldb_iter_value(x) (x)->table->value((x)->ptr)
 #define ldb_iter_status(x) (x)->table->status((x)->ptr)
-#define ldb_iter_val ldb_iter_value
 
 int
 ldb_iter_compare(const ldb_iter_t *iter, const ldb_slice_t *key);
+
+/**
+ * Alias for `ldb_iter_value`.
+ */
+#define ldb_iter_val ldb_iter_value
 
 /**
  * Iterate over each key.
  *
  * Example:
  *
- *   ldb_iter_t it = ldb_iterator(db, 0);
+ *   ldb_iter_t *it = ldb_iterator(db, 0);
  *
  *   ldb_iter_each(it) {
  *     ldb_slice_t key = ldb_iter_key(it);
@@ -381,7 +385,7 @@ ldb_iter_compare(const ldb_iter_t *iter, const ldb_slice_t *key);
  *
  *   ldb_slice_t start = ldb_string("a");
  *   ldb_slice_t end = ldb_string("z");
- *   ldb_iter_t it = ldb_iterator(db, 0);
+ *   ldb_iter_t *it = ldb_iterator(db, 0);
  *
  *   ldb_iter_range(it, &start, &end) {
  *     ldb_slice_t key = ldb_iter_key(it);
