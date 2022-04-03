@@ -63,17 +63,6 @@ enum ldb_compression {
  * Types
  */
 
-typedef struct ldb_slice_s {
-  void *data;
-  size_t size;
-  size_t dummy;
-} ldb_slice_t;
-
-typedef struct ldb_range_s {
-  ldb_slice_t start;
-  ldb_slice_t limit;
-} ldb_range_t;
-
 typedef struct ldb_s ldb_t;
 typedef struct ldb_batch_s ldb_batch_t;
 typedef struct ldb_bloom_s ldb_bloom_t;
@@ -84,9 +73,17 @@ typedef struct ldb_itertbl_s ldb_itertbl_t;
 typedef struct ldb_iter_s ldb_iter_t;
 typedef struct ldb_logger_s ldb_logger_t;
 typedef leveldb_cache_t ldb_lru_t;
+typedef struct ldb_range_s ldb_range_t;
 typedef struct ldb_readopt_s ldb_readopt_t;
+typedef struct ldb_slice_s ldb_slice_t;
 typedef leveldb_snapshot_t ldb_snapshot_t;
 typedef struct ldb_writeopt_s ldb_writeopt_t;
+
+struct ldb_slice_s {
+  void *data;
+  size_t size;
+  size_t dummy;
+};
 
 struct ldb_comparator_s {
   const char *name;
@@ -178,6 +175,11 @@ struct ldb_iter_s {
 
 struct ldb_logger_s {
   leveldb_logger_t *rep;
+};
+
+struct ldb_range_s {
+  ldb_slice_t start;
+  ldb_slice_t limit;
 };
 
 struct ldb_readopt_s {
