@@ -69,7 +69,6 @@ typedef struct ldb_bloom_s ldb_bloom_t;
 typedef struct ldb_comparator_s ldb_comparator_t;
 typedef struct ldb_dbopt_s ldb_dbopt_t;
 typedef struct ldb_handler_s ldb_handler_t;
-typedef struct ldb_itertbl_s ldb_itertbl_t;
 typedef struct ldb_iter_s ldb_iter_t;
 typedef struct ldb_logger_s ldb_logger_t;
 typedef leveldb_cache_t ldb_lru_t;
@@ -149,28 +148,10 @@ struct ldb_handler_s {
               const ldb_slice_t *key);
 };
 
-struct ldb_itertbl_s {
-  void (*clear)(leveldb_iterator_t *iter);
-  int (*valid)(const leveldb_iterator_t *iter);
-  void (*first)(leveldb_iterator_t *iter);
-  void (*last)(leveldb_iterator_t *iter);
-  void (*seek)(leveldb_iterator_t *iter, const ldb_slice_t *target);
-  void (*next)(leveldb_iterator_t *iter);
-  void (*prev)(leveldb_iterator_t *iter);
-  ldb_slice_t (*key)(const leveldb_iterator_t *iter);
-  ldb_slice_t (*value)(const leveldb_iterator_t *iter);
-  int (*status)(const leveldb_iterator_t *iter);
-};
-
 struct ldb_iter_s {
   leveldb_iterator_t *rep;
-  struct {
-    void (*dummy1)(void);
-    leveldb_readoptions_t *options;
-    const ldb_comparator_t *ucmp;
-    void *dummy2;
-  } props;
-  const ldb_itertbl_t *table;
+  leveldb_readoptions_t *options;
+  const ldb_comparator_t *ucmp;
 };
 
 struct ldb_logger_s {
@@ -326,6 +307,33 @@ ldb_iterator(ldb_t *db, const ldb_readopt_t *options);
 
 LDB_EXTERN void
 ldb_iter_destroy(ldb_iter_t *iter);
+
+LDB_EXTERN int
+ldb_iter_valid(const ldb_iter_t *iter);
+
+LDB_EXTERN void
+ldb_iter_first(ldb_iter_t *iter);
+
+LDB_EXTERN void
+ldb_iter_last(ldb_iter_t *iter);
+
+LDB_EXTERN void
+ldb_iter_seek(ldb_iter_t *iter, const ldb_slice_t *target);
+
+LDB_EXTERN void
+ldb_iter_next(ldb_iter_t *iter);
+
+LDB_EXTERN void
+ldb_iter_prev(ldb_iter_t *iter);
+
+LDB_EXTERN ldb_slice_t
+ldb_iter_key(const ldb_iter_t *iter);
+
+LDB_EXTERN ldb_slice_t
+ldb_iter_value(const ldb_iter_t *iter);
+
+LDB_EXTERN int
+ldb_iter_status(const ldb_iter_t *iter);
 
 LDB_EXTERN int
 ldb_iter_compare(const ldb_iter_t *iter, const ldb_slice_t *key);
@@ -1093,72 +1101,6 @@ ldb_free(void *ptr) {
  * Iterator
  */
 
-static int
-iter_valid(const leveldb_iterator_t *iter) {
-  return leveldb_iter_valid(iter);
-}
-
-static void
-iter_first(leveldb_iterator_t *iter) {
-  leveldb_iter_seek_to_first(iter);
-}
-
-static void
-iter_last(leveldb_iterator_t *iter) {
-  leveldb_iter_seek_to_last(iter);
-}
-
-static void
-iter_seek(leveldb_iterator_t *iter, const ldb_slice_t *target) {
-  leveldb_iter_seek(iter, target->data, target->size);
-}
-
-static void
-iter_next(leveldb_iterator_t *iter) {
-  leveldb_iter_next(iter);
-}
-
-static void
-iter_prev(leveldb_iterator_t *iter) {
-  leveldb_iter_prev(iter);
-}
-
-static ldb_slice_t
-iter_key(const leveldb_iterator_t *iter) {
-  ldb_slice_t key = {NULL, 0, 0};
-  key.data = (void *)leveldb_iter_key(iter, &key.size);
-  return key;
-}
-
-static ldb_slice_t
-iter_value(const leveldb_iterator_t *iter) {
-  ldb_slice_t value = {NULL, 0, 0};
-  value.data = (void *)leveldb_iter_value(iter, &value.size);
-  return value;
-}
-
-static int
-iter_status(const leveldb_iterator_t *iter) {
-  char *err = NULL;
-
-  leveldb_iter_get_error(iter, &err);
-
-  return handle_error(err);
-}
-
-static const ldb_itertbl_t iter_table = {
-  /* .clear = */ NULL,
-  /* .valid = */ iter_valid,
-  /* .first = */ iter_first,
-  /* .last = */ iter_last,
-  /* .seek = */ iter_seek,
-  /* .next = */ iter_next,
-  /* .prev = */ iter_prev,
-  /* .key = */ iter_key,
-  /* .value = */ iter_value,
-  /* .status = */ iter_status
-};
-
 ldb_iter_t *
 ldb_iterator(ldb_t *db, const ldb_readopt_t *options) {
   ldb_iter_t *iter = safe_malloc(sizeof(ldb_iter_t));
@@ -1166,14 +1108,13 @@ ldb_iterator(ldb_t *db, const ldb_readopt_t *options) {
 
   if (options != NULL) {
     opt = convert_readopt(options);
-    iter->props.options = opt;
+    iter->options = opt;
   } else {
-    iter->props.options = NULL;
+    iter->options = NULL;
   }
 
   iter->rep = leveldb_create_iterator(db->level, opt);
-  iter->props.ucmp = &db->ucmp;
-  iter->table = &iter_table;
+  iter->ucmp = &db->ucmp;
 
   return iter;
 }
@@ -1182,16 +1123,69 @@ void
 ldb_iter_destroy(ldb_iter_t *iter) {
   leveldb_iter_destroy(iter->rep);
 
-  if (iter->props.options != NULL)
-    leveldb_readoptions_destroy(iter->props.options);
+  if (iter->options != NULL)
+    leveldb_readoptions_destroy(iter->options);
 
   safe_free(iter);
 }
 
 int
+ldb_iter_valid(const ldb_iter_t *iter) {
+  return leveldb_iter_valid(iter->rep);
+}
+
+void
+ldb_iter_first(ldb_iter_t *iter) {
+  leveldb_iter_seek_to_first(iter->rep);
+}
+
+void
+ldb_iter_last(ldb_iter_t *iter) {
+  leveldb_iter_seek_to_last(iter->rep);
+}
+
+void
+ldb_iter_seek(ldb_iter_t *iter, const ldb_slice_t *target) {
+  leveldb_iter_seek(iter->rep, target->data, target->size);
+}
+
+void
+ldb_iter_next(ldb_iter_t *iter) {
+  leveldb_iter_next(iter->rep);
+}
+
+void
+ldb_iter_prev(ldb_iter_t *iter) {
+  leveldb_iter_prev(iter->rep);
+}
+
+ldb_slice_t
+ldb_iter_key(const ldb_iter_t *iter) {
+  ldb_slice_t key = {NULL, 0, 0};
+  key.data = (void *)leveldb_iter_key(iter->rep, &key.size);
+  return key;
+}
+
+ldb_slice_t
+ldb_iter_value(const ldb_iter_t *iter) {
+  ldb_slice_t value = {NULL, 0, 0};
+  value.data = (void *)leveldb_iter_value(iter->rep, &value.size);
+  return value;
+}
+
+int
+ldb_iter_status(const ldb_iter_t *iter) {
+  char *err = NULL;
+
+  leveldb_iter_get_error(iter->rep, &err);
+
+  return handle_error(err);
+}
+
+int
 ldb_iter_compare(const ldb_iter_t *iter, const ldb_slice_t *key) {
-  const ldb_comparator_t *cmp = iter->props.ucmp;
-  ldb_slice_t x = iter_key(iter->rep);
+  const ldb_comparator_t *cmp = iter->ucmp;
+  ldb_slice_t x = ldb_iter_key(iter);
   return cmp->compare(cmp, &x, key);
 }
 

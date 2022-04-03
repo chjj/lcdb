@@ -128,28 +128,6 @@ struct ldb_handler_s {
               const ldb_slice_t *key);
 };
 
-struct ldb_iter_s {
-  void *ptr;
-  struct ldb_cleanup_s {
-    void (*func)(void *, void *);
-    void *arg1;
-    void *arg2;
-    struct ldb_cleanup_s *next;
-  } cleanup_head;
-  const struct ldb_itertbl_s {
-    void (*clear)(void *iter);
-    int (*valid)(const void *iter);
-    void (*first)(void *iter);
-    void (*last)(void *iter);
-    void (*seek)(void *iter, const ldb_slice_t *target);
-    void (*next)(void *iter);
-    void (*prev)(void *iter);
-    ldb_slice_t (*key)(const void *iter);
-    ldb_slice_t (*value)(const void *iter);
-    int (*status)(const void *iter);
-  } *table;
-};
-
 struct ldb_range_s {
   ldb_slice_t start;
   ldb_slice_t limit;
@@ -345,15 +323,32 @@ ldb_iterator(ldb_t *db, const ldb_readopt_t *options);
 void
 ldb_iter_destroy(ldb_iter_t *iter);
 
-#define ldb_iter_valid(x) (x)->table->valid((x)->ptr)
-#define ldb_iter_first(x) (x)->table->first((x)->ptr)
-#define ldb_iter_last(x) (x)->table->last((x)->ptr)
-#define ldb_iter_seek(x, y) (x)->table->seek((x)->ptr, y)
-#define ldb_iter_next(x) (x)->table->next((x)->ptr)
-#define ldb_iter_prev(x) (x)->table->prev((x)->ptr)
-#define ldb_iter_key(x) (x)->table->key((x)->ptr)
-#define ldb_iter_value(x) (x)->table->value((x)->ptr)
-#define ldb_iter_status(x) (x)->table->status((x)->ptr)
+int
+ldb_iter_valid(const ldb_iter_t *iter);
+
+void
+ldb_iter_first(ldb_iter_t *iter);
+
+void
+ldb_iter_last(ldb_iter_t *iter);
+
+void
+ldb_iter_seek(ldb_iter_t *iter, const ldb_slice_t *target);
+
+void
+ldb_iter_next(ldb_iter_t *iter);
+
+void
+ldb_iter_prev(ldb_iter_t *iter);
+
+ldb_slice_t
+ldb_iter_key(const ldb_iter_t *iter);
+
+ldb_slice_t
+ldb_iter_value(const ldb_iter_t *iter);
+
+int
+ldb_iter_status(const ldb_iter_t *iter);
 
 int
 ldb_iter_compare(const ldb_iter_t *iter, const ldb_slice_t *key);
