@@ -319,11 +319,11 @@ ldb_free(void *ptr);
 LDB_EXTERN ldb_iter_t *
 ldb_iterator(ldb_t *db, const ldb_readopt_t *options);
 
-LDB_EXTERN int
-ldb_iter_compare(const ldb_iter_t *iter, const ldb_slice_t *key);
-
 LDB_EXTERN void
 ldb_iter_destroy(ldb_iter_t *iter);
+
+LDB_EXTERN int
+ldb_iter_compare(const ldb_iter_t *iter, const ldb_slice_t *key);
 
 /* Logging */
 LDB_EXTERN ldb_logger_t *
@@ -1157,13 +1157,6 @@ ldb_iterator(ldb_t *db, const ldb_readopt_t *options) {
   return iter;
 }
 
-int
-ldb_iter_compare(const ldb_iter_t *iter, const ldb_slice_t *key) {
-  const ldb_comparator_t *cmp = iter->props.ucmp;
-  ldb_slice_t x = iter_key(iter->rep);
-  return cmp->compare(cmp, &x, key);
-}
-
 void
 ldb_iter_destroy(ldb_iter_t *iter) {
   leveldb_iter_destroy(iter->rep);
@@ -1172,6 +1165,13 @@ ldb_iter_destroy(ldb_iter_t *iter) {
     leveldb_readoptions_destroy(iter->props.options);
 
   safe_free(iter);
+}
+
+int
+ldb_iter_compare(const ldb_iter_t *iter, const ldb_slice_t *key) {
+  const ldb_comparator_t *cmp = iter->props.ucmp;
+  ldb_slice_t x = iter_key(iter->rep);
+  return cmp->compare(cmp, &x, key);
 }
 
 /*

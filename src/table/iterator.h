@@ -183,16 +183,6 @@ static const ldb_itertbl_t name ## _table = {                  \
  * Iterator
  */
 
-#define ldb_iter_valid(x) (x)->table->valid((x)->ptr)
-#define ldb_iter_first(x) (x)->table->first((x)->ptr)
-#define ldb_iter_last(x) (x)->table->last((x)->ptr)
-#define ldb_iter_seek(x, y) (x)->table->seek((x)->ptr, y)
-#define ldb_iter_next(x) (x)->table->next((x)->ptr)
-#define ldb_iter_prev(x) (x)->table->prev((x)->ptr)
-#define ldb_iter_key(x) (x)->table->key((x)->ptr)
-#define ldb_iter_value(x) (x)->table->value((x)->ptr)
-#define ldb_iter_status(x) (x)->table->status((x)->ptr)
-
 ldb_iter_t *
 ldb_iter_create(void *ptr, const ldb_itertbl_t *table);
 
@@ -204,6 +194,16 @@ ldb_iter_register_cleanup(ldb_iter_t *iter,
                           ldb_cleanup_f func,
                           void *arg1,
                           void *arg2);
+
+#define ldb_iter_valid(x) (x)->table->valid((x)->ptr)
+#define ldb_iter_first(x) (x)->table->first((x)->ptr)
+#define ldb_iter_last(x) (x)->table->last((x)->ptr)
+#define ldb_iter_seek(x, y) (x)->table->seek((x)->ptr, y)
+#define ldb_iter_next(x) (x)->table->next((x)->ptr)
+#define ldb_iter_prev(x) (x)->table->prev((x)->ptr)
+#define ldb_iter_key(x) (x)->table->key((x)->ptr)
+#define ldb_iter_value(x) (x)->table->value((x)->ptr)
+#define ldb_iter_status(x) (x)->table->status((x)->ptr)
 
 /*
  * Empty Iterator

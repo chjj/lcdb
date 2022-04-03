@@ -300,6 +300,9 @@ struct ldb_iter_s {
   } *table;
 };
 
+void
+ldb_iter_destroy(ldb_iter_t *iter);
+
 #define ldb_iter_valid(x) (x)->table->valid((x)->ptr)
 #define ldb_iter_first(x) (x)->table->first((x)->ptr)
 #define ldb_iter_last(x) (x)->table->last((x)->ptr)
@@ -313,9 +316,6 @@ struct ldb_iter_s {
 
 int
 ldb_iter_compare(const ldb_iter_t *iter, const ldb_slice_t *key);
-
-void
-ldb_iter_destroy(ldb_iter_t *iter);
 
 /*
  * Iterator Macros
