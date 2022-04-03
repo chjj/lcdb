@@ -29,6 +29,6 @@ ldb_dbiter_create(struct ldb_s *db,
                   uint32_t seed);
 
 LDB_EXTERN int
-ldb_iter_compare(struct ldb_iter_s *iter, const ldb_slice_t *key);
+ldb_iter_compare(const struct ldb_iter_s *iter, const ldb_slice_t *key);
 
 #endif /* LDB_DB_ITER_H */

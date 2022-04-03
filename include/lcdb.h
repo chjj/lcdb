@@ -312,7 +312,7 @@ struct ldb_iter_s {
 #define ldb_iter_val ldb_iter_value
 
 int
-ldb_iter_compare(ldb_iter_t *iter, const ldb_slice_t *key);
+ldb_iter_compare(const ldb_iter_t *iter, const ldb_slice_t *key);
 
 void
 ldb_iter_destroy(ldb_iter_t *iter);

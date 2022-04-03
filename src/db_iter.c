@@ -407,8 +407,8 @@ ldb_dbiter_create(ldb_t *db,
 }
 
 int
-ldb_iter_compare(ldb_iter_t *iter, const ldb_slice_t *key) {
-  ldb_dbiter_t *it = iter->ptr;
+ldb_iter_compare(const ldb_iter_t *iter, const ldb_slice_t *key) {
+  const ldb_dbiter_t *it = iter->ptr;
   ldb_slice_t x = ldb_dbiter_key(it);
   return ldb_compare(it->ucmp, &x, key);
 }
