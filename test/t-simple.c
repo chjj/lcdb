@@ -54,8 +54,6 @@ main(void) {
         }
 
         ldb_batch_put(&b, &key, &val);
-
-        ASSERT(rc == LDB_OK);
       }
 
       rc = ldb_write(db, &b, 0);
