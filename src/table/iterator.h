@@ -195,6 +195,37 @@ ldb_iter_register_cleanup(ldb_iter_t *iter,
                           void *arg1,
                           void *arg2);
 
+#ifdef LDB_ITERATOR_C
+
+LDB_EXTERN int
+ldb_iter_valid(const ldb_iter_t *iter);
+
+LDB_EXTERN void
+ldb_iter_first(ldb_iter_t *iter);
+
+LDB_EXTERN void
+ldb_iter_last(ldb_iter_t *iter);
+
+LDB_EXTERN void
+ldb_iter_seek(ldb_iter_t *iter, const ldb_slice_t *target);
+
+LDB_EXTERN void
+ldb_iter_next(ldb_iter_t *iter);
+
+LDB_EXTERN void
+ldb_iter_prev(ldb_iter_t *iter);
+
+LDB_EXTERN ldb_slice_t
+ldb_iter_key(const ldb_iter_t *iter);
+
+LDB_EXTERN ldb_slice_t
+ldb_iter_value(const ldb_iter_t *iter);
+
+LDB_EXTERN int
+ldb_iter_status(const ldb_iter_t *iter);
+
+#else /* !LDB_ITERATOR_C */
+
 #define ldb_iter_valid(x) (x)->table->valid((x)->ptr)
 #define ldb_iter_first(x) (x)->table->first((x)->ptr)
 #define ldb_iter_last(x) (x)->table->last((x)->ptr)
@@ -204,6 +235,8 @@ ldb_iter_register_cleanup(ldb_iter_t *iter,
 #define ldb_iter_key(x) (x)->table->key((x)->ptr)
 #define ldb_iter_value(x) (x)->table->value((x)->ptr)
 #define ldb_iter_status(x) (x)->table->status((x)->ptr)
+
+#endif /* !LDB_ITERATOR_C */
 
 /*
  * Empty Iterator
