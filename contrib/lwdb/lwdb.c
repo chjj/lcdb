@@ -298,6 +298,9 @@ LDB_EXTERN void
 ldb_compact(ldb_t *db, const ldb_slice_t *begin, const ldb_slice_t *end);
 
 LDB_EXTERN int
+ldb_compare(const ldb_t *db, const ldb_slice_t *x, const ldb_slice_t *y);
+
+LDB_EXTERN int
 ldb_repair(const char *dbname, const ldb_dbopt_t *options);
 
 LDB_EXTERN int
@@ -342,7 +345,7 @@ LDB_EXTERN ldb_slice_t
 ldb_string(const char *xp);
 
 LDB_EXTERN int
-ldb_slice_compare(const ldb_slice_t *x, const ldb_slice_t *y);
+ldb_equal(const ldb_slice_t *x, const ldb_slice_t *y);
 
 /* Status */
 LDB_EXTERN const char *
@@ -421,8 +424,19 @@ static int
 slice_compare(const ldb_comparator_t *comparator,
               const ldb_slice_t *x,
               const ldb_slice_t *y) {
+  size_t n = x->size < y->size ? x->size : y->size;
+  int r = n ? memcmp(x->data, y->data, n) : 0;
+
   (void)comparator;
-  return ldb_slice_compare(x, y);
+
+  if (r == 0) {
+    if (x->size < y->size)
+      r = -1;
+    else if (x->size > y->size)
+      r = +1;
+  }
+
+  return r;
 }
 
 static void
@@ -445,7 +459,7 @@ comparator_compare(void *state, const char *a, size_t alen,
   return cmp->compare(cmp, &x, &y);
 }
 
-const char *
+static const char *
 comparator_name(void *state) {
   const ldb_comparator_t *cmp = state;
   return cmp->name;
@@ -925,6 +939,11 @@ ldb_compact(ldb_t *db, const ldb_slice_t *begin, const ldb_slice_t *end) {
 }
 
 int
+ldb_compare(const ldb_t *db, const ldb_slice_t *x, const ldb_slice_t *y) {
+  return db->ucmp.compare(&db->ucmp, x, y);
+}
+
+int
 ldb_repair(const char *dbname, const ldb_dbopt_t *options) {
   leveldb_filterpolicy_t *policy = NULL;
   leveldb_comparator_t *cmp;
@@ -1264,18 +1283,14 @@ ldb_string(const char *xp) {
 }
 
 int
-ldb_slice_compare(const ldb_slice_t *x, const ldb_slice_t *y) {
-  size_t n = x->size < y->size ? x->size : y->size;
-  int r = n ? memcmp(x->data, y->data, n) : 0;
+ldb_equal(const ldb_slice_t *x, const ldb_slice_t *y) {
+  if (x->size != y->size)
+    return 0;
 
-  if (r == 0) {
-    if (x->size < y->size)
-      r = -1;
-    else if (x->size > y->size)
-      r = +1;
-  }
+  if (x->size == 0)
+    return 1;
 
-  return r;
+  return memcmp(x->data, y->data, y->size) == 0;
 }
 
 /*

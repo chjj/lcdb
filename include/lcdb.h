@@ -310,6 +310,9 @@ void
 ldb_compact(ldb_t *db, const ldb_slice_t *begin, const ldb_slice_t *end);
 
 int
+ldb_compare(const ldb_t *db, const ldb_slice_t *x, const ldb_slice_t *y);
+
+int
 ldb_repair(const char *dbname, const ldb_dbopt_t *options);
 
 int
@@ -412,8 +415,6 @@ ldb_logger_destroy(ldb_logger_t *logger);
  * Slice
  */
 
-#define ldb_compare ldb_slice_compare
-
 ldb_slice_t
 ldb_slice(const void *xp, size_t xn);
 
@@ -421,7 +422,7 @@ ldb_slice_t
 ldb_string(const char *xp);
 
 int
-ldb_compare(const ldb_slice_t *x, const ldb_slice_t *y);
+ldb_equal(const ldb_slice_t *x, const ldb_slice_t *y);
 
 /*
  * Status

@@ -67,7 +67,7 @@ main(void) {
       rc = ldb_get(db, &key, &ret, 0);
 
       ASSERT(rc == LDB_OK);
-      ASSERT(ldb_compare(&ret, &val) == 0);
+      ASSERT(ldb_compare(db, &ret, &val) == 0);
 
       ldb_free(ret.data);
     }
@@ -106,7 +106,7 @@ main(void) {
       rc = ldb_get(db, &key, &ret, 0);
 
       ASSERT(rc == LDB_OK);
-      ASSERT(ldb_compare(&ret, &val) == 0);
+      ASSERT(ldb_compare(db, &ret, &val) == 0);
 
       ldb_free(ret.data);
     }

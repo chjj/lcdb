@@ -77,7 +77,7 @@ ldb_slice_hash(const ldb_slice_t *x);
 int
 ldb_slice_equal(const ldb_slice_t *x, const ldb_slice_t *y);
 
-LDB_EXTERN int
+int
 ldb_slice_compare(const ldb_slice_t *x, const ldb_slice_t *y);
 
 /* remove_prefix */
@@ -127,5 +127,8 @@ ldb_slice_decode(const uint8_t *xp) {
 
   return z;
 }
+
+LDB_EXTERN int
+ldb_equal(const ldb_slice_t *x, const ldb_slice_t *y);
 
 #endif /* LDB_SLICE_H */

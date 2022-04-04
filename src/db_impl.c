@@ -2386,6 +2386,16 @@ ldb_compact(ldb_t *db, const ldb_slice_t *begin, const ldb_slice_t *end) {
     ldb_test_compact_range(db, level, begin, end);
 }
 
+#undef ldb_compare
+
+int
+ldb_compare(const ldb_t *db, const ldb_slice_t *x, const ldb_slice_t *y) {
+  const ldb_comparator_t *cmp = ldb_user_comparator(db);
+  return cmp->compare(cmp, x, y);
+}
+
+#define ldb_compare ldb_compare_internal
+
 /*
  * Static
  */

@@ -27,6 +27,7 @@
 #include "util/testutil.h"
 
 #include "db_impl.h"
+#include "db_iter.h"
 
 /*
  * AutoCompactTest
@@ -162,9 +163,7 @@ test_auto_compact_read(int n) {
     ldb_iter_first(iter);
 
     while (ldb_iter_valid(iter)) {
-      ldb_slice_t key = ldb_iter_key(iter);
-
-      if (ldb_slice_compare(&key, &limit) >= 0)
+      if (ldb_iter_compare(iter, &limit) >= 0)
         break;
 
       /* Drop data. */

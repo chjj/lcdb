@@ -112,14 +112,14 @@ main(void) {
 
       ASSERT(ldb_get(db, &key, &val, 0) == LDB_OK);
 
-      if (ldb_compare(&val, &exp) != 0) {
+      if (ldb_compare(db, &val, &exp) != 0) {
         printf("ERROR incorrect value returned by Get\n");
         printf("  count=%d\n", (int)count);
         printf("  test_keys[index]=%s\n", test_keys[index]);
         printf("  test_vals[index]=%s\n", test_vals[index]);
         printf("  index=%d\n", index);
 
-        ASSERT(ldb_compare(&val, &exp) == 0);
+        ASSERT(ldb_compare(db, &val, &exp) == 0);
       }
 
       ldb_free(val.data);

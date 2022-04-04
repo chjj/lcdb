@@ -91,6 +91,15 @@ ldb_approximate_sizes(ldb_t *db, const ldb_range_t *range,
 LDB_EXTERN void
 ldb_compact(ldb_t *db, const ldb_slice_t *begin, const ldb_slice_t *end);
 
+#undef ldb_compare
+
+LDB_EXTERN int
+ldb_compare(const ldb_t *db, const ldb_slice_t *x, const ldb_slice_t *y);
+
+#ifdef ldb_compare_internal
+#  define ldb_compare ldb_compare_internal
+#endif
+
 /*
  * Static
  */

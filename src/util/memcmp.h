@@ -17,7 +17,7 @@
 #include <string.h>
 #include "internal.h"
 
-LDB_STATIC int
+static LDB_INLINE int
 ldb_memcmp4(const void *x, size_t xn, const void *y, size_t yn) {
   size_t n = xn < yn ? xn : yn;
   int r = n ? memcmp(x, y, n) : 0;

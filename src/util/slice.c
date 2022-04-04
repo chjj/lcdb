@@ -121,3 +121,8 @@ ldb_slice_import(ldb_slice_t *z, const ldb_slice_t *x) {
   ldb_slice_t tmp = *x;
   return ldb_slice_slurp(z, &tmp);
 }
+
+int
+ldb_equal(const ldb_slice_t *x, const ldb_slice_t *y) {
+  return ldb_slice_equal(x, y);
+}
