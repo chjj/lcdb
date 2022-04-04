@@ -19,7 +19,6 @@
 #include "coding.h"
 #include "hash.h"
 #include "internal.h"
-#include "memcmp.h"
 #include "slice.h"
 
 /*
@@ -68,11 +67,6 @@ ldb_slice_equal(const ldb_slice_t *x, const ldb_slice_t *y) {
     return 1;
 
   return memcmp(x->data, y->data, y->size) == 0;
-}
-
-int
-ldb_slice_compare(const ldb_slice_t *x, const ldb_slice_t *y) {
-  return ldb_memcmp4(x->data, x->size, y->data, y->size);
 }
 
 size_t

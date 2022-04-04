@@ -77,9 +77,6 @@ ldb_slice_hash(const ldb_slice_t *x);
 int
 ldb_slice_equal(const ldb_slice_t *x, const ldb_slice_t *y);
 
-int
-ldb_slice_compare(const ldb_slice_t *x, const ldb_slice_t *y);
-
 /* remove_prefix */
 LDB_STATIC void
 ldb_slice_eat(ldb_slice_t *z, size_t xn) {

@@ -52,7 +52,6 @@ noinst_HEADERS = src/util/arena.h               \
                  src/util/hash.h                \
                  src/util/histogram.h           \
                  src/util/internal.h            \
-                 src/util/memcmp.h              \
                  src/util/options.h             \
                  src/util/port.h                \
                  src/util/port_none_impl.h      \
