@@ -300,6 +300,7 @@ ldb_compact(ldb_t *db, const ldb_slice_t *begin, const ldb_slice_t *end);
 LDB_EXTERN int
 ldb_compare(const ldb_t *db, const ldb_slice_t *x, const ldb_slice_t *y);
 
+/* Static */
 LDB_EXTERN int
 ldb_repair(const char *dbname, const ldb_dbopt_t *options);
 
@@ -942,6 +943,10 @@ int
 ldb_compare(const ldb_t *db, const ldb_slice_t *x, const ldb_slice_t *y) {
   return db->ucmp.compare(&db->ucmp, x, y);
 }
+
+/*
+ * Static
+ */
 
 int
 ldb_repair(const char *dbname, const ldb_dbopt_t *options) {

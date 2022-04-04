@@ -312,6 +312,10 @@ ldb_compact(ldb_t *db, const ldb_slice_t *begin, const ldb_slice_t *end);
 int
 ldb_compare(const ldb_t *db, const ldb_slice_t *x, const ldb_slice_t *y);
 
+/*
+ * Static
+ */
+
 int
 ldb_repair(const char *dbname, const ldb_dbopt_t *options);
 
