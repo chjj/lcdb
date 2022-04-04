@@ -193,6 +193,7 @@ endif
 endif
 
 lib_LTLIBRARIES = liblcdb.la
+noinst_LTLIBRARIES =
 
 if ENABLE_TESTS
 libtest_la_SOURCES = $(test_sources)
@@ -200,7 +201,15 @@ libtest_la_CFLAGS = $(WARN_FLAGS)
 libtest_la_LDFLAGS = -static
 libtest_la_LIBADD = liblcdb.la
 
-noinst_LTLIBRARIES = libtest.la
+noinst_LTLIBRARIES += libtest.la
+endif
+
+if ENABLE_LWDB
+liblwdb_la_SOURCES = contrib/lwdb/lwdb.c
+liblwdb_la_CFLAGS = $(WARN_FLAGS)
+liblwdb_la_LDFLAGS = -static
+
+noinst_LTLIBRARIES += liblwdb.la
 endif
 
 lcdbutil_SOURCES = src/dbutil.c
