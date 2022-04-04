@@ -310,10 +310,16 @@ void
 ldb_compact(ldb_t *db, const ldb_slice_t *begin, const ldb_slice_t *end);
 
 int
+ldb_backup(ldb_t *db, const char *name);
+
+int
 ldb_compare(const ldb_t *db, const ldb_slice_t *x, const ldb_slice_t *y);
 
 int
 ldb_repair(const char *dbname, const ldb_dbopt_t *options);
+
+int
+ldb_copy(const char *from, const char *to, const ldb_dbopt_t *options);
 
 int
 ldb_destroy(const char *dbname, const ldb_dbopt_t *options);
