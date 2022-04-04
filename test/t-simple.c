@@ -152,6 +152,72 @@ main(void) {
     ldb_close(db);
   }
 
+  {
+    char *path1 = path;
+    char path2[1024];
+    ldb_t *db1, *db2;
+    ldb_iter_t *it1, *it2;
+    int total = 0;
+
+    ASSERT(ldb_test_filename(path2, sizeof(path2), "clonedb"));
+
+    ldb_destroy(path2, 0);
+
+    rc = ldb_open(path1, &opt, &db1);
+
+    ASSERT(rc == LDB_OK);
+
+    rc = ldb_backup(db1, path2);
+
+    ASSERT(rc == LDB_OK);
+
+    opt.create_if_missing = 0;
+    opt.error_if_exists = 0;
+
+    rc = ldb_open(path2, &opt, &db2);
+
+    ASSERT(rc == LDB_OK);
+
+    it1 = ldb_iterator(db1, 0);
+    it2 = ldb_iterator(db2, 0);
+
+    ldb_iter_first(it1);
+    ldb_iter_first(it2);
+
+    while (ldb_iter_valid(it1)) {
+      ldb_slice_t k1, v1, k2, v2;
+
+      ASSERT(ldb_iter_valid(it2));
+
+      k1 = ldb_iter_key(it1);
+      v1 = ldb_iter_val(it1);
+      k2 = ldb_iter_key(it2);
+      v2 = ldb_iter_val(it2);
+
+      ASSERT(ldb_equal(&k1, &k2));
+      ASSERT(ldb_equal(&v1, &v2));
+
+      ldb_iter_next(it1);
+      ldb_iter_next(it2);
+
+      total++;
+    }
+
+    ASSERT(!ldb_iter_valid(it2));
+
+    ASSERT(total >= 999000);
+    ASSERT(ldb_iter_status(it1) == LDB_OK);
+    ASSERT(ldb_iter_status(it2) == LDB_OK);
+
+    ldb_iter_destroy(it1);
+    ldb_iter_destroy(it2);
+
+    ldb_close(db1);
+    ldb_close(db2);
+
+    ldb_destroy(path2, 0);
+  }
+
   ldb_destroy(path, 0);
 
   return 0;

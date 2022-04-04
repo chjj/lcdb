@@ -84,6 +84,16 @@ struct ldb_slice_s {
   size_t dummy;
 };
 
+struct ldb_batch_s {
+  leveldb_writebatch_t *rep;
+  size_t dummy1;
+  size_t dummy2;
+};
+
+struct ldb_bloom_s {
+  leveldb_filterpolicy_t *rep;
+};
+
 struct ldb_comparator_s {
   const char *name;
   int (*compare)(const ldb_comparator_t *,
@@ -93,27 +103,6 @@ struct ldb_comparator_s {
   void (*dummy2)(void);
   void *dummy3;
   void *dummy4;
-};
-
-struct ldb_s {
-  ldb_comparator_t ucmp;
-  leveldb_comparator_t *cmp;
-  leveldb_filterpolicy_t *policy;
-  leveldb_options_t *options;
-  leveldb_readoptions_t *read_options;
-  leveldb_writeoptions_t *write_options;
-  leveldb_readoptions_t *iter_options;
-  leveldb_t *level;
-};
-
-struct ldb_batch_s {
-  leveldb_writebatch_t *rep;
-  size_t dummy1;
-  size_t dummy2;
-};
-
-struct ldb_bloom_s {
-  leveldb_filterpolicy_t *rep;
 };
 
 struct ldb_dbopt_s {
@@ -169,6 +158,18 @@ struct ldb_readopt_s {
 
 struct ldb_writeopt_s {
   int sync;
+};
+
+struct ldb_s {
+  ldb_dbopt_t dbopt;
+  ldb_comparator_t ucmp;
+  leveldb_comparator_t *cmp;
+  leveldb_filterpolicy_t *policy;
+  leveldb_options_t *options;
+  leveldb_readoptions_t *read_options;
+  leveldb_writeoptions_t *write_options;
+  leveldb_readoptions_t *iter_options;
+  leveldb_t *level;
 };
 
 /*
@@ -277,11 +278,17 @@ LDB_EXTERN void
 ldb_compact(ldb_t *db, const ldb_slice_t *begin, const ldb_slice_t *end);
 
 LDB_EXTERN int
+ldb_backup(ldb_t *db, const char *name);
+
+LDB_EXTERN int
 ldb_compare(const ldb_t *db, const ldb_slice_t *x, const ldb_slice_t *y);
 
 /* Static */
 LDB_EXTERN int
 ldb_repair(const char *dbname, const ldb_dbopt_t *options);
+
+LDB_EXTERN int
+ldb_copy(const char *from, const char *to, const ldb_dbopt_t *options);
 
 LDB_EXTERN int
 ldb_destroy(const char *dbname, const ldb_dbopt_t *options);
@@ -743,8 +750,10 @@ ldb_open(const char *dbname, const ldb_dbopt_t *options, ldb_t **dbptr) {
   if (options == NULL)
     options = ldb_dbopt_default;
 
+  db->dbopt = *options;
   db->ucmp = options->comparator != NULL ? *options->comparator
                                          : bytewise_comparator;
+  db->dbopt.comparator = &db->ucmp;
   db->cmp = convert_comparator(&db->ucmp);
   db->policy = NULL;
   db->options = convert_dbopt(options, db->cmp, &db->policy);
@@ -946,6 +955,72 @@ ldb_compact(ldb_t *db, const ldb_slice_t *begin, const ldb_slice_t *end) {
 }
 
 int
+ldb_backup(ldb_t *db, const char *name) {
+  ldb_dbopt_t opt = db->dbopt;
+  ldb_batch_t batch;
+  size_t size = 0;
+  ldb_iter_t *it;
+  ldb_t *bak;
+  int rc;
+
+  opt.create_if_missing = 1;
+  opt.error_if_exists = 1;
+  opt.info_log = NULL;
+  opt.block_cache = NULL;
+
+  rc = ldb_open(name, &opt, &bak);
+
+  if (rc != LDB_OK)
+    return rc;
+
+  it = ldb_iterator(db, 0);
+
+  ldb_batch_init(&batch);
+
+  for (ldb_iter_first(it); ldb_iter_valid(it); ldb_iter_next(it)) {
+    ldb_slice_t key = ldb_iter_key(it);
+    ldb_slice_t val = ldb_iter_value(it);
+
+    if (size >= opt.write_buffer_size) {
+      rc = ldb_write(bak, &batch, 0);
+
+      if (rc != LDB_OK)
+        break;
+
+      ldb_batch_reset(&batch);
+
+      size = 0;
+    }
+
+    size += 6;
+    size += key.size;
+    size += val.size;
+
+    ldb_batch_put(&batch, &key, &val);
+  }
+
+  if (rc == LDB_OK)
+    rc = ldb_iter_status(it);
+
+  ldb_iter_destroy(it);
+
+  if (rc == LDB_OK && size > 0)
+    rc = ldb_write(bak, &batch, 0);
+
+  ldb_batch_clear(&batch);
+
+  if (rc == LDB_OK && size > 0)
+    ldb_compact(bak, 0, 0);
+
+  ldb_close(bak);
+
+  if (rc != LDB_OK)
+    ldb_destroy(name, &opt);
+
+  return rc;
+}
+
+int
 ldb_compare(const ldb_t *db, const ldb_slice_t *x, const ldb_slice_t *y) {
   return db->ucmp.compare(&db->ucmp, x, y);
 }
@@ -978,6 +1053,32 @@ ldb_repair(const char *dbname, const ldb_dbopt_t *options) {
   leveldb_options_destroy(opt);
 
   return handle_error(err);
+}
+
+int
+ldb_copy(const char *from, const char *to, const ldb_dbopt_t *options) {
+  ldb_dbopt_t opt;
+  ldb_t *db;
+  int rc;
+
+  if (options == NULL)
+    opt = *ldb_dbopt_default;
+  else
+    opt = *options;
+
+  opt.create_if_missing = 0;
+  opt.error_if_exists = 0;
+
+  rc = ldb_open(from, &opt, &db);
+
+  if (rc != LDB_OK)
+    return rc;
+
+  rc = ldb_backup(db, to);
+
+  ldb_close(db);
+
+  return rc;
 }
 
 int
