@@ -108,11 +108,9 @@ struct ldb_s {
 };
 
 struct ldb_batch_s {
-  struct {
-    leveldb_writebatch_t *rep;
-    size_t dummy1;
-    size_t dummy2;
-  } props;
+  leveldb_writebatch_t *rep;
+  size_t dummy1;
+  size_t dummy2;
 };
 
 struct ldb_bloom_s {
@@ -553,31 +551,31 @@ convert_writeopt(const ldb_writeopt_t *x) {
 ldb_batch_t *
 ldb_batch_create(void) {
   ldb_batch_t *batch = safe_malloc(sizeof(ldb_batch_t));
-  batch->props.rep = leveldb_writebatch_create();
+  batch->rep = leveldb_writebatch_create();
   return batch;
 }
 
 void
 ldb_batch_destroy(ldb_batch_t *batch) {
-  leveldb_writebatch_destroy(batch->props.rep);
+  leveldb_writebatch_destroy(batch->rep);
   safe_free(batch);
 }
 
 void
 ldb_batch_init(ldb_batch_t *batch) {
-  batch->props.rep = leveldb_writebatch_create();
+  batch->rep = leveldb_writebatch_create();
 }
 
 void
 ldb_batch_clear(ldb_batch_t *batch) {
-  leveldb_writebatch_destroy(batch->props.rep);
+  leveldb_writebatch_destroy(batch->rep);
 }
 
 void
 ldb_batch_reset(ldb_batch_t *batch) {
-  leveldb_writebatch_destroy(batch->props.rep);
+  leveldb_writebatch_destroy(batch->rep);
 
-  batch->props.rep = leveldb_writebatch_create();
+  batch->rep = leveldb_writebatch_create();
 }
 
 static void
@@ -600,7 +598,7 @@ size_del(void *state, const char *k, size_t klen) {
 size_t
 ldb_batch_approximate_size(const ldb_batch_t *batch) {
   size_t result = 0;
-  leveldb_writebatch_iterate(batch->props.rep, &result, size_put, size_del);
+  leveldb_writebatch_iterate(batch->rep, &result, size_put, size_del);
   return result;
 }
 
@@ -608,13 +606,13 @@ void
 ldb_batch_put(ldb_batch_t *batch,
               const ldb_slice_t *key,
               const ldb_slice_t *value) {
-  leveldb_writebatch_put(batch->props.rep, key->data, key->size,
-                                           value->data, value->size);
+  leveldb_writebatch_put(batch->rep, key->data, key->size,
+                                     value->data, value->size);
 }
 
 void
 ldb_batch_del(ldb_batch_t *batch, const ldb_slice_t *key) {
-  leveldb_writebatch_delete(batch->props.rep, key->data, key->size);
+  leveldb_writebatch_delete(batch->rep, key->data, key->size);
 }
 
 static void
@@ -645,7 +643,7 @@ batch_del(void *state, const char *k, size_t klen) {
 
 int
 ldb_batch_iterate(const ldb_batch_t *batch, ldb_handler_t *handler) {
-  leveldb_writebatch_iterate(batch->props.rep, handler, batch_put, batch_del);
+  leveldb_writebatch_iterate(batch->rep, handler, batch_put, batch_del);
   return LDB_OK;
 }
 
@@ -666,9 +664,9 @@ void
 ldb_batch_append(ldb_batch_t *dst, const ldb_batch_t *src) {
 #ifdef LWDB_LATEST
   /* Requires leveldb 1.21 (March 2019). */
-  leveldb_writebatch_append(dst->props.rep, src->props.rep);
+  leveldb_writebatch_append(dst->rep, src->rep);
 #else
-  leveldb_writebatch_iterate(src->props.rep, dst->props.rep,
+  leveldb_writebatch_iterate(src->rep, dst->rep,
                              append_put, append_del);
 #endif
 }
@@ -873,7 +871,7 @@ ldb_write(ldb_t *db, ldb_batch_t *updates, const ldb_writeopt_t *options) {
   if (options != NULL)
     opt = convert_writeopt(options);
 
-  leveldb_write(db->level, opt, updates->props.rep, &err);
+  leveldb_write(db->level, opt, updates->rep, &err);
 
   if (options != NULL)
     leveldb_writeoptions_destroy(opt);
