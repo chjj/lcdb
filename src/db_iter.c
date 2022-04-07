@@ -444,10 +444,8 @@ void
 ldb_iter_seek_lt(ldb_iter_t *iter, const ldb_slice_t *target) {
   ldb_iter_seek(iter, target);
 
-  if (ldb_iter_valid(iter)) {
-    if (ldb_iter_compare(iter, target) >= 0)
-      ldb_iter_prev(iter);
-  } else {
+  if (ldb_iter_valid(iter))
+    ldb_iter_prev(iter);
+  else
     ldb_iter_last(iter);
-  }
 }
