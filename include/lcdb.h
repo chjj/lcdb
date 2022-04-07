@@ -418,6 +418,44 @@ ldb_iter_seek_lt(ldb_iter_t *iter, const ldb_slice_t *target);
        ldb_iter_valid(it) && ldb_iter_compare(it, max) <= 0; \
        ldb_iter_next(it))
 
+/**
+ * Iterate over each key (backwards).
+ *
+ * Example:
+ *
+ *   ldb_iter_t *it = ldb_iterator(db, 0);
+ *
+ *   ldb_iter_backwards(it) {
+ *     ldb_slice_t key = ldb_iter_key(it);
+ *     ldb_slice_t val = ldb_iter_val(it);
+ *     ...
+ *   }
+ */
+#define ldb_iter_backwards(it) \
+  for (ldb_iter_last(it);      \
+       ldb_iter_valid(it);     \
+       ldb_iter_prev(it))
+
+/**
+ * Iterate from start to end (both inclusive).
+ *
+ * Example:
+ *
+ *   ldb_slice_t start = ldb_string("z");
+ *   ldb_slice_t end = ldb_string("a");
+ *   ldb_iter_t *it = ldb_iterator(db, 0);
+ *
+ *   ldb_iter_reverse(it, &start, &end) {
+ *     ldb_slice_t key = ldb_iter_key(it);
+ *     ldb_slice_t val = ldb_iter_val(it);
+ *     ...
+ *   }
+ */
+#define ldb_iter_reverse(it, max, min)                       \
+  for (ldb_iter_seek_le(it, max);                            \
+       ldb_iter_valid(it) && ldb_iter_compare(it, min) >= 0; \
+       ldb_iter_prev(it))
+
 /*
  * Logging
  */
