@@ -11,6 +11,21 @@
 #include <lcdb.h>
 #include "tests.h"
 
+static int
+ldb_rand(void) {
+  static const uint32_t M = 2147483647;
+  static const uint64_t A = 16807;
+  static uint32_t seed = 0x5eadbeef;
+  uint64_t product = seed * A;
+
+  seed = (uint32_t)((product >> 31) + (product & M));
+
+  if (seed > M)
+    seed -= M;
+
+  return seed;
+}
+
 int
 main(void) {
   ldb_dbopt_t opt = *ldb_dbopt_default;
@@ -39,7 +54,7 @@ main(void) {
       ldb_batch_init(&b);
 
       for (i = 0; i < 1000000; i++) {
-        sprintf(kbuf, "hello %d padding padding paddi", rand());
+        sprintf(kbuf, "hello %d padding padding paddi", ldb_rand());
         sprintf(vbuf, "world %d", i);
 
         key = ldb_string(kbuf);
