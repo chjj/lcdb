@@ -394,41 +394,16 @@ ldb_iter_compare(const ldb_iter_t *iter, const ldb_slice_t *key);
  *   ldb_slice_t end = ldb_string("z");
  *   ldb_iter_t *it = ldb_iterator(db, 0);
  *
- *   ldb_iter_range_le(it, &start, &end) {
+ *   ldb_iter_range(it, &start, &end) {
  *     ldb_slice_t key = ldb_iter_key(it);
  *     ldb_slice_t val = ldb_iter_val(it);
  *     ...
  *   }
  */
-#define ldb_iter_range_le(it, min, max)                      \
+#define ldb_iter_range(it, min, max)                         \
   for (ldb_iter_seek(it, min);                               \
        ldb_iter_valid(it) && ldb_iter_compare(it, max) <= 0; \
        ldb_iter_next(it))
-
-/**
- * Iterate from start (inclusive) to end (exclusive).
- *
- * Example:
- *
- *   ldb_slice_t start = ldb_string("a");
- *   ldb_slice_t end = ldb_string("{");
- *   ldb_iter_t *it = ldb_iterator(db, 0);
- *
- *   ldb_iter_range_lt(it, &start, &end) {
- *     ldb_slice_t key = ldb_iter_key(it);
- *     ldb_slice_t val = ldb_iter_val(it);
- *     ...
- *   }
- */
-#define ldb_iter_range_lt(it, min, max)                     \
-  for (ldb_iter_seek(it, min);                              \
-       ldb_iter_valid(it) && ldb_iter_compare(it, max) < 0; \
-       ldb_iter_next(it))
-
-/**
- * Default range iteration (inclusive).
- */
-#define ldb_iter_range ldb_iter_range_le
 
 /*
  * Logging
