@@ -363,6 +363,18 @@ ldb_iter_status(const ldb_iter_t *iter);
 int
 ldb_iter_compare(const ldb_iter_t *iter, const ldb_slice_t *key);
 
+void
+ldb_iter_seek_ge(ldb_iter_t *iter, const ldb_slice_t *target);
+
+void
+ldb_iter_seek_gt(ldb_iter_t *iter, const ldb_slice_t *target);
+
+void
+ldb_iter_seek_le(ldb_iter_t *iter, const ldb_slice_t *target);
+
+void
+ldb_iter_seek_lt(ldb_iter_t *iter, const ldb_slice_t *target);
+
 /**
  * Alias for `ldb_iter_value`.
  */

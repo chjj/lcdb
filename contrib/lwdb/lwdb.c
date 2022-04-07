@@ -344,6 +344,18 @@ ldb_iter_status(const ldb_iter_t *iter);
 LDB_EXTERN int
 ldb_iter_compare(const ldb_iter_t *iter, const ldb_slice_t *key);
 
+LDB_EXTERN void
+ldb_iter_seek_ge(ldb_iter_t *iter, const ldb_slice_t *target);
+
+LDB_EXTERN void
+ldb_iter_seek_gt(ldb_iter_t *iter, const ldb_slice_t *target);
+
+LDB_EXTERN void
+ldb_iter_seek_le(ldb_iter_t *iter, const ldb_slice_t *target);
+
+LDB_EXTERN void
+ldb_iter_seek_lt(ldb_iter_t *iter, const ldb_slice_t *target);
+
 /* Logging */
 LDB_EXTERN ldb_logger_t *
 ldb_logger_create(void (*logv)(void *, const char *, va_list), void *state);
@@ -1291,6 +1303,45 @@ ldb_iter_compare(const ldb_iter_t *iter, const ldb_slice_t *key) {
   const ldb_comparator_t *cmp = iter->ucmp;
   ldb_slice_t x = ldb_iter_key(iter);
   return cmp->compare(cmp, &x, key);
+}
+
+void
+ldb_iter_seek_ge(ldb_iter_t *iter, const ldb_slice_t *target) {
+  ldb_iter_seek(iter, target);
+}
+
+void
+ldb_iter_seek_gt(ldb_iter_t *iter, const ldb_slice_t *target) {
+  ldb_iter_seek(iter, target);
+
+  if (ldb_iter_valid(iter)) {
+    if (ldb_iter_compare(iter, target) == 0)
+      ldb_iter_next(iter);
+  }
+}
+
+void
+ldb_iter_seek_le(ldb_iter_t *iter, const ldb_slice_t *target) {
+  ldb_iter_seek(iter, target);
+
+  if (ldb_iter_valid(iter)) {
+    if (ldb_iter_compare(iter, target) > 0)
+      ldb_iter_prev(iter);
+  } else {
+    ldb_iter_last(iter);
+  }
+}
+
+void
+ldb_iter_seek_lt(ldb_iter_t *iter, const ldb_slice_t *target) {
+  ldb_iter_seek(iter, target);
+
+  if (ldb_iter_valid(iter)) {
+    if (ldb_iter_compare(iter, target) >= 0)
+      ldb_iter_prev(iter);
+  } else {
+    ldb_iter_last(iter);
+  }
 }
 
 /*
