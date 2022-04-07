@@ -1871,10 +1871,10 @@ static int
 ldb_backup_inner(const char *dbname, const char *bakname, rb_set64_t *live) {
   ldb_filelock_t *lock = NULL;
   char lockname[LDB_PATH_MAX];
+  char **filenames = NULL;
   char src[LDB_PATH_MAX];
   char dst[LDB_PATH_MAX];
   ldb_filetype_t type;
-  char **filenames;
   uint64_t number;
   int rc = LDB_OK;
   int len = -1;
