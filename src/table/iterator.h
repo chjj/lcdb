@@ -105,6 +105,33 @@ struct ldb_itertbl_s {
   int (*status)(const void *iter);
 };
 
+#define LDB_ITERATOR_FUNCTIONS(name)                                  \
+                                                                      \
+static const ldb_itertbl_t name ## _table = {                         \
+  /* .clear = */ (void (*)(void *))name ## _clear,                    \
+  /* .valid = */ (int (*)(const void *))name ## _valid,               \
+  /* .first = */ (void (*)(void *))name ## _first,                    \
+  /* .last = */ (void (*)(void *))name ## _last,                      \
+  /* .seek = */ (void (*)(void *, const ldb_slice_t *))name ## _seek, \
+  /* .next = */ (void (*)(void *))name ## _next,                      \
+  /* .prev = */ (void (*)(void *))name ## _prev,                      \
+  /* .key = */ (ldb_slice_t (*)(const void *))name ## _key,           \
+  /* .value = */ (ldb_slice_t (*)(const void *))name ## _value,       \
+  /* .status = */ (int (*)(const void *))name ## _status              \
+}
+
+/* Casting function pointers is technically UB[1] but will
+ * work on a vast majority of platforms. Notable exceptions
+ * include a lot of old 16 bit platforms as well as wasm and
+ * emscripten[2].
+ *
+ * [1] https://stackoverflow.com/questions/559581
+ * [2] https://emscripten.org/docs/porting/guidelines/function_pointer_issues.html
+ */
+#if defined(__wasm__) || defined(__EMSCRIPTEN__)
+
+#undef LDB_ITERATOR_FUNCTIONS
+
 #define LDB_ITERATOR_FUNCTIONS(name)                           \
                                                                \
 static void                                                    \
@@ -169,6 +196,8 @@ static const ldb_itertbl_t name ## _table = {                  \
   /* .value = */ name ## _value_wrapped,                       \
   /* .status = */ name ## _status_wrapped                      \
 }
+
+#endif /* __wasm__ || __EMSCRIPTEN__ */
 
 /*
  * Cleanup
