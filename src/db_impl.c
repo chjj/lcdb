@@ -1963,7 +1963,9 @@ ldb_backup_inner(const char *dbname, const char *bakname, rb_set64_t *live) {
     ldb_remove_file(lockname);
   }
 
-  if (rc != LDB_OK)
+  if (rc == LDB_OK)
+    rc = ldb_sync_dir(bakname);
+  else
     ldb_remove_dir(bakname);
 
   return rc;
