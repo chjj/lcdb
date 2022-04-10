@@ -963,10 +963,7 @@ ldb_recover_log_file(ldb_t *db, uint64_t log_number,
 
 static int
 compare_ascending(int64_t x, int64_t y) {
-  if (x == y)
-    return 0;
-
-  return x < y ? -1 : 1;
+  return LDB_CMP(x, y);
 }
 
 static int
