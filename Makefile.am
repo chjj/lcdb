@@ -60,7 +60,6 @@ noinst_HEADERS = src/util/arena.h               \
                  src/util/random.h              \
                  src/util/rbt.h                 \
                  src/util/slice.h               \
-                 src/util/snappy_data.h         \
                  src/util/snappy.h              \
                  src/util/status.h              \
                  src/util/strutil.h             \
@@ -94,6 +93,7 @@ noinst_HEADERS = src/util/arena.h               \
                  src/version_edit.h             \
                  src/version_set.h              \
                  src/write_batch.h              \
+                 test/data/snappy_data.h        \
                  test/tests.h
 
 #
@@ -148,33 +148,6 @@ lcdb_sources = src/util/arena.c               \
                src/version_set.c              \
                src/write_batch.c
 
-test_sources = src/util/arena_test.c         \
-               src/util/bloom_test.c         \
-               src/util/cache_test.c         \
-               src/util/coding_test.c        \
-               src/util/crc32c_test.c        \
-               src/util/env_test.c           \
-               src/util/hash_test.c          \
-               src/util/rbt_test.c           \
-               src/util/snappy_test.c        \
-               src/util/strutil_test.c       \
-               src/util/status_test.c        \
-               src/util/testutil.c           \
-               src/table/filter_block_test.c \
-               src/table/table_test.c        \
-               src/autocompact_test.c        \
-               src/c_test.c                  \
-               src/corruption_test.c         \
-               src/dbformat_test.c           \
-               src/db_test.c                 \
-               src/filename_test.c           \
-               src/log_test.c                \
-               src/recovery_test.c           \
-               src/skiplist_test.c           \
-               src/version_edit_test.c       \
-               src/version_set_test.c        \
-               src/write_batch_test.c
-
 #
 # Targets
 #
@@ -196,7 +169,7 @@ lib_LTLIBRARIES = liblcdb.la
 noinst_LTLIBRARIES =
 
 if ENABLE_TESTS
-libtest_la_SOURCES = $(test_sources)
+libtest_la_SOURCES = src/util/testutil.c
 libtest_la_CFLAGS = $(WARN_FLAGS)
 libtest_la_LDFLAGS = -static
 libtest_la_LIBADD = liblcdb.la
@@ -214,7 +187,6 @@ endif
 
 lcdbutil_SOURCES = src/dbutil.c
 lcdbutil_CFLAGS = $(WARN_FLAGS)
-lcdbutil_LDFLAGS = -static
 lcdbutil_LDADD = liblcdb.la
 
 bin_PROGRAMS = lcdbutil

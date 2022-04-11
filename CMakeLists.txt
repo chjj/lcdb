@@ -206,36 +206,6 @@ list(APPEND ldb_sources # util
                         src/version_set.c
                         src/write_batch.c)
 
-list(APPEND test_sources # util
-                         src/util/arena_test.c
-                         src/util/bloom_test.c
-                         src/util/cache_test.c
-                         src/util/coding_test.c
-                         src/util/crc32c_test.c
-                         src/util/env_test.c
-                         src/util/hash_test.c
-                         src/util/rbt_test.c
-                         src/util/snappy_test.c
-                         src/util/strutil_test.c
-                         src/util/status_test.c
-                         src/util/testutil.c
-                         # table
-                         src/table/filter_block_test.c
-                         src/table/table_test.c
-                         # db
-                         src/autocompact_test.c
-                         src/c_test.c
-                         src/corruption_test.c
-                         src/dbformat_test.c
-                         src/db_test.c
-                         src/filename_test.c
-                         src/log_test.c
-                         src/recovery_test.c
-                         src/skiplist_test.c
-                         src/version_edit_test.c
-                         src/version_set_test.c
-                         src/write_batch_test.c)
-
 #
 # Flags
 #
@@ -370,7 +340,7 @@ if(MINGW)
 endif()
 
 if(LDB_TESTS)
-  add_library(lcdb_test STATIC ${test_sources})
+  add_library(lcdb_test STATIC src/util/testutil.c)
   target_link_libraries(lcdb_test PRIVATE lcdb lcdb_static)
   set_property(TARGET lcdb_test PROPERTY OUTPUT_NAME test)
 endif()
@@ -443,6 +413,7 @@ if(LDB_TESTS)
 
   foreach(name ${tests})
     add_executable(t-${name} test/t-${name}.c)
+    target_include_directories(t-${name} PRIVATE ${PROJECT_SOURCE_DIR}/src)
     target_link_libraries(t-${name} PRIVATE lcdb lcdb_test)
     add_test(NAME ${name} COMMAND t-${name})
   endforeach()

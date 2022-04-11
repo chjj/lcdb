@@ -2,7 +2,7 @@
 # Copyright (c) 2022, Christopher Jeffrey (MIT License).
 # https://github.com/chjj/lcdb
 
-AM_CPPFLAGS = $(WARN_FLAGS) -I$(top_srcdir)/include
+AM_CPPFLAGS = $(WARN_FLAGS) -I$(top_srcdir)/include -I$(top_srcdir)/src
 AM_LDFLAGS = -static
 LDADD = $(top_builddir)/libtest.la
 
