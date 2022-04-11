@@ -24,7 +24,7 @@
 
 uint32_t
 ldb_random_seed(void) {
-  return rand() & 0x7fffffff;
+  return ((rand() & 0x7fff) << 16) | (rand() & 0xffff);
 }
 
 ldb_slice_t *
