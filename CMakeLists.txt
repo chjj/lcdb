@@ -377,6 +377,20 @@ target_link_libraries(lcdb_util PRIVATE lcdb ${lcdb_name})
 set_property(TARGET lcdb_util PROPERTY OUTPUT_NAME lcdbutil)
 
 #
+# Benchmarks
+#
+
+if(LDB_BENCH)
+  add_executable(lcdb_bench bench/db_bench.c
+                            bench/histogram.c
+                            src/util/testutil.c)
+
+  target_include_directories(lcdb_bench PRIVATE ${PROJECT_SOURCE_DIR}/src)
+  target_link_libraries(lcdb_bench PRIVATE lcdb lcdb_static ${bench_libs})
+  set_property(TARGET lcdb_bench PROPERTY OUTPUT_NAME db_bench)
+endif()
+
+#
 # Tests
 #
 

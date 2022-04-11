@@ -314,7 +314,7 @@ AS_IF([test x"$enable_bench" = x'yes'], [
       }
     ]])
   ], [], [
-    AC_SUBST([MATHLIB], ['-m'])
+    AC_SUBST([MATHLIB], ['-lm'])
   ])
 ])
 
@@ -336,6 +336,7 @@ AS_IF([test x"$EMSCRIPTEN" != x''], [
   AC_SUBST([LOG_COMPILER], [node])
 ])
 
+AM_CONDITIONAL([ENABLE_BENCH], [test x"$enable_bench" = x'yes'])
 AM_CONDITIONAL([ENABLE_LWDB], [test x"$enable_lwdb" = x'yes'])
 AM_CONDITIONAL([ENABLE_SHARED], [test x"$enable_shared" = x'yes'])
 AM_CONDITIONAL([ENABLE_TESTS], [test x"$enable_tests" = x'yes'])

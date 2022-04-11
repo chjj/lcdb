@@ -35,7 +35,8 @@ SUBDIRS = . test
 
 include_HEADERS = include/lcdb.h include/lcdb_c.h
 
-noinst_HEADERS = src/util/arena.h               \
+noinst_HEADERS = bench/histogram.h              \
+                 src/util/arena.h               \
                  src/util/array.h               \
                  src/util/atomic.h              \
                  src/util/bloom.h               \
@@ -50,7 +51,6 @@ noinst_HEADERS = src/util/arena.h               \
                  src/util/env_win_impl.h        \
                  src/util/extern.h              \
                  src/util/hash.h                \
-                 src/util/histogram.h           \
                  src/util/internal.h            \
                  src/util/options.h             \
                  src/util/port.h                \
@@ -166,23 +166,13 @@ endif
 endif
 
 lib_LTLIBRARIES = liblcdb.la
-noinst_LTLIBRARIES =
-
-if ENABLE_TESTS
-libtest_la_SOURCES = src/util/testutil.c
-libtest_la_CFLAGS = $(WARN_FLAGS)
-libtest_la_LDFLAGS = -static
-libtest_la_LIBADD = liblcdb.la
-
-noinst_LTLIBRARIES += libtest.la
-endif
 
 if ENABLE_LWDB
 liblwdb_la_SOURCES = contrib/lwdb/lwdb.c
 liblwdb_la_CFLAGS = $(WARN_FLAGS)
 liblwdb_la_LDFLAGS = -static
 
-noinst_LTLIBRARIES += liblwdb.la
+noinst_LTLIBRARIES = liblwdb.la
 endif
 
 lcdbutil_SOURCES = src/dbutil.c
@@ -190,3 +180,19 @@ lcdbutil_CFLAGS = $(WARN_FLAGS)
 lcdbutil_LDADD = liblcdb.la
 
 bin_PROGRAMS = lcdbutil
+
+#
+# Benchmarks
+#
+
+if ENABLE_BENCH
+db_bench_SOURCES = bench/db_bench.c    \
+                   bench/histogram.c   \
+                   src/util/testutil.c
+
+db_bench_CFLAGS = $(WARN_FLAGS) -I$(top_srcdir)/src
+db_bench_LDFLAGS = -static
+db_bench_LDADD = liblcdb.la @MATHLIB@
+
+noinst_PROGRAMS = db_bench
+endif

@@ -4,7 +4,9 @@
 
 AM_CPPFLAGS = $(WARN_FLAGS) -I$(top_srcdir)/include -I$(top_srcdir)/src
 AM_LDFLAGS = -static
-LDADD = $(top_builddir)/libtest.la
+LDADD = libtestutil.la $(top_builddir)/liblcdb.la
+
+libtestutil_la_SOURCES = $(top_srcdir)/src/util/testutil.c
 
 tests_lib = t-arena        \
             t-autocompact  \
@@ -36,6 +38,7 @@ tests_lib = t-arena        \
             t-version_set  \
             t-write_batch
 
+check_LTLIBRARIES = libtestutil.la
 check_PROGRAMS = $(tests_lib)
 
 TESTS = $(check_PROGRAMS)
