@@ -35,66 +35,62 @@ SUBDIRS = . test
 
 include_HEADERS = include/lcdb.h include/lcdb_c.h
 
-noinst_HEADERS = bench/histogram.h              \
-                 src/util/arena.h               \
-                 src/util/array.h               \
-                 src/util/atomic.h              \
-                 src/util/bloom.h               \
-                 src/util/buffer.h              \
-                 src/util/cache.h               \
-                 src/util/coding.h              \
-                 src/util/comparator.h          \
-                 src/util/crc32c.h              \
-                 src/util/env.h                 \
-                 src/util/env_mem_impl.h        \
-                 src/util/env_unix_impl.h       \
-                 src/util/env_win_impl.h        \
-                 src/util/extern.h              \
-                 src/util/hash.h                \
-                 src/util/internal.h            \
-                 src/util/options.h             \
-                 src/util/port.h                \
-                 src/util/port_none_impl.h      \
-                 src/util/port_unix_impl.h      \
-                 src/util/port_win_impl.h       \
-                 src/util/random.h              \
-                 src/util/rbt.h                 \
-                 src/util/slice.h               \
-                 src/util/snappy.h              \
-                 src/util/status.h              \
-                 src/util/strutil.h             \
-                 src/util/testutil.h            \
-                 src/util/thread_pool.h         \
-                 src/util/types.h               \
-                 src/util/vector.h              \
-                 src/table/block.h              \
-                 src/table/block_builder.h      \
-                 src/table/filter_block.h       \
-                 src/table/format.h             \
-                 src/table/iterator.h           \
-                 src/table/iterator_wrapper.h   \
-                 src/table/merger.h             \
-                 src/table/table.h              \
-                 src/table/table_builder.h      \
-                 src/table/two_level_iterator.h \
-                 src/builder.h                  \
-                 src/db_impl.h                  \
-                 src/db_iter.h                  \
-                 src/dbformat.h                 \
-                 src/dumpfile.h                 \
-                 src/filename.h                 \
-                 src/log_format.h               \
-                 src/log_reader.h               \
-                 src/log_writer.h               \
-                 src/memtable.h                 \
-                 src/skiplist.h                 \
-                 src/snapshot.h                 \
-                 src/table_cache.h              \
-                 src/version_edit.h             \
-                 src/version_set.h              \
-                 src/write_batch.h              \
-                 test/data/snappy_data.h        \
-                 test/tests.h
+lcdb_headers = src/util/arena.h               \
+               src/util/array.h               \
+               src/util/atomic.h              \
+               src/util/bloom.h               \
+               src/util/buffer.h              \
+               src/util/cache.h               \
+               src/util/coding.h              \
+               src/util/comparator.h          \
+               src/util/crc32c.h              \
+               src/util/env.h                 \
+               src/util/env_mem_impl.h        \
+               src/util/env_unix_impl.h       \
+               src/util/env_win_impl.h        \
+               src/util/extern.h              \
+               src/util/hash.h                \
+               src/util/internal.h            \
+               src/util/options.h             \
+               src/util/port.h                \
+               src/util/port_none_impl.h      \
+               src/util/port_unix_impl.h      \
+               src/util/port_win_impl.h       \
+               src/util/random.h              \
+               src/util/rbt.h                 \
+               src/util/slice.h               \
+               src/util/snappy.h              \
+               src/util/status.h              \
+               src/util/strutil.h             \
+               src/util/thread_pool.h         \
+               src/util/types.h               \
+               src/util/vector.h              \
+               src/table/block.h              \
+               src/table/block_builder.h      \
+               src/table/filter_block.h       \
+               src/table/format.h             \
+               src/table/iterator.h           \
+               src/table/iterator_wrapper.h   \
+               src/table/merger.h             \
+               src/table/table.h              \
+               src/table/table_builder.h      \
+               src/table/two_level_iterator.h \
+               src/builder.h                  \
+               src/db_impl.h                  \
+               src/db_iter.h                  \
+               src/dbformat.h                 \
+               src/dumpfile.h                 \
+               src/filename.h                 \
+               src/log_format.h               \
+               src/log_reader.h               \
+               src/log_writer.h               \
+               src/memtable.h                 \
+               src/skiplist.h                 \
+               src/snapshot.h                 \
+               src/table_cache.h              \
+               src/version_edit.h             \
+               src/version_set.h              \
+               src/write_batch.h
 
 #
 # Sources
@@ -152,7 +148,7 @@ lcdb_sources = src/util/arena.c               \
 # Targets
 #
 
-liblcdb_la_SOURCES = $(lcdb_sources)
+liblcdb_la_SOURCES = $(lcdb_headers) $(lcdb_sources)
 liblcdb_la_CFLAGS = $(WARN_FLAGS)
 
 if ENABLE_SHARED
@@ -188,7 +184,9 @@ bin_PROGRAMS = lcdbutil
 if ENABLE_BENCH
 db_bench_SOURCES = bench/db_bench.c    \
                    bench/histogram.c   \
-                   src/util/testutil.c
+                   bench/histogram.h   \
+                   src/util/testutil.c \
+                   src/util/testutil.h
 
 db_bench_CFLAGS = $(WARN_FLAGS) -I$(top_srcdir)/src
 db_bench_LDFLAGS = -static

@@ -5,8 +5,10 @@
 AM_CPPFLAGS = $(WARN_FLAGS) -I$(top_srcdir)/include -I$(top_srcdir)/src
 AM_LDFLAGS = -static
 LDADD = libtestutil.la $(top_builddir)/liblcdb.la
+SOURCES = test/data/snappy_data.h test/tests.h
 
-libtestutil_la_SOURCES = $(top_srcdir)/src/util/testutil.c
+libtestutil_la_SOURCES = $(top_srcdir)/src/util/testutil.c \
+                         $(top_srcdir)/src/util/testutil.h
 
 tests_lib = t-arena        \
             t-autocompact  \
