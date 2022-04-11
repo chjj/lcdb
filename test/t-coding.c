@@ -1,5 +1,5 @@
 /*!
- * coding_test.c - coding test for lcdb
+ * t-coding.c - coding test for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
  * https://github.com/chjj/lcdb
  *

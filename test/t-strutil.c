@@ -1,5 +1,5 @@
 /*!
- * strutil_test.c - strutil test for lcdb
+ * t-strutil.c - strutil test for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
  * https://github.com/chjj/lcdb
  *

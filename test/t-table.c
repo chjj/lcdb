@@ -1,5 +1,5 @@
 /*!
- * table_test.c - table test for lcdb
+ * t-table.c - table test for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
  * https://github.com/chjj/lcdb
  *

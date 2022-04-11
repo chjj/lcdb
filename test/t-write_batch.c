@@ -1,5 +1,5 @@
 /*!
- * write_batch_test.c - write_batch test for lcdb
+ * t-write_batch.c - write_batch test for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
  * https://github.com/chjj/lcdb
  *

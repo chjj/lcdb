@@ -1,5 +1,5 @@
 /*!
- * hash_test.c - hash test for lcdb
+ * t-hash.c - hash test for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
  * https://github.com/chjj/lcdb
  *

@@ -1,5 +1,5 @@
 /*!
- * recovery_test.c - recovery test for lcdb
+ * t-recovery.c - recovery test for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
  * https://github.com/chjj/lcdb
  *

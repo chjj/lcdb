@@ -1,5 +1,5 @@
 /*!
- * autocompact_test.c - autocompact test for lcdb
+ * t-autocompact.c - autocompact test for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
  * https://github.com/chjj/lcdb
  *

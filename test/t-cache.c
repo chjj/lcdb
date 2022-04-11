@@ -1,5 +1,5 @@
 /*!
- * cache_test.c - cache test for lcdb
+ * t-cache.c - cache test for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
  * https://github.com/chjj/lcdb
  *

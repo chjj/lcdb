@@ -1,5 +1,5 @@
 /*!
- * dbformat_test.c - dbformat test for lcdb
+ * t-dbformat.c - dbformat test for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
  * https://github.com/chjj/lcdb
  *

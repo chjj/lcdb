@@ -1,5 +1,5 @@
 /*!
- * bloom_test.c - bloom test for lcdb
+ * t-bloom.c - bloom test for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
  * https://github.com/chjj/lcdb
  *
