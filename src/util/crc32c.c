@@ -23,19 +23,22 @@
  */
 
 #undef HAVE_X86_64
+#undef HAVE_ATOMICS
 
-#if LDB_GNUC_PREREQ(4, 1) && !defined(__INTEL_COMPILER) \
-                          && !defined(__CC_ARM)         \
-                          && !defined(__TINYC__)        \
-                          && !defined(__PCC__)          \
-                          && !defined(__NWCC__)
+#if LDB_GNUC_PREREQ(4, 1) || defined(__TINYC__)
 #  if defined(__x86_64__) || defined(__amd64__)
 #    define HAVE_X86_64
+#    define HAVE_ATOMICS
 #  endif
 #elif defined(__clang__) && defined(_WIN32)
 #  if defined(_M_X64) || defined(_M_AMD64)
 #    define HAVE_X86_64
+#    define HAVE_ATOMICS
 #  endif
+#endif
+
+#if defined(__TINYC__) || defined(__PCC__)
+#  undef HAVE_ATOMICS
 #endif
 
 /*
@@ -506,15 +509,23 @@ ldb_crc32c_init(void) {
   static volatile int state = 0;
   int value;
 
+#ifdef HAVE_ATOMICS
   while ((value = __sync_val_compare_and_swap(&state, 0, 1)) == 1)
     __asm__ __volatile__ ("pause\n" ::: "memory");
+#else
+  value = state;
+#endif
 
   if (value == 0) {
     if (has_sse42() && can_accelerate())
       crc32c_extend = &crc32c_sse42;
 
+#ifdef HAVE_ATOMICS
     if (__sync_lock_test_and_set(&state, 2) != 1)
       abort(); /* LCOV_EXCL_LINE */
+#else
+    state = 2;
+#endif
   } else {
     assert(value == 2);
   }
