@@ -519,50 +519,35 @@ static uint32_t
 #  define request_prefetch(ptr) ((void)0)
 #endif
 
+#define asm_load64(p) (*((const uint64_t *)(const void *)(p)))
+
 #ifdef HAVE_INSTR
-#define asm_load64(p) (*((const uint64_t *)(void *)(p)))
-#define asm_crc32_u8(z, xp) \
+#define asm_crc32_u8(z, x) \
+  __asm__ __volatile__ (   \
+    "crc32b %b1, %q0\n"    \
+    : "+r" (z)             \
+    : "rm" (x)             \
+  )
+#define asm_crc32_u64(z, x) \
   __asm__ __volatile__ (    \
-    "crc32b %b1, %q0\n"     \
+    "crc32q %q1, %q0\n"     \
     : "+r" (z)              \
-    : "rm" (*(xp))          \
+    : "rm" (x)              \
   )
-#define asm_crc32_u64(z, xp) \
-  __asm__ __volatile__ (     \
-    "crc32q %q1, %q0\n"      \
-    : "+r" (z)               \
-    : "rm" (asm_load64(xp))  \
-  )
-#define asm_crc32_u128(z, xp) do { \
-  asm_crc32_u64(z, (xp) + 0);      \
-  asm_crc32_u64(z, (xp) + 8);      \
-} while (0)
 #else /* !HAVE_INSTR */
-#define asm_crc32_u8(z, xp)                      \
+#define asm_crc32_u8(z, x)                       \
   __asm__ __volatile__ (                         \
-    /* crc32b (%rsi), %rax */                    \
-    ".byte 0xf2, 0x48, 0x0f, 0x38, 0xf0, 0x06\n" \
+    /* crc32 %dl, %rax */                        \
+    ".byte 0xf2, 0x48, 0x0f, 0x38, 0xf0, 0xc2\n" \
     : "+a" (z)                                   \
-    : "S" (xp)                                   \
-    : "memory"                                   \
+    : "d" (x)                                    \
   )
-#define asm_crc32_u64(z, xp)                     \
+#define asm_crc32_u64(z, x)                      \
   __asm__ __volatile__ (                         \
-    /* crc32q (%rsi), %rax */                    \
-    ".byte 0xf2, 0x48, 0x0f, 0x38, 0xf1, 0x06\n" \
+    /* crc32 %rdx, %rax */                       \
+    ".byte 0xf2, 0x48, 0x0f, 0x38, 0xf1, 0xc2\n" \
     : "+a" (z)                                   \
-    : "S" (xp)                                   \
-    : "memory"                                   \
-  )
-#define asm_crc32_u128(z, xp)                          \
-  __asm__ __volatile__ (                               \
-    /* crc32q 0(%rsi), %rax */                         \
-    /* crc32q 8(%rsi), %rax */                         \
-    ".byte 0xf2, 0x48, 0x0f, 0x38, 0xf1, 0x06\n"       \
-    ".byte 0xf2, 0x48, 0x0f, 0x38, 0xf1, 0x46, 0x08\n" \
-    : "+a" (z)                                         \
-    : "S" (xp)                                         \
-    : "memory"                                         \
+    : "d" (x)                                    \
   )
 #endif /* !HAVE_INSTR */
 
@@ -573,26 +558,21 @@ crc32c_sse42(uint32_t z, const uint8_t* xp, size_t xn) {
   uint32_t l = z ^ CRC32_XOR;
   uint64_t l64;
 
-#define STEP1 do {    \
-  asm_crc32_u8(l, p); \
-  p++;                \
+#define STEP1 do {     \
+  asm_crc32_u8(l, *p); \
+  p++;                 \
 } while (0)
 
-#define STEP8(crc, data) do { \
-  asm_crc32_u64(crc, data);   \
-  data += 8;                  \
+#define STEP8(crc, data) do {           \
+  asm_crc32_u64(crc, asm_load64(data)); \
+  data += 8;                            \
 } while (0)
 
-#define STEP16(crc, data) do { \
-  asm_crc32_u128(crc, data);   \
-  data += 16;                  \
-} while (0)
-
-#define STEP8X3(crc0, crc1, crc2, bs) do { \
-  asm_crc32_u64(crc0, p);                  \
-  asm_crc32_u64(crc1, p + bs);             \
-  asm_crc32_u64(crc2, p + 2 * bs);         \
-  p += 8;                                  \
+#define STEP8X3(crc0, crc1, crc2, bs) do {     \
+  asm_crc32_u64(crc0, asm_load64(p));          \
+  asm_crc32_u64(crc1, asm_load64(p + bs));     \
+  asm_crc32_u64(crc2, asm_load64(p + 2 * bs)); \
+  p += 8;                                      \
 } while (0)
 
 #define SKIP_BLOCK(crc, tab) do {                               \
@@ -678,8 +658,10 @@ crc32c_sse42(uint32_t z, const uint8_t* xp, size_t xn) {
   }
 
   /* Process bytes 16 at a time. */
-  while ((e - p) >= 16)
-    STEP16(l64, p);
+  while ((e - p) >= 16) {
+    STEP8(l64, p);
+    STEP8(l64, p);
+  }
 
   l = (uint32_t)l64;
 
@@ -689,7 +671,6 @@ crc32c_sse42(uint32_t z, const uint8_t* xp, size_t xn) {
 
 #undef STEP1
 #undef STEP8
-#undef STEP16
 #undef STEP8X3
 #undef SKIP_BLOCK
 
