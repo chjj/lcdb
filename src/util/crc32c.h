@@ -7,6 +7,10 @@
  *   Copyright (c) 2011, The LevelDB Authors. All rights reserved.
  *   https://github.com/google/leveldb
  *
+ * Parts of this software are based on google/crc32c:
+ *   Copyright (c) 2017, The CRC32C Authors.
+ *   https://github.com/google/crc32c
+ *
  * See LICENSE for more information.
  */
 
@@ -18,7 +22,7 @@
 #include "internal.h"
 
 /* Initialize crc32c backend. */
-void
+int
 ldb_crc32c_init(void);
 
 /* Return the crc32c of concat(A, data[0,n-1]) where init_crc is the

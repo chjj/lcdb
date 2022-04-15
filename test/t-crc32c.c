@@ -11,6 +11,7 @@
  */
 
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -98,6 +99,19 @@ test_unaligned_results(void) {
 }
 
 static void
+test_large(void) {
+  size_t len = (1 << 20) + 17;
+  uint8_t *buf = ldb_malloc(len);
+
+  memset(buf, 0xaa, len);
+
+  ASSERT(0xb0d7025a == ldb_crc32c_value(buf, len));
+  ASSERT(0x5a3a95f6 == ldb_crc32c_value(buf + 3, len));
+
+  ldb_free(buf);
+}
+
+static void
 test_values(void) {
   ASSERT(ldb_crc32c_str("a", 1) != ldb_crc32c_str("foo", 3));
 }
@@ -124,17 +138,20 @@ int
 main(void) {
   test_standard_results();
   test_unaligned_results();
+  test_large();
   test_values();
   test_extend();
   test_mask();
 
-  ldb_crc32c_init();
+  if (ldb_crc32c_init()) {
+    printf("accelerating\n");
 
-  test_standard_results();
-  test_unaligned_results();
-  test_values();
-  test_extend();
-  test_mask();
+    test_standard_results();
+    test_unaligned_results();
+    test_large();
+    test_values();
+    test_extend();
+  }
 
   return 0;
 }
