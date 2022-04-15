@@ -27,6 +27,7 @@
 #include "util/cache.h"
 #include "util/coding.h"
 #include "util/comparator.h"
+#include "util/crc32c.h"
 #include "util/env.h"
 #include "util/internal.h"
 #include "util/options.h"
@@ -1979,6 +1980,8 @@ ldb_open(const char *dbname, const ldb_dbopt_t *options, ldb_t **dbptr) {
   ldb_vedit_t edit;
   int rc = LDB_OK;
   ldb_t *db;
+
+  ldb_crc32c_init();
 
   *dbptr = NULL;
 

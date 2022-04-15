@@ -16,6 +16,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+/* Initialize crc32c backend. */
+void
+ldb_crc32c_init(void);
+
 /* Return the crc32c of concat(A, data[0,n-1]) where init_crc is the
  * crc32c of some string A. extend() is often used to maintain the
  * crc32c of a stream of data.

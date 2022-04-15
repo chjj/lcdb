@@ -127,5 +127,14 @@ main(void) {
   test_values();
   test_extend();
   test_mask();
+
+  ldb_crc32c_init();
+
+  test_standard_results();
+  test_unaligned_results();
+  test_values();
+  test_extend();
+  test_mask();
+
   return 0;
 }

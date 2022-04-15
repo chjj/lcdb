@@ -10,11 +10,33 @@
  * See LICENSE for more information.
  */
 
+#include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include "coding.h"
 #include "crc32c.h"
 #include "internal.h"
+
+/*
+ * Compat
+ */
+
+#undef HAVE_X86_64
+
+#if LDB_GNUC_PREREQ(4, 1) && !defined(__INTEL_COMPILER) \
+                          && !defined(__CC_ARM)         \
+                          && !defined(__TINYC__)        \
+                          && !defined(__PCC__)          \
+                          && !defined(__NWCC__)
+#  if defined(__x86_64__) || defined(__amd64__)
+#    define HAVE_X86_64
+#  endif
+#elif defined(__clang__) && defined(_WIN32)
+#  if defined(_M_X64) || defined(_M_AMD64)
+#    define HAVE_X86_64
+#  endif
+#endif
 
 /*
  * Constants
@@ -263,16 +285,16 @@ static const uint32_t crc32c_mask_delta = 0xa282ead8;
  * N must be a power of two.
  */
 static LDB_INLINE const void *
-round_up(const void *ptr) {
-  return (const void *)(((uintptr_t)(ptr) + (4 - 1)) & ~(uintptr_t)(4 - 1));
+round_up4(const void *ptr) {
+  return (const void *)(((uintptr_t)ptr + 3) & ~((uintptr_t)3));
 }
 
 /*
- * CRC32C
+ * CRC32C (Generic)
  */
 
-uint32_t
-ldb_crc32c_extend(uint32_t z, const uint8_t *xp, size_t xn) {
+static uint32_t
+crc32c_generic(uint32_t z, const uint8_t *xp, size_t xn) {
   const uint8_t *p = xp;
   const uint8_t *e = p + xn;
   uint32_t l = z ^ crc32c_xor;
@@ -313,7 +335,7 @@ ldb_crc32c_extend(uint32_t z, const uint8_t *xp, size_t xn) {
 
   /* Point x at first 4-byte aligned byte in the buffer.
      This might be past the end of the buffer. */
-  const uint8_t *x = round_up(p);
+  const uint8_t *x = round_up4(p);
 
   if (x <= e) {
     /* Process bytes p is 4-byte aligned. */
@@ -372,6 +394,145 @@ ldb_crc32c_extend(uint32_t z, const uint8_t *xp, size_t xn) {
 #undef STEP4W
 
   return l ^ crc32c_xor;
+}
+
+static uint32_t
+(*crc32c_extend)(uint32_t, const uint8_t *, size_t) = &crc32c_generic;
+
+/*
+ * CRC32C (Hardware)
+ */
+
+#ifdef HAVE_X86_64
+
+static LDB_INLINE const void *
+round_up8(const void *ptr) {
+  return (const void *)(((uintptr_t)ptr + 7) & ~((uintptr_t)7));
+}
+
+static uint32_t
+crc32c_sse42(uint32_t z, const uint8_t *xp, size_t xn) {
+  const uint8_t *rp = round_up8(xp);
+
+  z ^= crc32c_xor;
+
+  if (rp <= xp + xn) {
+    while (xp != rp) {
+      /* crc32b (%rsi), %rax */
+      __asm__ __volatile__ (
+        ".byte 0xf2, 0x48, 0x0f, 0x38, 0xf0, 0x06\n"
+        : "+a" (z)
+        : "S" (xp)
+        : "memory"
+      );
+
+      xp++;
+      xn--;
+    }
+  }
+
+  while (xn >= 32) {
+    /* crc32q  0(%rsi), %rax
+       crc32q  8(%rsi), %rax
+       crc32q 16(%rsi), %rax
+       crc32q 24(%rsi), %rax */
+    __asm__ __volatile__ (
+      ".byte 0xf2, 0x48, 0x0f, 0x38, 0xf1, 0x06\n"
+      ".byte 0xf2, 0x48, 0x0f, 0x38, 0xf1, 0x46, 0x08\n"
+      ".byte 0xf2, 0x48, 0x0f, 0x38, 0xf1, 0x46, 0x10\n"
+      ".byte 0xf2, 0x48, 0x0f, 0x38, 0xf1, 0x46, 0x18\n"
+      : "+a" (z)
+      : "S" (xp)
+      : "memory"
+    );
+
+    xp += 32;
+    xn -= 32;
+  }
+
+  while (xn >= 8) {
+    /* crc32q (%rsi), %rax */
+    __asm__ __volatile__ (
+      ".byte 0xf2, 0x48, 0x0f, 0x38, 0xf1, 0x06\n"
+      : "+a" (z)
+      : "S" (xp)
+      : "memory"
+    );
+
+    xp += 8;
+    xn -= 8;
+  }
+
+  while (xn > 0) {
+    /* crc32b (%rsi), %rax */
+    __asm__ __volatile__ (
+      ".byte 0xf2, 0x48, 0x0f, 0x38, 0xf0, 0x06\n"
+      : "+a" (z)
+      : "S" (xp)
+      : "memory"
+    );
+
+    xp++;
+    xn--;
+  }
+
+  return z ^ crc32c_xor;
+}
+
+static int
+has_sse42(void) {
+  uint64_t c = 0;
+
+  __asm__ __volatile__ (
+    "mov $1, %%rax\n"
+    "mov %%rbx, %%rdi\n"
+    "cpuid\n"
+    "mov %%rdi, %%rbx\n"
+    : "+c" (c)
+    :: "rax", "rbx",
+       "rdx", "rdi"
+  );
+
+  return (c >> 20) & 1;
+}
+
+static int
+can_accelerate(void) {
+  static const uint8_t buf[] = "TestCRCBuffer";
+  return crc32c_sse42(0, buf, sizeof(buf) - 1) == 0xdcbc59fa;
+}
+
+void
+ldb_crc32c_init(void) {
+  static volatile int state = 0;
+  int value;
+
+  while ((value = __sync_val_compare_and_swap(&state, 0, 1)) == 1)
+    __asm__ __volatile__ ("pause\n" ::: "memory");
+
+  if (value == 0) {
+    if (has_sse42() && can_accelerate())
+      crc32c_extend = &crc32c_sse42;
+
+    if (__sync_lock_test_and_set(&state, 2) != 1)
+      abort(); /* LCOV_EXCL_LINE */
+  } else {
+    assert(value == 2);
+  }
+}
+
+#else /* !HAVE_X86_64 */
+
+void
+ldb_crc32c_init(void) {
+  return;
+}
+
+#endif /* !HAVE_X86_64 */
+
+uint32_t
+ldb_crc32c_extend(uint32_t z, const uint8_t *xp, size_t xn) {
+  return crc32c_extend(z, xp, xn);
 }
 
 uint32_t
