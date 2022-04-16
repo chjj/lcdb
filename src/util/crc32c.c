@@ -643,9 +643,9 @@ static uint32_t
 #ifdef HAVE_X86_64
 
 #ifdef HAVE_PREFETCH
-#  define request_prefetch(ptr) __builtin_prefetch(ptr, 0, 0)
+#define request_prefetch(p) __builtin_prefetch(p, 0, 0)
 #else
-#  define request_prefetch(ptr) ((void)0)
+#define request_prefetch(p) ((void)(p))
 #endif
 
 #define asm_load64(p) (*((const uint64_t *)(const void *)(p)))
@@ -681,7 +681,7 @@ static uint32_t
 #endif /* !HAVE_INSTR */
 
 static uint32_t
-crc32c_sse42(uint32_t z, const uint8_t* xp, size_t xn) {
+crc32c_sse42(uint32_t z, const uint8_t *xp, size_t xn) {
   const uint8_t *p = xp;
   const uint8_t *e = xp + xn;
   uint32_t l = z ^ CRC32_XOR;
