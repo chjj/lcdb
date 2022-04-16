@@ -54,12 +54,9 @@
 #endif
 
 #if defined(__TINYC__) || defined(__PCC__)
+#  undef HAVE_INSTR
 #  undef HAVE_ATOMICS
 #  undef HAVE_PREFETCH
-#endif
-
-#ifdef __TINYC__
-#  undef HAVE_INSTR
 #endif
 
 /*
