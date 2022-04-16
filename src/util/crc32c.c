@@ -47,6 +47,12 @@
 #  endif
 #endif
 
+#if defined(HAVE_PREFETCH) && defined(__has_builtin)
+#  if !__has_builtin(__builtin_prefetch)
+#    undef HAVE_PREFETCH
+#  endif
+#endif
+
 #if defined(__TINYC__) || defined(__PCC__)
 #  undef HAVE_ATOMICS
 #  undef HAVE_PREFETCH
