@@ -55,16 +55,12 @@ ldb_decode_int(uint64_t *z, const char **xp) {
   const uint64_t limit = UINT64_MAX / 10;
   const char *sp = *xp;
   uint64_t x = 0;
-  int n = 0;
 
   while (*sp) {
     int ch = *sp;
 
     if (ch < '0' || ch > '9')
       break;
-
-    if (++n > 20)
-      return 0;
 
     if (x > limit || (x == limit && ch > last))
       return 0;
@@ -75,7 +71,7 @@ ldb_decode_int(uint64_t *z, const char **xp) {
     sp++;
   }
 
-  if (n == 0)
+  if (sp == *xp)
     return 0;
 
   *xp = sp;
