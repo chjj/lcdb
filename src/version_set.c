@@ -1288,9 +1288,10 @@ ldb_vset_write_snapshot(ldb_vset_t *vset, ldb_logwriter_t *log) {
 
   /* Save compaction pointers. */
   for (level = 0; level < LDB_NUM_LEVELS; level++) {
-    if (vset->compact_pointer[level].size > 0)
+    if (vset->compact_pointer[level].size > 0) {
       ldb_vedit_set_compact_pointer(&edit, level,
                                     &vset->compact_pointer[level]);
+    }
   }
 
   /* Save files. */
@@ -2152,8 +2153,10 @@ ldb_vset_compact_range(ldb_vset_t *vset,
 
   ldb_version_get_overlapping_inputs(vset->current, level, begin, end, &inputs);
 
-  if (inputs.length == 0)
+  if (inputs.length == 0) {
+    ldb_vector_clear(&inputs);
     return NULL;
+  }
 
   /* Avoid compacting too much in one shot in case the range is large.
      But we cannot do this for level-0 since level-0 files can overlap
