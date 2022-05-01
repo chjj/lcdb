@@ -194,8 +194,8 @@ main(void) {
       k2 = ldb_iter_key(it2);
       v2 = ldb_iter_val(it2);
 
-      ASSERT(ldb_equal(&k1, &k2));
-      ASSERT(ldb_equal(&v1, &v2));
+      ASSERT(ldb_compare(db1, &k1, &k2) == 0);
+      ASSERT(ldb_compare(db1, &v1, &v2) == 0);
 
       ldb_iter_next(it1);
       ldb_iter_next(it2);
