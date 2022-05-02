@@ -2,6 +2,8 @@
 # Copyright (c) 2022, Christopher Jeffrey (MIT License).
 # https://github.com/chjj/lcdb
 
+EXTRA_DIST = CMakeLists.txt LICENSE README.md
+
 #
 # Sources
 #
