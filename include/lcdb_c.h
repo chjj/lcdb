@@ -13,12 +13,12 @@
 #ifndef LCDB_C_H
 #define LCDB_C_H
 
+#include <limits.h>
+#include <stddef.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include <limits.h>
-#include <stddef.h>
 
 /*
  * Compat
