@@ -859,6 +859,8 @@ run_benchmark(bench_t *bench, int n, const char *name,
 
   method(bench, &thread);
 
+  (void)stats_merge;
+
   stats_stop(&thread.stats);
   stats_report(&thread.stats, name);
 
