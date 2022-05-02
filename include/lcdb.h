@@ -476,9 +476,6 @@ ldb_slice(const void *xp, size_t xn);
 ldb_slice_t
 ldb_string(const char *xp);
 
-int
-ldb_equal(const ldb_slice_t *x, const ldb_slice_t *y);
-
 #if (defined(__GNUC__) && __GNUC__ >= 3) && !defined(__PCC__) \
                                          && !defined(__NWCC__)
 #define ldb_slice(xp, xn) __extension__ ({ \

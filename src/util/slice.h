@@ -125,7 +125,4 @@ ldb_slice_decode(const uint8_t *xp) {
   return z;
 }
 
-LDB_EXTERN int
-ldb_equal(const ldb_slice_t *x, const ldb_slice_t *y);
-
 #endif /* LDB_SLICE_H */

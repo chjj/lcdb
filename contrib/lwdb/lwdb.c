@@ -370,9 +370,6 @@ ldb_slice(const void *xp, size_t xn);
 LDB_EXTERN ldb_slice_t
 ldb_string(const char *xp);
 
-LDB_EXTERN int
-ldb_equal(const ldb_slice_t *x, const ldb_slice_t *y);
-
 /* Status */
 LDB_EXTERN const char *
 ldb_strerror(int code);
@@ -1431,17 +1428,6 @@ ldb_string(const char *xp) {
   ret.size = strlen(xp);
   ret.dummy = 0;
   return ret;
-}
-
-int
-ldb_equal(const ldb_slice_t *x, const ldb_slice_t *y) {
-  if (x->size != y->size)
-    return 0;
-
-  if (x->size == 0)
-    return 1;
-
-  return memcmp(x->data, y->data, y->size) == 0;
 }
 
 /*
