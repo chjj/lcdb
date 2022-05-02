@@ -1,4 +1,4 @@
-# lcdb - a reimplementation of LevelDB in C89
+# lcdb
 
 _DISCLAIMER: lcdb has **no** affiliation with or endorsement from Google Inc.
 whatsoever despite the API prefix being `ldb_` (let's hope they don't [cease
@@ -7,7 +7,7 @@ and desist][cad] us again)._
 A state-of-the-art database in C89 (originally designed by Jeffrey Dean and
 Sanjay Ghemawat and [implemented in C++][ldb]).
 
-## Why?
+## Background
 
 [LevelDB][ldb] was _painstakingly_ ported from C++ to C89¹ for use with [mako].
 _mako_ is a C project which requires an LSM tree for its UTXO database (which
