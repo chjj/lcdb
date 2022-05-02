@@ -21,6 +21,7 @@
 
 #include "util/buffer.h"
 #include "util/comparator.h"
+#include "util/crc32c.h"
 #include "util/env.h"
 #include "util/internal.h"
 #include "util/options.h"
@@ -326,6 +327,8 @@ dump_table(const char *fname, FILE *dst) {
 int
 ldb_dump_file(const char *fname, FILE *dst) {
   ldb_filetype_t type;
+
+  ldb_crc32c_init();
 
   if (!guess_type(fname, &type))
     return LDB_INVALID; /* "[fname]: unknown file type" */
