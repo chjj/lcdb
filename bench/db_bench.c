@@ -147,6 +147,12 @@ static int FLAGS_use_existing_db = 0;
 /* If true, reuse existing log/MANIFEST files when re-opening a database. */
 static int FLAGS_reuse_logs = 0;
 
+/* If true, use compression. */
+static int FLAGS_compression = 0;
+
+/* If true, use memory-mapped reads. */
+static int FLAGS_use_mmap = 1;
+
 /* Use the db with the following name. */
 static const char *FLAGS_db = NULL;
 
@@ -621,6 +627,8 @@ bench_open(bench_t *bench) {
   options.max_open_files = FLAGS_open_files;
   options.filter_policy = bench->filter_policy;
   options.reuse_logs = FLAGS_reuse_logs;
+  options.compression = (enum ldb_compression)FLAGS_compression;
+  options.use_mmap = FLAGS_use_mmap;
 
   rc = ldb_open(FLAGS_db, &options, &bench->db);
 
@@ -1534,6 +1542,8 @@ main(int argc, char **argv) {
   FLAGS_max_file_size = ldb_dbopt_default->max_file_size;
   FLAGS_block_size = ldb_dbopt_default->block_size;
   FLAGS_open_files = ldb_dbopt_default->max_open_files;
+  FLAGS_compression = (int)ldb_dbopt_default->compression;
+  FLAGS_use_mmap = ldb_dbopt_default->use_mmap;
 
   for (i = 1; i < argc; i++) {
     char junk;
@@ -1556,6 +1566,12 @@ main(int argc, char **argv) {
     } else if (sscanf(argv[i], "--reuse_logs=%d%c", &n, &junk) == 1 &&
                (n == 0 || n == 1)) {
       FLAGS_reuse_logs = n;
+    } else if (sscanf(argv[i], "--compression=%d%c", &n, &junk) == 1 &&
+               (n == 0 || n == 1)) {
+      FLAGS_compression = n;
+    } else if (sscanf(argv[i], "--use_mmap=%d%c", &n, &junk) == 1 &&
+               (n == 0 || n == 1)) {
+      FLAGS_use_mmap = n;
     } else if (sscanf(argv[i], "--num=%d%c", &n, &junk) == 1) {
       FLAGS_num = n;
     } else if (sscanf(argv[i], "--reads=%d%c", &n, &junk) == 1) {
