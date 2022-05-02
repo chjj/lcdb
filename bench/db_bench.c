@@ -30,23 +30,16 @@
 #include "util/options.h"
 #include "util/port.h"
 #include "util/random.h"
-#include "util/rbt.h"
 #include "util/slice.h"
 #include "util/snappy.h"
 #include "util/status.h"
 #include "util/strutil.h"
 #include "util/testutil.h"
-#include "util/vector.h"
 
 #include "db_impl.h"
 #include "db_iter.h"
-#include "dbformat.h"
-#include "filename.h"
-#include "log_format.h"
-#include "snapshot.h"
-#include "write_batch.h"
-
 #include "histogram.h"
+#include "write_batch.h"
 
 /* Comma-separated list of operations to run in the specified order
  *   Actual benchmarks:
@@ -647,7 +640,7 @@ bench_print_environment(bench_t *bench) {
 
   (void)bench;
 
-  fprintf(stderr, "lcdb:       version %d.%d\n", 0, 0);
+  fprintf(stderr, "Database:   version %d.%d\n", 0, 0);
 
 #ifdef __linux__
   now = time(NULL);
@@ -729,6 +722,8 @@ bench_print_header(bench_t *bench) {
 
   fprintf(stdout, "------------------------------------------------\n");
 }
+
+#if defined(_WIN32) || defined(LDB_PTHREAD)
 
 typedef struct thread_arg_s {
   bench_t *bench;
@@ -847,26 +842,57 @@ run_benchmark(bench_t *bench, int n, const char *name,
   shared_state_clear(&shared);
 }
 
+#else /* !_WIN32 && !LDB_PTHREAD */
+
+static void
+run_benchmark(bench_t *bench, int n, const char *name,
+              void (*method)(bench_t *, thread_state_t *)) {
+  shared_state_t shared;
+  thread_state_t thread;
+
+  shared_state_init(&shared, n);
+  thread_state_init(&thread, 0, 1001);
+
+  thread.shared = &shared;
+
+  stats_start(&thread.stats);
+
+  method(bench, &thread);
+
+  stats_stop(&thread.stats);
+  stats_report(&thread.stats, name);
+
+  if (FLAGS_comparisons) {
+    fprintf(stdout, "Comparisons: %lu\n",
+      (unsigned long)count_comparator_comparisons(&bench->count_comparator));
+
+    count_comparator_reset(&bench->count_comparator);
+
+    fflush(stdout);
+  }
+
+  thread_state_clear(&thread);
+  shared_state_clear(&shared);
+}
+
+#endif /* !_WIN32 && !LDB_PTHREAD */
+
 static void
 bench_crc32c(bench_t *bench, thread_state_t *thread) {
   /* Checksum about 500MB of data total. */
   const char *label = "(4K per op)";
-  const int size = 4096;
-  ldb_buffer_t data;
+  uint8_t data[4096];
   int64_t bytes = 0;
   uint32_t crc = 0;
 
   (void)bench;
 
-  ldb_buffer_init(&data);
-  ldb_buffer_resize(&data, size);
-
-  memset(data.data, 'x', size);
+  memset(data, 'x', sizeof(data));
 
   while (bytes < 500 * 1048576) {
-    crc = ldb_crc32c_value(data.data, size);
+    crc = ldb_crc32c_value(data, sizeof(data));
     stats_finished_single_op(&thread->stats);
-    bytes += size;
+    bytes += sizeof(data);
   }
 
   /* Print so result is not dead. */
@@ -874,8 +900,6 @@ bench_crc32c(bench_t *bench, thread_state_t *thread) {
 
   stats_add_bytes(&thread->stats, bytes);
   stats_add_message(&thread->stats, label);
-
-  ldb_buffer_clear(&data);
 }
 
 static void
@@ -1284,6 +1308,7 @@ bench_delete_random(bench_t *bench, thread_state_t *thread) {
   bench_do_delete(bench, thread, 0);
 }
 
+#if defined(_WIN32) || defined(LDB_PTHREAD)
 static void
 bench_read_while_writing(bench_t *bench, thread_state_t *thread) {
   if (thread->tid > 0) {
@@ -1332,6 +1357,7 @@ bench_read_while_writing(bench_t *bench, thread_state_t *thread) {
     rng_clear(&gen);
   }
 }
+#endif /* _WIN32 || LDB_PTHREAD */
 
 static void
 bench_compact(bench_t *bench, thread_state_t *thread) {
@@ -1489,9 +1515,11 @@ bench_run(bench_t *bench) {
       method = &bench_delete_sequential;
     } else if (strcmp(name, "deleterandom") == 0) {
       method = &bench_delete_random;
+#if defined(_WIN32) || defined(LDB_PTHREAD)
     } else if (strcmp(name, "readwhilewriting") == 0) {
       num_threads++; /* Add extra thread for writing. */
       method = &bench_read_while_writing;
+#endif
     } else if (strcmp(name, "compact") == 0) {
       method = &bench_compact;
     } else if (strcmp(name, "crc32c") == 0) {
