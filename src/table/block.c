@@ -237,7 +237,48 @@ ldb_blockiter_value(const ldb_blockiter_t *iter) {
 }
 
 static int
-ldb_blockiter_parse_next_key(ldb_blockiter_t *iter);
+ldb_blockiter_parse_next_key(ldb_blockiter_t *iter) {
+  int is_internal = (iter->comparator->user_comparator != NULL);
+  uint32_t shared, non_shared, value_length;
+  const uint8_t *p, *limit;
+
+  iter->current = ldb_blockiter_next_entry_offset(iter);
+
+  p = iter->data + iter->current;
+  limit = iter->data + iter->restarts; /* Restarts come right after data. */
+
+  if (p >= limit) {
+    /* No more entries to return. Mark as invalid. */
+    iter->current = iter->restarts;
+    iter->restart_index = iter->num_restarts;
+    return 0;
+  }
+
+  /* Decode next entry. */
+  p = ldb_decode_entry(&shared, &non_shared, &value_length, p, limit);
+
+  if (p == NULL || iter->key.size < shared) {
+    ldb_blockiter_corruption(iter);
+    return 0;
+  }
+
+  if (is_internal && shared + non_shared < 8) {
+    ldb_blockiter_corruption(iter);
+    return 0;
+  }
+
+  ldb_buffer_resize(&iter->key, shared);
+  ldb_buffer_append(&iter->key, p, non_shared);
+
+  ldb_slice_set(&iter->value, p + non_shared, value_length);
+
+  while (iter->restart_index + 1 < iter->num_restarts
+      && ldb_blockiter_restart_point(iter, iter->restart_index + 1) < iter->current) {
+    ++iter->restart_index;
+  }
+
+  return 1;
+}
 
 static void
 ldb_blockiter_next(ldb_blockiter_t *iter) {
@@ -374,50 +415,6 @@ ldb_blockiter_last(ldb_blockiter_t *iter) {
       && ldb_blockiter_next_entry_offset(iter) < iter->restarts) {
     /* Keep skipping. */
   }
-}
-
-static int
-ldb_blockiter_parse_next_key(ldb_blockiter_t *iter) {
-  int is_internal = (iter->comparator->user_comparator != NULL);
-  uint32_t shared, non_shared, value_length;
-  const uint8_t *p, *limit;
-
-  iter->current = ldb_blockiter_next_entry_offset(iter);
-
-  p = iter->data + iter->current;
-  limit = iter->data + iter->restarts; /* Restarts come right after data. */
-
-  if (p >= limit) {
-    /* No more entries to return. Mark as invalid. */
-    iter->current = iter->restarts;
-    iter->restart_index = iter->num_restarts;
-    return 0;
-  }
-
-  /* Decode next entry. */
-  p = ldb_decode_entry(&shared, &non_shared, &value_length, p, limit);
-
-  if (p == NULL || iter->key.size < shared) {
-    ldb_blockiter_corruption(iter);
-    return 0;
-  }
-
-  if (is_internal && shared + non_shared < 8) {
-    ldb_blockiter_corruption(iter);
-    return 0;
-  }
-
-  ldb_buffer_resize(&iter->key, shared);
-  ldb_buffer_append(&iter->key, p, non_shared);
-
-  ldb_slice_set(&iter->value, p + non_shared, value_length);
-
-  while (iter->restart_index + 1 < iter->num_restarts
-      && ldb_blockiter_restart_point(iter, iter->restart_index + 1) < iter->current) {
-    ++iter->restart_index;
-  }
-
-  return 1;
 }
 
 LDB_ITERATOR_FUNCTIONS(ldb_blockiter);
