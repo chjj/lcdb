@@ -838,7 +838,7 @@ done:
 
 int
 ldb_has(ldb_t *db, const ldb_slice_t *key, const ldb_readopt_t *options) {
-  ldb_slice_t val;
+  ldb_slice_t val = {NULL, 0, 0};
   int rc;
 
   rc = ldb_get(db, key, &val, options);
