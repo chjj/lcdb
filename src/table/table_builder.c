@@ -232,7 +232,7 @@ ldb_tablebuilder_write_block(ldb_tablebuilder_t *tb,
 
   ldb_tablebuilder_write_raw_block(tb, block_contents, type, handle);
 
-  /* ldb_buffer_reset(&tb->compressed_output); */
+  ldb_buffer_reset(&tb->compressed_output);
 
   ldb_blockbuilder_reset(block);
 }

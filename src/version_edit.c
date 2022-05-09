@@ -162,7 +162,7 @@ ldb_filemeta_ref(ldb_filemeta_t *z) {
 
 void
 ldb_filemeta_unref(ldb_filemeta_t *z) {
-  /* assert(z->refs > 0); */
+  assert(z->refs > 0);
 
   z->refs--;
 
