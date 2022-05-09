@@ -51,6 +51,12 @@ typedef struct ldb_filterreader_s {
  * Filter Builder
  */
 
+ldb_filterbuilder_t *
+ldb_filterbuilder_create(const ldb_bloom_t *policy);
+
+void
+ldb_filterbuilder_destroy(ldb_filterbuilder_t *fb);
+
 void
 ldb_filterbuilder_init(ldb_filterbuilder_t *fb,
                        const struct ldb_bloom_s *policy);
@@ -70,6 +76,13 @@ ldb_filterbuilder_finish(ldb_filterbuilder_t *fb);
 /*
  * Filter Reader
  */
+
+ldb_filterreader_t *
+ldb_filterreader_create(const ldb_bloom_t *policy,
+                        const ldb_slice_t *contents);
+
+void
+ldb_filterreader_destroy(ldb_filterreader_t *fr);
 
 /* REQUIRES: "contents" and *policy must stay live while *this is live. */
 void

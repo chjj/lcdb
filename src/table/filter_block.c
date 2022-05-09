@@ -35,6 +35,19 @@
  * Filter Builder
  */
 
+ldb_filterbuilder_t *
+ldb_filterbuilder_create(const ldb_bloom_t *policy) {
+  ldb_filterbuilder_t *fb = ldb_malloc(sizeof(ldb_filterbuilder_t));
+  ldb_filterbuilder_init(fb, policy);
+  return fb;
+}
+
+void
+ldb_filterbuilder_destroy(ldb_filterbuilder_t *fb) {
+  ldb_filterbuilder_clear(fb);
+  ldb_free(fb);
+}
+
 void
 ldb_filterbuilder_init(ldb_filterbuilder_t *fb, const ldb_bloom_t *policy) {
   fb->policy = policy;
@@ -129,6 +142,19 @@ ldb_filterbuilder_finish(ldb_filterbuilder_t *fb) {
 /*
  * Filter Reader
  */
+
+ldb_filterreader_t *
+ldb_filterreader_create(const ldb_bloom_t *policy,
+                        const ldb_slice_t *contents) {
+  ldb_filterreader_t *fr = ldb_malloc(sizeof(ldb_filterreader_t));
+  ldb_filterreader_init(fr, policy, contents);
+  return fr;
+}
+
+void
+ldb_filterreader_destroy(ldb_filterreader_t *fr) {
+  ldb_free(fr);
+}
 
 void
 ldb_filterreader_init(ldb_filterreader_t *fr,

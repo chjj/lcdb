@@ -46,7 +46,6 @@ struct ldb_tablebuilder_s {
   ldb_buffer_t last_key;
   int64_t num_entries;
   int closed; /* Either finish() or abandon() has been called. */
-  ldb_filterbuilder_t filter_block_;
   ldb_filterbuilder_t *filter_block;
 
   /* We do not emit the index entry for a block until we have seen the
@@ -88,9 +87,8 @@ ldb_tablebuilder_init(ldb_tablebuilder_t *tb,
   tb->index_block_options.block_restart_interval = 1;
 
   if (options->filter_policy != NULL) {
-    tb->filter_block = &tb->filter_block_;
+    tb->filter_block = ldb_filterbuilder_create(options->filter_policy);
 
-    ldb_filterbuilder_init(tb->filter_block, options->filter_policy);
     ldb_filterbuilder_start_block(tb->filter_block, 0);
   }
 }
@@ -106,7 +104,7 @@ ldb_tablebuilder_clear(ldb_tablebuilder_t *tb) {
   ldb_buffer_clear(&tb->compressed_output);
 
   if (tb->filter_block != NULL)
-    ldb_filterbuilder_clear(tb->filter_block);
+    ldb_filterbuilder_destroy(tb->filter_block);
 }
 
 ldb_tablebuilder_t *

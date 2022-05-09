@@ -54,7 +54,7 @@ ldb_table_init(ldb_table_t *table) {
 static void
 ldb_table_clear(ldb_table_t *table) {
   if (table->filter != NULL)
-    ldb_free(table->filter);
+    ldb_filterreader_destroy(table->filter);
 
   if (table->filter_data != NULL)
     ldb_free((void *)table->filter_data);
@@ -89,11 +89,8 @@ ldb_table_read_filter(ldb_table_t *table,
   if (block.heap_allocated)
     table->filter_data = block.data.data; /* Will need to delete later. */
 
-  table->filter = ldb_malloc(sizeof(ldb_filterreader_t));
-
-  ldb_filterreader_init(table->filter,
-                        table->options.filter_policy,
-                        &block.data);
+  table->filter = ldb_filterreader_create(table->options.filter_policy,
+                                          &block.data);
 }
 
 static void
