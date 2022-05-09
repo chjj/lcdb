@@ -85,7 +85,6 @@ test_init(test_t *t) {
 
   t->last_options = *ldb_dbopt_default;
   t->last_options.comparator = ldb_bytewise_comparator;
-  t->last_options.compression = LDB_SNAPPY_COMPRESSION;
 
   t->config = CONFIG_DEFAULT;
   t->policy = ldb_bloom_create(10);
@@ -229,7 +228,6 @@ test_current_options(test_t *t) {
   ldb_dbopt_t options = *ldb_dbopt_default;
 
   options.comparator = ldb_bytewise_comparator;
-  options.compression = LDB_SNAPPY_COMPRESSION;
   options.reuse_logs = 0;
 
   switch (t->config) {

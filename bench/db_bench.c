@@ -141,7 +141,7 @@ static int FLAGS_use_existing_db = 0;
 static int FLAGS_reuse_logs = 0;
 
 /* If true, use compression. */
-static int FLAGS_compression = 0;
+static int FLAGS_compression = 1;
 
 /* If true, use memory-mapped reads. */
 static int FLAGS_use_mmap = 1;
@@ -1572,8 +1572,6 @@ main(int argc, char **argv) {
   FLAGS_max_file_size = ldb_dbopt_default->max_file_size;
   FLAGS_block_size = ldb_dbopt_default->block_size;
   FLAGS_open_files = ldb_dbopt_default->max_open_files;
-  FLAGS_compression = (int)ldb_dbopt_default->compression;
-  FLAGS_use_mmap = ldb_dbopt_default->use_mmap;
 
   for (i = 1; i < argc; i++) {
     char junk;

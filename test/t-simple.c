@@ -44,6 +44,7 @@ main(void) {
   {
     opt.create_if_missing = 1;
     opt.error_if_exists = 1;
+    opt.compression = LDB_NO_COMPRESSION;
     opt.filter_policy = ldb_bloom_default;
 
     rc = ldb_open(path, &opt, &db);

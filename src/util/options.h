@@ -132,7 +132,8 @@ typedef struct ldb_dbopt_s {
   /* Compress blocks using the specified compression algorithm. This
    * parameter can be changed dynamically.
    *
-   * Default: LDB_NO_COMPRESSION, which gives no compression.
+   * Default: LDB_SNAPPY_COMPRESSION, which gives lightweight but fast
+   * compression.
    *
    * Typical speeds of LDB_SNAPPY_COMPRESSION on an Intel(R) Core(TM)2 2.4GHz:
    *    ~200-500MB/s compression
@@ -143,7 +144,7 @@ typedef struct ldb_dbopt_s {
    * incompressible, the LDB_SNAPPY_COMPRESSION implementation will
    * efficiently detect that and will switch to uncompressed mode.
    */
-  enum ldb_compression compression; /* LDB_NO_COMPRESSION */
+  enum ldb_compression compression; /* LDB_SNAPPY_COMPRESSION */
 
   /* EXPERIMENTAL: If true, append to existing MANIFEST and log files
    * when a database is opened. This can significantly speed up open.
