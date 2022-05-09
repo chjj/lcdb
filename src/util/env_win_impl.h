@@ -508,6 +508,7 @@ ldb_get_children_wide(const char *path, char ***out) {
   size_t size = 8;
   ldb_wide_t buf;
   size_t i = 0;
+  DWORD attrs;
   size_t j;
 
   if (len == 0) {
@@ -520,7 +521,9 @@ ldb_get_children_wide(const char *path, char ***out) {
   if (!ldb_utf16_write(buf.data, len, path))
     goto fail;
 
-  if (!(GetFileAttributesW(buf.data) & FILE_ATTRIBUTE_DIRECTORY))
+  attrs = GetFileAttributesW(buf.data);
+
+  if (attrs == INVALID_FILE_ATTRIBUTES || !(attrs & FILE_ATTRIBUTE_DIRECTORY))
     goto fail;
 
   list = (char **)malloc(size * sizeof(char *));
@@ -626,12 +629,15 @@ ldb_get_children_ansi(const char *path, char ***out) {
   const char *base;
   size_t size = 8;
   size_t i = 0;
+  DWORD attrs;
   size_t j;
 
   if (len + 4 > sizeof(buf))
     goto fail;
 
-  if (!(GetFileAttributesA(path) & FILE_ATTRIBUTE_DIRECTORY))
+  attrs = GetFileAttributesA(path);
+
+  if (attrs == INVALID_FILE_ATTRIBUTES || !(attrs & FILE_ATTRIBUTE_DIRECTORY))
     goto fail;
 
   list = (char **)malloc(size * sizeof(char *));
