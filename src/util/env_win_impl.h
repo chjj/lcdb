@@ -1258,9 +1258,6 @@ ldb_randfile_create(const char *filename, ldb_rfile_t **file, int use_mmap) {
   if (!LDBGetFileSizeEx(handle, &size))
     rc = LDB_WIN32_ERROR(GetLastError());
 
-  if (rc == LDB_OK && (uint64_t)size.QuadPart > (((size_t)-1) / 2))
-    rc = LDB_IOERR;
-
   if (rc == LDB_OK) {
     mapping = CreateFileMappingA(handle, NULL, PAGE_READONLY, 0, 0, NULL);
 

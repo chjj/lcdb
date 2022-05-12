@@ -1043,9 +1043,6 @@ ldb_randfile_create(const char *filename, ldb_rfile_t **file, int use_mmap) {
   else
     size = st.st_size;
 
-  if (rc == LDB_OK && size > (((size_t)-1) / 2))
-    rc = LDB_IOERR;
-
   if (rc == LDB_OK) {
     void *base = mmap(NULL, size, PROT_READ, MAP_SHARED, fd, 0);
 
