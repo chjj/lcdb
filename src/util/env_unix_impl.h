@@ -651,7 +651,7 @@ ldb_copy_file(const char *from, const char *to) {
     while (len > 0) {
       do {
         nwrite = write(wfd, ptr, len);
-      } while (nwrite < 0 && nwrite == EINTR);
+      } while (nwrite < 0 && errno == EINTR);
 
       if (nwrite < 0)
         goto fail;
