@@ -669,6 +669,9 @@ fail:
   if (buf != NULL)
     free(buf);
 
+  if (rc != LDB_OK)
+    unlink(to);
+
   return rc;
 }
 
