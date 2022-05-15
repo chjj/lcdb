@@ -710,6 +710,9 @@ ldb_repair(const char *dbname, const ldb_dbopt_t *options) {
 
   ldb_crc32c_init();
 
+  if (options == NULL)
+    return LDB_INVALID;
+
   if (!repair_init(&rep, dbname, options))
     return LDB_INVALID;
 

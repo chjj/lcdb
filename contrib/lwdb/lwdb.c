@@ -1029,7 +1029,7 @@ ldb_repair(const char *dbname, const ldb_dbopt_t *options) {
   char *err = NULL;
 
   if (options == NULL)
-    options = ldb_dbopt_default;
+    return LDB_INVALID;
 
   cmp = convert_comparator(options->comparator);
   opt = convert_dbopt(options, cmp, &policy);
@@ -1054,10 +1054,9 @@ ldb_copy(const char *from, const char *to, const ldb_dbopt_t *options) {
   int rc;
 
   if (options == NULL)
-    opt = *ldb_dbopt_default;
-  else
-    opt = *options;
+    return LDB_INVALID;
 
+  opt = *options;
   opt.create_if_missing = 0;
   opt.error_if_exists = 0;
 
