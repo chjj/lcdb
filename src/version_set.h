@@ -16,24 +16,23 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "table/iterator.h"
-
 #include "util/comparator.h"
-#include "util/env.h"
-#include "util/internal.h"
 #include "util/options.h"
 #include "util/port.h"
 #include "util/rbt.h"
 #include "util/types.h"
 
 #include "dbformat.h"
-#include "log_writer.h"
-#include "table_cache.h"
 #include "version_edit.h"
 
 /*
  * Types
  */
+
+struct ldb_iter_s;
+struct ldb_logwriter_s;
+struct ldb_tcache_s;
+struct ldb_wfile_s;
 
 typedef struct ldb_getstats_s {
   ldb_filemeta_t *seek_file;
@@ -67,7 +66,7 @@ struct ldb_version_s {
 struct ldb_vset_s {
   const char *dbname;
   const ldb_dbopt_t *options;
-  ldb_tcache_t *table_cache;
+  struct ldb_tcache_s *table_cache;
   ldb_comparator_t icmp;
   uint64_t next_file_number;
   uint64_t manifest_file_number;
@@ -76,8 +75,8 @@ struct ldb_vset_s {
   uint64_t prev_log_number; /* 0 or backing store for memtable being compacted. */
 
   /* Opened lazily. */
-  ldb_wfile_t *descriptor_file;
-  ldb_logwriter_t *descriptor_log;
+  struct ldb_wfile_s *descriptor_file;
+  struct ldb_logwriter_s *descriptor_log;
   ldb_version_t dummy_versions; /* Head of circular doubly-linked list of versions. */
   ldb_version_t *current;       /* == dummy_versions.prev */
 
@@ -116,8 +115,8 @@ struct ldb_compaction_s {
  * Helpers
  */
 
-#define find_file ldb__find_file
-#define some_file_overlaps_range ldb__some_file_overlaps_range
+#define find_file ldb_find_file
+#define some_file_overlaps_range ldb_some_file_overlaps_range
 
 /* Return the smallest index i such that files[i]->largest >= key. */
 /* Return files.size if there is no such file. */
@@ -226,7 +225,7 @@ ldb_version_debug(ldb_buffer_t *z, const ldb_version_t *x);
 ldb_vset_t *
 ldb_vset_create(const char *dbname,
                 const ldb_dbopt_t *options,
-                ldb_tcache_t *table_cache,
+                struct ldb_tcache_s *table_cache,
                 const ldb_comparator_t *cmp);
 
 void
@@ -317,7 +316,7 @@ ldb_vset_num_level_bytes(const ldb_vset_t *vset, int level);
 int64_t
 ldb_vset_max_next_level_overlapping_bytes(ldb_vset_t *vset);
 
-#define add_boundary_inputs ldb__add_boundary_inputs
+#define add_boundary_inputs ldb_add_boundary_inputs
 
 void
 add_boundary_inputs(const ldb_comparator_t *icmp,
@@ -347,7 +346,7 @@ ldb_vset_compact_range(ldb_vset_t *vset,
 
 /* Create an iterator that reads over the compaction inputs for "*c".
    The caller should delete the iterator when no longer needed. */
-ldb_iter_t *
+struct ldb_iter_s *
 ldb_inputiter_create(ldb_vset_t *vset, ldb_compaction_t *c);
 
 /*
