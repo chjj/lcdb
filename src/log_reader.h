@@ -15,6 +15,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include "util/types.h"
 
@@ -27,14 +28,14 @@ struct ldb_rfile_s;
 
 /* Interface for reporting errors. */
 typedef struct ldb_reporter_s {
+  const char *fname; /* db_impl.c */
+  int *status; /* db_impl.c, version_set.c, t-log.c */
+  struct ldb_logger_s *info_log; /* db_impl.c, repair.c */
+  uint64_t lognum; /* repair.c */
+  FILE *dst; /* dumpfile.c */
+  size_t dropped_bytes; /* t-log.c */
   /* Some corruption was detected. "bytes" is the approximate number
      of bytes dropped due to the corruption. */
-  const char *fname;
-  int *status;
-  struct ldb_logger_s *info_log;
-  uint64_t lognum;
-  void *dst; /* FILE */
-  size_t dropped_bytes;
   void (*corruption)(struct ldb_reporter_s *reporter, size_t bytes, int status);
 } ldb_reporter_t;
 
@@ -64,7 +65,7 @@ typedef struct ldb_logreader_s {
 } ldb_logreader_t;
 
 /*
- * LogWriter
+ * LogReader
  */
 
 /* Create a reader that will return log records from "*file".
