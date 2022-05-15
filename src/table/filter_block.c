@@ -173,7 +173,7 @@ ldb_filterreader_init(ldb_filterreader_t *fr,
   if (n < 5)
     return; /* 1 byte for base_lg and 4 for start of offset array. */
 
-  fr->base_lg = contents->data[n - 1];
+  fr->base_lg = contents->data[n - 1] & 63;
 
   last_word = ldb_fixed32_decode(contents->data + n - 5);
 
