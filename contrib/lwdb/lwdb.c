@@ -161,8 +161,8 @@ struct ldb_writeopt_s {
 };
 
 struct ldb_s {
-  ldb_dbopt_t dbopt;
   ldb_comparator_t ucmp;
+  ldb_dbopt_t dbopt;
   leveldb_comparator_t *cmp;
   leveldb_filterpolicy_t *policy;
   leveldb_options_t *options;
@@ -413,7 +413,7 @@ convert_error(char *err) {
     *p = '\0';
 
   if (strcmp(err, "OK") == 0)
-    return LDB_OK;
+    abort(); /* LCOV_EXCL_LINE */
 
   if (strcmp(err, "NotFound") == 0)
     return LDB_NOTFOUND;
@@ -759,9 +759,12 @@ ldb_open(const char *dbname, const ldb_dbopt_t *options, ldb_t **dbptr) {
   if (options == NULL)
     options = ldb_dbopt_default;
 
+  if (options->comparator != NULL)
+    db->ucmp = *options->comparator;
+  else
+    db->ucmp = bytewise_comparator;
+
   db->dbopt = *options;
-  db->ucmp = options->comparator != NULL ? *options->comparator
-                                         : bytewise_comparator;
   db->dbopt.comparator = &db->ucmp;
   db->cmp = convert_comparator(&db->ucmp);
   db->policy = NULL;
@@ -977,6 +980,9 @@ ldb_backup(ldb_t *db, const char *name) {
   opt.error_if_exists = 1;
   opt.info_log = NULL;
   opt.block_cache = NULL;
+
+  if (opt.write_buffer_size < (64 << 10))
+    opt.write_buffer_size = 64 << 10;
 
   rc = ldb_open(name, &opt, &bak);
 
