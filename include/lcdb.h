@@ -173,9 +173,6 @@ ldb_batch_clear(ldb_batch_t *batch);
 void
 ldb_batch_reset(ldb_batch_t *batch);
 
-size_t
-ldb_batch_approximate_size(const ldb_batch_t *batch);
-
 void
 ldb_batch_put(ldb_batch_t *batch,
               const ldb_slice_t *key,

@@ -85,7 +85,7 @@ ldb_batch_reset(ldb_batch_t *batch);
  * This number is tied to implementation details, and may change across
  * releases. It is intended for usage metrics.
  */
-LDB_EXTERN size_t
+size_t
 ldb_batch_approximate_size(const ldb_batch_t *batch);
 
 /* Support for iterating over the contents of a batch. */

@@ -203,9 +203,6 @@ ldb_batch_clear(ldb_batch_t *batch);
 LDB_EXTERN void
 ldb_batch_reset(ldb_batch_t *batch);
 
-LDB_EXTERN size_t
-ldb_batch_approximate_size(const ldb_batch_t *batch);
-
 LDB_EXTERN void
 ldb_batch_put(ldb_batch_t *batch,
               const ldb_slice_t *key,
@@ -600,30 +597,6 @@ ldb_batch_reset(ldb_batch_t *batch) {
   leveldb_writebatch_destroy(batch->rep);
 
   batch->rep = leveldb_writebatch_create();
-}
-
-static void
-size_put(void *state, const char *k, size_t klen,
-                      const char *v, size_t vlen) {
-  (void)k;
-  (void)v;
-
-  *((size_t *)state) += klen;
-  *((size_t *)state) += vlen;
-}
-
-static void
-size_del(void *state, const char *k, size_t klen) {
-  (void)k;
-
-  *((size_t *)state) += klen;
-}
-
-size_t
-ldb_batch_approximate_size(const ldb_batch_t *batch) {
-  size_t result = 0;
-  leveldb_writebatch_iterate(batch->rep, &result, size_put, size_del);
-  return result;
 }
 
 void
