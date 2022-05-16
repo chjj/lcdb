@@ -48,7 +48,6 @@ handle_repair_command(char **argv, int argc) {
   const char *dbname = NULL;
   ldb_bloom_t policy;
   int rc = LDB_OK;
-  int ok = 1;
   int i;
 
   for (i = 0; i < argc; i++) {
@@ -90,30 +89,23 @@ handle_repair_command(char **argv, int argc) {
   if (rc == LDB_OK)
     rc = ldb_repair(dbname, &options);
 
-  if (rc != LDB_OK) {
+  if (rc != LDB_OK)
     fprintf(stderr, "%s\n", ldb_strerror(rc));
-    ok = 0;
-  }
 
-  return ok;
+  return rc == LDB_OK;
 }
 
 static int
 handle_copy_command(char **argv, int argc) {
-  int rc = LDB_OK;
-  int ok = 1;
+  int rc = LDB_INVALID;
 
   if (argc >= 2)
     rc = ldb_copy(argv[0], argv[1], NULL);
-  else
-    rc = LDB_INVALID;
 
-  if (rc != LDB_OK) {
+  if (rc != LDB_OK)
     fprintf(stderr, "%s\n", ldb_strerror(rc));
-    ok = 0;
-  }
 
-  return ok;
+  return rc == LDB_OK;
 }
 
 static int
