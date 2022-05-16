@@ -55,7 +55,17 @@ handle_repair_command(char **argv, int argc) {
     char junk;
     int n;
 
-    if (sscanf(argv[i], "--compression=%d%c", &n, &junk) == 1) {
+    if (sscanf(argv[i], "--block_size=%d%c", &n, &junk) == 1) {
+      if (n >= 1024)
+        options.block_size = n;
+      else
+        rc = LDB_INVALID;
+    } else if (sscanf(argv[i], "--restart_interval=%d%c", &n, &junk) == 1) {
+      if (n >= 0)
+        options.block_restart_interval = n;
+      else
+        rc = LDB_INVALID;
+    } else if (sscanf(argv[i], "--compression=%d%c", &n, &junk) == 1) {
       if (n >= 0 && n <= 1)
         options.compression = (enum ldb_compression)n;
       else
