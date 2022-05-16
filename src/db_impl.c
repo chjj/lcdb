@@ -1326,8 +1326,8 @@ ldb_do_compaction_work(ldb_t *db, ldb_cstate_t *compact) {
 
   ldb_iter_first(input);
 
-  while (ldb_iter_valid(input) &&
-        !ldb_atomic_load(&db->shutting_down, ldb_order_acquire)) {
+  while (ldb_iter_valid(input) && !ldb_atomic_load(&db->shutting_down,
+                                                   ldb_order_acquire)) {
     ldb_slice_t key, value;
     int drop = 0;
 
@@ -1375,7 +1375,7 @@ ldb_do_compaction_work(ldb_t *db, ldb_cstate_t *compact) {
 
       if (last_sequence_for_key <= compact->smallest_snapshot) {
         /* Hidden by an newer entry for same user key. */
-        drop = 1;  /* (A) */
+        drop = 1; /* (A) */
       } else if (ikey.type == LDB_TYPE_DELETION &&
                  ikey.sequence <= compact->smallest_snapshot &&
                  ldb_compaction_is_base_level_for_key(compact->compaction,
