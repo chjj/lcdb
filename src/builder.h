@@ -26,7 +26,7 @@ struct ldb_tcache_s;
  * BuildTable
  */
 
-/* Build a Table file from the contents of *iter.  The generated file
+/* Build a Table file from the contents of *iter. The generated file
    will be named according to meta->number. On success, the rest of
    *meta will be filled with metadata about the generated table.
    If no data is present in *iter, meta->file_size will be set to

@@ -371,11 +371,11 @@ ldb_blockiter_seek(ldb_blockiter_t *iter, const ldb_slice_t *target) {
     ldb_slice_set(&mid_key, key_ptr, non_shared);
 
     if (ldb_blockiter_compare(iter, &mid_key, target) < 0) {
-      /* Key at "mid" is smaller than "target".  Therefore all
+      /* Key at "mid" is smaller than "target". Therefore all
          blocks before "mid" are uninteresting. */
       left = mid;
     } else {
-      /* Key at "mid" is >= "target".  Therefore all blocks at or
+      /* Key at "mid" is >= "target". Therefore all blocks at or
          after "mid" are uninteresting. */
       right = mid - 1;
     }

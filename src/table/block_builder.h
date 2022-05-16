@@ -56,7 +56,7 @@ ldb_blockbuilder_add(ldb_blockbuilder_t *bb,
                      const ldb_slice_t *value);
 
 /* Finish building the block and return a slice that refers to the
-   block contents.  The returned slice will remain valid for the
+   block contents. The returned slice will remain valid for the
    lifetime of this builder or until reset() is called. */
 ldb_slice_t
 ldb_blockbuilder_finish(ldb_blockbuilder_t *bb);

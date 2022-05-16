@@ -113,7 +113,7 @@ ldb_logwriter_add_record(ldb_logwriter_t *lw, const ldb_slice_t *slice) {
   int rc = LDB_OK;
   int begin = 1;
 
-  /* Fragment the record if necessary and emit it.  Note that if slice
+  /* Fragment the record if necessary and emit it. Note that if slice
      is empty, we still want to iterate once to emit a single
      zero-length record. */
   do {

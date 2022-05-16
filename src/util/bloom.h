@@ -34,7 +34,7 @@ typedef struct ldb_bloom_s {
    * that are ordered according to the user supplied comparator.
    * Append a filter that summarizes keys[0,n-1] to *dst.
    *
-   * Warning: do not change the initial contents of *dst.  Instead,
+   * Warning: do not change the initial contents of *dst. Instead,
    * append the newly constructed filter to *dst.
    */
   void (*build)(const struct ldb_bloom_s *bloom,

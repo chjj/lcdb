@@ -49,13 +49,13 @@ struct ldb_tablebuilder_s {
   ldb_filterbuilder_t *filter_block;
 
   /* We do not emit the index entry for a block until we have seen the
-     first key for the next data block.  This allows us to use shorter
-     keys in the index block.  For example, consider a block boundary
-     between the keys "the quick brown fox" and "the who".  We can use
+     first key for the next data block. This allows us to use shorter
+     keys in the index block. For example, consider a block boundary
+     between the keys "the quick brown fox" and "the who". We can use
      "the r" as the key for the index block entry since it is >= all
      entries in the first block and < all entries in subsequent
      blocks. */
-  /* Invariant: tb->pending_index_entry is true only if data_block is empty. */
+  /* Invariant: pending_index_entry is true only if data_block is empty. */
   int pending_index_entry;
   ldb_blockhandle_t pending_handle; /* Handle to add to index block. */
   ldb_buffer_t compressed_output;

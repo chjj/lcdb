@@ -1800,7 +1800,7 @@ ldb_make_room_for_write(ldb_t *db, int force) {
       /* We are getting close to hitting a hard limit on the number of
          L0 files. Rather than delaying a single write by several
          seconds when we hit the hard limit, start delaying each
-         individual write by 1ms to reduce latency variance.  Also,
+         individual write by 1ms to reduce latency variance. Also,
          this delay hands over some CPU to the compaction thread in
          case it is sharing the same core as the writer. */
       ldb_mutex_unlock(&db->mutex);
@@ -2211,7 +2211,7 @@ ldb_write(ldb_t *db, ldb_batch_t *updates, const ldb_writeopt_t *options) {
 
     last_sequence += ldb_batch_count(write_batch);
 
-    /* Add to log and apply to memtable.  We can release the lock
+    /* Add to log and apply to memtable. We can release the lock
        during this phase since &w is currently responsible for logging
        and protects against concurrent loggers and concurrent writes
        into db->mem. */
