@@ -586,7 +586,7 @@ bench_init(bench_t *bench) {
     ldb_free_children(files, len);
 
   if (!FLAGS_use_existing_db)
-    ldb_destroy(FLAGS_db, 0);
+    ldb_destroy(FLAGS_db, ldb_dbopt_default);
 }
 
 static void

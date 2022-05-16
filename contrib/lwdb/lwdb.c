@@ -973,7 +973,7 @@ ldb_backup(ldb_t *db, const char *name) {
     ldb_slice_t val = ldb_iter_value(it);
 
     if (size >= opt.write_buffer_size) {
-      rc = ldb_write(bak, &batch, 0);
+      rc = ldb_write(bak, &batch, NULL);
 
       if (rc != LDB_OK)
         break;
@@ -997,12 +997,12 @@ ldb_backup(ldb_t *db, const char *name) {
   ldb_release(db, iopt.snapshot);
 
   if (rc == LDB_OK && size > 0)
-    rc = ldb_write(bak, &batch, 0);
+    rc = ldb_write(bak, &batch, NULL);
 
   ldb_batch_clear(&batch);
 
   if (rc == LDB_OK && size > 0)
-    ldb_compact(bak, 0, 0);
+    ldb_compact(bak, NULL, NULL);
 
   ldb_close(bak);
 
