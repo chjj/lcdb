@@ -933,9 +933,9 @@ ldb_link_file(const char *from, const char *to) {
     if (!LDBCreateHardLinkW(dst.data, src.data, NULL)) {
       int code = GetLastError();
 
-      if (code == ERROR_INVALID_FUNCTION /* Not NTFS. */
-          || code == ERROR_NOT_SAME_DEVICE
-          || code == ERROR_CALL_NOT_IMPLEMENTED) {
+      if (code == ERROR_INVALID_FUNCTION || /* Not NTFS. */
+          code == ERROR_NOT_SAME_DEVICE ||
+          code == ERROR_CALL_NOT_IMPLEMENTED) {
         if (!CopyFileW(src.data, dst.data, TRUE))
           rc = LDB_WIN32_ERROR(GetLastError());
       } else {

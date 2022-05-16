@@ -81,8 +81,8 @@ LDB_UNUSED static ldb_snapshot_t *
 ldb_snaplist_new(ldb_snaplist_t *list, ldb_seqnum_t sequence) {
   ldb_snapshot_t *snap;
 
-  assert(ldb_snaplist_empty(list)
-      || ldb_snaplist_newest(list)->sequence <= sequence);
+  assert(ldb_snaplist_empty(list) ||
+         ldb_snaplist_newest(list)->sequence <= sequence);
 
   snap = ldb_malloc(sizeof(ldb_snapshot_t));
 

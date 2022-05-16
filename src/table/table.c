@@ -339,9 +339,9 @@ ldb_table_internal_get(ldb_table_t *table,
     ldb_filterreader_t *filter = table->filter;
     ldb_blockhandle_t handle;
 
-    if (filter != NULL
-        && ldb_blockhandle_import(&handle, &iter_value)
-        && !ldb_filterreader_matches(filter, handle.offset, k)) {
+    if (filter != NULL &&
+        ldb_blockhandle_import(&handle, &iter_value) &&
+        !ldb_filterreader_matches(filter, handle.offset, k)) {
       /* Not found. */
     } else {
       ldb_iter_t *block_iter = ldb_table_blockreader(table,

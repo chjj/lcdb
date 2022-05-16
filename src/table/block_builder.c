@@ -151,7 +151,7 @@ ldb_blockbuilder_finish(ldb_blockbuilder_t *bb) {
 
 size_t
 ldb_blockbuilder_size_estimate(const ldb_blockbuilder_t *bb) {
-  return (bb->buffer.size                         /* Raw data buffer */
-        + bb->restarts.length * sizeof(uint32_t)  /* Restart array */
-        + sizeof(uint32_t));                      /* Restart array length */
+  return (bb->buffer.size +                        /* Raw data buffer */
+          bb->restarts.length * sizeof(uint32_t) + /* Restart array */
+          sizeof(uint32_t));                       /* Restart array length */
 }

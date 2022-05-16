@@ -2670,9 +2670,9 @@ ldb_test_compact_range(ldb_t *db, int level,
 
   ldb_mutex_lock(&db->mutex);
 
-  while (!manual.done
-      && !ldb_atomic_load(&db->shutting_down, ldb_order_acquire)
-      && db->bg_error == LDB_OK) {
+  while (!manual.done &&
+         !ldb_atomic_load(&db->shutting_down, ldb_order_acquire) &&
+         db->bg_error == LDB_OK) {
     if (db->manual_compaction == NULL) { /* Idle. */
       db->manual_compaction = &manual;
       ldb_maybe_schedule_compaction(db);

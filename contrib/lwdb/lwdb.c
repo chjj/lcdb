@@ -486,8 +486,8 @@ convert_comparator(ldb_comparator_t *cmp) {
   if (cmp == NULL)
     return NULL;
 
-  if (cmp->name == ldb_bytewise_comparator->name
-      && cmp->compare == ldb_bytewise_comparator->compare) {
+  if (cmp->name == ldb_bytewise_comparator->name &&
+      cmp->compare == ldb_bytewise_comparator->compare) {
     return NULL;
   }
 

@@ -919,8 +919,8 @@ iter_equal(ldb_iter_t *iter, rb_iter_t *it) {
   k2 = rb_iter_key(it);
   v2 = rb_iter_value(it);
 
-  return ldb_buffer_equal(&k1, k2.p)
-      && ldb_buffer_equal(&v1, v2.p);
+  return ldb_buffer_equal(&k1, k2.p) &&
+         ldb_buffer_equal(&v1, v2.p);
 }
 
 static void

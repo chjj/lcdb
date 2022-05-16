@@ -480,8 +480,8 @@ ldb_get_children(const char *path, char ***out) {
       break;
     }
 
-    if (strcmp(entry->d_name, ".") == 0
-        || strcmp(entry->d_name, "..") == 0) {
+    if (strcmp(entry->d_name, ".") == 0 ||
+        strcmp(entry->d_name, "..") == 0) {
       continue;
     }
 

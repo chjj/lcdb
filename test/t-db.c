@@ -2788,8 +2788,8 @@ iter_equal(ldb_iter_t *iter, rb_iter_t *it) {
   if (v1.size != strlen(v2.p))
     return 0;
 
-  return memcmp(k1.data, k2.p, k1.size) == 0
-      && memcmp(v1.data, v2.p, v1.size) == 0;
+  return memcmp(k1.data, k2.p, k1.size) == 0 &&
+         memcmp(v1.data, v2.p, v1.size) == 0;
 }
 
 static void

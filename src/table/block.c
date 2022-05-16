@@ -272,8 +272,8 @@ ldb_blockiter_parse_next_key(ldb_blockiter_t *iter) {
 
   ldb_slice_set(&iter->value, p + non_shared, value_length);
 
-  while (iter->restart_index + 1 < iter->num_restarts
-      && ldb_blockiter_restart_point(iter, iter->restart_index + 1) < iter->current) {
+  while (iter->restart_index + 1 < iter->num_restarts &&
+         ldb_blockiter_restart_point(iter, iter->restart_index + 1) < iter->current) {
     ++iter->restart_index;
   }
 
@@ -309,8 +309,8 @@ ldb_blockiter_prev(ldb_blockiter_t *iter) {
 
   do {
     /* Loop until end of current entry hits the start of original entry. */
-  } while (ldb_blockiter_parse_next_key(iter)
-        && ldb_blockiter_next_entry_offset(iter) < original);
+  } while (ldb_blockiter_parse_next_key(iter) &&
+           ldb_blockiter_next_entry_offset(iter) < original);
 }
 
 static void
@@ -411,8 +411,8 @@ static void
 ldb_blockiter_last(ldb_blockiter_t *iter) {
   ldb_blockiter_seek_restart(iter, iter->num_restarts - 1);
 
-  while (ldb_blockiter_parse_next_key(iter)
-      && ldb_blockiter_next_entry_offset(iter) < iter->restarts) {
+  while (ldb_blockiter_parse_next_key(iter) &&
+         ldb_blockiter_next_entry_offset(iter) < iter->restarts) {
     /* Keep skipping. */
   }
 }

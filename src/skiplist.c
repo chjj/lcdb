@@ -100,8 +100,8 @@ ldb_skipnode_setnext_nb(ldb_skipnode_t *node, int n, ldb_skipnode_t *x) {
 
 static ldb_skipnode_t *
 ldb_skipnode_create(ldb_skiplist_t *list, const uint8_t *key, int height) {
-  size_t size = (sizeof(ldb_skipnode_t)
-               + sizeof(ldb_atomic_ptr(ldb_skipnode_t)) * (height - 1));
+  size_t size = (sizeof(ldb_skipnode_t) +
+                 sizeof(ldb_atomic_ptr(ldb_skipnode_t)) * (height - 1));
 
   ldb_skipnode_t *node = ldb_arena_alloc_aligned(list->arena, size);
 

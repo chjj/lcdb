@@ -1444,11 +1444,11 @@ ldb_vset_reuse_manifest(ldb_vset_t *vset, const char *dscname) {
 
   dscbase = ldb_basename(dscname);
 
-  if (!ldb_parse_filename(&manifest_type, &manifest_number, dscbase)
-      || manifest_type != LDB_FILE_DESC
-      || ldb_file_size(dscname, &manifest_size) != LDB_OK
+  if (!ldb_parse_filename(&manifest_type, &manifest_number, dscbase) ||
+      manifest_type != LDB_FILE_DESC ||
+      ldb_file_size(dscname, &manifest_size) != LDB_OK ||
       /* Make new compacted MANIFEST if old one is too big. */
-      || manifest_size >= target_file_size(vset->options)) {
+      manifest_size >= target_file_size(vset->options)) {
     return 0;
   }
 
@@ -2331,9 +2331,9 @@ ldb_compaction_is_trivial_move(const ldb_compaction_t *c) {
   /* Avoid a move if there is lots of overlapping grandparent data.
      Otherwise, the move could create a parent file that will require
      a very expensive merge later on. */
-  return ldb_compaction_num_input_files(c, 0) == 1
-      && ldb_compaction_num_input_files(c, 1) == 0
-      && total_file_size(&c->grandparents) <=
+  return ldb_compaction_num_input_files(c, 0) == 1 &&
+         ldb_compaction_num_input_files(c, 1) == 0 &&
+         total_file_size(&c->grandparents) <=
            max_grandparent_overlap_bytes(vset->options);
 }
 
