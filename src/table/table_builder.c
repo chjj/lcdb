@@ -121,11 +121,6 @@ ldb_tablebuilder_destroy(ldb_tablebuilder_t *tb) {
 }
 
 int
-ldb_tablebuilder_ok(const ldb_tablebuilder_t *tb) {
-  return tb->status == LDB_OK;
-}
-
-int
 ldb_tablebuilder_change_options(ldb_tablebuilder_t *tb,
                                 const ldb_dbopt_t *options) {
   /* Note: if more fields are added to Options, update
@@ -161,7 +156,7 @@ ldb_tablebuilder_write_raw_block(ldb_tablebuilder_t *tb,
     trailer[0] = type;
 
     crc = ldb_crc32c_value(block_contents->data, block_contents->size);
-    crc = ldb_crc32c_extend(crc, trailer, 1); /* Extend crc to cover block type. */
+    crc = ldb_crc32c_extend(crc, trailer, 1); /* Extend crc to cover type. */
 
     ldb_fixed32_write(trailer + 1, ldb_crc32c_mask(crc));
 
@@ -187,7 +182,7 @@ ldb_tablebuilder_write_block(ldb_tablebuilder_t *tb,
   ldb_slice_t raw, *block_contents;
   enum ldb_compression type;
 
-  assert(ldb_tablebuilder_ok(tb));
+  assert(tb->status == LDB_OK);
 
   raw = ldb_blockbuilder_finish(block);
   type = tb->options.compression;
@@ -243,7 +238,7 @@ ldb_tablebuilder_add(ldb_tablebuilder_t *tb,
 
   assert(!tb->closed);
 
-  if (!ldb_tablebuilder_ok(tb))
+  if (tb->status != LDB_OK)
     return;
 
   if (tb->num_entries > 0)
@@ -281,7 +276,7 @@ void
 ldb_tablebuilder_flush(ldb_tablebuilder_t *tb) {
   assert(!tb->closed);
 
-  if (!ldb_tablebuilder_ok(tb))
+  if (tb->status != LDB_OK)
     return;
 
   if (ldb_blockbuilder_empty(&tb->data_block))
@@ -291,7 +286,7 @@ ldb_tablebuilder_flush(ldb_tablebuilder_t *tb) {
 
   ldb_tablebuilder_write_block(tb, &tb->data_block, &tb->pending_handle);
 
-  if (ldb_tablebuilder_ok(tb)) {
+  if (tb->status == LDB_OK) {
     tb->pending_index_entry = 1;
     tb->status = ldb_wfile_flush(tb->file);
   }
@@ -318,7 +313,7 @@ ldb_tablebuilder_finish(ldb_tablebuilder_t *tb) {
   tb->closed = 1;
 
   /* Write filter block. */
-  if (ldb_tablebuilder_ok(tb) && tb->filter_block != NULL) {
+  if (tb->status == LDB_OK && tb->filter_block != NULL) {
     ldb_slice_t contents = ldb_filterbuilder_finish(tb->filter_block);
 
     ldb_tablebuilder_write_raw_block(tb,
@@ -328,7 +323,7 @@ ldb_tablebuilder_finish(ldb_tablebuilder_t *tb) {
   }
 
   /* Write metaindex block. */
-  if (ldb_tablebuilder_ok(tb)) {
+  if (tb->status == LDB_OK) {
     ldb_blockbuilder_t metaindex_block;
 
     ldb_blockbuilder_init(&metaindex_block, &tb->options);
@@ -357,7 +352,7 @@ ldb_tablebuilder_finish(ldb_tablebuilder_t *tb) {
   }
 
   /* Write index block. */
-  if (ldb_tablebuilder_ok(tb)) {
+  if (tb->status == LDB_OK) {
     if (tb->pending_index_entry) {
       uint8_t tmp[LDB_BLOCKHANDLE_MAX];
       ldb_buffer_t handle_encoding;
@@ -373,7 +368,7 @@ ldb_tablebuilder_finish(ldb_tablebuilder_t *tb) {
   }
 
   /* Write footer. */
-  if (ldb_tablebuilder_ok(tb)) {
+  if (tb->status == LDB_OK) {
     uint8_t tmp[LDB_FOOTER_SIZE];
     ldb_buffer_t footer_encoding;
     ldb_footer_t footer;

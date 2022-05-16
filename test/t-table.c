@@ -448,7 +448,7 @@ tablector_finish(tablector_t *c,
   rb_map_iterate(data, key, value) {
     ldb_tablebuilder_add(tb, key, value);
 
-    ASSERT(ldb_tablebuilder_ok(tb));
+    ASSERT(ldb_tablebuilder_status(tb) == LDB_OK);
   }
 
   ASSERT(ldb_tablebuilder_finish(tb) == LDB_OK);

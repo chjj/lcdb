@@ -42,9 +42,6 @@ ldb_tablebuilder_create(const struct ldb_dbopt_s *options,
 void
 ldb_tablebuilder_destroy(ldb_tablebuilder_t *tb);
 
-int
-ldb_tablebuilder_ok(const ldb_tablebuilder_t *tb);
-
 /* Change the options used by this builder. Note: only some of the
  * option fields can be changed after construction. If a field is
  * not allowed to change dynamically and its value in the structure
