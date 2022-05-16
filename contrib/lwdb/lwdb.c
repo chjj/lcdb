@@ -721,12 +721,16 @@ const ldb_comparator_t *ldb_bytewise_comparator = &bytewise_comparator;
 
 int
 ldb_open(const char *dbname, const ldb_dbopt_t *options, ldb_t **dbptr) {
-  ldb_t *db = safe_malloc(sizeof(ldb_t));
   char *err = NULL;
+  ldb_t *db;
   int rc;
 
+  *dbptr = NULL;
+
   if (options == NULL)
-    options = ldb_dbopt_default;
+    return LDB_INVALID;
+
+  db = safe_malloc(sizeof(ldb_t));
 
   if (options->comparator != NULL)
     db->ucmp = *options->comparator;
@@ -745,12 +749,10 @@ ldb_open(const char *dbname, const ldb_dbopt_t *options, ldb_t **dbptr) {
 
   rc = handle_error(err);
 
-  if (rc == LDB_OK) {
+  if (rc == LDB_OK)
     *dbptr = db;
-  } else {
+  else
     ldb_close(db);
-    *dbptr = NULL;
-  }
 
   return rc;
 }

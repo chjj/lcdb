@@ -1975,7 +1975,6 @@ ldb_backup_inner(const char *dbname, const char *bakname, rb_set64_t *live) {
 
 int
 ldb_open(const char *dbname, const ldb_dbopt_t *options, ldb_t **dbptr) {
-  const ldb_dbopt_t *opt = options ? options : ldb_dbopt_default;
   int save_manifest = 0;
   ldb_vedit_t edit;
   int rc = LDB_OK;
@@ -1985,7 +1984,10 @@ ldb_open(const char *dbname, const ldb_dbopt_t *options, ldb_t **dbptr) {
 
   *dbptr = NULL;
 
-  db = ldb_create(dbname, opt);
+  if (options == NULL)
+    return LDB_INVALID;
+
+  db = ldb_create(dbname, options);
 
   if (db == NULL)
     return LDB_INVALID;
