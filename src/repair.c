@@ -692,7 +692,7 @@ repair_run(ldb_repair_t *rep) {
     }
 
     ldb_log(rep->options.info_log,
-            "**** Repaired leveldb %s; "
+            "**** Repaired database %s; "
             "recovered %d files; %.0f bytes. "
             "Some data may have been lost. "
             "****", rep->dbname,
