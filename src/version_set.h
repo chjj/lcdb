@@ -149,9 +149,6 @@ ldb_version_create(ldb_vset_t *vset);
 void
 ldb_version_destroy(ldb_version_t *ver);
 
-int
-ldb_version_num_files(const ldb_version_t *ver, int level);
-
 /* Append to *iters a sequence of iterators that will
    yield the contents of this Version when merged together. */
 /* REQUIRES: This version has been saved (see VersionSet::SaveTo) */
@@ -231,14 +228,6 @@ ldb_vset_create(const char *dbname,
 void
 ldb_vset_destroy(ldb_vset_t *vset);
 
-/* Return the current version. */
-ldb_version_t *
-ldb_vset_current(const ldb_vset_t *vset);
-
-/* Return the current manifest file number. */
-uint64_t
-ldb_vset_manifest_file_number(const ldb_vset_t *vset);
-
 /* Allocate and return a new file number. */
 uint64_t
 ldb_vset_new_file_number(ldb_vset_t *vset);
@@ -248,23 +237,6 @@ ldb_vset_new_file_number(ldb_vset_t *vset);
 /* REQUIRES: "file_number" was returned by a call to NewFileNumber(). */
 void
 ldb_vset_reuse_file_number(ldb_vset_t *vset, uint64_t file_number);
-
-/* Return the last sequence number. */
-uint64_t
-ldb_vset_last_sequence(const ldb_vset_t *vset);
-
-/* Set the last sequence number to s. */
-void
-ldb_vset_set_last_sequence(ldb_vset_t *vset, uint64_t s);
-
-/* Return the current log file number. */
-uint64_t
-ldb_vset_log_number(const ldb_vset_t *vset);
-
-/* Return the log file number for the log file that is currently
-   being compacted, or zero if there is no such log file. */
-uint64_t
-ldb_vset_prev_log_number(const ldb_vset_t *vset);
 
 /* Returns true iff some level needs a compaction. */
 int
@@ -359,16 +331,6 @@ ldb_compaction_create(const ldb_dbopt_t *options, int level);
 void
 ldb_compaction_destroy(ldb_compaction_t *c);
 
-/* Return the level that is being compacted. Inputs from "level"
-   and "level+1" will be merged to produce a set of "level+1" files. */
-int
-ldb_compaction_level(const ldb_compaction_t *cmpct);
-
-/* Return the object that holds the edits to the descriptor done
-   by this compaction. */
-ldb_vedit_t *
-ldb_compaction_edit(ldb_compaction_t *cmpct);
-
 /* "which" must be either 0 or 1 */
 int
 ldb_compaction_num_input_files(const ldb_compaction_t *cmpct, int which);
@@ -376,10 +338,6 @@ ldb_compaction_num_input_files(const ldb_compaction_t *cmpct, int which);
 /* Return the ith input file at "level()+which" ("which" must be 0 or 1). */
 ldb_filemeta_t *
 ldb_compaction_input(const ldb_compaction_t *cmpct, int which, int i);
-
-/* Maximum size of files to build during this compaction. */
-uint64_t
-ldb_compaction_max_output_file_size(const ldb_compaction_t *cmpct);
 
 /* Is this a trivial compaction that can be implemented by just
    moving a single input file to the next level (no merging or splitting). */

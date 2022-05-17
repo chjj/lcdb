@@ -680,13 +680,13 @@ ldb_remove_obsolete_files(ldb_t *db) {
 
       switch (type) {
         case LDB_FILE_LOG:
-          keep = ((number >= ldb_vset_log_number(db->versions)) ||
-                  (number == ldb_vset_prev_log_number(db->versions)));
+          keep = ((number >= db->versions->log_number) ||
+                  (number == db->versions->prev_log_number));
           break;
         case LDB_FILE_DESC:
           /* Keep my manifest file, and any newer incarnations'
              (in case there is a race that allows other incarnations). */
-          keep = (number >= ldb_vset_manifest_file_number(db->versions));
+          keep = (number >= db->versions->manifest_file_number);
           break;
         case LDB_FILE_TABLE:
           keep = rb_set64_has(&live, number);
@@ -1030,8 +1030,8 @@ ldb_recover(ldb_t *db, ldb_vedit_t *edit, int *save_manifest) {
    * attention to it in case we are recovering a database
    * produced by an older version of leveldb.
    */
-  min_log = ldb_vset_log_number(db->versions);
-  prev_log = ldb_vset_prev_log_number(db->versions);
+  min_log = db->versions->log_number;
+  prev_log = db->versions->prev_log_number;
 
   len = ldb_get_children(db->dbname, &filenames);
 
@@ -1078,8 +1078,8 @@ ldb_recover(ldb_t *db, ldb_vedit_t *edit, int *save_manifest) {
     ldb_vset_mark_file_number_used(db->versions, logs.items[i]);
   }
 
-  if (ldb_vset_last_sequence(db->versions) < max_sequence)
-    ldb_vset_set_last_sequence(db->versions, max_sequence);
+  if (db->versions->last_sequence < max_sequence)
+    db->versions->last_sequence = max_sequence;
 
   rc = LDB_OK;
 fail:
@@ -1112,7 +1112,7 @@ ldb_compact_memtable(ldb_t *db) {
   assert(db->imm != NULL);
 
   /* Save the contents of the memtable as a new Table. */
-  base = ldb_vset_current(db->versions);
+  base = db->versions->current;
 
   ldb_version_ref(base);
 
@@ -1238,7 +1238,7 @@ ldb_finish_compaction_output_file(ldb_t *db, ldb_cstate_t *compact,
       ldb_log(db->options.info_log,
               "Generated table #%lu@%d: %lu keys, %lu bytes",
               (unsigned long)output_number,
-              ldb_compaction_level(compact->compaction),
+              compact->compaction->level,
               (unsigned long)current_entries,
               (unsigned long)current_bytes);
     }
@@ -1249,7 +1249,7 @@ ldb_finish_compaction_output_file(ldb_t *db, ldb_cstate_t *compact,
 
 static int
 ldb_install_compaction_results(ldb_t *db, ldb_cstate_t *compact) {
-  ldb_vedit_t *edit = ldb_compaction_edit(compact->compaction);
+  ldb_vedit_t *edit = &compact->compaction->edit;
   int level;
   size_t i;
 
@@ -1257,15 +1257,15 @@ ldb_install_compaction_results(ldb_t *db, ldb_cstate_t *compact) {
 
   ldb_log(db->options.info_log, "Compacted %d@%d + %d@%d files => %ld bytes",
           ldb_compaction_num_input_files(compact->compaction, 0),
-          ldb_compaction_level(compact->compaction) + 0,
+          compact->compaction->level + 0,
           ldb_compaction_num_input_files(compact->compaction, 1),
-          ldb_compaction_level(compact->compaction) + 1,
+          compact->compaction->level + 1,
           (long)compact->total_bytes);
 
   /* Add compaction outputs. */
   ldb_compaction_add_input_deletions(compact->compaction, edit);
 
-  level = ldb_compaction_level(compact->compaction);
+  level = compact->compaction->level;
 
   for (i = 0; i < compact->outputs.length; i++) {
     const ldb_output_t *out = compact->outputs.items[i];
@@ -1298,22 +1298,21 @@ ldb_do_compaction_work(ldb_t *db, ldb_cstate_t *compact) {
 
   ldb_log(db->options.info_log, "Compacting %d@%d + %d@%d files",
           ldb_compaction_num_input_files(compact->compaction, 0),
-          ldb_compaction_level(compact->compaction) + 0,
+          compact->compaction->level + 0,
           ldb_compaction_num_input_files(compact->compaction, 1),
-          ldb_compaction_level(compact->compaction) + 1);
+          compact->compaction->level + 1);
 
   ldb_buffer_init(&user_key);
   ldb_cstats_init(&stats);
 
   assert(ldb_vset_num_level_files(db->versions,
-                                  ldb_compaction_level(compact->compaction))
-                                  > 0);
+                                  compact->compaction->level) > 0);
 
   assert(compact->builder == NULL);
   assert(compact->outfile == NULL);
 
   if (ldb_snaplist_empty(&db->snapshots)) {
-    compact->smallest_snapshot = ldb_vset_last_sequence(db->versions);
+    compact->smallest_snapshot = db->versions->last_sequence;
   } else {
     compact->smallest_snapshot =
       ldb_snaplist_oldest(&db->snapshots)->sequence;
@@ -1416,7 +1415,7 @@ ldb_do_compaction_work(ldb_t *db, ldb_cstate_t *compact) {
 
       /* Close output file if it is big enough. */
       if (ldb_tablebuilder_file_size(compact->builder) >=
-          ldb_compaction_max_output_file_size(compact->compaction)) {
+          compact->compaction->max_output_file_size) {
         rc = ldb_finish_compaction_output_file(db, compact, input);
 
         if (rc != LDB_OK)
@@ -1459,7 +1458,7 @@ ldb_do_compaction_work(ldb_t *db, ldb_cstate_t *compact) {
 
   ldb_mutex_lock(&db->mutex);
 
-  level = ldb_compaction_level(compact->compaction);
+  level = compact->compaction->level;
 
   ldb_cstats_add(&db->stats[level + 1], &stats);
 
@@ -1540,7 +1539,6 @@ ldb_background_compaction(ldb_t *db) {
     /* Nothing to do. */
   } else if (!is_manual && ldb_compaction_is_trivial_move(c)) {
     /* Move file to next level. */
-    ldb_vedit_t *edit = ldb_compaction_edit(c);
     ldb_filemeta_t *f;
     char tmp[100];
 
@@ -1548,22 +1546,22 @@ ldb_background_compaction(ldb_t *db) {
 
     f = ldb_compaction_input(c, 0, 0);
 
-    ldb_vedit_remove_file(edit, ldb_compaction_level(c), f->number);
+    ldb_vedit_remove_file(&c->edit, c->level, f->number);
 
-    ldb_vedit_add_file(edit, ldb_compaction_level(c) + 1,
-                             f->number,
-                             f->file_size,
-                             &f->smallest,
-                             &f->largest);
+    ldb_vedit_add_file(&c->edit, c->level + 1,
+                                 f->number,
+                                 f->file_size,
+                                 &f->smallest,
+                                 &f->largest);
 
-    rc = ldb_vset_log_and_apply(db->versions, edit, &db->mutex);
+    rc = ldb_vset_log_and_apply(db->versions, &c->edit, &db->mutex);
 
     if (rc != LDB_OK)
       ldb_record_background_error(db, rc);
 
     ldb_log(db->options.info_log, "Moved #%lu to level-%d %lu bytes %s: %s",
                                   (unsigned long)f->number,
-                                  ldb_compaction_level(c) + 1,
+                                  c->level + 1,
                                   (unsigned long)f->file_size,
                                   ldb_strerror(rc),
                                   ldb_vset_level_summary(db->versions, tmp));
@@ -1677,7 +1675,7 @@ ldb_internal_iterator(ldb_t *db, const ldb_readopt_t *options,
 
   ldb_mutex_lock(&db->mutex);
 
-  *latest_snapshot = ldb_vset_last_sequence(db->versions);
+  *latest_snapshot = db->versions->last_sequence;
 
   /* Collect together all needed child iterators. */
   ldb_vector_push(&list, ldb_memiter_create(db->mem));
@@ -1689,7 +1687,7 @@ ldb_internal_iterator(ldb_t *db, const ldb_readopt_t *options,
     ldb_memtable_ref(db->imm);
   }
 
-  current = ldb_vset_current(db->versions);
+  current = db->versions->current;
 
   ldb_version_add_iterators(current, options, &list);
 
@@ -1700,7 +1698,7 @@ ldb_internal_iterator(ldb_t *db, const ldb_readopt_t *options,
   ldb_version_ref(current);
 
   cleanup = iter_state_create(&db->mutex, db->mem, db->imm,
-                              ldb_vset_current(db->versions));
+                              db->versions->current);
 
   ldb_iter_register_cleanup(internal_iter, cleanup_iter_state, cleanup, NULL);
 
@@ -1805,7 +1803,7 @@ ldb_make_room_for_write(ldb_t *db, int force) {
          case it is sharing the same core as the writer. */
       ldb_mutex_unlock(&db->mutex);
       ldb_sleep_usec(1000);
-      allow_delay = 0;  /* Do not delay a single write more than once. */
+      allow_delay = 0; /* Do not delay a single write more than once. */
       ldb_mutex_lock(&db->mutex);
     } else if (!force && ldb_memtable_usage(db->mem) <= write_buffer_size) {
       /* There is room in current memtable. */
@@ -1824,7 +1822,7 @@ ldb_make_room_for_write(ldb_t *db, int force) {
       uint64_t new_log_number;
 
       /* Attempt to switch to a new memtable and trigger compaction of old. */
-      assert(ldb_vset_prev_log_number(db->versions) == 0);
+      assert(db->versions->prev_log_number == 0);
 
       new_log_number = ldb_vset_new_file_number(db->versions);
 
@@ -2075,11 +2073,11 @@ ldb_get(ldb_t *db, const ldb_slice_t *key,
   if (options->snapshot != NULL)
     snapshot = options->snapshot->sequence;
   else
-    snapshot = ldb_vset_last_sequence(db->versions);
+    snapshot = db->versions->last_sequence;
 
   mem = db->mem;
   imm = db->imm;
-  current = ldb_vset_current(db->versions);
+  current = db->versions->current;
 
   ldb_memtable_ref(mem);
 
@@ -2203,10 +2201,10 @@ ldb_write(ldb_t *db, ldb_batch_t *updates, const ldb_writeopt_t *options) {
 
   /* May temporarily unlock and wait. */
   rc = ldb_make_room_for_write(db, updates == NULL);
-  last_sequence = ldb_vset_last_sequence(db->versions);
+  last_sequence = db->versions->last_sequence;
   last_writer = &w;
 
-  if (rc == LDB_OK && updates != NULL) {  /* NULL batch is for compactions. */
+  if (rc == LDB_OK && updates != NULL) { /* NULL batch is for compactions. */
     ldb_batch_t *write_batch = ldb_build_batch_group(db, &last_writer);
 
     ldb_batch_set_sequence(write_batch, last_sequence + 1);
@@ -2249,7 +2247,9 @@ ldb_write(ldb_t *db, ldb_batch_t *updates, const ldb_writeopt_t *options) {
     if (write_batch == db->tmp_batch)
       ldb_batch_reset(db->tmp_batch);
 
-    ldb_vset_set_last_sequence(db->versions, last_sequence);
+    assert(last_sequence >= db->versions->last_sequence);
+
+    db->versions->last_sequence = last_sequence;
   }
 
   for (;;) {
@@ -2282,7 +2282,7 @@ ldb_snapshot(ldb_t *db) {
 
   ldb_mutex_lock(&db->mutex);
 
-  seq = ldb_vset_last_sequence(db->versions);
+  seq = db->versions->last_sequence;
   snap = ldb_snaplist_new(&db->snapshots, seq);
 
   ldb_mutex_unlock(&db->mutex);
@@ -2440,7 +2440,7 @@ ldb_approximate_sizes(ldb_t *db, const ldb_range_t *range,
 
   ldb_mutex_lock(&db->mutex);
 
-  v = ldb_vset_current(db->versions);
+  v = db->versions->current;
 
   ldb_version_ref(v);
 
@@ -2476,7 +2476,7 @@ ldb_compact(ldb_t *db, const ldb_slice_t *begin, const ldb_slice_t *end) {
 
     ldb_mutex_lock(&db->mutex);
 
-    base = ldb_vset_current(db->versions);
+    base = db->versions->current;
 
     for (level = 1; level < LDB_NUM_LEVELS; level++) {
       if (ldb_version_overlap_in_level(base, level, begin, end))
@@ -2726,7 +2726,7 @@ ldb_record_read_sample(ldb_t *db, const ldb_slice_t *key) {
 
   ldb_mutex_lock(&db->mutex);
 
-  current = ldb_vset_current(db->versions);
+  current = db->versions->current;
 
   if (ldb_version_record_read_sample(current, key))
     ldb_maybe_schedule_compaction(db);

@@ -531,11 +531,6 @@ ldb_version_destroy(ldb_version_t *ver) {
   ldb_free(ver);
 }
 
-int
-ldb_version_num_files(const ldb_version_t *ver, int level) {
-  return ver->files[level].length;
-}
-
 void
 ldb_version_add_iterators(ldb_version_t *ver,
                           const ldb_readopt_t *options,
@@ -1187,16 +1182,6 @@ ldb_vset_destroy(ldb_vset_t *vset) {
   ldb_free(vset);
 }
 
-ldb_version_t *
-ldb_vset_current(const ldb_vset_t *vset) {
-  return vset->current;
-}
-
-uint64_t
-ldb_vset_manifest_file_number(const ldb_vset_t *vset) {
-  return vset->manifest_file_number;
-}
-
 uint64_t
 ldb_vset_new_file_number(ldb_vset_t *vset) {
   return vset->next_file_number++;
@@ -1206,27 +1191,6 @@ void
 ldb_vset_reuse_file_number(ldb_vset_t *vset, uint64_t file_number) {
   if (vset->next_file_number == file_number + 1)
     vset->next_file_number = file_number;
-}
-
-uint64_t
-ldb_vset_last_sequence(const ldb_vset_t *vset) {
-  return vset->last_sequence;
-}
-
-void
-ldb_vset_set_last_sequence(ldb_vset_t *vset, uint64_t s) {
-  assert(s >= vset->last_sequence);
-  vset->last_sequence = s;
-}
-
-uint64_t
-ldb_vset_log_number(const ldb_vset_t *vset) {
-  return vset->log_number;
-}
-
-uint64_t
-ldb_vset_prev_log_number(const ldb_vset_t *vset) {
-  return vset->prev_log_number;
 }
 
 int
@@ -1964,9 +1928,9 @@ add_boundary_inputs(const ldb_comparator_t *icmp,
 
 static void
 ldb_vset_setup_other_inputs(ldb_vset_t *vset, ldb_compaction_t *c) {
-  int level = ldb_compaction_level(c);
   ldb_slice_t smallest, largest;
   ldb_slice_t all_start, all_limit;
+  const int level = c->level;
 
   add_boundary_inputs(&vset->icmp,
                       &vset->current->files[level],
@@ -2212,12 +2176,12 @@ ldb_inputiter_create(ldb_vset_t *vset, ldb_compaction_t *c) {
 
   /* Level-0 files have to be merged together. For other levels,
      we will make a concatenating iterator per level. */
-  space = (ldb_compaction_level(c) == 0 ? c->inputs[0].length + 1 : 2);
+  space = (c->level == 0 ? c->inputs[0].length + 1 : 2);
   list = ldb_malloc(space * sizeof(ldb_iter_t *));
 
   for (which = 0; which < 2; which++) {
     if (c->inputs[which].length > 0) {
-      if (ldb_compaction_level(c) + which == 0) {
+      if (c->level + which == 0) {
         const ldb_vector_t *files = &c->inputs[which];
 
         for (i = 0; i < files->length; i++) {
@@ -2300,16 +2264,6 @@ ldb_compaction_destroy(ldb_compaction_t *c) {
 }
 
 int
-ldb_compaction_level(const ldb_compaction_t *c) {
-  return c->level;
-}
-
-ldb_vedit_t *
-ldb_compaction_edit(ldb_compaction_t *c) {
-  return &c->edit;
-}
-
-int
 ldb_compaction_num_input_files(const ldb_compaction_t *c, int which) {
   return c->inputs[which].length;
 }
@@ -2317,11 +2271,6 @@ ldb_compaction_num_input_files(const ldb_compaction_t *c, int which) {
 ldb_filemeta_t *
 ldb_compaction_input(const ldb_compaction_t *c, int which, int i) {
   return c->inputs[which].items[i];
-}
-
-uint64_t
-ldb_compaction_max_output_file_size(const ldb_compaction_t *c) {
-  return c->max_output_file_size;
 }
 
 int
@@ -2355,8 +2304,8 @@ int
 ldb_compaction_is_base_level_for_key(ldb_compaction_t *c,
                                      const ldb_slice_t *user_key) {
   /* Maybe use binary search to find right entry instead of linear search? */
-  const ldb_comparator_t *user_cmp =
-    c->input_version->vset->icmp.user_comparator;
+  const ldb_vset_t *vset = c->input_version->vset;
+  const ldb_comparator_t *user_cmp = vset->icmp.user_comparator;
   int lvl;
 
   for (lvl = c->level + 2; lvl < LDB_NUM_LEVELS; lvl++) {
