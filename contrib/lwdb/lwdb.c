@@ -405,8 +405,7 @@ convert_error(char *err) {
   if (p != NULL)
     *p = '\0';
 
-  if (strcmp(err, "OK") == 0)
-    abort(); /* LCOV_EXCL_LINE */
+  assert(strcmp(err, "OK") != 0);
 
   if (strcmp(err, "NotFound") == 0)
     return LDB_NOTFOUND;
@@ -781,29 +780,25 @@ ldb_get(ldb_t *db, const ldb_slice_t *key,
                    ldb_slice_t *value,
                    const ldb_readopt_t *options) {
   leveldb_readoptions_t *opt = db->read_options;
-  int rc = LDB_OK;
   char *err = NULL;
-  char *vp = NULL;
-  size_t vn = 0;
+  int rc;
 
   if (options != NULL)
     opt = convert_readopt(options);
 
-  vp = leveldb_get(db->level, opt, key->data, key->size, &vn, &err);
-
-  if (err != NULL) {
-    rc = handle_error(err);
-    goto done;
-  }
-
-  if (vp == NULL)
-    rc = LDB_NOTFOUND;
-
-  value->data = (void *)vp;
-  value->size = vn;
+  value->data = leveldb_get(db->level,
+                            opt,
+                            key->data,
+                            key->size,
+                            &value->size,
+                            &err);
   value->dummy = 0;
 
-done:
+  rc = handle_error(err);
+
+  if (rc == LDB_OK && value->data == NULL)
+    rc = LDB_NOTFOUND;
+
   if (options != NULL)
     leveldb_readoptions_destroy(opt);
 
@@ -812,7 +807,7 @@ done:
 
 int
 ldb_has(ldb_t *db, const ldb_slice_t *key, const ldb_readopt_t *options) {
-  ldb_slice_t val = {NULL, 0, 0};
+  ldb_slice_t val;
   int rc;
 
   rc = ldb_get(db, key, &val, options);
