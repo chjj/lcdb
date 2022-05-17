@@ -42,25 +42,10 @@ struct ldb_table_s {
   uint64_t cache_id;
   ldb_filterreader_t *filter;
   const uint8_t *filter_data;
-  ldb_blockhandle_t metaindex_handle; /* Handle to metaindex_block: saved from footer. */
+  ldb_blockhandle_t metaindex_handle; /* Handle to metaindex_block:
+                                         saved from footer. */
   ldb_block_t *index_block;
 };
-
-static void
-ldb_table_init(ldb_table_t *table) {
-  memset(table, 0, sizeof(*table));
-}
-
-static void
-ldb_table_clear(ldb_table_t *table) {
-  if (table->filter != NULL)
-    ldb_filterreader_destroy(table->filter);
-
-  if (table->filter_data != NULL)
-    ldb_free((void *)table->filter_data);
-
-  ldb_block_destroy(table->index_block);
-}
 
 static void
 ldb_table_read_filter(ldb_table_t *table,
@@ -73,8 +58,8 @@ ldb_table_read_filter(ldb_table_t *table,
   if (!ldb_blockhandle_import(&filter_handle, filter_handle_value))
     return;
 
-  /* We might want to unify with ReadBlock() if we start
-     requiring checksum verification in Table::Open. */
+  /* We might want to unify with read_block() if we start
+     requiring checksum verification in table_open(). */
   if (table->options.paranoid_checks)
     opt.verify_checksums = 1;
 
@@ -185,15 +170,14 @@ ldb_table_open(const ldb_dbopt_t *options,
     ldb_block_t *index_block = ldb_block_create(&contents);
     ldb_table_t *tbl = ldb_malloc(sizeof(ldb_table_t));
 
-    ldb_table_init(tbl);
-
     tbl->options = *options;
+    tbl->status = LDB_OK;
     tbl->file = file;
+    tbl->cache_id = 0;
+    tbl->filter = NULL;
+    tbl->filter_data = NULL;
     tbl->metaindex_handle = footer.metaindex_handle;
     tbl->index_block = index_block;
-    tbl->cache_id = 0;
-    tbl->filter_data = NULL;
-    tbl->filter = NULL;
 
     if (options->block_cache != NULL)
       tbl->cache_id = ldb_lru_newid(options->block_cache);
@@ -208,7 +192,14 @@ ldb_table_open(const ldb_dbopt_t *options,
 
 void
 ldb_table_destroy(ldb_table_t *table) {
-  ldb_table_clear(table);
+  if (table->filter != NULL)
+    ldb_filterreader_destroy(table->filter);
+
+  if (table->filter_data != NULL)
+    ldb_free((void *)table->filter_data);
+
+  ldb_block_destroy(table->index_block);
+
   ldb_free(table);
 }
 
@@ -296,10 +287,12 @@ ldb_table_blockreader(void *arg,
   if (block != NULL) {
     iter = ldb_blockiter_create(block, table->options.comparator);
 
-    if (cache_handle == NULL)
+    if (cache_handle == NULL) {
       ldb_iter_register_cleanup(iter, &delete_block, block, NULL);
-    else
-      ldb_iter_register_cleanup(iter, &release_block, block_cache, cache_handle);
+    } else {
+      ldb_iter_register_cleanup(iter, &release_block, block_cache,
+                                                      cache_handle);
+    }
   } else {
     iter = ldb_emptyiter_create(rc);
   }
