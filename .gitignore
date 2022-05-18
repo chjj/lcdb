@@ -40,6 +40,8 @@ Testing/
 aclocal.m4
 autom4te.cache/
 build-aux/
+db_bench
+db_bench.js
 config.log
 config.status
 configure
