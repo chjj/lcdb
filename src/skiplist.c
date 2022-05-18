@@ -179,10 +179,10 @@ ldb_skiplist_key_after_node(const ldb_skiplist_t *list,
 }
 
 /* Return the earliest node that comes at or after key.
- * Return nullptr if there is no such node.
+ * Return NULL if there is no such node.
  *
  * If prev is non-null, fills prev[level] with pointer to previous
- * node at "level" for every level in [0..max_height_-1].
+ * node at "level" for every level in [0..max_height-1].
  */
 static ldb_skipnode_t *
 ldb_skiplist_find_gte(const ldb_skiplist_t *list,
@@ -285,8 +285,8 @@ ldb_skiplist_insert(ldb_skiplist_t *list, const uint8_t *key) {
   x = ldb_skipnode_create(list, key, height);
 
   for (i = 0; i < height; i++) {
-    /* ldb_skipnode_setnext_nb() suffices since we will add a
-       barrier when we publish a pointer to "x" in prev[i]. */
+    /* setnext_nb() suffices since we will add a barrier
+       when we publish a pointer to "x" in prev[i]. */
     ldb_skipnode_setnext_nb(x, i, ldb_skipnode_next_nb(prev[i], i));
     ldb_skipnode_setnext(prev[i], i, x);
   }

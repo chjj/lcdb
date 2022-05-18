@@ -213,7 +213,7 @@ read_physical_record(ldb_logreader_t *lr, ldb_slice_t *result) {
   }
 }
 
-/* Skips all blocks that are completely before "initial_offset_".
+/* Skips all blocks that are completely before "initial_offset".
  *
  * Returns true on success. Handles reporting.
  */

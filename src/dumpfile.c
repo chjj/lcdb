@@ -244,7 +244,7 @@ dump_table(const char *fname, FILE *dst) {
     /* We use the default comparator, which may or may not match the
        comparator used in this database. However this should not cause
        problems since we only use Table operations that do not require
-       any comparisons. In particular, we do not call Seek or Prev. */
+       any comparisons. In particular, we do not call seek() or prev(). */
     ldb_dbopt_t options = *ldb_dbopt_default;
 
     options.comparator = ldb_bytewise_comparator;

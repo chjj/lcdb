@@ -46,7 +46,7 @@ enum ldb_compression {
  * DB Options
  */
 
-/* Options to control the behavior of a database (passed to DB::Open) */
+/* Options to control the behavior of a database (passed to ldb_open) */
 typedef struct ldb_dbopt_s {
   /* Parameters that affect behavior */
 
@@ -102,7 +102,7 @@ typedef struct ldb_dbopt_s {
      a block is the unit of reading from disk). */
 
   /* If non-null, use the specified cache for blocks. */
-  /* If null, leveldb will automatically create and use an 8MB internal cache. */
+  /* If null, automatically create and use an 8MB internal cache. */
   struct ldb_lru_s *block_cache; /* NULL */
 
   /* Approximate size of user data packed per block. Note that the
@@ -118,7 +118,7 @@ typedef struct ldb_dbopt_s {
    */
   int block_restart_interval; /* 16 */
 
-  /* Leveldb will write up to this amount of bytes to a file before
+  /* The database will write up to this amount of bytes to a file before
    * switching to a new one.
    * Most clients should leave this parameter alone. However if your
    * filesystem is more efficient with larger files, you could
@@ -155,7 +155,7 @@ typedef struct ldb_dbopt_s {
 
   /* If non-null, use the specified filter policy to reduce disk reads.
    * Many applications will benefit from passing the result of
-   * NewBloomFilterPolicy() here.
+   * ldb_bloom_create() here.
    */
   const struct ldb_bloom_s *filter_policy; /* NULL */
 
@@ -194,7 +194,7 @@ typedef struct ldb_readopt_s {
 /* Options that control write operations */
 typedef struct ldb_writeopt_s {
   /* If true, the write will be flushed from the operating system
-   * buffer cache (by calling WritableFile::Sync()) before the write
+   * buffer cache (by calling ldb_wfile_sync()) before the write
    * is considered complete. If this flag is true, writes will be
    * slower.
    *

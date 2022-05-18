@@ -285,7 +285,7 @@ test_skip_insert_and_lookup(void) {
  *
  * At the beginning of a read, we snapshot the last inserted
  * generation number for each key. We then iterate, including random
- * calls to Next() and Seek(). For every key we encounter, we
+ * calls to next() and seek(). For every key we encounter, we
  * check that it is either expected given the initial snapshot or has
  * been concurrently added since the iterator started.
  */

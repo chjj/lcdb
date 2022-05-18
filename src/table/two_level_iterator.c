@@ -34,7 +34,7 @@ typedef struct ldb_twoiter_s {
   int status;
   ldb_wrapiter_t index_iter;
   ldb_wrapiter_t data_iter; /* May be NULL. */
-  /* If data_iter is non-null, then "data_block_handle_" holds the
+  /* If data_iter is non-null, then "data_block_handle" holds the
     "index_value" passed to block_function to create the data_iter. */
   ldb_buffer_t data_block_handle;
 } ldb_twoiter_t;

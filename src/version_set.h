@@ -72,16 +72,16 @@ struct ldb_vset_s {
   uint64_t manifest_file_number;
   uint64_t last_sequence;
   uint64_t log_number;
-  uint64_t prev_log_number; /* 0 or backing store for memtable being compacted. */
+  uint64_t prev_log_number; /* 0 or backing store for memtable compaction. */
 
   /* Opened lazily. */
   struct ldb_wfile_s *descriptor_file;
   struct ldb_logwriter_s *descriptor_log;
-  ldb_version_t dummy_versions; /* Head of circular doubly-linked list of versions. */
+  ldb_version_t dummy_versions; /* Circular doubly-linked list of versions. */
   ldb_version_t *current;       /* == dummy_versions.prev */
 
   /* Per-level key at which the next compaction at that level should start.
-     Either an empty string, or a valid ldb_ikey_t. */
+     Either an empty string, or a valid InternalKey. */
   ldb_buffer_t compact_pointer[LDB_NUM_LEVELS];
 };
 
@@ -151,7 +151,7 @@ ldb_version_destroy(ldb_version_t *ver);
 
 /* Append to *iters a sequence of iterators that will
    yield the contents of this Version when merged together. */
-/* REQUIRES: This version has been saved (see VersionSet::SaveTo) */
+/* REQUIRES: This version has been saved (see vset_save_to) */
 void
 ldb_version_add_iterators(ldb_version_t *ver,
                           const ldb_readopt_t *options,
@@ -234,7 +234,7 @@ ldb_vset_new_file_number(ldb_vset_t *vset);
 
 /* Arrange to reuse "file_number" unless a newer file number has
    already been allocated. */
-/* REQUIRES: "file_number" was returned by a call to NewFileNumber(). */
+/* REQUIRES: "file_number" was returned by a call to new_file_number(). */
 void
 ldb_vset_reuse_file_number(ldb_vset_t *vset, uint64_t file_number);
 
@@ -335,7 +335,7 @@ ldb_compaction_destroy(ldb_compaction_t *c);
 int
 ldb_compaction_num_input_files(const ldb_compaction_t *cmpct, int which);
 
-/* Return the ith input file at "level()+which" ("which" must be 0 or 1). */
+/* Return the ith input file at "level+which" ("which" must be 0 or 1). */
 ldb_filemeta_t *
 ldb_compaction_input(const ldb_compaction_t *cmpct, int which, int i);
 

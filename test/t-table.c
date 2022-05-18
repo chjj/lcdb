@@ -1097,7 +1097,7 @@ harness_test(harness_t *h, ldb_rand_t *rnd) {
 
 static ldb_t *
 harness_db(harness_t *h) {
-  /* Returns nullptr if not running against a DB. */
+  /* Returns NULL if not running against a DB. */
   return ctor_db(h->ctor);
 }
 

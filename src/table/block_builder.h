@@ -29,7 +29,7 @@ typedef struct ldb_blockbuilder_s {
   ldb_buffer_t buffer;          /* Destination buffer. */
   ldb_array_t restarts;         /* Restart points (uint32_t). */
   int counter;                  /* Number of entries emitted since restart. */
-  int finished;                 /* Has Finish() been called? */
+  int finished;                 /* Has finish() been called? */
   ldb_buffer_t last_key;
 } ldb_blockbuilder_t;
 

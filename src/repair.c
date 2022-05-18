@@ -46,6 +46,7 @@
 #include "write_batch.h"
 
 /* We recover the contents of the descriptor from the other files we find.
+ *
  * (1) Any log files are first converted to tables
  *
  * (2) We scan every table to compute

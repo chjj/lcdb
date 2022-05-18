@@ -466,7 +466,7 @@ test_log_random_read(ltest_t *t) {
   ASSERT_EQ("EOF", ltest_read(t));
 }
 
-/* Tests of all the error paths in log_reader.cc follow: */
+/* Tests of all the error paths in log_reader.c follow: */
 
 static void
 test_log_read_error(ltest_t *t) {

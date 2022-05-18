@@ -1154,7 +1154,8 @@ ldb_vset_clear(ldb_vset_t *vset) {
 
   ldb_version_unref(vset->current);
 
-  assert(vset->dummy_versions.next == &vset->dummy_versions); /* List must be empty. */
+  /* List must be empty. */
+  assert(vset->dummy_versions.next == &vset->dummy_versions);
 
   if (vset->descriptor_log != NULL)
     ldb_logwriter_destroy(vset->descriptor_log);
@@ -1646,7 +1647,7 @@ const char *
 ldb_vset_level_summary(const ldb_vset_t *vset, char *scratch) {
   const ldb_version_t *c = vset->current;
 
-  /* Update code if kNumLevels changes. */
+  /* Update code if LDB_NUM_LEVELS changes. */
   STATIC_ASSERT(LDB_NUM_LEVELS == 7);
 
   sprintf(scratch, "files[ %d %d %d %d %d %d %d ]",

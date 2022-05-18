@@ -202,14 +202,14 @@ rtest_get_files(rtest_t *t, ldb_array_t *result, ldb_filetype_t target) {
 
 static size_t
 rtest_remove_log_files(rtest_t *t) {
-  /* Linux allows unlinking open files, but Windows does not. */
-  /* Closing the db allows for file deletion. */
   char fname[LDB_PATH_MAX];
   ldb_array_t files;
   size_t i, len;
 
   ldb_array_init(&files);
 
+  /* Linux allows unlinking open files, but Windows does not. */
+  /* Closing the db allows for file deletion. */
   rtest_close(t);
 
   len = rtest_get_files(t, &files, LDB_FILE_LOG);

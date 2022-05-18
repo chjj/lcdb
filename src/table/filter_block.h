@@ -41,10 +41,10 @@ typedef struct ldb_filterbuilder_s {
 
 typedef struct ldb_filterreader_s {
   const struct ldb_bloom_s *policy;
-  const uint8_t *data;    /* Pointer to filter data (at block-start). */
-  const uint8_t *offset;  /* Pointer to beginning of offset array (at block-end). */
-  size_t num;             /* Number of entries in offset array. */
-  size_t base_lg;         /* Encoding parameter (see LDB_FILTER_BASE_LG in .c file). */
+  const uint8_t *data;   /* Pointer to filter data (block-start). */
+  const uint8_t *offset; /* Pointer to beginning of offset array (block-end). */
+  size_t num;            /* Number of entries in offset array. */
+  size_t base_lg;        /* Encoding parameter (see LDB_FILTER_BASE_LG). */
 } ldb_filterreader_t;
 
 /*

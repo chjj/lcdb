@@ -998,7 +998,7 @@ test_db_get_encounters_empty_level(test_t *t) {
      *   - nothing in level 1
      *   - sstable B in level 2
      *
-     * Then do enough Get() calls to arrange for an automatic compaction
+     * Then do enough get() calls to arrange for an automatic compaction
      * of sstable A. A bug would cause the compaction to be marked as
      * occurring at level 1 (instead of the correct level 0).
      */
@@ -1473,7 +1473,7 @@ test_db_repeated_writes_to_same_key(test_t *t) {
   test_reopen(t, &options);
 
   /* We must have at most one file per level except for level-0,
-     which may have up to kL0_StopWritesTrigger files. */
+     which may have up to LDB_L0_STOP_WRITES_TRIGGER files. */
   max_files = LDB_NUM_LEVELS + LDB_L0_STOP_WRITES_TRIGGER;
 
   value = random_string(t, &rnd, 2 * options.write_buffer_size);
@@ -1584,11 +1584,11 @@ test_db_approximate_sizes(test_t *t) {
     for (i = 0; i < N; i++)
       ASSERT(test_put(t, test_key(t, i), random_string(t, &rnd, S1)) == LDB_OK);
 
-    /* 0 because GetApproximateSizes() does not account for memtable space */
+    /* 0 because approximate_sizes() does not account for memtable space */
     ASSERT_RANGE(test_size(t, "", test_key(t, 50)), 0, 0);
 
     if (options.reuse_logs) {
-      /* Recovery will reuse memtable, and GetApproximateSizes() does not
+      /* Recovery will reuse memtable, and approximate_sizes() does not
          account for memtable usage; */
       test_reopen(t, &options);
       ASSERT_RANGE(test_size(t, "", test_key(t, 50)), 0, 0);
@@ -1870,7 +1870,7 @@ test_db_deletion_markers_2(test_t *t) {
   test_del(t, "foo");
 
   ASSERT_EQ(test_all_entries(t, "foo"), "[ DEL, v1 ]");
-  ASSERT(ldb_test_compact_memtable(t->db) == LDB_OK); /* Moves to level last == LDB_OK); */
+  ASSERT(ldb_test_compact_memtable(t->db) == LDB_OK); /* Moves to level last-2 */
   ASSERT_EQ(test_all_entries(t, "foo"), "[ DEL, v1 ]");
 
   ldb_test_compact_range(t->db, last - 2, NULL, NULL);
@@ -2378,7 +2378,7 @@ test_db_manifest_write_error(test_t *t) {
   /* Test for the following problem:
    *
    *   (a) Compaction produces file F
-   *   (b) Log record containing F is written to MANIFEST file, but Sync() fails
+   *   (b) Log record containing F is written to MANIFEST file, but sync() fails
    *   (c) GC deletes F
    *   (d) After reopening DB, reads fail since deleted F is named in log record
    */

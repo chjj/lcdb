@@ -151,7 +151,7 @@ ctest_build(ctest_t *t, int n) {
     ldb_batch_put(&batch, ctest_key(i, &key_space),
                           ctest_val(i, &val_space));
 
-    /* Corrupt() doesn't work without this sync
+    /* corrupt() doesn't work without this sync
        on windows; stat reports 0 for the file size. */
     if (i == n - 1)
       options.sync = 1;

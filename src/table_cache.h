@@ -40,7 +40,7 @@ ldb_tcache_destroy(ldb_tcache_t *cache);
 /* Return an iterator for the specified file number (the corresponding
  * file length must be exactly "file_size" bytes). If "tableptr" is
  * non-null, also sets "*tableptr" to point to the Table object
- * underlying the returned iterator, or to nullptr if no Table object
+ * underlying the returned iterator, or to NULL if no Table object
  * underlies the returned iterator. The returned "*tableptr" object is owned
  * by the cache and should not be deleted, and is valid for as long as the
  * returned iterator is live.

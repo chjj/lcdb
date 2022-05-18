@@ -10,6 +10,20 @@
  * See LICENSE for more information.
  */
 
+#include <assert.h>
+#include <stddef.h>
+#include <stdint.h>
+
+#include "../util/array.h"
+#include "../util/buffer.h"
+#include "../util/comparator.h"
+#include "../util/internal.h"
+#include "../util/options.h"
+#include "../util/slice.h"
+#include "../util/vector.h"
+
+#include "block_builder.h"
+
 /* BlockBuilder generates blocks where keys are prefix-compressed:
  *
  * When we store a key, we drop the prefix shared with the previous
@@ -34,20 +48,6 @@
  *     num_restarts: uint32
  * restarts[i] contains the offset within the block of the ith restart point.
  */
-
-#include <assert.h>
-#include <stddef.h>
-#include <stdint.h>
-
-#include "../util/array.h"
-#include "../util/buffer.h"
-#include "../util/comparator.h"
-#include "../util/internal.h"
-#include "../util/options.h"
-#include "../util/slice.h"
-#include "../util/vector.h"
-
-#include "block_builder.h"
 
 /*
  * Block Builder

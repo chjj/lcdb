@@ -644,6 +644,7 @@ ldb_maybe_ignore_error(const ldb_t *db, int *status) {
   }
 }
 
+/* Delete any unneeded files and stale in-memory entries. */
 static void
 ldb_remove_obsolete_files(ldb_t *db) {
   char path[LDB_PATH_MAX];
@@ -670,7 +671,7 @@ ldb_remove_obsolete_files(ldb_t *db) {
 
   ldb_vset_add_live_files(db->versions, &live);
 
-  len = ldb_get_children(db->dbname, &filenames); /* Ignoring errors on purpose. */
+  len = ldb_get_children(db->dbname, &filenames); /* Ignoring errors. */
 
   for (i = 0; i < len; i++) {
     const char *filename = filenames[i];
@@ -864,8 +865,8 @@ ldb_recover_log_file(ldb_t *db, uint64_t log_number,
 
   /* We intentionally make the log reader do checksumming even if
      paranoid_checks==0 so that corruptions cause entire commits
-     to be skipped instead of propagating bad information (like overly
-     large sequence numbers). */
+     to be skipped instead of propagating bad information (like
+     overly large sequence numbers). */
   ldb_logreader_init(&reader, file, &reporter, 1, 0);
   ldb_batch_init(&batch);
   ldb_buffer_init(&buf);
@@ -878,7 +879,8 @@ ldb_recover_log_file(ldb_t *db, uint64_t log_number,
     ldb_seqnum_t last_seq;
 
     if (record.size < 12) {
-      reporter.corruption(&reporter, record.size, LDB_CORRUPTION); /* "log record too small" */
+      /* "log record too small" */
+      reporter.corruption(&reporter, record.size, LDB_CORRUPTION);
       continue;
     }
 
@@ -912,7 +914,7 @@ ldb_recover_log_file(ldb_t *db, uint64_t log_number,
 
       if (rc != LDB_OK) {
         /* Reflect errors immediately so that conditions like full
-           file-systems cause the db_open() to fail. */
+           file-systems cause the ldb_open() to fail. */
         break;
       }
     }
@@ -967,6 +969,9 @@ compare_ascending(int64_t x, int64_t y) {
   return LDB_CMP(x, y);
 }
 
+/* Recover the descriptor from persistent storage. May do a significant
+   amount of work to recover recently logged updates. Any changes to
+   be made to the descriptor are added to *edit. */
 static int
 ldb_recover(ldb_t *db, ldb_vedit_t *edit, int *save_manifest) {
   uint64_t min_log, prev_log, number;
@@ -981,7 +986,7 @@ ldb_recover(ldb_t *db, ldb_vedit_t *edit, int *save_manifest) {
 
   ldb_mutex_assert_held(&db->mutex);
 
-  /* Ignore error from CreateDir since the creation of the DB is
+  /* Ignore error from create_dir since the creation of the DB is
      committed only when the descriptor is created, and this directory
      may already exist from a previous failed creation attempt. */
   ldb_create_dir(db->dbname);
@@ -1026,7 +1031,7 @@ ldb_recover(ldb_t *db, ldb_vedit_t *edit, int *save_manifest) {
    * descriptor (new log files may have been added by the previous
    * incarnation without registering them in the descriptor).
    *
-   * Note that prev_log_number() is no longer used, but we pay
+   * Note that prev_log_number is no longer used, but we pay
    * attention to it in case we are recovering a database
    * produced by an older version of leveldb.
    */
@@ -1099,6 +1104,9 @@ ldb_record_background_error(ldb_t *db, int status) {
   }
 }
 
+/* Compact the in-memory write buffer to disk. Switches to a new
+   log-file/memtable and writes a new descriptor iff successful.
+   Errors are recorded in bg_error. */
 static void
 ldb_compact_memtable(ldb_t *db) {
   ldb_version_t *base;
@@ -1126,7 +1134,9 @@ ldb_compact_memtable(ldb_t *db) {
   /* Replace immutable memtable with the generated Table. */
   if (rc == LDB_OK) {
     ldb_vedit_set_prev_log_number(&edit, 0);
-    ldb_vedit_set_log_number(&edit, db->logfile_number); /* Earlier logs no longer needed. */
+    ldb_vedit_set_log_number(&edit, db->logfile_number); /* Earlier logs no
+                                                            longer needed. */
+
     rc = ldb_vset_log_and_apply(db->versions, &edit, &db->mutex);
   }
 

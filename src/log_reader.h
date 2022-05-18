@@ -103,7 +103,7 @@ ldb_logreader_read_record(ldb_logreader_t *lr,
 
 /* Returns the physical offset of the last record returned by read_record.
  *
- * Undefined before the first call to ReadRecord.
+ * Undefined before the first call to read_record.
  */
 uint64_t
 ldb_logreader_last_offset(const ldb_logreader_t *lr);
