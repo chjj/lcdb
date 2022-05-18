@@ -17,7 +17,6 @@
 
 #include "buffer.h"
 #include "coding.h"
-#include "hash.h"
 #include "internal.h"
 #include "slice.h"
 
@@ -51,11 +50,6 @@ ldb_slice_set_str(ldb_slice_t *z, const char *xp) {
 void
 ldb_slice_copy(ldb_slice_t *z, const ldb_slice_t *x) {
   ldb_slice_set(z, x->data, x->size);
-}
-
-uint32_t
-ldb_slice_hash(const ldb_slice_t *x) {
-  return ldb_hash(x->data, x->size, 0);
 }
 
 int
