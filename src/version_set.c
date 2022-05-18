@@ -2265,24 +2265,14 @@ ldb_compaction_destroy(ldb_compaction_t *c) {
 }
 
 int
-ldb_compaction_num_input_files(const ldb_compaction_t *c, int which) {
-  return c->inputs[which].length;
-}
-
-ldb_filemeta_t *
-ldb_compaction_input(const ldb_compaction_t *c, int which, int i) {
-  return c->inputs[which].items[i];
-}
-
-int
 ldb_compaction_is_trivial_move(const ldb_compaction_t *c) {
   const ldb_vset_t *vset = c->input_version->vset;
 
   /* Avoid a move if there is lots of overlapping grandparent data.
      Otherwise, the move could create a parent file that will require
      a very expensive merge later on. */
-  return ldb_compaction_num_input_files(c, 0) == 1 &&
-         ldb_compaction_num_input_files(c, 1) == 0 &&
+  return c->inputs[0].length == 1 &&
+         c->inputs[1].length == 0 &&
          total_file_size(&c->grandparents) <=
            max_grandparent_overlap_bytes(vset->options);
 }

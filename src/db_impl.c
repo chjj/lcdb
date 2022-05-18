@@ -1266,9 +1266,9 @@ ldb_install_compaction_results(ldb_t *db, ldb_cstate_t *compact) {
   ldb_mutex_assert_held(&db->mutex);
 
   ldb_log(db->options.info_log, "Compacted %d@%d + %d@%d files => %ld bytes",
-          ldb_compaction_num_input_files(compact->compaction, 0),
+          (int)compact->compaction->inputs[0].length,
           compact->compaction->level + 0,
-          ldb_compaction_num_input_files(compact->compaction, 1),
+          (int)compact->compaction->inputs[1].length,
           compact->compaction->level + 1,
           (long)compact->total_bytes);
 
@@ -1307,9 +1307,9 @@ ldb_do_compaction_work(ldb_t *db, ldb_cstate_t *compact) {
   size_t i;
 
   ldb_log(db->options.info_log, "Compacting %d@%d + %d@%d files",
-          ldb_compaction_num_input_files(compact->compaction, 0),
+          (int)compact->compaction->inputs[0].length,
           compact->compaction->level + 0,
-          ldb_compaction_num_input_files(compact->compaction, 1),
+          (int)compact->compaction->inputs[1].length,
           compact->compaction->level + 1);
 
   ldb_buffer_init(&user_key);
@@ -1451,10 +1451,10 @@ ldb_do_compaction_work(ldb_t *db, ldb_cstate_t *compact) {
   stats.micros = ldb_now_usec() - start_micros - imm_micros;
 
   for (which = 0; which < 2; which++) {
-    size_t len = ldb_compaction_num_input_files(compact->compaction, which);
+    size_t len = compact->compaction->inputs[which].length;
 
     for (i = 0; i < len; i++) {
-      ldb_filemeta_t *f = ldb_compaction_input(compact->compaction, which, i);
+      ldb_filemeta_t *f = compact->compaction->inputs[which].items[i];
 
       stats.bytes_read += f->file_size;
     }
@@ -1533,8 +1533,7 @@ ldb_background_compaction(ldb_t *db) {
     m->done = (c == NULL);
 
     if (c != NULL) {
-      int num = ldb_compaction_num_input_files(c, 0);
-      ldb_filemeta_t *f = ldb_compaction_input(c, 0, num - 1);
+      ldb_filemeta_t *f = ldb_vector_top(&c->inputs[0]);
 
       /* Store for later. */
       ldb_buffer_copy(&m->tmp_storage, &f->largest);
@@ -1552,9 +1551,9 @@ ldb_background_compaction(ldb_t *db) {
     ldb_filemeta_t *f;
     char tmp[100];
 
-    assert(ldb_compaction_num_input_files(c, 0) == 1);
+    assert(c->inputs[0].length == 1);
 
-    f = ldb_compaction_input(c, 0, 0);
+    f = c->inputs[0].items[0];
 
     ldb_vedit_remove_file(&c->edit, c->level, f->number);
 

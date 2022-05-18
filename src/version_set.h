@@ -331,14 +331,6 @@ ldb_compaction_create(const ldb_dbopt_t *options, int level);
 void
 ldb_compaction_destroy(ldb_compaction_t *c);
 
-/* "which" must be either 0 or 1 */
-int
-ldb_compaction_num_input_files(const ldb_compaction_t *cmpct, int which);
-
-/* Return the ith input file at "level+which" ("which" must be 0 or 1). */
-ldb_filemeta_t *
-ldb_compaction_input(const ldb_compaction_t *cmpct, int which, int i);
-
 /* Is this a trivial compaction that can be implemented by just
    moving a single input file to the next level (no merging or splitting). */
 int
