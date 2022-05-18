@@ -78,7 +78,7 @@ ldb_skipnode_next(ldb_skipnode_t *node, int n) {
 }
 
 static void
-ldb_skipnode_setnext(ldb_skipnode_t *node, int n, ldb_skipnode_t *x) {
+ldb_skipnode_set(ldb_skipnode_t *node, int n, ldb_skipnode_t *x) {
   assert(n >= 0);
   /* Use a 'release store' so that anybody who reads through this
      pointer observes a fully initialized version of the inserted node. */
@@ -93,7 +93,7 @@ ldb_skipnode_next_nb(ldb_skipnode_t *node, int n) {
 }
 
 static void
-ldb_skipnode_setnext_nb(ldb_skipnode_t *node, int n, ldb_skipnode_t *x) {
+ldb_skipnode_set_nb(ldb_skipnode_t *node, int n, ldb_skipnode_t *x) {
   assert(n >= 0);
   ldb_atomic_store_ptr(&node->next[n], x, ldb_order_relaxed);
 }
@@ -128,7 +128,7 @@ ldb_skiplist_init(ldb_skiplist_t *list,
   ldb_rand_init(&list->rnd, 0xdeadbeef);
 
   for (i = 0; i < LDB_MAX_HEIGHT; i++)
-    ldb_skipnode_setnext(list->head, i, NULL);
+    ldb_skipnode_set(list->head, i, NULL);
 }
 
 static int
@@ -185,9 +185,9 @@ ldb_skiplist_key_after_node(const ldb_skiplist_t *list,
  * node at "level" for every level in [0..max_height-1].
  */
 static ldb_skipnode_t *
-ldb_skiplist_find_gte(const ldb_skiplist_t *list,
-                      const uint8_t *key,
-                      ldb_skipnode_t **prev) {
+ldb_skiplist_find_ge(const ldb_skiplist_t *list,
+                     const uint8_t *key,
+                     ldb_skipnode_t **prev) {
   int level = ldb_skiplist_maxheight(list) - 1;
   ldb_skipnode_t *x = list->head;
 
@@ -260,7 +260,7 @@ ldb_skiplist_find_last(const ldb_skiplist_t *list) {
 void
 ldb_skiplist_insert(ldb_skiplist_t *list, const uint8_t *key) {
   ldb_skipnode_t *prev[LDB_MAX_HEIGHT];
-  ldb_skipnode_t *x = ldb_skiplist_find_gte(list, key, prev);
+  ldb_skipnode_t *x = ldb_skiplist_find_ge(list, key, prev);
   int i, height;
 
   /* Our data structure does not allow duplicate insertion. */
@@ -285,16 +285,16 @@ ldb_skiplist_insert(ldb_skiplist_t *list, const uint8_t *key) {
   x = ldb_skipnode_create(list, key, height);
 
   for (i = 0; i < height; i++) {
-    /* setnext_nb() suffices since we will add a barrier
+    /* set_nb() suffices since we will add a barrier
        when we publish a pointer to "x" in prev[i]. */
-    ldb_skipnode_setnext_nb(x, i, ldb_skipnode_next_nb(prev[i], i));
-    ldb_skipnode_setnext(prev[i], i, x);
+    ldb_skipnode_set_nb(x, i, ldb_skipnode_next_nb(prev[i], i));
+    ldb_skipnode_set(prev[i], i, x);
   }
 }
 
 int
 ldb_skiplist_contains(const ldb_skiplist_t *list, const uint8_t *key) {
-  ldb_skipnode_t *x = ldb_skiplist_find_gte(list, key, NULL);
+  ldb_skipnode_t *x = ldb_skiplist_find_ge(list, key, NULL);
 
   if (x != NULL && ldb_skiplist_equal(list, key, x->key))
     return 1;
@@ -344,7 +344,7 @@ ldb_skipiter_prev(ldb_skipiter_t *iter) {
 
 void
 ldb_skipiter_seek(ldb_skipiter_t *iter, const uint8_t *target) {
-  iter->node = ldb_skiplist_find_gte(iter->list, target, NULL);
+  iter->node = ldb_skiplist_find_ge(iter->list, target, NULL);
 }
 
 void
