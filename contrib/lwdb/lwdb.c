@@ -1249,15 +1249,17 @@ ldb_iter_prev(ldb_iter_t *iter) {
 
 ldb_slice_t
 ldb_iter_key(const ldb_iter_t *iter) {
-  ldb_slice_t key = {NULL, 0, 0};
+  ldb_slice_t key;
   key.data = (void *)leveldb_iter_key(iter->rep, &key.size);
+  key.dummy = 0;
   return key;
 }
 
 ldb_slice_t
 ldb_iter_value(const ldb_iter_t *iter) {
-  ldb_slice_t value = {NULL, 0, 0};
+  ldb_slice_t value;
   value.data = (void *)leveldb_iter_value(iter->rep, &value.size);
+  value.dummy = 0;
   return value;
 }
 
