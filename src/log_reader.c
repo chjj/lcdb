@@ -404,8 +404,3 @@ ldb_logreader_read_record(ldb_logreader_t *lr,
     }
   }
 }
-
-uint64_t
-ldb_logreader_last_offset(const ldb_logreader_t *lr) {
-  return lr->last_offset;
-}
