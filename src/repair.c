@@ -291,7 +291,7 @@ convert_log_to_table(ldb_repair_t *rep, uint64_t log) {
   reporter.lognum = log;
   reporter.corruption = report_corruption;
 
-  /* We intentionally make log::Reader do checksumming so that
+  /* We intentionally make LogReader do checksumming so that
      corruptions cause entire commits to be skipped instead of
      propagating bad information (like overly large sequence
      numbers). */

@@ -294,7 +294,7 @@ ldb_logreader_read_record(ldb_logreader_t *lr,
     switch (record_type) {
       case LDB_TYPE_FULL: {
         if (in_fragmented_record) {
-          /* Handle bug in earlier versions of log::Writer where
+          /* Handle bug in earlier versions of LogWriter where
             it could emit an empty LDB_TYPE_FIRST record at the tail end
             of a block followed by a LDB_TYPE_FULL or LDB_TYPE_FIRST record
             at the beginning of the next block. */
@@ -317,7 +317,7 @@ ldb_logreader_read_record(ldb_logreader_t *lr,
 
       case LDB_TYPE_FIRST: {
         if (in_fragmented_record) {
-          /* Handle bug in earlier versions of log::Writer where
+          /* Handle bug in earlier versions of LogWriter where
              it could emit an empty LDB_TYPE_FIRST record at the tail end
              of a block followed by a LDB_TYPE_FULL or LDB_TYPE_FIRST record
              at the beginning of the next block. */
