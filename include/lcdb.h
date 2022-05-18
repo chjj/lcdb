@@ -484,7 +484,6 @@ ldb_string(const char *xp);
                                            \
   _z;                                      \
 })
-#define ldb_string(xp) ldb_slice(xp, strlen(xp))
 #endif
 
 /*
