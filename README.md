@@ -78,7 +78,7 @@ derivative of LevelDB's. As such, the LevelDB license must be shipped (and
 conformed to) with the distribution of lcdb in every form.
 
 _lcdb_ is still very immature and is not yet battle-hardened like LevelDB. It
-will also likely be subject to breaking ABI changes in the near future.  Use at
+will also likely be subject to breaking ABI changes in the near future. Use at
 your own risk.
 
 ## Usage
