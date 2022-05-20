@@ -155,7 +155,8 @@ ldb_version_destroy(ldb_version_t *ver);
 void
 ldb_version_add_iterators(ldb_version_t *ver,
                           const ldb_readopt_t *options,
-                          ldb_vector_t *iters);
+                          ldb_vector_t *iters,
+                          const ldb_vector_t *extra);
 
 /* Lookup the value for key. If found, store it in *val and
    return OK. Else return a non-OK status. Fills *stats. */
@@ -165,7 +166,8 @@ ldb_version_get(ldb_version_t *ver,
                 const ldb_readopt_t *options,
                 const ldb_lkey_t *k,
                 ldb_buffer_t *value,
-                ldb_getstats_t *stats);
+                ldb_getstats_t *stats,
+                const ldb_vector_t *extra);
 
 /* Adds "stats" into the current state. Returns true if a new
    compaction may need to be triggered, false otherwise. */

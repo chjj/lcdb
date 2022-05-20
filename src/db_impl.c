@@ -278,12 +278,14 @@ typedef struct ldb_istate_s {
   ldb_mutex_t *mu;
   /* All guarded by mu. */
   ldb_version_t *version;
+  ldb_memtable_t *exm;
   ldb_memtable_t *mem;
   ldb_memtable_t *imm;
 } ldb_istate_t;
 
 static ldb_istate_t *
 ldb_istate_create(ldb_mutex_t *mutex,
+                  ldb_memtable_t *exm,
                   ldb_memtable_t *mem,
                   ldb_memtable_t *imm,
                   ldb_version_t *version) {
@@ -291,6 +293,7 @@ ldb_istate_create(ldb_mutex_t *mutex,
 
   state->mu = mutex;
   state->version = version;
+  state->exm = exm;
   state->mem = mem;
   state->imm = imm;
 
@@ -300,6 +303,9 @@ ldb_istate_create(ldb_mutex_t *mutex,
 static void
 ldb_istate_destroy(ldb_istate_t *state) {
   ldb_mutex_lock(state->mu);
+
+  if (state->exm != NULL)
+    ldb_memtable_unref(state->exm);
 
   ldb_memtable_unref(state->mem);
 
@@ -1661,7 +1667,9 @@ cleanup_iter_state(void *arg1, void *arg2) {
 }
 
 static ldb_iter_t *
-ldb_internal_iterator(ldb_t *db, const ldb_readopt_t *options,
+ldb_internal_iterator(ldb_t *db, ldb_memtable_t *exm,
+                                 const ldb_vector_t *files,
+                                 const ldb_readopt_t *options,
                                  ldb_seqnum_t *latest_snapshot,
                                  uint32_t *seed) {
   ldb_iter_t *internal_iter;
@@ -1676,6 +1684,11 @@ ldb_internal_iterator(ldb_t *db, const ldb_readopt_t *options,
   *latest_snapshot = db->versions->last_sequence;
 
   /* Collect together all needed child iterators. */
+  if (exm != NULL) {
+    ldb_vector_push(&list, ldb_memiter_create(exm));
+    ldb_memtable_ref(exm);
+  }
+
   ldb_vector_push(&list, ldb_memiter_create(db->mem));
   ldb_memtable_ref(db->mem);
 
@@ -1686,7 +1699,7 @@ ldb_internal_iterator(ldb_t *db, const ldb_readopt_t *options,
 
   current = db->versions->current;
 
-  ldb_version_add_iterators(current, options, &list);
+  ldb_version_add_iterators(current, options, &list, files);
 
   internal_iter = ldb_mergeiter_create(&db->internal_comparator,
                                        (ldb_iter_t **)list.items,
@@ -1694,7 +1707,7 @@ ldb_internal_iterator(ldb_t *db, const ldb_readopt_t *options,
 
   ldb_version_ref(current);
 
-  cleanup = ldb_istate_create(&db->mutex, db->mem, db->imm,
+  cleanup = ldb_istate_create(&db->mutex, exm, db->mem, db->imm,
                               db->versions->current);
 
   ldb_iter_register_cleanup(internal_iter, cleanup_iter_state, cleanup, NULL);
@@ -1782,8 +1795,6 @@ ldb_make_room_for_write(ldb_t *db, int force) {
   int rc = LDB_OK;
 
   ldb_mutex_assert_held(&db->mutex);
-
-  assert(db->writers.length > 0);
 
   for (;;) {
 #define L0_FILES ldb_versions_files(db->versions, 0)
@@ -2053,10 +2064,13 @@ ldb_close(ldb_t *db) {
   ldb_destroy_internal(db);
 }
 
-int
-ldb_get(ldb_t *db, const ldb_slice_t *key,
-                   ldb_slice_t *value,
-                   const ldb_readopt_t *options) {
+static int
+ldb_get_ex(ldb_t *db, ldb_memtable_t *exm,
+                      const ldb_vector_t *files,
+                      ldb_seqnum_t sequence,
+                      const ldb_slice_t *key,
+                      ldb_slice_t *value,
+                      const ldb_readopt_t *options) {
   ldb_memtable_t *mem, *imm;
   ldb_version_t *current;
   ldb_seqnum_t snapshot;
@@ -2072,7 +2086,9 @@ ldb_get(ldb_t *db, const ldb_slice_t *key,
 
   ldb_mutex_lock(&db->mutex);
 
-  if (options->snapshot != NULL)
+  if (sequence != LDB_MAX_SEQUENCE)
+    snapshot = sequence;
+  else if (options->snapshot != NULL)
     snapshot = options->snapshot->sequence;
   else
     snapshot = db->versions->last_sequence;
@@ -2080,6 +2096,9 @@ ldb_get(ldb_t *db, const ldb_slice_t *key,
   mem = db->mem;
   imm = db->imm;
   current = db->versions->current;
+
+  if (exm != NULL)
+    ldb_memtable_ref(exm);
 
   ldb_memtable_ref(mem);
 
@@ -2097,12 +2116,14 @@ ldb_get(ldb_t *db, const ldb_slice_t *key,
     /* First look in the memtable, then in the immutable memtable (if any). */
     ldb_lkey_init(&lkey, key, snapshot);
 
-    if (ldb_memtable_get(mem, &lkey, value, &rc)) {
+    if (exm != NULL && ldb_memtable_get(exm, &lkey, value, &rc)) {
+      /* Done. */
+    } else if (ldb_memtable_get(mem, &lkey, value, &rc)) {
       /* Done. */
     } else if (imm != NULL && ldb_memtable_get(imm, &lkey, value, &rc)) {
       /* Done. */
     } else {
-      rc = ldb_version_get(current, options, &lkey, value, &stats);
+      rc = ldb_version_get(current, options, &lkey, value, &stats, files);
       have_stat_update = 1;
     }
 
@@ -2113,6 +2134,9 @@ ldb_get(ldb_t *db, const ldb_slice_t *key,
 
   if (have_stat_update && ldb_version_update_stats(current, &stats))
     ldb_maybe_schedule_compaction(db);
+
+  if (exm != NULL)
+    ldb_memtable_unref(exm);
 
   ldb_memtable_unref(mem);
 
@@ -2133,6 +2157,13 @@ ldb_get(ldb_t *db, const ldb_slice_t *key,
   }
 
   return rc;
+}
+
+int
+ldb_get(ldb_t *db, const ldb_slice_t *key,
+                   ldb_slice_t *value,
+                   const ldb_readopt_t *options) {
+  return ldb_get_ex(db, NULL, NULL, LDB_MAX_SEQUENCE, key, value, options);
 }
 
 int
@@ -2302,23 +2333,32 @@ ldb_release(ldb_t *db, const ldb_snapshot_t *snapshot) {
   ldb_mutex_unlock(&db->mutex);
 }
 
-ldb_iter_t *
-ldb_iterator(ldb_t *db, const ldb_readopt_t *options) {
+static ldb_iter_t *
+ldb_iterator_ex(ldb_t *db, ldb_memtable_t *exm,
+                           const ldb_vector_t *files,
+                           ldb_seqnum_t sequence,
+                           const ldb_readopt_t *options) {
   const ldb_comparator_t *ucmp = ldb_user_comparator(db);
-  ldb_seqnum_t latest_snapshot;
+  ldb_seqnum_t snapshot;
   ldb_iter_t *iter;
   uint32_t seed;
 
   if (options == NULL)
     options = ldb_iteropt_default;
 
-  iter = ldb_internal_iterator(db, options, &latest_snapshot, &seed);
+  iter = ldb_internal_iterator(db, exm, files, options, &snapshot, &seed);
 
-  return ldb_dbiter_create(db, ucmp, iter,
-                           (options->snapshot != NULL
-                              ? options->snapshot->sequence
-                              : latest_snapshot),
-                           seed);
+  if (sequence != LDB_MAX_SEQUENCE)
+    snapshot = sequence;
+  else if (options->snapshot != NULL)
+    snapshot = options->snapshot->sequence;
+
+  return ldb_dbiter_create(db, ucmp, iter, snapshot, seed);
+}
+
+ldb_iter_t *
+ldb_iterator(ldb_t *db, const ldb_readopt_t *options) {
+  return ldb_iterator_ex(db, NULL, NULL, LDB_MAX_SEQUENCE, options);
 }
 
 int
@@ -2758,7 +2798,8 @@ ldb_test_internal_iterator(ldb_t *db) {
   ldb_seqnum_t ignored;
   uint32_t ignored_seed;
 
-  return ldb_internal_iterator(db, ldb_readopt_default,
+  return ldb_internal_iterator(db, NULL, NULL,
+                                   ldb_readopt_default,
                                    &ignored,
                                    &ignored_seed);
 }

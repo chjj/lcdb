@@ -534,7 +534,8 @@ ldb_version_destroy(ldb_version_t *ver) {
 void
 ldb_version_add_iterators(ldb_version_t *ver,
                           const ldb_readopt_t *options,
-                          ldb_vector_t *iters) {
+                          ldb_vector_t *iters,
+                          const ldb_vector_t *extra) {
   ldb_tables_t *table_cache = ver->vset->table_cache;
   int level;
   size_t i;
@@ -549,6 +550,19 @@ ldb_version_add_iterators(ldb_version_t *ver,
                                           NULL);
 
     ldb_vector_push(iters, iter);
+  }
+
+  if (extra != NULL) {
+    for (i = 0; i < extra->length; i++) {
+      ldb_filemeta_t *item = extra->items[i];
+      ldb_iter_t *iter = ldb_tables_iterate(table_cache,
+                                            options,
+                                            item->number,
+                                            item->file_size,
+                                            NULL);
+
+      ldb_vector_push(iters, iter);
+    }
   }
 
   /* For levels > 0, we can use a concatenating iterator that sequentially
@@ -576,15 +590,17 @@ ldb_version_for_each_overlapping(ldb_version_t *ver,
                                  const ldb_slice_t *user_key,
                                  const ldb_slice_t *internal_key,
                                  void *arg,
-                                 int (*func)(void *, int, ldb_filemeta_t *)) {
+                                 int (*func)(void *, int, ldb_filemeta_t *),
+                                 const ldb_vector_t *extra) {
   const ldb_comparator_t *ucmp = ver->vset->icmp.user_comparator;
+  size_t extra_len = (extra != NULL ? extra->length : 0);
   ldb_vector_t tmp;
   uint32_t i;
   int level;
 
   /* Search level-0 in order from newest to oldest. */
   ldb_vector_init(&tmp);
-  ldb_vector_grow(&tmp, ver->files[0].length);
+  ldb_vector_grow(&tmp, ver->files[0].length + extra_len);
 
   for (i = 0; i < ver->files[0].length; i++) {
     ldb_filemeta_t *f = ver->files[0].items[i];
@@ -594,6 +610,19 @@ ldb_version_for_each_overlapping(ldb_version_t *ver,
     if (ldb_compare(ucmp, user_key, &small_key) >= 0 &&
         ldb_compare(ucmp, user_key, &large_key) <= 0) {
       ldb_vector_push(&tmp, f);
+    }
+  }
+
+  if (extra != NULL) {
+    for (i = 0; i < extra->length; i++) {
+      ldb_filemeta_t *f = extra->items[i];
+      ldb_slice_t small_key = ldb_ikey_user_key(&f->smallest);
+      ldb_slice_t large_key = ldb_ikey_user_key(&f->largest);
+
+      if (ldb_compare(ucmp, user_key, &small_key) >= 0 &&
+          ldb_compare(ucmp, user_key, &large_key) <= 0) {
+        ldb_vector_push(&tmp, f);
+      }
     }
   }
 
@@ -640,7 +669,8 @@ ldb_version_get(ldb_version_t *ver,
                 const ldb_readopt_t *options,
                 const ldb_lkey_t *k,
                 ldb_buffer_t *value,
-                ldb_getstats_t *stats) {
+                ldb_getstats_t *stats,
+                const ldb_vector_t *extra) {
   getstate_t state;
 
   stats->seek_file = NULL;
@@ -665,7 +695,8 @@ ldb_version_get(ldb_version_t *ver,
                                    &state.saver.user_key,
                                    &state.ikey,
                                    &state,
-                                   &getstate_match);
+                                   &getstate_match,
+                                   extra);
 
   return state.found ? state.status : LDB_NOTFOUND;
 }
@@ -703,7 +734,8 @@ ldb_version_record_read_sample(ldb_version_t *ver, const ldb_slice_t *ikey) {
                                    &pkey.user_key,
                                    ikey,
                                    &state,
-                                   &samplestate_match);
+                                   &samplestate_match,
+                                   NULL);
 
   /* Must have at least two matches since we want to merge across
      files. But what if we have a single file that contains many
