@@ -71,6 +71,69 @@ ldb_mutex_unlock(ldb_mutex_t *mtx) {
 }
 
 /*
+ * Read-Write Lock
+ */
+
+void
+ldb_rwlock_init(ldb_rwlock_t *mtx) {
+  HANDLE handle = CreateSemaphoreA(NULL, 1, 1, NULL);
+
+  if (handle == NULL)
+    abort(); /* LCOV_EXCL_LINE */
+
+  mtx->readers = 0;
+  mtx->write_semaphore = handle;
+
+  InitializeCriticalSection(&mtx->readers_lock);
+}
+
+void
+ldb_rwlock_destroy(ldb_rwlock_t *mtx) {
+  DeleteCriticalSection(&mtx->readers_lock);
+  CloseHandle(mtx->write_semaphore);
+}
+
+void
+ldb_rwlock_wrlock(ldb_rwlock_t *mtx) {
+  DWORD r = WaitForSingleObject(mtx->write_semaphore, INFINITE);
+
+  if (r != WAIT_OBJECT_0)
+    abort(); /* LCOV_EXCL_LINE */
+}
+
+void
+ldb_rwlock_wrunlock(ldb_rwlock_t *mtx) {
+  if (!ReleaseSemaphore(mtx->write_semaphore, 1, NULL))
+    abort(); /* LCOV_EXCL_LINE */
+}
+
+void
+ldb_rwlock_rdlock(ldb_rwlock_t *mtx) {
+  EnterCriticalSection(&mtx->readers_lock);
+
+  if (++mtx->readers == 1) {
+    DWORD r = WaitForSingleObject(mtx->write_semaphore, INFINITE);
+
+    if (r != WAIT_OBJECT_0)
+      abort(); /* LCOV_EXCL_LINE */
+  }
+
+  LeaveCriticalSection(&mtx->readers_lock);
+}
+
+void
+ldb_rwlock_rdunlock(ldb_rwlock_t *mtx) {
+  EnterCriticalSection(&mtx->readers_lock);
+
+  if (--mtx->readers == 0) {
+    if (!ReleaseSemaphore(mtx->write_semaphore, 1, NULL))
+      abort(); /* LCOV_EXCL_LINE */
+  }
+
+  LeaveCriticalSection(&mtx->readers_lock);
+}
+
+/*
  * Conditional
  */
 

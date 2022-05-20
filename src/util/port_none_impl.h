@@ -32,6 +32,40 @@ ldb_mutex_unlock(ldb_mutex_t *mtx) {
 }
 
 /*
+ * Read-Write Lock
+ */
+
+void
+ldb_rwlock_init(ldb_rwlock_t *mtx) {
+  (void)mtx;
+}
+
+void
+ldb_rwlock_destroy(ldb_rwlock_t *mtx) {
+  (void)mtx;
+}
+
+void
+ldb_rwlock_wrlock(ldb_rwlock_t *mtx) {
+  (void)mtx;
+}
+
+void
+ldb_rwlock_wrunlock(ldb_rwlock_t *mtx) {
+  (void)mtx;
+}
+
+void
+ldb_rwlock_rdlock(ldb_rwlock_t *mtx) {
+  (void)mtx;
+}
+
+void
+ldb_rwlock_rdunlock(ldb_rwlock_t *mtx) {
+  (void)mtx;
+}
+
+/*
  * Conditional
  */
 

@@ -49,6 +49,12 @@ typedef struct ldb_mutex_s {
   LDB_CRITICAL_SECTION handle;
 } ldb_mutex_t;
 
+typedef struct ldb_rwlock_s {
+  unsigned int readers;
+  LDB_CRITICAL_SECTION readers_lock;
+  LDB_HANDLE write_semaphore;
+} ldb_rwlock_t;
+
 typedef struct ldb_cond_s {
   int waiters;
   LDB_HANDLE signal;
@@ -68,6 +74,10 @@ typedef struct ldb_mutex_s {
   pthread_mutex_t handle;
 } ldb_mutex_t;
 
+typedef struct ldb_rwlock_s {
+  pthread_rwlock_t handle;
+} ldb_rwlock_t;
+
 typedef struct ldb_cond_s {
   pthread_cond_t handle;
 } ldb_cond_t;
@@ -83,6 +93,10 @@ typedef struct ldb_thread_s {
 typedef struct ldb_mutex_s {
   void *handle;
 } ldb_mutex_t;
+
+typedef struct ldb_rwlock_s {
+  void *handle;
+} ldb_rwlock_t;
 
 typedef struct ldb_cond_s {
   void *handle;
@@ -113,6 +127,28 @@ void
 ldb_mutex_unlock(ldb_mutex_t *mtx);
 
 #define ldb_mutex_assert_held(mtx) ((void)(mtx))
+
+/*
+ * Read-Write Lock
+ */
+
+void
+ldb_rwlock_init(ldb_rwlock_t *mtx);
+
+void
+ldb_rwlock_destroy(ldb_rwlock_t *mtx);
+
+void
+ldb_rwlock_wrlock(ldb_rwlock_t *mtx);
+
+void
+ldb_rwlock_wrunlock(ldb_rwlock_t *mtx);
+
+void
+ldb_rwlock_rdlock(ldb_rwlock_t *mtx);
+
+void
+ldb_rwlock_rdunlock(ldb_rwlock_t *mtx);
 
 /*
  * Conditional
