@@ -29,8 +29,10 @@ struct ldb_batch_s;
 struct ldb_comparator_s;
 struct ldb_iter_s;
 struct ldb_snapshot_s;
+struct rb_tree_s;
 
 typedef struct ldb_s ldb_t;
+typedef struct ldb_txn_s ldb_txn_t;
 
 /*
  * Helpers
@@ -82,6 +84,9 @@ ldb_release(ldb_t *db, const struct ldb_snapshot_s *snapshot);
 
 LDB_EXTERN struct ldb_iter_s *
 ldb_iterator(ldb_t *db, const ldb_readopt_t *options);
+
+LDB_EXTERN ldb_txn_t *
+ldb_transaction(ldb_t *db, int read_only);
 
 LDB_EXTERN int
 ldb_property(ldb_t *db, const char *property, char **value);
@@ -153,5 +158,50 @@ ldb_test_max_next_level_overlapping_bytes(ldb_t *db);
    bytes. */
 void
 ldb_record_read_sample(ldb_t *db, const ldb_slice_t *key);
+
+/*
+ * Transaction
+ */
+
+ldb_txn_t *
+ldb_txn_create(ldb_t *db, int read_only);
+
+LDB_EXTERN void
+ldb_txn_reset(ldb_txn_t *txn);
+
+void
+ldb_txn_add_files(ldb_txn_t *txn, struct rb_tree_s *live);
+
+LDB_EXTERN int
+ldb_txn_get(ldb_txn_t *txn, const ldb_slice_t *key,
+                            ldb_slice_t *value,
+                            const ldb_readopt_t *options);
+
+LDB_EXTERN int
+ldb_txn_has(ldb_txn_t *txn, const ldb_slice_t *key,
+                            const ldb_readopt_t *options);
+
+LDB_EXTERN int
+ldb_txn_put(ldb_txn_t *txn, const ldb_slice_t *key, const ldb_slice_t *value);
+
+LDB_EXTERN int
+ldb_txn_del(ldb_txn_t *txn, const ldb_slice_t *key);
+
+LDB_EXTERN int
+ldb_txn_write(ldb_txn_t *txn, struct ldb_batch_s *batch);
+
+LDB_EXTERN int
+ldb_txn_commit(ldb_txn_t *txn);
+
+LDB_EXTERN void
+ldb_txn_abort(ldb_txn_t *txn);
+
+LDB_EXTERN struct ldb_iter_s *
+ldb_txn_iterator(ldb_txn_t *txn, const ldb_readopt_t *options);
+
+LDB_EXTERN int
+ldb_txn_compare(const ldb_txn_t *txn,
+                const ldb_slice_t *x,
+                const ldb_slice_t *y);
 
 #endif /* LDB_DB_IMPL_H */

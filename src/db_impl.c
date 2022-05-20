@@ -415,6 +415,10 @@ struct ldb_s {
   uint64_t logfile_number;
   ldb_writer_t *log;
   uint32_t seed; /* For sampling. */
+  ldb_txn_t *txn;
+
+  /* Lock for write transaction. */
+  ldb_rwlock_t write_lock;
 
   /* Queue of writers. */
   ldb_queue_t writers;
@@ -495,6 +499,9 @@ ldb_create(const char *dbname, const ldb_dbopt_t *options) {
   db->logfile_number = 0;
   db->log = NULL;
   db->seed = 0;
+  db->txn = NULL;
+
+  ldb_rwlock_init(&db->write_lock);
 
   ldb_queue_init(&db->writers);
 
@@ -563,11 +570,14 @@ ldb_destroy_internal(ldb_t *db) {
 
   assert(db->writers.length == 0);
   assert(ldb_snaplist_empty(&db->snapshots));
+  assert(db->txn == NULL);
 
   rb_set64_clear(&db->pending_outputs);
 
   ldb_mutex_destroy(&db->mutex);
   ldb_cond_destroy(&db->background_work_finished_signal);
+
+  ldb_rwlock_destroy(&db->write_lock);
 
   ldb_free(db);
 }
@@ -669,6 +679,9 @@ ldb_remove_obsolete_files(ldb_t *db) {
   rb_set64_copy(&live, &db->pending_outputs);
 
   ldb_versions_add_files(db->versions, &live);
+
+  if (db->txn != NULL)
+    ldb_txn_add_files(db->txn, &live);
 
   len = ldb_get_children(db->dbname, &filenames); /* Ignoring errors. */
 
@@ -2219,6 +2232,7 @@ ldb_write(ldb_t *db, ldb_batch_t *updates, const ldb_writeopt_t *options) {
   w.sync = options->sync;
   w.done = 0;
 
+  ldb_rwlock_rdlock(&db->write_lock);
   ldb_mutex_lock(&db->mutex);
 
   ldb_queue_push(&db->writers, &w);
@@ -2228,6 +2242,7 @@ ldb_write(ldb_t *db, ldb_batch_t *updates, const ldb_writeopt_t *options) {
 
   if (w.done) {
     ldb_mutex_unlock(&db->mutex);
+    ldb_rwlock_rdunlock(&db->write_lock);
     ldb_waiter_clear(&w);
     return w.status;
   }
@@ -2304,6 +2319,7 @@ ldb_write(ldb_t *db, ldb_batch_t *updates, const ldb_writeopt_t *options) {
     ldb_cond_signal(&db->writers.head->cv);
 
   ldb_mutex_unlock(&db->mutex);
+  ldb_rwlock_rdunlock(&db->write_lock);
   ldb_waiter_clear(&w);
 
   return rc;
@@ -2359,6 +2375,11 @@ ldb_iterator_ex(ldb_t *db, ldb_memtable_t *exm,
 ldb_iter_t *
 ldb_iterator(ldb_t *db, const ldb_readopt_t *options) {
   return ldb_iterator_ex(db, NULL, NULL, LDB_MAX_SEQUENCE, options);
+}
+
+ldb_txn_t *
+ldb_transaction(ldb_t *db, int read_only) {
+  return ldb_txn_create(db, read_only);
 }
 
 int
@@ -2829,4 +2850,380 @@ ldb_record_read_sample(ldb_t *db, const ldb_slice_t *key) {
     ldb_maybe_schedule_compaction(db);
 
   ldb_mutex_unlock(&db->mutex);
+}
+
+/*
+ * Transaction
+ */
+
+struct ldb_txn_s {
+  ldb_t *db;
+  const ldb_dbopt_t *options;
+  const ldb_comparator_t *comparator;
+  const ldb_snapshot_t *snapshot;
+  ldb_rwlock_t lock;
+  ldb_seqnum_t sequence;
+  ldb_memtable_t *mem;
+  ldb_vector_t files;
+  ldb_edit_t edit;
+  int rotated;
+};
+
+ldb_txn_t *
+ldb_txn_create(ldb_t *db, int read_only) {
+  ldb_txn_t *txn = ldb_malloc(sizeof(ldb_txn_t));
+
+  if (!read_only) {
+    ldb_rwlock_wrlock(&db->write_lock);
+    ldb_mutex_lock(&db->mutex);
+  }
+
+  txn->db = db;
+  txn->options = &db->options;
+  txn->comparator = &db->internal_comparator;
+
+  if (read_only) {
+    txn->snapshot = ldb_snapshot(db);
+    txn->sequence = txn->snapshot->sequence;
+    txn->mem = NULL;
+  } else {
+    txn->snapshot = NULL;
+    txn->sequence = db->versions->last_sequence;
+    txn->mem = ldb_memtable_create(txn->comparator);
+
+    ldb_memtable_ref(txn->mem);
+
+    ldb_rwlock_init(&txn->lock);
+
+    db->txn = txn;
+  }
+
+  ldb_vector_init(&txn->files);
+  ldb_edit_init(&txn->edit);
+
+  txn->rotated = 0;
+
+  if (!read_only)
+    ldb_mutex_unlock(&db->mutex);
+
+  return txn;
+}
+
+static void
+ldb_txn_destroy(ldb_txn_t *txn) {
+  ldb_t *db = txn->db;
+
+  if (txn->snapshot != NULL) {
+    ldb_release(db, txn->snapshot);
+  } else {
+    ldb_rwlock_wrunlock(&db->write_lock);
+    ldb_rwlock_destroy(&txn->lock);
+  }
+
+  if (txn->mem != NULL)
+    ldb_memtable_unref(txn->mem);
+
+  ldb_vector_clear(&txn->files);
+  ldb_edit_clear(&txn->edit);
+
+  ldb_free(txn);
+}
+
+static void
+ldb_txn_cleanup(ldb_txn_t *txn) {
+  char path[LDB_PATH_MAX];
+  ldb_t *db = txn->db;
+  size_t i;
+
+  assert(txn->snapshot == NULL);
+
+  ldb_mutex_assert_held(&db->mutex);
+
+  for (i = txn->files.length - 1; i != (size_t)-1; i--) {
+    ldb_filemeta_t *file = txn->files.items[i];
+
+    ldb_tables_evict(db->table_cache, file->number);
+    ldb_versions_reuse_file_number(db->versions, file->number);
+
+    if (ldb_table_filename(path, sizeof(path), db->dbname, file->number))
+      ldb_remove_file(path);
+  }
+}
+
+void
+ldb_txn_reset(ldb_txn_t *txn) {
+  ldb_t *db = txn->db;
+
+  if (txn->snapshot != NULL)
+    return;
+
+  ldb_rwlock_wrlock(&txn->lock);
+  ldb_mutex_lock(&db->mutex);
+
+  txn->sequence = db->versions->last_sequence;
+
+  ldb_memtable_unref(txn->mem);
+
+  txn->mem = ldb_memtable_create(txn->comparator);
+
+  ldb_memtable_ref(txn->mem);
+
+  ldb_txn_cleanup(txn);
+
+  ldb_vector_reset(&txn->files);
+  ldb_edit_reset(&txn->edit);
+
+  ldb_mutex_unlock(&db->mutex);
+  ldb_rwlock_wrunlock(&txn->lock);
+}
+
+void
+ldb_txn_add_files(ldb_txn_t *txn, rb_set64_t *live) {
+  size_t i;
+
+  ldb_mutex_assert_held(&txn->db->mutex);
+
+  for (i = 0; i < txn->files.length; i++) {
+    ldb_filemeta_t *file = txn->files.items[i];
+
+    rb_set64_put(live, file->number);
+  }
+}
+
+static int
+ldb_wait_compaction(ldb_t *db) {
+  int total = ldb_versions_files(db->versions, 0);
+
+  ldb_mutex_assert_held(&db->mutex);
+
+  if (total >= LDB_L0_STOP_WRITES_TRIGGER) {
+    ldb_maybe_schedule_compaction(db);
+
+    while (db->background_compaction_scheduled)
+      ldb_cond_wait(&db->background_work_finished_signal, &db->mutex);
+  }
+
+  return db->bg_error;
+}
+
+static int
+ldb_txn_flush(ldb_txn_t *txn, ldb_mutex_t *mu) {
+  ldb_t *db = txn->db;
+  int rc = LDB_OK;
+
+  if (mu != NULL)
+    ldb_mutex_lock(mu);
+
+  if (!txn->rotated) {
+    if (ldb_memtable_usage(db->mem) > 0 || db->imm != NULL) {
+      rc = ldb_make_room_for_write(db, 1);
+
+      if (rc == LDB_OK) {
+        while (db->imm != NULL && db->bg_error == LDB_OK)
+          ldb_cond_wait(&db->background_work_finished_signal, &db->mutex);
+
+        if (db->imm != NULL)
+          rc = db->bg_error;
+      }
+    }
+
+    if (rc == LDB_OK) {
+      rc = ldb_wait_compaction(db);
+
+      txn->rotated = 1;
+    }
+  }
+
+  if (rc == LDB_OK)
+    rc = ldb_write_level0_table(db, txn->mem, &txn->edit, NULL);
+
+  if (rc == LDB_OK) {
+    meta_entry_t *entry = ldb_vector_top(&txn->edit.new_files);
+
+    ldb_memtable_unref(txn->mem);
+
+    txn->mem = ldb_memtable_create(txn->comparator);
+
+    ldb_memtable_ref(txn->mem);
+
+    ldb_vector_push(&txn->files, &entry->meta);
+  }
+
+  if (mu != NULL)
+    ldb_mutex_unlock(mu);
+
+  return rc;
+}
+
+int
+ldb_txn_get(ldb_txn_t *txn, const ldb_slice_t *key,
+                            ldb_slice_t *value,
+                            const ldb_readopt_t *options) {
+  int rc;
+
+  ldb_rwlock_rdlock(&txn->lock);
+
+  rc = ldb_get_ex(txn->db,
+                  txn->mem,
+                  &txn->files,
+                  txn->sequence,
+                  key,
+                  value,
+                  options);
+
+  ldb_rwlock_rdunlock(&txn->lock);
+
+  return rc;
+}
+
+int
+ldb_txn_has(ldb_txn_t *txn, const ldb_slice_t *key,
+                            const ldb_readopt_t *options) {
+  return ldb_txn_get(txn, key, NULL, options);
+}
+
+static int
+ldb_txn_insert(ldb_txn_t *txn,
+               enum ldb_valtype type,
+               const ldb_slice_t *key,
+               const ldb_slice_t *value) {
+  ldb_t *db = txn->db;
+  int rc = LDB_OK;
+
+  if (txn->snapshot != NULL)
+    return LDB_INVALID;
+
+  ldb_rwlock_wrlock(&txn->lock);
+
+  ldb_memtable_add(txn->mem, ++txn->sequence, type, key, value);
+
+  if (ldb_memtable_usage(txn->mem) > txn->options->write_buffer_size)
+    rc = ldb_txn_flush(txn, &db->mutex);
+
+  ldb_rwlock_wrunlock(&txn->lock);
+
+  return rc;
+}
+
+int
+ldb_txn_put(ldb_txn_t *txn, const ldb_slice_t *key, const ldb_slice_t *value) {
+  return ldb_txn_insert(txn, LDB_TYPE_VALUE, key, value);
+}
+
+int
+ldb_txn_del(ldb_txn_t *txn, const ldb_slice_t *key) {
+  static const ldb_slice_t value = {NULL, 0, 0};
+  return ldb_txn_insert(txn, LDB_TYPE_DELETION, key, &value);
+}
+
+int
+ldb_txn_write(ldb_txn_t *txn, ldb_batch_t *batch) {
+  ldb_t *db = txn->db;
+  int rc;
+
+  if (txn->snapshot != NULL)
+    return LDB_INVALID;
+
+  ldb_rwlock_wrlock(&txn->lock);
+
+  ldb_batch_set_sequence(batch, txn->sequence + 1);
+
+  rc = ldb_batch_insert_into(batch, txn->mem);
+
+  txn->sequence += ldb_batch_count(batch);
+
+  if (rc == LDB_OK) {
+    if (ldb_memtable_usage(txn->mem) > txn->options->write_buffer_size)
+      rc = ldb_txn_flush(txn, &db->mutex);
+  }
+
+  ldb_rwlock_wrunlock(&txn->lock);
+
+  return rc;
+}
+
+int
+ldb_txn_commit(ldb_txn_t *txn) {
+  ldb_t *db = txn->db;
+  int rc;
+
+  if (txn->snapshot != NULL) {
+    ldb_txn_destroy(txn);
+    return LDB_OK;
+  }
+
+  ldb_rwlock_wrlock(&txn->lock);
+  ldb_mutex_lock(&db->mutex);
+
+  rc = db->bg_error;
+
+  if (rc == LDB_OK && ldb_memtable_usage(txn->mem) > 0)
+    rc = ldb_txn_flush(txn, NULL);
+
+  if (rc == LDB_OK && txn->files.length > 0) {
+    db->versions->last_sequence = txn->sequence;
+
+    rc = ldb_versions_apply(db->versions, &txn->edit, &db->mutex);
+
+    ldb_maybe_schedule_compaction(db);
+
+    if (rc == LDB_OK)
+      rc = ldb_wait_compaction(db);
+  }
+
+  db->txn = NULL;
+
+  ldb_mutex_unlock(&db->mutex);
+  ldb_rwlock_wrunlock(&txn->lock);
+
+  ldb_txn_destroy(txn);
+
+  return rc;
+}
+
+void
+ldb_txn_abort(ldb_txn_t *txn) {
+  ldb_t *db = txn->db;
+
+  if (txn->snapshot != NULL) {
+    ldb_txn_destroy(txn);
+    return;
+  }
+
+  ldb_rwlock_wrlock(&txn->lock);
+  ldb_mutex_lock(&db->mutex);
+
+  ldb_txn_cleanup(txn);
+
+  db->txn = NULL;
+
+  ldb_mutex_unlock(&db->mutex);
+  ldb_rwlock_wrunlock(&txn->lock);
+
+  ldb_txn_destroy(txn);
+}
+
+ldb_iter_t *
+ldb_txn_iterator(ldb_txn_t *txn, const ldb_readopt_t *options) {
+  ldb_iter_t *iter;
+
+  ldb_rwlock_rdlock(&txn->lock);
+
+  iter = ldb_iterator_ex(txn->db,
+                         txn->mem,
+                         &txn->files,
+                         txn->sequence,
+                         options);
+
+  ldb_rwlock_rdunlock(&txn->lock);
+
+  return iter;
+}
+
+int
+ldb_txn_compare(const ldb_txn_t *txn,
+                const ldb_slice_t *x,
+                const ldb_slice_t *y) {
+  const ldb_comparator_t *cmp = txn->comparator->user_comparator;
+  return ldb_compare(cmp, x, y);
 }
