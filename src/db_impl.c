@@ -791,10 +791,10 @@ ldb_write_level0_table(ldb_t *db, ldb_memtable_t *mem,
   /* Note that if file_size is zero, the file has been deleted and
      should not be added to the manifest. */
   if (rc == LDB_OK && meta.file_size > 0) {
-    ldb_slice_t min_user_key = ldb_ikey_user_key(&meta.smallest);
-    ldb_slice_t max_user_key = ldb_ikey_user_key(&meta.largest);
-
     if (base != NULL) {
+      ldb_slice_t min_user_key = ldb_ikey_user_key(&meta.smallest);
+      ldb_slice_t max_user_key = ldb_ikey_user_key(&meta.largest);
+
       level = ldb_version_pick_level_for_memtable_output(base,
                                                          &min_user_key,
                                                          &max_user_key);
