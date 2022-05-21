@@ -64,8 +64,6 @@ ldb_build_table(const char *dbname,
 
     ldb_ikey_copy(&meta->smallest, &key);
 
-    ldb_slice_reset(&key);
-
     for (; ldb_iter_valid(iter); ldb_iter_next(iter)) {
       key = ldb_iter_key(iter);
       val = ldb_iter_value(iter);
@@ -73,8 +71,7 @@ ldb_build_table(const char *dbname,
       ldb_tablebuilder_add(builder, &key, &val);
     }
 
-    if (key.size > 0)
-      ldb_ikey_copy(&meta->largest, &key);
+    ldb_ikey_copy(&meta->largest, &key);
 
     /* Finish and check for builder errors. */
     rc = ldb_tablebuilder_finish(builder);

@@ -2521,8 +2521,6 @@ ldb_backup(ldb_t *db, const char *name) {
     rc = ldb_backup_inner(db->dbname, name, &live);
 
     rb_set64_clear(&live);
-  } else {
-    db->bg_error = LDB_OK;
   }
 
   ldb_mutex_unlock(&db->mutex);
