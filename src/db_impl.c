@@ -74,7 +74,7 @@ ldb_manual_init(ldb_manual_t *m, int level) {
   m->begin = NULL;
   m->end = NULL;
 
-  ldb_buffer_init(&m->tmp_storage);
+  ldb_ikey_init(&m->tmp_storage);
 }
 
 static void
@@ -204,8 +204,8 @@ ldb_output_create(uint64_t number) {
   out->number = number;
   out->file_size = 0;
 
-  ldb_buffer_init(&out->smallest);
-  ldb_buffer_init(&out->largest);
+  ldb_ikey_init(&out->smallest);
+  ldb_ikey_init(&out->largest);
 
   return out;
 }
@@ -1536,7 +1536,7 @@ ldb_background_compaction(ldb_t *db) {
       ldb_filemeta_t *f = ldb_vector_top(&c->inputs[0]);
 
       /* Store for later. */
-      ldb_buffer_copy(&m->tmp_storage, &f->largest);
+      ldb_ikey_copy(&m->tmp_storage, &f->largest);
     }
 
     ldb_log(db->options.info_log, "Manual compaction at level-%d", m->level);
@@ -1688,7 +1688,6 @@ ldb_internal_iterator(ldb_t *db, const ldb_readopt_t *options,
 
   /* Collect together all needed child iterators. */
   ldb_vector_push(&list, ldb_memiter_create(db->mem));
-
   ldb_memtable_ref(db->mem);
 
   if (db->imm != NULL) {
@@ -2231,6 +2230,7 @@ ldb_write(ldb_t *db, ldb_batch_t *updates, const ldb_writeopt_t *options) {
       ldb_mutex_unlock(&db->mutex);
 
       contents = ldb_batch_contents(write_batch);
+
       rc = ldb_logwriter_add_record(db->log, &contents);
 
       if (rc == LDB_OK && options->sync) {
