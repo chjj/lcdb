@@ -148,7 +148,7 @@ lcdb_sources = src/util/arena.c               \
 #
 
 liblcdb_la_SOURCES = $(lcdb_sources)
-liblcdb_la_CFLAGS = $(WARN_FLAGS)
+liblcdb_la_CFLAGS =
 
 if ENABLE_SHARED
 liblcdb_la_CFLAGS += -DLDB_EXPORT
@@ -164,14 +164,12 @@ lib_LTLIBRARIES = liblcdb.la
 
 if ENABLE_LWDB
 liblwdb_la_SOURCES = contrib/lwdb/lwdb.c
-liblwdb_la_CFLAGS = $(WARN_FLAGS)
 liblwdb_la_LDFLAGS = -static
 
 noinst_LTLIBRARIES = liblwdb.la
 endif
 
 lcdbutil_SOURCES = src/dbutil.c
-lcdbutil_CFLAGS = $(WARN_FLAGS)
 lcdbutil_LDADD = liblcdb.la
 
 bin_PROGRAMS = lcdbutil
@@ -187,7 +185,7 @@ db_bench_SOURCES = bench/db_bench.c    \
                    src/util/testutil.c \
                    src/util/testutil.h
 
-db_bench_CFLAGS = $(WARN_FLAGS) -I$(top_srcdir)/src
+db_bench_CFLAGS = -I$(top_srcdir)/src
 db_bench_LDFLAGS = -static
 db_bench_LDADD = liblcdb.la @MATHLIB@
 

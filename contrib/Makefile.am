@@ -110,7 +110,7 @@ liblcdb_la_SOURCES = include/lcdb.h                 \
                      src/write_batch.c              \
                      src/write_batch.h
 
-liblcdb_la_CFLAGS = $(WARN_FLAGS) -I$(srcdir)/include
+liblcdb_la_CFLAGS = -I$(srcdir)/include
 liblcdb_la_LDFLAGS = -static
 
 noinst_LTLIBRARIES = liblcdb.la

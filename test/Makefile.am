@@ -2,7 +2,7 @@
 # Copyright (c) 2022, Christopher Jeffrey (MIT License).
 # https://github.com/chjj/lcdb
 
-AM_CPPFLAGS = $(WARN_FLAGS) -I$(top_srcdir)/include -I$(top_srcdir)/src
+AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/src
 AM_LDFLAGS = -static
 LDADD = libtestutil.la $(top_builddir)/liblcdb.la
 SOURCES = test/data/snappy_data.h test/tests.h
