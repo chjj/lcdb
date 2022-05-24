@@ -23,17 +23,21 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/stat.h>
-#include <sys/resource.h>
 
 #include <dirent.h>
 #include <fcntl.h>
-#ifdef LDB_PTHREAD
-#include <pthread.h>
-#endif
 #include <unistd.h>
+
+#if !defined(__Fuchsia__) && !defined(__wasi__) && !defined(__EMSCRIPTEN__)
+#  include <sys/resource.h>
+#endif
 
 #if !defined(FD_SETSIZE) && !defined(FD_SET)
 #  include <sys/select.h>
+#endif
+
+#ifdef LDB_PTHREAD
+#  include <pthread.h>
 #endif
 
 #include "atomic.h"
@@ -60,7 +64,7 @@
 #  define HAVE_FCNTL
 #endif
 
-#if !defined(__wasi__) && !defined(__EMSCRIPTEN__) && !defined(__DJGPP__)
+#if !defined(__DJGPP__) && !defined(__wasi__) && !defined(__EMSCRIPTEN__)
 #  include <sys/mman.h>
 #  define HAVE_MMAP
 #endif
@@ -364,9 +368,7 @@ ldb_flock(int fd, int lock) {
 
 static int
 ldb_max_open_files(void) {
-#if defined(__Fuchsia__)
-  return 1638;
-#elif defined(RLIMIT_NOFILE)
+#ifdef RLIMIT_NOFILE
   struct rlimit rlim;
 
   if (getrlimit(RLIMIT_NOFILE, &rlim) != 0)
