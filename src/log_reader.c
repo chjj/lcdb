@@ -111,8 +111,11 @@ read_physical_record(ldb_logreader_t *lr, ldb_slice_t *result) {
 
           lr->buffer.data = lr->src->data;
           lr->buffer.size = nread;
-          lr->src->data += nread;
-          lr->src->size -= nread;
+
+          if (nread > 0) {
+            lr->src->data += nread;
+            lr->src->size -= nread;
+          }
 
           rc = LDB_OK;
         } else {

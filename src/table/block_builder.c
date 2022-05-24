@@ -93,6 +93,7 @@ ldb_blockbuilder_add(ldb_blockbuilder_t *bb,
                      const ldb_slice_t *key,
                      const ldb_slice_t *value) {
   const ldb_comparator_t *comparator = bb->options->comparator;
+  const uint8_t *key_offset = key->data;
   ldb_slice_t last = bb->last_key;
   size_t shared, non_shared;
 
@@ -116,6 +117,9 @@ ldb_blockbuilder_add(ldb_blockbuilder_t *bb,
     bb->counter = 0;
   }
 
+  if (shared > 0)
+    key_offset += shared;
+
   non_shared = key->size - shared;
 
   /* Add "<shared><non_shared><value_size>" to buffer. */
@@ -124,12 +128,12 @@ ldb_blockbuilder_add(ldb_blockbuilder_t *bb,
   ldb_buffer_varint32(&bb->buffer, value->size);
 
   /* Add string delta to buffer followed by value. */
-  ldb_buffer_append(&bb->buffer, key->data + shared, non_shared);
+  ldb_buffer_append(&bb->buffer, key_offset, non_shared);
   ldb_buffer_append(&bb->buffer, value->data, value->size);
 
   /* Update state. */
   ldb_buffer_resize(&bb->last_key, shared);
-  ldb_buffer_append(&bb->last_key, key->data + shared, non_shared);
+  ldb_buffer_append(&bb->last_key, key_offset, non_shared);
   assert(ldb_slice_equal(&bb->last_key, key));
   bb->counter++;
 }

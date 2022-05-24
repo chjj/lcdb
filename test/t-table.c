@@ -52,7 +52,8 @@ slice_reverse(ldb_buffer_t *z, const ldb_slice_t *x) {
 
   zp = ldb_buffer_resize(z, xn);
 
-  xp += xn;
+  if (xn > 0)
+    xp += xn;
 
   while (xn--)
     *zp++ = *--xp;
