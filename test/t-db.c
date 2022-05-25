@@ -402,7 +402,7 @@ test_contents(test_t *t) {
   ldb_buffer_init(&z);
   ldb_vector_init(&forward);
 
-  iter = ldb_iterator(t->db, 0);
+  iter = ldb_iterator(t->db, ldb_readopt_default);
 
   for (ldb_iter_first(iter); ldb_iter_valid(iter); ldb_iter_next(iter)) {
     const char *s = iter_status(t, iter);
@@ -1038,7 +1038,7 @@ test_db_get_encounters_empty_level(test_t *t) {
 
 static void
 test_db_iter_empty(test_t *t) {
-  ldb_iter_t *iter = ldb_iterator(t->db, 0);
+  ldb_iter_t *iter = ldb_iterator(t->db, ldb_readopt_default);
 
   ldb_iter_first(iter);
 
@@ -1061,7 +1061,7 @@ test_db_iter_single(test_t *t) {
 
   ASSERT(test_put(t, "a", "va") == LDB_OK);
 
-  iter = ldb_iterator(t->db, 0);
+  iter = ldb_iterator(t->db, ldb_readopt_default);
 
   ldb_iter_first(iter);
   ASSERT_EQ(iter_status(t, iter), "a->va");
@@ -1105,7 +1105,7 @@ test_db_iter_multi(test_t *t) {
   ASSERT(test_put(t, "b", "vb") == LDB_OK);
   ASSERT(test_put(t, "c", "vc") == LDB_OK);
 
-  iter = ldb_iterator(t->db, 0);
+  iter = ldb_iterator(t->db, ldb_readopt_default);
 
   ldb_iter_first(iter);
   ASSERT_EQ(iter_status(t, iter), "a->va");
@@ -1195,7 +1195,7 @@ test_db_iter_small_and_large_mix(test_t *t) {
   ASSERT(test_put(t, "d", string_fill(t, 'd', 100000)) == LDB_OK);
   ASSERT(test_put(t, "e", string_fill(t, 'e', 100000)) == LDB_OK);
 
-  iter = ldb_iterator(t->db, 0);
+  iter = ldb_iterator(t->db, ldb_readopt_default);
 
   ldb_iter_first(iter);
   ASSERT_EQ(iter_status(t, iter), "a->va");
@@ -1238,7 +1238,7 @@ test_db_iter_multi_with_delete(test_t *t) {
 
     ASSERT_EQ("NOT_FOUND", test_get(t, "b"));
 
-    iter = ldb_iterator(t->db, 0);
+    iter = ldb_iterator(t->db, ldb_readopt_default);
 
     iter_seek(iter, "c");
     ASSERT_EQ(iter_status(t, iter), "c->vc");
@@ -1264,7 +1264,7 @@ test_db_iter_multi_with_delete_and_compaction(test_t *t) {
     ASSERT(test_del(t, "b") == LDB_OK);
     ASSERT_EQ("NOT_FOUND", test_get(t, "b"));
 
-    iter = ldb_iterator(t->db, 0);
+    iter = ldb_iterator(t->db, ldb_readopt_default);
 
     iter_seek(iter, "c");
     ASSERT_EQ(iter_status(t, iter), "c->vc");
@@ -1690,7 +1690,7 @@ test_db_iterator_pins_ref(test_t *t) {
   test_put(t, "foo", "hello");
 
   /* Get iterator that will yield the current contents of the DB. */
-  iter = ldb_iterator(t->db, 0);
+  iter = ldb_iterator(t->db, ldb_readopt_default);
 
   /* Write to force compactions */
   test_put(t, "foo", "newvalue1");

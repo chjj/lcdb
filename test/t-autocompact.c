@@ -157,7 +157,7 @@ test_auto_compact_read(int n) {
 
     ASSERT(nread < 100);
 
-    iter = ldb_iterator(t.db, 0);
+    iter = ldb_iterator(t.db, ldb_readopt_default);
 
     ldb_iter_first(iter);
 

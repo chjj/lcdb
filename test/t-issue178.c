@@ -101,7 +101,7 @@ main(void) {
   ldb_compact(db, &least, &greatest);
 
   /* Count the keys. */
-  iter = ldb_iterator(db, 0);
+  iter = ldb_iterator(db, ldb_readopt_default);
   num_keys = 0;
 
   for (ldb_iter_first(iter); ldb_iter_valid(iter); ldb_iter_next(iter))

@@ -172,7 +172,7 @@ ctest_check(ctest_t *t, int min_expected, int max_expected) {
 
   ldb_buffer_init(&storage);
 
-  iter = ldb_iterator(t->db, 0);
+  iter = ldb_iterator(t->db, ldb_readopt_default);
 
   for (ldb_iter_first(iter); ldb_iter_valid(iter); ldb_iter_next(iter)) {
     const char *sp = buf;

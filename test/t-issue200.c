@@ -58,7 +58,7 @@ main(void) {
   ASSERT(db_put(db, "4", "e") == LDB_OK);
   ASSERT(db_put(db, "5", "f") == LDB_OK);
 
-  iter = ldb_iterator(db, 0);
+  iter = ldb_iterator(db, ldb_readopt_default);
 
   /* Add an element that should not be reflected in the iterator. */
   ASSERT(db_put(db, "25", "cd") == LDB_OK);
