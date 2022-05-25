@@ -130,7 +130,7 @@ test_auto_compact_read(int n) {
   for (i = 0; i < AC_COUNT; i++) {
     ldb_slice_t key = actest_key(i, buf);
 
-    ASSERT(ldb_put(t.db, &key, &val, 0) == LDB_OK);
+    ASSERT(ldb_put(t.db, &key, &val, NULL) == LDB_OK);
   }
 
   ASSERT(ldb_test_compact_memtable(t.db) == LDB_OK);
@@ -139,7 +139,7 @@ test_auto_compact_read(int n) {
   for (i = 0; i < AC_COUNT; i++) {
     ldb_slice_t key = actest_key(i, buf);
 
-    ASSERT(ldb_del(t.db, &key, 0) == LDB_OK);
+    ASSERT(ldb_del(t.db, &key, NULL) == LDB_OK);
   }
 
   ASSERT(ldb_test_compact_memtable(t.db) == LDB_OK);

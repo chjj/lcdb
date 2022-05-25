@@ -310,7 +310,7 @@ ctest_put(ctest_t *t, const char *k, const char *v) {
   ldb_slice_t key = ldb_string(k);
   ldb_slice_t val = ldb_string(v);
 
-  return ldb_put(t->db, &key, &val, 0);
+  return ldb_put(t->db, &key, &val, NULL);
 }
 
 static const char *
@@ -319,7 +319,7 @@ ctest_get(ctest_t *t, const char *k) {
   ldb_slice_t val;
   int rc;
 
-  rc = ldb_get(t->db, &key, &val, 0);
+  rc = ldb_get(t->db, &key, &val, NULL);
 
   if (rc != LDB_OK)
     return ldb_strerror(rc);
@@ -382,7 +382,7 @@ test_corrupt_new_file_error_during_write(ctest_t *t) {
 
     ldb_batch_put(&batch, &key, ctest_val(100, &storage));
 
-    rc = ldb_write(t->db, &batch, 0);
+    rc = ldb_write(t->db, &batch, NULL);
   }
 
   ASSERT(rc != LDB_OK);
@@ -534,7 +534,7 @@ test_corrupt_compaction_input_error_paranoid(ctest_t *t) {
   ldb_compact(t->db, NULL, NULL);
 
   /* Write must fail because of corrupted table. */
-  rc = ldb_put(t->db, ctest_key(5, &tmp1), ctest_val(5, &tmp2), 0);
+  rc = ldb_put(t->db, ctest_key(5, &tmp1), ctest_val(5, &tmp2), NULL);
 
   ASSERT(rc != LDB_OK);
 
@@ -559,11 +559,11 @@ test_corrupt_unrelated_keys(ctest_t *t) {
 
   rc = ldb_put(t->db, ctest_key(1000, &tmp1),
                       ctest_val(1000, &tmp2),
-                      0);
+                      NULL);
 
   ASSERT(rc == LDB_OK);
 
-  rc = ldb_get(t->db, ctest_key(1000, &tmp1), &val, 0);
+  rc = ldb_get(t->db, ctest_key(1000, &tmp1), &val, NULL);
 
   ASSERT(rc == LDB_OK);
   ASSERT(ldb_slice_equal(ctest_val(1000, &tmp2), &val));
@@ -572,7 +572,7 @@ test_corrupt_unrelated_keys(ctest_t *t) {
 
   ldb_test_compact_memtable(t->db);
 
-  rc = ldb_get(t->db, ctest_key(1000, &tmp1), &val, 0);
+  rc = ldb_get(t->db, ctest_key(1000, &tmp1), &val, NULL);
 
   ASSERT(rc == LDB_OK);
   ASSERT(ldb_slice_equal(ctest_val(1000, &tmp2), &val));

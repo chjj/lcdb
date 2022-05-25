@@ -83,7 +83,7 @@ rtest_init(rtest_t *t) {
 
   t->db = NULL;
 
-  ldb_destroy(t->dbname, 0);
+  ldb_destroy(t->dbname, NULL);
 
   rtest_open(t, 0);
 }
@@ -91,7 +91,7 @@ rtest_init(rtest_t *t) {
 static void
 rtest_clear(rtest_t *t) {
   rtest_close(t);
-  ldb_destroy(t->dbname, 0);
+  ldb_destroy(t->dbname, NULL);
 }
 
 static int
@@ -117,7 +117,7 @@ rtest_put(rtest_t *t, const char *k, const char *v) {
   ldb_slice_t key = ldb_string(k);
   ldb_slice_t val = ldb_string(v);
 
-  return ldb_put(t->db, &key, &val, 0);
+  return ldb_put(t->db, &key, &val, NULL);
 }
 
 static const char *
@@ -126,7 +126,7 @@ rtest_get(rtest_t *t, const char *k) {
   ldb_slice_t val;
   int rc;
 
-  rc = ldb_get(t->db, &key, &val, 0);
+  rc = ldb_get(t->db, &key, &val, NULL);
 
   if (rc == LDB_NOTFOUND)
     return "NOT_FOUND";

@@ -713,7 +713,7 @@ dbctor_init(dbctor_t *c, const ldb_comparator_t *cmp) {
 static void
 dbctor_clear(dbctor_t *c) {
   ldb_close(c->db);
-  ldb_destroy(c->dbname, 0);
+  ldb_destroy(c->dbname, NULL);
 }
 
 static int
@@ -736,7 +736,7 @@ dbctor_finish(dbctor_t *c,
     ldb_batch_init(&batch);
     ldb_batch_put(&batch, key, value);
 
-    ASSERT(ldb_write(c->db, &batch, 0) == LDB_OK);
+    ASSERT(ldb_write(c->db, &batch, NULL) == LDB_OK);
 
     ldb_batch_clear(&batch);
   }

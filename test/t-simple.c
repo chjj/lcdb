@@ -39,7 +39,7 @@ main(void) {
 
   ASSERT(ldb_test_filename(path, sizeof(path), "simpledb"));
 
-  ldb_destroy(path, 0);
+  ldb_destroy(path, NULL);
 
   {
     opt.create_if_missing = 1;
@@ -62,7 +62,7 @@ main(void) {
         val = ldb_string(vbuf);
 
         if (i > 0 && (i % 1000) == 0) {
-          rc = ldb_write(db, &b, 0);
+          rc = ldb_write(db, &b, NULL);
 
           ASSERT(rc == LDB_OK);
 
@@ -72,7 +72,7 @@ main(void) {
         ldb_batch_put(&b, &key, &val);
       }
 
-      rc = ldb_write(db, &b, 0);
+      rc = ldb_write(db, &b, NULL);
 
       ASSERT(rc == LDB_OK);
 
@@ -80,7 +80,7 @@ main(void) {
     }
 
     {
-      rc = ldb_get(db, &key, &ret, 0);
+      rc = ldb_get(db, &key, &ret, NULL);
 
       ASSERT(rc == LDB_OK);
       ASSERT(ldb_compare(db, &ret, &val) == 0);
@@ -119,7 +119,7 @@ main(void) {
 
     {
       ret = ldb_slice(0, 0);
-      rc = ldb_get(db, &key, &ret, 0);
+      rc = ldb_get(db, &key, &ret, NULL);
 
       ASSERT(rc == LDB_OK);
       ASSERT(ldb_compare(db, &ret, &val) == 0);
@@ -128,7 +128,7 @@ main(void) {
     }
 
     {
-      ldb_iter_t *it = ldb_iterator(db, 0);
+      ldb_iter_t *it = ldb_iterator(db, NULL);
       int total = 0;
 
       ldb_iter_each(it) {
@@ -162,7 +162,7 @@ main(void) {
 
     ASSERT(ldb_test_filename(path2, sizeof(path2), "clonedb"));
 
-    ldb_destroy(path2, 0);
+    ldb_destroy(path2, NULL);
 
     rc = ldb_open(path1, &opt, &db1);
 
@@ -179,8 +179,8 @@ main(void) {
 
     ASSERT(rc == LDB_OK);
 
-    it1 = ldb_iterator(db1, 0);
-    it2 = ldb_iterator(db2, 0);
+    it1 = ldb_iterator(db1, NULL);
+    it2 = ldb_iterator(db2, NULL);
 
     ldb_iter_first(it1);
     ldb_iter_first(it2);
@@ -216,10 +216,10 @@ main(void) {
     ldb_close(db1);
     ldb_close(db2);
 
-    ldb_destroy(path2, 0);
+    ldb_destroy(path2, NULL);
   }
 
-  ldb_destroy(path, 0);
+  ldb_destroy(path, NULL);
 
   return 0;
 }

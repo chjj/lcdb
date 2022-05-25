@@ -46,7 +46,7 @@ main(void) {
   /* Get rid of any state from an old run. */
   ASSERT(ldb_test_filename(dbpath, sizeof(dbpath), "leveldb_cbug_test"));
 
-  ldb_destroy(dbpath, 0);
+  ldb_destroy(dbpath, NULL);
 
   /* Open database. Disable compression since it affects the creation
      of layers and the code below is trying to test against a very
@@ -66,7 +66,7 @@ main(void) {
     ldb_batch_put(&batch, &key, &val);
   }
 
-  ASSERT(ldb_write(db, &batch, 0) == LDB_OK);
+  ASSERT(ldb_write(db, &batch, NULL) == LDB_OK);
 
   /* Create second key range. */
   ldb_batch_reset(&batch);
@@ -78,7 +78,7 @@ main(void) {
     ldb_batch_put(&batch, &key, &val);
   }
 
-  ASSERT(ldb_write(db, &batch, 0) == LDB_OK);
+  ASSERT(ldb_write(db, &batch, NULL) == LDB_OK);
 
   /* Delete second key range. */
   ldb_batch_reset(&batch);
@@ -89,7 +89,7 @@ main(void) {
     ldb_batch_del(&batch, &key);
   }
 
-  ASSERT(ldb_write(db, &batch, 0) == LDB_OK);
+  ASSERT(ldb_write(db, &batch, NULL) == LDB_OK);
 
   ldb_batch_clear(&batch);
 
@@ -113,7 +113,7 @@ main(void) {
 
   /* Close database. */
   ldb_close(db);
-  ldb_destroy(dbpath, 0);
+  ldb_destroy(dbpath, NULL);
 
   return 0;
 }

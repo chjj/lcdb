@@ -73,7 +73,7 @@ main(void) {
   /* Get rid of any state from an old run. */
   ASSERT(ldb_test_filename(dbpath, sizeof(dbpath), "leveldb_issue320_test"));
 
-  ldb_destroy(dbpath, 0);
+  ldb_destroy(dbpath, NULL);
 
   options.create_if_missing = 1;
 
@@ -110,7 +110,7 @@ main(void) {
       ldb_slice_t exp = ldb_string(test_vals[index]);
       ldb_slice_t val;
 
-      ASSERT(ldb_get(db, &key, &val, 0) == LDB_OK);
+      ASSERT(ldb_get(db, &key, &val, NULL) == LDB_OK);
 
       if (ldb_compare(db, &val, &exp) != 0) {
         printf("ERROR incorrect value returned by Get\n");
@@ -146,7 +146,7 @@ main(void) {
       }
     }
 
-    ASSERT(ldb_write(db, &batch, 0) == LDB_OK);
+    ASSERT(ldb_write(db, &batch, NULL) == LDB_OK);
 
     if (keep_snapshots && random_number(10) == 0) {
       int i = random_number(100);
@@ -181,7 +181,7 @@ main(void) {
   }
 
   ldb_close(db);
-  ldb_destroy(dbpath, 0);
+  ldb_destroy(dbpath, NULL);
 
   return 0;
 }

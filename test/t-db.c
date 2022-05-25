@@ -92,7 +92,7 @@ test_init(test_t *t) {
 
   ldb_vector_init(&t->arena);
 
-  ldb_destroy(t->dbname, 0);
+  ldb_destroy(t->dbname, NULL);
 
   test_reopen(t, 0);
 }
@@ -104,7 +104,7 @@ test_clear(test_t *t) {
   if (t->db != NULL)
     ldb_close(t->db);
 
-  ldb_destroy(t->dbname, 0);
+  ldb_destroy(t->dbname, NULL);
   ldb_bloom_destroy(t->policy);
 
   for (i = 0; i < t->arena.length; i++)
@@ -283,7 +283,7 @@ test_destroy_and_reopen(test_t *t, const ldb_dbopt_t *options) {
 
   t->db = NULL;
 
-  ldb_destroy(t->dbname, 0);
+  ldb_destroy(t->dbname, NULL);
 
   ASSERT(test_try_reopen(t, options) == LDB_OK);
 }
@@ -301,14 +301,14 @@ test_put(test_t *t, const char *k, const char *v) {
   ldb_slice_t key = ldb_string(k);
   ldb_slice_t val = ldb_string(v);
 
-  return ldb_put(t->db, &key, &val, 0);
+  return ldb_put(t->db, &key, &val, NULL);
 }
 
 static int
 test_del(test_t *t, const char *k) {
   ldb_slice_t key = ldb_string(k);
 
-  return ldb_del(t->db, &key, 0);
+  return ldb_del(t->db, &key, NULL);
 }
 
 static const char *
@@ -352,7 +352,7 @@ test_has(test_t *t, const char *k) {
   ldb_slice_t key = ldb_string(k);
   int rc;
 
-  rc = ldb_has(t->db, &key, 0);
+  rc = ldb_has(t->db, &key, NULL);
 
   if (rc == LDB_NOTFOUND)
     return 0;
@@ -2165,7 +2165,7 @@ test_db_open_options(test_t *t) {
 
   ASSERT(ldb_test_filename(dbname, sizeof(dbname), "db_options_test"));
 
-  ldb_destroy(dbname, 0);
+  ldb_destroy(dbname, NULL);
 
   /* Does not exist, and create_if_missing == 0: error */
   opts.create_if_missing = 0;
@@ -2198,7 +2198,7 @@ test_db_open_options(test_t *t) {
 
   ldb_close(db);
 
-  ldb_destroy(dbname, 0);
+  ldb_destroy(dbname, NULL);
 }
 
 static void
@@ -2238,7 +2238,7 @@ test_db_destroy_open_db(test_t *t) {
   ASSERT(ldb_test_filename(dbname, sizeof(dbname), "open_db_dir"));
 
   /* ldb_remove_dir(dbname); */
-  ldb_destroy(dbname, 0);
+  ldb_destroy(dbname, NULL);
 
   ASSERT(!ldb_file_exists(dbname));
 
@@ -2251,7 +2251,7 @@ test_db_destroy_open_db(test_t *t) {
 #ifndef LDB_MEMENV
   ASSERT(ldb_file_exists(dbname));
 #endif
-  ASSERT(ldb_destroy(dbname, 0) != LDB_OK);
+  ASSERT(ldb_destroy(dbname, NULL) != LDB_OK);
 #ifndef LDB_MEMENV
   ASSERT(ldb_file_exists(dbname));
 #endif
@@ -2259,7 +2259,7 @@ test_db_destroy_open_db(test_t *t) {
   ldb_close(db);
 
   /* Should succeed destroying a closed db. */
-  ASSERT(ldb_destroy(dbname, 0) == LDB_OK);
+  ASSERT(ldb_destroy(dbname, NULL) == LDB_OK);
   ASSERT(!ldb_file_exists(dbname));
 }
 
@@ -2603,10 +2603,10 @@ mt_thread_body(void *arg) {
 
       val = ldb_string(vbuf);
 
-      ASSERT(ldb_put(db, &key, &val, 0) == LDB_OK);
+      ASSERT(ldb_put(db, &key, &val, NULL) == LDB_OK);
     } else {
       /* Read a value and verify that it matches the pattern written above. */
-      int rc = ldb_get(db, &key, &val, 0);
+      int rc = ldb_get(db, &key, &val, NULL);
       int n, w, c;
 
       if (rc == LDB_NOTFOUND) {
@@ -2910,7 +2910,7 @@ test_db_randomized(test_t *t) {
           }
         }
 
-        ASSERT(ldb_write(t->db, &b, 0) == LDB_OK);
+        ASSERT(ldb_write(t->db, &b, NULL) == LDB_OK);
 
         ldb_batch_clear(&b);
       }
