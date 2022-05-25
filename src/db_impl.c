@@ -2567,6 +2567,7 @@ ldb_copy(const char *from, const char *to, const ldb_dbopt_t *options) {
 int
 ldb_destroy(const char *dbname, const ldb_dbopt_t *options) {
   char lockname[LDB_PATH_MAX];
+  char subdir[LDB_PATH_MAX];
   char path[LDB_PATH_MAX];
   ldb_filelock_t *lock;
   char **files = NULL;
@@ -2576,6 +2577,9 @@ ldb_destroy(const char *dbname, const ldb_dbopt_t *options) {
   (void)options;
 
   if (!ldb_lock_filename(lockname, sizeof(lockname), dbname))
+    return LDB_INVALID;
+
+  if (!ldb_join(subdir, sizeof(subdir), dbname, "lost"))
     return LDB_INVALID;
 
   len = ldb_get_children(dbname, &files);
@@ -2610,6 +2614,34 @@ ldb_destroy(const char *dbname, const ldb_dbopt_t *options) {
 
       if (rc == LDB_OK && status != LDB_OK)
         rc = status;
+    }
+
+    if (ldb_current_filename(path, sizeof(path), subdir) &&
+        !ldb_file_exists(path)) {
+      char **subfiles = NULL;
+      int sublen = ldb_get_children(subdir, &subfiles);
+
+      for (i = 0; i < sublen; i++) {
+        const char *name = subfiles[i];
+
+        if (!ldb_parse_filename(&type, &number, name))
+          continue;
+
+        if (!ldb_join(path, sizeof(path), subdir, name)) {
+          rc = LDB_INVALID;
+          continue;
+        }
+
+        status = ldb_remove_file(path);
+
+        if (rc == LDB_OK && status != LDB_OK)
+          rc = status;
+      }
+
+      if (sublen >= 0) {
+        ldb_free_children(subfiles, sublen);
+        ldb_remove_dir(subdir);
+      }
     }
 
     ldb_unlock_file(lock); /* Ignore error since state is already gone. */

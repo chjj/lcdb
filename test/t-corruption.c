@@ -66,11 +66,6 @@ ctest_reopen(ctest_t *t) {
 
 static void
 ctest_destroy(ctest_t *t) {
-  char lost[LDB_PATH_MAX];
-
-  ASSERT(ldb_join(lost, sizeof(lost), t->dbname, "lost"));
-
-  ldb_destroy(lost, 0);
   ldb_destroy(t->dbname, 0);
 }
 

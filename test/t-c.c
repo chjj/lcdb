@@ -157,22 +157,6 @@ static uint8_t FilterKeyMatch(void* arg, const char* key, size_t length,
   return fake_filter_result;
 }
 
-static void leveldb_destroy_full(const leveldb_options_t *options,
-                                 const char *dbname) {
-  char *err = NULL;
-  char lost[1024];
-
-  CheckCondition(strlen(dbname) + 6 <= sizeof(lost));
-
-  sprintf(lost, "%s/%s", dbname, "lost");
-
-  leveldb_destroy_db(options, lost, &err);
-  Free(&err);
-
-  leveldb_destroy_db(options, dbname, &err);
-  Free(&err);
-}
-
 int main(void) {
   leveldb_t* db;
   leveldb_comparator_t* cmp;
@@ -217,7 +201,8 @@ int main(void) {
   leveldb_writeoptions_set_sync(woptions, 1);
 
   StartPhase("destroy");
-  leveldb_destroy_full(options, dbname);
+  leveldb_destroy_db(options, dbname, &err);
+  Free(&err);
 
   StartPhase("open_error");
   db = leveldb_open(options, dbname, &err);
@@ -405,7 +390,8 @@ int main(void) {
 
   StartPhase("cleanup");
   leveldb_close(db);
-  leveldb_destroy_full(options, dbname);
+  leveldb_destroy_db(options, dbname, &err);
+  Free(&err);
   leveldb_options_destroy(options);
   leveldb_readoptions_destroy(roptions);
   leveldb_writeoptions_destroy(woptions);
