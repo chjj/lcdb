@@ -2461,8 +2461,8 @@ ldb_approximate_sizes(ldb_t *db, const ldb_range_t *range,
     ldb_ikey_set(&k1, &range[i].start, LDB_MAX_SEQUENCE, LDB_VALTYPE_SEEK);
     ldb_ikey_set(&k2, &range[i].limit, LDB_MAX_SEQUENCE, LDB_VALTYPE_SEEK);
 
-    start = ldb_vset_approximate_offset_of(db->versions, v, &k1);
-    limit = ldb_vset_approximate_offset_of(db->versions, v, &k2);
+    start = ldb_vset_approximate_offset(db->versions, v, &k1);
+    limit = ldb_vset_approximate_offset(db->versions, v, &k2);
 
     sizes[i] = (limit >= start ? limit - start : 0);
   }

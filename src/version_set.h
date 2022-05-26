@@ -270,9 +270,9 @@ ldb_vset_level_summary(const ldb_vset_t *vset, char *scratch);
 /* Return the approximate offset in the database of the data for
    "key" as of version "v". */
 uint64_t
-ldb_vset_approximate_offset_of(ldb_vset_t *vset,
-                               ldb_version_t *v,
-                               const ldb_ikey_t *ikey);
+ldb_vset_approximate_offset(ldb_vset_t *vset,
+                            ldb_version_t *v,
+                            const ldb_ikey_t *ikey);
 
 /* Add all files listed in any live version to *live.
    May also mutate some internal state. */

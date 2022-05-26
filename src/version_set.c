@@ -1663,9 +1663,9 @@ ldb_vset_level_summary(const ldb_vset_t *vset, char *scratch) {
 }
 
 uint64_t
-ldb_vset_approximate_offset_of(ldb_vset_t *vset,
-                               ldb_version_t *v,
-                               const ldb_ikey_t *ikey) {
+ldb_vset_approximate_offset(ldb_vset_t *vset,
+                            ldb_version_t *v,
+                            const ldb_ikey_t *ikey) {
   uint64_t result = 0;
   int level;
 
@@ -1700,7 +1700,7 @@ ldb_vset_approximate_offset_of(ldb_vset_t *vset,
                                   &tableptr);
 
         if (tableptr != NULL)
-          result += ldb_table_approximate_offsetof(tableptr, ikey);
+          result += ldb_table_approximate_offset(tableptr, ikey);
 
         ldb_iter_destroy(iter);
       }

@@ -87,7 +87,7 @@ ldb_table_internal_get(ldb_table_t *table,
  * be close to the file length.
  */
 uint64_t
-ldb_table_approximate_offsetof(const ldb_table_t *table,
-                               const ldb_slice_t *key);
+ldb_table_approximate_offset(const ldb_table_t *table,
+                             const ldb_slice_t *key);
 
 #endif /* LDB_TABLE_H */

@@ -482,11 +482,11 @@ tablector_db(const tablector_t *c) {
 }
 
 static uint64_t
-ctor_approximate_offsetof(const ctor_t *ctor, const char *key) {
+ctor_approximate_offset(const ctor_t *ctor, const char *key) {
   const tablector_t *c = ctor->ptr;
   ldb_slice_t k = ldb_string(key);
 
-  return ldb_table_approximate_offsetof(c->table, &k);
+  return ldb_table_approximate_offset(c->table, &k);
 }
 
 CTOR_FUNCTIONS(tablector);
@@ -1369,7 +1369,7 @@ check_range(uint64_t val, uint64_t low, uint64_t high) {
 }
 
 static void
-test_approximate_offsetof_plain(void) {
+test_approximate_offset_plain(void) {
   ctor_t *c = tablector_create(ldb_bytewise_comparator);
   ldb_dbopt_t options = *ldb_dbopt_default;
   uint8_t *buf = ldb_malloc(300000);
@@ -1407,17 +1407,17 @@ test_approximate_offsetof_plain(void) {
 
   ctor_finish(c, &options, &keys);
 
-  ASSERT(check_range(ctor_approximate_offsetof(c, "abc"), 0, 0));
-  ASSERT(check_range(ctor_approximate_offsetof(c, "k01"), 0, 0));
-  ASSERT(check_range(ctor_approximate_offsetof(c, "k01a"), 0, 0));
-  ASSERT(check_range(ctor_approximate_offsetof(c, "k02"), 0, 0));
-  ASSERT(check_range(ctor_approximate_offsetof(c, "k03"), 0, 0));
-  ASSERT(check_range(ctor_approximate_offsetof(c, "k04"), 10000, 11000));
-  ASSERT(check_range(ctor_approximate_offsetof(c, "k04a"), 210000, 211000));
-  ASSERT(check_range(ctor_approximate_offsetof(c, "k05"), 210000, 211000));
-  ASSERT(check_range(ctor_approximate_offsetof(c, "k06"), 510000, 511000));
-  ASSERT(check_range(ctor_approximate_offsetof(c, "k07"), 510000, 511000));
-  ASSERT(check_range(ctor_approximate_offsetof(c, "xyz"), 610000, 612000));
+  ASSERT(check_range(ctor_approximate_offset(c, "abc"), 0, 0));
+  ASSERT(check_range(ctor_approximate_offset(c, "k01"), 0, 0));
+  ASSERT(check_range(ctor_approximate_offset(c, "k01a"), 0, 0));
+  ASSERT(check_range(ctor_approximate_offset(c, "k02"), 0, 0));
+  ASSERT(check_range(ctor_approximate_offset(c, "k03"), 0, 0));
+  ASSERT(check_range(ctor_approximate_offset(c, "k04"), 10000, 11000));
+  ASSERT(check_range(ctor_approximate_offset(c, "k04a"), 210000, 211000));
+  ASSERT(check_range(ctor_approximate_offset(c, "k05"), 210000, 211000));
+  ASSERT(check_range(ctor_approximate_offset(c, "k06"), 510000, 511000));
+  ASSERT(check_range(ctor_approximate_offset(c, "k07"), 510000, 511000));
+  ASSERT(check_range(ctor_approximate_offset(c, "xyz"), 610000, 612000));
 
   ldb_vector_clear(&keys);
   ldb_free(buf);
@@ -1425,7 +1425,7 @@ test_approximate_offsetof_plain(void) {
 }
 
 static void
-test_approximate_offsetof_compressed(void) {
+test_approximate_offset_compressed(void) {
   ctor_t *c = tablector_create(ldb_bytewise_comparator);
   ldb_dbopt_t options = *ldb_dbopt_default;
   ldb_vector_t keys;
@@ -1462,14 +1462,14 @@ test_approximate_offsetof_compressed(void) {
 
   ctor_finish(c, &options, &keys);
 
-  ASSERT(check_range(ctor_approximate_offsetof(c, "abc"), 0, slop));
-  ASSERT(check_range(ctor_approximate_offsetof(c, "k01"), 0, slop));
-  ASSERT(check_range(ctor_approximate_offsetof(c, "k02"), 0, slop));
+  ASSERT(check_range(ctor_approximate_offset(c, "abc"), 0, slop));
+  ASSERT(check_range(ctor_approximate_offset(c, "k01"), 0, slop));
+  ASSERT(check_range(ctor_approximate_offset(c, "k02"), 0, slop));
   /* Emitted a large compressible string, so adjust expected offset. */
-  ASSERT(check_range(ctor_approximate_offsetof(c, "k03"), min_z, max_z));
-  ASSERT(check_range(ctor_approximate_offsetof(c, "k04"), min_z, max_z));
+  ASSERT(check_range(ctor_approximate_offset(c, "k03"), min_z, max_z));
+  ASSERT(check_range(ctor_approximate_offset(c, "k04"), min_z, max_z));
   /* Emitted two large compressible strings, so adjust expected offset. */
-  ASSERT(check_range(ctor_approximate_offsetof(c, "xyz"), 2 * min_z,
+  ASSERT(check_range(ctor_approximate_offset(c, "xyz"), 2 * min_z,
                                                           2 * max_z));
 
   ldb_vector_clear(&keys);
@@ -1496,8 +1496,8 @@ main(void) {
   test_randomized(&h);
   test_randomized_long_db(&h);
   test_memtable_simple();
-  test_approximate_offsetof_plain();
-  test_approximate_offsetof_compressed();
+  test_approximate_offset_plain();
+  test_approximate_offset_compressed();
 
   harness_clear(&h);
 
