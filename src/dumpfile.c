@@ -80,7 +80,7 @@ print_log_contents(const char *fname,
                    void (*func)(uint64_t, const ldb_slice_t *, FILE *),
                    FILE *dst) {
   ldb_reporter_t reporter;
-  ldb_logreader_t reader;
+  ldb_reader_t reader;
   ldb_buffer_t scratch;
   ldb_slice_t record;
   ldb_rfile_t *file;
@@ -94,14 +94,14 @@ print_log_contents(const char *fname,
   reporter.dst = dst;
   reporter.corruption = report_corruption;
 
-  ldb_logreader_init(&reader, file, &reporter, 1, 0);
+  ldb_reader_init(&reader, file, &reporter, 1, 0);
   ldb_buffer_init(&scratch);
 
-  while (ldb_logreader_read_record(&reader, &record, &scratch))
+  while (ldb_reader_read_record(&reader, &record, &scratch))
     func(reader.last_offset, &record, dst);
 
   ldb_buffer_clear(&scratch);
-  ldb_logreader_clear(&reader);
+  ldb_reader_clear(&reader);
   ldb_rfile_destroy(file);
 
   return LDB_OK;

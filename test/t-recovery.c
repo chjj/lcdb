@@ -300,7 +300,7 @@ rtest_make_log(rtest_t *t,
   ldb_slice_t k = ldb_string(key);
   ldb_slice_t v = ldb_string(val);
   char fname[LDB_PATH_MAX];
-  ldb_logwriter_t writer;
+  ldb_writer_t writer;
   ldb_slice_t contents;
   ldb_wfile_t *file;
   ldb_batch_t batch;
@@ -310,14 +310,14 @@ rtest_make_log(rtest_t *t,
   ASSERT(ldb_log_filename(fname, sizeof(fname), t->dbname, lognum));
   ASSERT(ldb_truncfile_create(fname, &file) == LDB_OK);
 
-  ldb_logwriter_init(&writer, file, 0);
+  ldb_writer_init(&writer, file, 0);
 
   ldb_batch_put(&batch, &k, &v);
   ldb_batch_set_sequence(&batch, seq);
 
   contents = ldb_batch_contents(&batch);
 
-  ASSERT(ldb_logwriter_add_record(&writer, &contents) == 0);
+  ASSERT(ldb_writer_add_record(&writer, &contents) == 0);
   ASSERT(ldb_wfile_flush(file) == LDB_OK);
 
   ldb_wfile_destroy(file);

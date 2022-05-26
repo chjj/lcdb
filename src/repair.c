@@ -268,7 +268,7 @@ convert_log_to_table(ldb_repair_t *rep, uint64_t log) {
   /* Open the log file. */
   char logname[LDB_PATH_MAX];
   ldb_reporter_t reporter;
-  ldb_logreader_t reader;
+  ldb_reader_t reader;
   ldb_rfile_t *lfile;
   ldb_buffer_t scratch;
   ldb_slice_t record;
@@ -295,7 +295,7 @@ convert_log_to_table(ldb_repair_t *rep, uint64_t log) {
      corruptions cause entire commits to be skipped instead of
      propagating bad information (like overly large sequence
      numbers). */
-  ldb_logreader_init(&reader, lfile, &reporter, 0, 0);
+  ldb_reader_init(&reader, lfile, &reporter, 0, 0);
   ldb_buffer_init(&scratch);
   ldb_slice_init(&record);
   ldb_batch_init(&batch);
@@ -306,7 +306,7 @@ convert_log_to_table(ldb_repair_t *rep, uint64_t log) {
 
   ldb_memtable_ref(mem);
 
-  while (ldb_logreader_read_record(&reader, &record, &scratch)) {
+  while (ldb_reader_read_record(&reader, &record, &scratch)) {
     if (record.size < 12) {
       reporter.corruption(&reporter, record.size, LDB_CORRUPTION);
       continue;
@@ -329,7 +329,7 @@ convert_log_to_table(ldb_repair_t *rep, uint64_t log) {
 
   ldb_batch_clear(&batch);
   ldb_buffer_clear(&scratch);
-  ldb_logreader_clear(&reader);
+  ldb_reader_clear(&reader);
   ldb_rfile_destroy(lfile);
 
   /* Do not record a version edit for this conversion to a Table
@@ -625,15 +625,15 @@ write_descriptor(ldb_repair_t *rep) {
   }
 
   {
-    ldb_logwriter_t log;
+    ldb_writer_t log;
     ldb_buffer_t record;
 
-    ldb_logwriter_init(&log, file, 0);
+    ldb_writer_init(&log, file, 0);
     ldb_buffer_init(&record);
 
     ldb_vedit_export(&record, &rep->edit);
 
-    rc = ldb_logwriter_add_record(&log, &record);
+    rc = ldb_writer_add_record(&log, &record);
 
     ldb_buffer_clear(&record);
   }

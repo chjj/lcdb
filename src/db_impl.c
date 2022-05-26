@@ -407,7 +407,7 @@ struct ldb_s {
   ldb_atomic(int) has_imm; /* So bg thread can detect non-null imm. */
   ldb_wfile_t *logfile;
   uint64_t logfile_number;
-  ldb_logwriter_t *log;
+  ldb_writer_t *log;
   uint32_t seed; /* For sampling. */
 
   /* Queue of writers. */
@@ -549,7 +549,7 @@ ldb_destroy_internal(ldb_t *db) {
   ldb_batch_destroy(db->tmp_batch);
 
   if (db->log != NULL)
-    ldb_logwriter_destroy(db->log);
+    ldb_writer_destroy(db->log);
 
   if (db->logfile != NULL)
     ldb_wfile_destroy(db->logfile);
@@ -600,15 +600,15 @@ ldb_new_db(ldb_t *db) {
   ldb_vedit_set_last_sequence(&new_db, 0);
 
   {
-    ldb_logwriter_t log;
+    ldb_writer_t log;
     ldb_buffer_t record;
 
-    ldb_logwriter_init(&log, file, 0);
+    ldb_writer_init(&log, file, 0);
     ldb_buffer_init(&record);
 
     ldb_vedit_export(&record, &new_db);
 
-    rc = ldb_logwriter_add_record(&log, &record);
+    rc = ldb_writer_add_record(&log, &record);
 
     if (rc == LDB_OK)
       rc = ldb_wfile_sync(file);
@@ -842,7 +842,7 @@ ldb_recover_log_file(ldb_t *db, uint64_t log_number,
   ldb_batch_t batch;
   int compactions = 0;
   ldb_memtable_t *mem = NULL;
-  ldb_logreader_t reader;
+  ldb_reader_t reader;
 
   ldb_mutex_assert_held(&db->mutex);
 
@@ -867,7 +867,7 @@ ldb_recover_log_file(ldb_t *db, uint64_t log_number,
      paranoid_checks==0 so that corruptions cause entire commits
      to be skipped instead of propagating bad information (like
      overly large sequence numbers). */
-  ldb_logreader_init(&reader, file, &reporter, 1, 0);
+  ldb_reader_init(&reader, file, &reporter, 1, 0);
   ldb_batch_init(&batch);
   ldb_buffer_init(&buf);
 
@@ -875,7 +875,7 @@ ldb_recover_log_file(ldb_t *db, uint64_t log_number,
                                 (unsigned long)log_number);
 
   /* Read all the records and add to a memtable. */
-  while (ldb_logreader_read_record(&reader, &record, &buf) && rc == LDB_OK) {
+  while (ldb_reader_read_record(&reader, &record, &buf) && rc == LDB_OK) {
     ldb_seqnum_t last_seq;
 
     if (record.size < 12) {
@@ -922,7 +922,7 @@ ldb_recover_log_file(ldb_t *db, uint64_t log_number,
 
   ldb_buffer_clear(&buf);
   ldb_batch_clear(&batch);
-  ldb_logreader_clear(&reader);
+  ldb_reader_clear(&reader);
   ldb_rfile_destroy(file);
 
   /* See if we should keep reusing the last log file. */
@@ -937,7 +937,7 @@ ldb_recover_log_file(ldb_t *db, uint64_t log_number,
         ldb_appendfile_create(fname, &db->logfile) == LDB_OK) {
       ldb_log(db->options.info_log, "Reusing old log %s", fname);
 
-      db->log = ldb_logwriter_create(db->logfile, lfile_size);
+      db->log = ldb_writer_create(db->logfile, lfile_size);
       db->logfile_number = log_number;
 
       if (mem != NULL) {
@@ -1846,14 +1846,14 @@ ldb_make_room_for_write(ldb_t *db, int force) {
       }
 
       if (db->log != NULL)
-        ldb_logwriter_destroy(db->log);
+        ldb_writer_destroy(db->log);
 
       if (db->logfile != NULL)
         ldb_wfile_destroy(db->logfile);
 
       db->logfile = lfile;
       db->logfile_number = new_log_number;
-      db->log = ldb_logwriter_create(lfile, 0);
+      db->log = ldb_writer_create(lfile, 0);
       db->imm = db->mem;
 
       ldb_atomic_store(&db->has_imm, 1, ldb_order_release);
@@ -2020,7 +2020,7 @@ ldb_open(const char *dbname, const ldb_dbopt_t *options, ldb_t **dbptr) {
 
       db->logfile = lfile;
       db->logfile_number = new_log_number;
-      db->log = ldb_logwriter_create(lfile, 0);
+      db->log = ldb_writer_create(lfile, 0);
       db->mem = ldb_memtable_create(&db->internal_comparator);
 
       ldb_memtable_ref(db->mem);
@@ -2231,7 +2231,7 @@ ldb_write(ldb_t *db, ldb_batch_t *updates, const ldb_writeopt_t *options) {
 
       contents = ldb_batch_contents(write_batch);
 
-      rc = ldb_logwriter_add_record(db->log, &contents);
+      rc = ldb_writer_add_record(db->log, &contents);
 
       if (rc == LDB_OK && options->sync) {
         rc = ldb_wfile_sync(db->logfile);

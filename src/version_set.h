@@ -30,7 +30,7 @@
  */
 
 struct ldb_iter_s;
-struct ldb_logwriter_s;
+struct ldb_writer_s;
 struct ldb_tcache_s;
 struct ldb_wfile_s;
 
@@ -76,7 +76,7 @@ struct ldb_vset_s {
 
   /* Opened lazily. */
   struct ldb_wfile_s *descriptor_file;
-  struct ldb_logwriter_s *descriptor_log;
+  struct ldb_writer_s *descriptor_log;
   ldb_version_t dummy_versions; /* Circular doubly-linked list of versions. */
   ldb_version_t *current;       /* == dummy_versions.prev */
 

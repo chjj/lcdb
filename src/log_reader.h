@@ -39,7 +39,7 @@ typedef struct ldb_reporter_s {
   void (*corruption)(struct ldb_reporter_s *reporter, size_t bytes, int status);
 } ldb_reporter_t;
 
-typedef struct ldb_logreader_s {
+typedef struct ldb_reader_s {
   struct ldb_rfile_s *file; /* SequentialFile */
   ldb_slice_t *src; /* For testing. */
   int error; /* For testing. */
@@ -62,7 +62,7 @@ typedef struct ldb_logreader_s {
      particular, a run of LDB_TYPE_MIDDLE and LDB_TYPE_LAST records can
      be silently skipped in this mode. */
   int resyncing;
-} ldb_logreader_t;
+} ldb_reader_t;
 
 /*
  * LogReader
@@ -81,14 +81,14 @@ typedef struct ldb_logreader_s {
  * position >= initial_offset within the file.
  */
 void
-ldb_logreader_init(ldb_logreader_t *lr,
-                   struct ldb_rfile_s *file,
-                   ldb_reporter_t *reporter,
-                   int checksum,
-                   uint64_t initial_offset);
+ldb_reader_init(ldb_reader_t *lr,
+                struct ldb_rfile_s *file,
+                ldb_reporter_t *reporter,
+                int checksum,
+                uint64_t initial_offset);
 
 void
-ldb_logreader_clear(ldb_logreader_t *lr);
+ldb_reader_clear(ldb_reader_t *lr);
 
 /* Read the next record into *record. Returns true if read
  * successfully, false if we hit end of the input. May use
@@ -97,8 +97,8 @@ ldb_logreader_clear(ldb_logreader_t *lr);
  * reader or the next mutation to *scratch.
  */
 int
-ldb_logreader_read_record(ldb_logreader_t *lr,
-                          ldb_slice_t *record,
-                          ldb_buffer_t *scratch);
+ldb_reader_read_record(ldb_reader_t *lr,
+                       ldb_slice_t *record,
+                       ldb_buffer_t *scratch);
 
 #endif /* LDB_LOG_READER_H */

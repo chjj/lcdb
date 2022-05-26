@@ -67,8 +67,8 @@ typedef struct ltest_s {
   int status;
   ldb_reporter_t report;
   int reading;
-  ldb_logwriter_t writer;
-  ldb_logreader_t reader;
+  ldb_writer_t writer;
+  ldb_reader_t reader;
   ldb_buffer_t scratch;
   ldb_vector_t arena;
 } ltest_t;
@@ -92,8 +92,8 @@ ltest_init(ltest_t *t) {
 
   t->reading = 0;
 
-  ldb_logwriter_init(&t->writer, NULL, 0);
-  ldb_logreader_init(&t->reader, NULL, &t->report, 1, 0);
+  ldb_writer_init(&t->writer, NULL, 0);
+  ldb_reader_init(&t->reader, NULL, &t->report, 1, 0);
 
   t->writer.dst = &t->dst;
   t->reader.src = &t->src;
@@ -111,7 +111,7 @@ ltest_clear(ltest_t *t) {
 
   ldb_vector_clear(&t->arena);
   ldb_buffer_clear(&t->scratch);
-  ldb_logreader_clear(&t->reader);
+  ldb_reader_clear(&t->reader);
   ldb_buffer_clear(&t->dst);
 }
 
@@ -162,7 +162,7 @@ ltest_rand_string(ltest_t *t, int i, ldb_rand_t *rnd) {
 
 static void
 ltest_reopen_for_append(ltest_t *t) {
-  ldb_logwriter_init(&t->writer, NULL, t->dst.size);
+  ldb_writer_init(&t->writer, NULL, t->dst.size);
   t->writer.dst = &t->dst;
 }
 
@@ -172,7 +172,7 @@ ltest_write(ltest_t *t, const char *msg) {
 
   ASSERT(!t->reading);
 
-  ldb_logwriter_add_record(&t->writer, &m);
+  ldb_writer_add_record(&t->writer, &m);
 }
 
 static size_t
@@ -190,7 +190,7 @@ ltest_read(ltest_t *t) {
     t->src = t->dst;
   }
 
-  if (!ldb_logreader_read_record(&t->reader, &record, &t->scratch))
+  if (!ldb_reader_read_record(&t->reader, &record, &t->scratch))
     return "EOF";
 
   result = ldb_malloc(record.size + 1);
@@ -259,8 +259,8 @@ ltest_write_initial_offset_log(ltest_t *t) {
 
 static void
 ltest_start_reading_at(ltest_t *t, uint64_t initial_offset) {
-  ldb_logreader_clear(&t->reader);
-  ldb_logreader_init(&t->reader, NULL, &t->report, 1, initial_offset);
+  ldb_reader_clear(&t->reader);
+  ldb_reader_init(&t->reader, NULL, &t->report, 1, initial_offset);
 
   t->reader.src = &t->src;
 }
@@ -268,7 +268,7 @@ ltest_start_reading_at(ltest_t *t, uint64_t initial_offset) {
 static void
 ltest_check_offset_past_end_returns_no_records(ltest_t *t,
                                                uint64_t offset_past_end) {
-  ldb_logreader_t reader;
+  ldb_reader_t reader;
   ldb_slice_t record;
 
   ltest_write_initial_offset_log(t);
@@ -276,21 +276,21 @@ ltest_check_offset_past_end_returns_no_records(ltest_t *t,
   t->reading = 1;
   t->src = t->dst;
 
-  ldb_logreader_init(&reader, NULL, &t->report, 1,
-                     ltest_written_bytes(t) + offset_past_end);
+  ldb_reader_init(&reader, NULL, &t->report, 1,
+                  ltest_written_bytes(t) + offset_past_end);
 
   reader.src = &t->src;
 
-  ASSERT(!ldb_logreader_read_record(&reader, &record, &t->scratch));
+  ASSERT(!ldb_reader_read_record(&reader, &record, &t->scratch));
 
-  ldb_logreader_clear(&reader);
+  ldb_reader_clear(&reader);
 }
 
 static void
 ltest_check_initial_offset_record(ltest_t *t,
                                   uint64_t initial_offset,
                                   int offset_index) {
-  ldb_logreader_t reader;
+  ldb_reader_t reader;
   ldb_slice_t record;
 
   ltest_write_initial_offset_log(t);
@@ -298,7 +298,7 @@ ltest_check_initial_offset_record(ltest_t *t,
   t->reading = 1;
   t->src = t->dst;
 
-  ldb_logreader_init(&reader, NULL, &t->report, 1, initial_offset);
+  ldb_reader_init(&reader, NULL, &t->report, 1, initial_offset);
 
   reader.src = &t->src;
 
@@ -306,7 +306,7 @@ ltest_check_initial_offset_record(ltest_t *t,
   ASSERT(offset_index < num_offset_records);
 
   for (; offset_index < num_offset_records; offset_index++) {
-    ASSERT(ldb_logreader_read_record(&reader, &record, &t->scratch));
+    ASSERT(ldb_reader_read_record(&reader, &record, &t->scratch));
 
     ASSERT(offset_record_sizes[offset_index] == record.size);
 
@@ -315,7 +315,7 @@ ltest_check_initial_offset_record(ltest_t *t,
     ASSERT('a' + offset_index == (int)record.data[0]);
   }
 
-  ldb_logreader_clear(&reader);
+  ldb_reader_clear(&reader);
 }
 
 /*

@@ -1158,7 +1158,7 @@ ldb_vset_clear(ldb_vset_t *vset) {
   assert(vset->dummy_versions.next == &vset->dummy_versions);
 
   if (vset->descriptor_log != NULL)
-    ldb_logwriter_destroy(vset->descriptor_log);
+    ldb_writer_destroy(vset->descriptor_log);
 
   if (vset->descriptor_file != NULL)
     ldb_wfile_destroy(vset->descriptor_file);
@@ -1242,7 +1242,7 @@ ldb_vset_finalize(ldb_vset_t *vset, ldb_version_t *v) {
 }
 
 static int
-ldb_vset_write_snapshot(ldb_vset_t *vset, ldb_logwriter_t *log) {
+ldb_vset_write_snapshot(ldb_vset_t *vset, ldb_writer_t *log) {
   ldb_buffer_t record;
   ldb_vedit_t edit;
   int level, rc;
@@ -1279,7 +1279,7 @@ ldb_vset_write_snapshot(ldb_vset_t *vset, ldb_logwriter_t *log) {
   ldb_vedit_export(&record, &edit);
   ldb_vedit_clear(&edit);
 
-  rc = ldb_logwriter_add_record(log, &record);
+  rc = ldb_writer_add_record(log, &record);
 
   ldb_buffer_clear(&record);
 
@@ -1335,7 +1335,7 @@ ldb_vset_log_and_apply(ldb_vset_t *vset, ldb_vedit_t *edit, ldb_mutex_t *mu) {
     }
 
     if (rc == LDB_OK) {
-      vset->descriptor_log = ldb_logwriter_create(vset->descriptor_file, 0);
+      vset->descriptor_log = ldb_writer_create(vset->descriptor_file, 0);
 
       rc = ldb_vset_write_snapshot(vset, vset->descriptor_log);
     }
@@ -1352,7 +1352,7 @@ ldb_vset_log_and_apply(ldb_vset_t *vset, ldb_vedit_t *edit, ldb_mutex_t *mu) {
       ldb_buffer_init(&record);
       ldb_vedit_export(&record, edit);
 
-      rc = ldb_logwriter_add_record(vset->descriptor_log, &record);
+      rc = ldb_writer_add_record(vset->descriptor_log, &record);
 
       if (rc == LDB_OK)
         rc = ldb_wfile_sync(vset->descriptor_file);
@@ -1383,7 +1383,7 @@ ldb_vset_log_and_apply(ldb_vset_t *vset, ldb_vedit_t *edit, ldb_mutex_t *mu) {
     ldb_version_destroy(v);
 
     if (fname[0]) {
-      ldb_logwriter_destroy(vset->descriptor_log);
+      ldb_writer_destroy(vset->descriptor_log);
       ldb_wfile_destroy(vset->descriptor_file);
 
       vset->descriptor_log = NULL;
@@ -1433,8 +1433,8 @@ ldb_vset_reuse_manifest(ldb_vset_t *vset, const char *dscname) {
 
   ldb_log(vset->options->info_log, "Reusing MANIFEST %s", dscname);
 
-  vset->descriptor_log = ldb_logwriter_create(vset->descriptor_file,
-                                              manifest_size);
+  vset->descriptor_log = ldb_writer_create(vset->descriptor_file,
+                                           manifest_size);
 
   vset->manifest_file_number = manifest_number;
 
@@ -1524,7 +1524,7 @@ ldb_vset_recover(ldb_vset_t *vset, int *save_manifest) {
   {
     ldb_slice_t name = ldb_string(ucmp->name);
     ldb_reporter_t reporter;
-    ldb_logreader_t reader;
+    ldb_reader_t reader;
     ldb_slice_t record;
     ldb_buffer_t buf;
     ldb_vedit_t edit;
@@ -1532,12 +1532,12 @@ ldb_vset_recover(ldb_vset_t *vset, int *save_manifest) {
     reporter.status = &rc;
     reporter.corruption = report_corruption;
 
-    ldb_logreader_init(&reader, file, &reporter, 1, 0);
+    ldb_reader_init(&reader, file, &reporter, 1, 0);
     ldb_slice_init(&record);
     ldb_buffer_init(&buf);
     ldb_vedit_init(&edit);
 
-    while (ldb_logreader_read_record(&reader, &record, &buf) && rc == LDB_OK) {
+    while (ldb_reader_read_record(&reader, &record, &buf) && rc == LDB_OK) {
       ++read_records;
 
       /* Calls ldb_vedit_reset() internally. */
@@ -1577,7 +1577,7 @@ ldb_vset_recover(ldb_vset_t *vset, int *save_manifest) {
 
     ldb_vedit_clear(&edit);
     ldb_buffer_clear(&buf);
-    ldb_logreader_clear(&reader);
+    ldb_reader_clear(&reader);
   }
 
   ldb_rfile_destroy(file);
