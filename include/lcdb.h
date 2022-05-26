@@ -78,11 +78,11 @@ typedef struct ldb_writeopt_s ldb_writeopt_t;
 struct ldb_slice_s {
   void *data;
   size_t size;
-  size_t _alloc;
+  size_t dummy;
 };
 
 struct ldb_batch_s {
-  ldb_slice_t _rep;
+  ldb_slice_t dummy;
 };
 
 struct ldb_comparator_s {
@@ -480,7 +480,7 @@ ldb_string(const char *xp);
                                            \
   _z.data = (void *)(xp);                  \
   _z.size = (xn);                          \
-  _z._alloc = 0;                           \
+  _z.dummy = 0;                            \
                                            \
   _z;                                      \
 })
