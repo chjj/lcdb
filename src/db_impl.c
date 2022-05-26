@@ -393,7 +393,7 @@ struct ldb_s {
   char dbname[LDB_PATH_MAX];
 
   /* table_cache provides its own synchronization. */
-  ldb_tcache_t *table_cache;
+  ldb_tables_t *table_cache;
 
   /* Lock over the persistent DB state. Non-null iff successfully acquired. */
   ldb_filelock_t *db_lock;
@@ -477,7 +477,7 @@ ldb_create(const char *dbname, const ldb_dbopt_t *options) {
 
   (void)db->dbname;
 
-  db->table_cache = ldb_tcache_create(db->dbname,
+  db->table_cache = ldb_tables_create(db->dbname,
                                       &db->options,
                                       table_cache_size(&db->options));
 
@@ -554,7 +554,7 @@ ldb_destroy_internal(ldb_t *db) {
   if (db->logfile != NULL)
     ldb_wfile_destroy(db->logfile);
 
-  ldb_tcache_destroy(db->table_cache);
+  ldb_tables_destroy(db->table_cache);
 
   if (db->owns_info_log)
     ldb_logger_destroy(db->options.info_log);
@@ -708,7 +708,7 @@ ldb_remove_obsolete_files(ldb_t *db) {
         ldb_vector_push(&to_delete, filename);
 
         if (type == LDB_FILE_TABLE)
-          ldb_tcache_evict(db->table_cache, number);
+          ldb_tables_evict(db->table_cache, number);
 
         ldb_log(db->options.info_log, "Delete type=%d #%lu",
                                       (signed int)type,
@@ -1232,7 +1232,7 @@ ldb_finish_compaction_output_file(ldb_t *db, ldb_cstate_t *compact,
 
   if (rc == LDB_OK && current_entries > 0) {
     /* Verify that the table is usable. */
-    ldb_iter_t *iter = ldb_tcache_iterate(db->table_cache,
+    ldb_iter_t *iter = ldb_tables_iterate(db->table_cache,
                                           ldb_readopt_default,
                                           output_number,
                                           current_bytes,

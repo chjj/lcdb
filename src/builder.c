@@ -34,7 +34,7 @@
 int
 ldb_build_table(const char *dbname,
                 const ldb_dbopt_t *options,
-                ldb_tcache_t *table_cache,
+                ldb_tables_t *table_cache,
                 ldb_iter_t *iter,
                 ldb_filemeta_t *meta) {
   char fname[LDB_PATH_MAX];
@@ -96,7 +96,7 @@ ldb_build_table(const char *dbname,
 
     if (rc == LDB_OK) {
       /* Verify that the table is usable. */
-      it = ldb_tcache_iterate(table_cache,
+      it = ldb_tables_iterate(table_cache,
                               ldb_readopt_default,
                               meta->number,
                               meta->file_size,

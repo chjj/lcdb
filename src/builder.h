@@ -20,7 +20,7 @@
 struct ldb_dbopt_s;
 struct ldb_filemeta_s;
 struct ldb_iter_s;
-struct ldb_tcache_s;
+struct ldb_tables_s;
 
 /*
  * BuildTable
@@ -34,7 +34,7 @@ struct ldb_tcache_s;
 int
 ldb_build_table(const char *dbname,
                 const struct ldb_dbopt_s *options,
-                struct ldb_tcache_s *table_cache,
+                struct ldb_tables_s *table_cache,
                 struct ldb_iter_s *iter,
                 struct ldb_filemeta_s *meta);
 

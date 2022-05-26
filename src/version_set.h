@@ -31,7 +31,7 @@
 
 struct ldb_iter_s;
 struct ldb_writer_s;
-struct ldb_tcache_s;
+struct ldb_tables_s;
 struct ldb_wfile_s;
 
 typedef struct ldb_getstats_s {
@@ -66,7 +66,7 @@ struct ldb_version_s {
 struct ldb_vset_s {
   const char *dbname;
   const ldb_dbopt_t *options;
-  struct ldb_tcache_s *table_cache;
+  struct ldb_tables_s *table_cache;
   ldb_comparator_t icmp;
   uint64_t next_file_number;
   uint64_t manifest_file_number;
@@ -222,7 +222,7 @@ ldb_version_debug(ldb_buffer_t *z, const ldb_version_t *x);
 ldb_vset_t *
 ldb_vset_create(const char *dbname,
                 const ldb_dbopt_t *options,
-                struct ldb_tcache_s *table_cache,
+                struct ldb_tables_s *table_cache,
                 const ldb_comparator_t *cmp);
 
 void

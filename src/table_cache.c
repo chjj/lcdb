@@ -32,7 +32,7 @@
  * Types
  */
 
-struct ldb_tcache_s {
+struct ldb_tables_s {
   const char *dbname;
   const ldb_dbopt_t *options;
   ldb_lru_t *lru;
@@ -70,9 +70,9 @@ unref_entry(void *arg1, void *arg2) {
  * TableCache
  */
 
-ldb_tcache_t *
-ldb_tcache_create(const char *dbname, const ldb_dbopt_t *options, int entries) {
-  ldb_tcache_t *cache = ldb_malloc(sizeof(ldb_tcache_t));
+ldb_tables_t *
+ldb_tables_create(const char *dbname, const ldb_dbopt_t *options, int entries) {
+  ldb_tables_t *cache = ldb_malloc(sizeof(ldb_tables_t));
 
   cache->dbname = dbname;
   cache->options = options;
@@ -82,13 +82,13 @@ ldb_tcache_create(const char *dbname, const ldb_dbopt_t *options, int entries) {
 }
 
 void
-ldb_tcache_destroy(ldb_tcache_t *cache) {
+ldb_tables_destroy(ldb_tables_t *cache) {
   ldb_lru_destroy(cache->lru);
   ldb_free(cache);
 }
 
 static int
-find_table(ldb_tcache_t *cache,
+find_table(ldb_tables_t *cache,
            uint64_t file_number,
            uint64_t file_size,
            ldb_lruhandle_t **handle) {
@@ -147,7 +147,7 @@ find_table(ldb_tcache_t *cache,
 }
 
 ldb_iter_t *
-ldb_tcache_iterate(ldb_tcache_t *cache,
+ldb_tables_iterate(ldb_tables_t *cache,
                    const ldb_readopt_t *options,
                    uint64_t file_number,
                    uint64_t file_size,
@@ -177,7 +177,7 @@ ldb_tcache_iterate(ldb_tcache_t *cache,
 }
 
 int
-ldb_tcache_get(ldb_tcache_t *cache,
+ldb_tables_get(ldb_tables_t *cache,
                const ldb_readopt_t *options,
                uint64_t file_number,
                uint64_t file_size,
@@ -203,7 +203,7 @@ ldb_tcache_get(ldb_tcache_t *cache,
 }
 
 void
-ldb_tcache_evict(ldb_tcache_t *cache, uint64_t file_number) {
+ldb_tables_evict(ldb_tables_t *cache, uint64_t file_number) {
   ldb_slice_t key;
   uint8_t buf[8];
 

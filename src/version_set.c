@@ -328,14 +328,14 @@ static ldb_iter_t *
 get_file_iterator(void *arg,
                   const ldb_readopt_t *options,
                   const ldb_slice_t *file_value) {
-  ldb_tcache_t *cache = (ldb_tcache_t *)arg;
+  ldb_tables_t *cache = (ldb_tables_t *)arg;
 
   if (file_value->size != 16) {
     /* "FileReader invoked with unexpected value" */
     return ldb_emptyiter_create(LDB_CORRUPTION);
   }
 
-  return ldb_tcache_iterate(cache, options,
+  return ldb_tables_iterate(cache, options,
                             ldb_fixed64_decode(file_value->data + 0),
                             ldb_fixed64_decode(file_value->data + 8),
                             NULL);
@@ -406,7 +406,7 @@ typedef struct getstate_s {
 static int
 getstate_match(void *arg, int level, ldb_filemeta_t *f) {
   getstate_t *state = (getstate_t *)arg;
-  ldb_tcache_t *cache = state->vset->table_cache;
+  ldb_tables_t *cache = state->vset->table_cache;
 
   if (state->stats->seek_file == NULL &&
       state->last_file_read != NULL) {
@@ -418,7 +418,7 @@ getstate_match(void *arg, int level, ldb_filemeta_t *f) {
   state->last_file_read = f;
   state->last_file_read_level = level;
 
-  state->status = ldb_tcache_get(cache,
+  state->status = ldb_tables_get(cache,
                                  state->options,
                                  f->number,
                                  f->file_size,
@@ -535,14 +535,14 @@ void
 ldb_version_add_iterators(ldb_version_t *ver,
                           const ldb_readopt_t *options,
                           ldb_vector_t *iters) {
-  ldb_tcache_t *table_cache = ver->vset->table_cache;
+  ldb_tables_t *table_cache = ver->vset->table_cache;
   int level;
   size_t i;
 
   /* Merge all level zero files together since they may overlap. */
   for (i = 0; i < ver->files[0].length; i++) {
     ldb_filemeta_t *item = ver->files[0].items[i];
-    ldb_iter_t *iter = ldb_tcache_iterate(table_cache,
+    ldb_iter_t *iter = ldb_tables_iterate(table_cache,
                                           options,
                                           item->number,
                                           item->file_size,
@@ -1123,7 +1123,7 @@ static void
 ldb_vset_init(ldb_vset_t *vset,
               const char *dbname,
               const ldb_dbopt_t *options,
-              ldb_tcache_t *table_cache,
+              ldb_tables_t *table_cache,
               const ldb_comparator_t *cmp) {
   int level;
 
@@ -1170,7 +1170,7 @@ ldb_vset_clear(ldb_vset_t *vset) {
 ldb_vset_t *
 ldb_vset_create(const char *dbname,
                 const ldb_dbopt_t *options,
-                ldb_tcache_t *table_cache,
+                ldb_tables_t *table_cache,
                 const ldb_comparator_t *cmp) {
   ldb_vset_t *vset = ldb_malloc(sizeof(ldb_vset_t));
   ldb_vset_init(vset, dbname, options, table_cache, cmp);
@@ -1693,7 +1693,7 @@ ldb_vset_approximate_offset(ldb_vset_t *vset,
         ldb_table_t *tableptr;
         ldb_iter_t *iter;
 
-        iter = ldb_tcache_iterate(vset->table_cache,
+        iter = ldb_tables_iterate(vset->table_cache,
                                   ldb_readopt_default,
                                   file->number,
                                   file->file_size,
@@ -2188,7 +2188,7 @@ ldb_inputiter_create(ldb_vset_t *vset, ldb_compaction_t *c) {
         for (i = 0; i < files->length; i++) {
           const ldb_filemeta_t *file = files->items[i];
 
-          list[num++] = ldb_tcache_iterate(vset->table_cache,
+          list[num++] = ldb_tables_iterate(vset->table_cache,
                                            &options,
                                            file->number,
                                            file->file_size,

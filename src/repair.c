@@ -109,7 +109,7 @@ typedef struct ldb_repair_s {
   ldb_dbopt_t options;
   int owns_info_log;
   int owns_cache;
-  ldb_tcache_t *table_cache;
+  ldb_tables_t *table_cache;
   ldb_edit_t edit;
   ldb_array_t manifests;
   ldb_array_t table_numbers;
@@ -147,7 +147,7 @@ repair_init(ldb_repair_t *rep, const char *dbname, const ldb_dbopt_t *options) {
   rep->owns_cache = rep->options.block_cache != options->block_cache;
 
   /* table_cache can be small since we expect each table to be opened once. */
-  rep->table_cache = ldb_tcache_create(rep->dbname, &rep->options, 10);
+  rep->table_cache = ldb_tables_create(rep->dbname, &rep->options, 10);
 
   ldb_edit_init(&rep->edit);
   ldb_array_init(&rep->manifests);
@@ -164,7 +164,7 @@ static void
 repair_clear(ldb_repair_t *rep) {
   size_t i;
 
-  ldb_tcache_destroy(rep->table_cache);
+  ldb_tables_destroy(rep->table_cache);
 
   if (rep->owns_info_log)
     ldb_logger_destroy(rep->options.info_log);
@@ -398,7 +398,7 @@ tableiter_create(ldb_repair_t *rep, const ldb_filemeta_t *meta) {
 
   options.verify_checksums = rep->options.paranoid_checks;
 
-  return ldb_tcache_iterate(rep->table_cache,
+  return ldb_tables_iterate(rep->table_cache,
                             &options,
                             meta->number,
                             meta->file_size,
