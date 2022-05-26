@@ -40,7 +40,7 @@ struct ldb_table_s {
   int status;
   ldb_rfile_t *file;
   uint64_t cache_id;
-  ldb_filterreader_t *filter;
+  ldb_filter_t *filter;
   const uint8_t *filter_data;
   ldb_blockhandle_t metaindex_handle; /* Handle to metaindex_block:
                                          saved from footer. */
@@ -74,8 +74,7 @@ ldb_table_read_filter(ldb_table_t *table,
   if (block.heap_allocated)
     table->filter_data = block.data.data; /* Will need to delete later. */
 
-  table->filter = ldb_filterreader_create(table->options.filter_policy,
-                                          &block.data);
+  table->filter = ldb_filter_create(table->options.filter_policy, &block.data);
 }
 
 static void
@@ -193,7 +192,7 @@ ldb_table_open(const ldb_dbopt_t *options,
 void
 ldb_table_destroy(ldb_table_t *table) {
   if (table->filter != NULL)
-    ldb_filterreader_destroy(table->filter);
+    ldb_filter_destroy(table->filter);
 
   if (table->filter_data != NULL)
     ldb_free((void *)table->filter_data);
@@ -329,12 +328,12 @@ ldb_table_internal_get(ldb_table_t *table,
 
   if (ldb_iter_valid(index_iter)) {
     ldb_slice_t iter_value = ldb_iter_value(index_iter);
-    ldb_filterreader_t *filter = table->filter;
+    ldb_filter_t *filter = table->filter;
     ldb_blockhandle_t handle;
 
     if (filter != NULL &&
         ldb_blockhandle_import(&handle, &iter_value) &&
-        !ldb_filterreader_matches(filter, handle.offset, k)) {
+        !ldb_filter_matches(filter, handle.offset, k)) {
       /* Not found. */
     } else {
       ldb_iter_t *block_iter = ldb_table_blockreader(table,

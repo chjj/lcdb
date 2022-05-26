@@ -79,7 +79,7 @@ static void
 test_empty_builder(const ldb_bloom_t *policy) {
   static uint8_t expect[] = {0, 0, 0, 0, 11};
   ldb_filterbuilder_t fb;
-  ldb_filterreader_t fr;
+  ldb_filter_t fr;
   ldb_slice_t block;
   ldb_slice_t key;
 
@@ -90,12 +90,12 @@ test_empty_builder(const ldb_bloom_t *policy) {
   ASSERT(block.size == sizeof(expect));
   ASSERT(memcmp(block.data, expect, sizeof(expect)) == 0);
 
-  ldb_filterreader_init(&fr, policy, &block);
+  ldb_filter_init(&fr, policy, &block);
 
   key = ldb_string("foo");
 
-  ASSERT(ldb_filterreader_matches(&fr, 0, &key));
-  ASSERT(ldb_filterreader_matches(&fr, 100000, &key));
+  ASSERT(ldb_filter_matches(&fr, 0, &key));
+  ASSERT(ldb_filter_matches(&fr, 100000, &key));
 
   ldb_filterbuilder_clear(&fb);
 }
@@ -103,7 +103,7 @@ test_empty_builder(const ldb_bloom_t *policy) {
 static void
 test_single_chunk(const ldb_bloom_t *policy) {
   ldb_filterbuilder_t fb;
-  ldb_filterreader_t fr;
+  ldb_filter_t fr;
   ldb_slice_t block;
   ldb_slice_t key;
 
@@ -129,22 +129,22 @@ test_single_chunk(const ldb_bloom_t *policy) {
 
   block = ldb_filterbuilder_finish(&fb);
 
-  ldb_filterreader_init(&fr, policy, &block);
+  ldb_filter_init(&fr, policy, &block);
 
   key = ldb_string("foo");
-  ASSERT(ldb_filterreader_matches(&fr, 100, &key));
+  ASSERT(ldb_filter_matches(&fr, 100, &key));
   key = ldb_string("bar");
-  ASSERT(ldb_filterreader_matches(&fr, 100, &key));
+  ASSERT(ldb_filter_matches(&fr, 100, &key));
   key = ldb_string("box");
-  ASSERT(ldb_filterreader_matches(&fr, 100, &key));
+  ASSERT(ldb_filter_matches(&fr, 100, &key));
   key = ldb_string("hello");
-  ASSERT(ldb_filterreader_matches(&fr, 100, &key));
+  ASSERT(ldb_filter_matches(&fr, 100, &key));
   key = ldb_string("foo");
-  ASSERT(ldb_filterreader_matches(&fr, 100, &key));
+  ASSERT(ldb_filter_matches(&fr, 100, &key));
   key = ldb_string("missing");
-  ASSERT(!ldb_filterreader_matches(&fr, 100, &key));
+  ASSERT(!ldb_filter_matches(&fr, 100, &key));
   key = ldb_string("other");
-  ASSERT(!ldb_filterreader_matches(&fr, 100, &key));
+  ASSERT(!ldb_filter_matches(&fr, 100, &key));
 
   ldb_filterbuilder_clear(&fb);
 }
@@ -152,7 +152,7 @@ test_single_chunk(const ldb_bloom_t *policy) {
 static void
 test_multi_chunk(const ldb_bloom_t *policy) {
   ldb_filterbuilder_t fb;
-  ldb_filterreader_t fr;
+  ldb_filter_t fr;
   ldb_slice_t block;
   ldb_slice_t key;
 
@@ -182,47 +182,47 @@ test_multi_chunk(const ldb_bloom_t *policy) {
 
   block = ldb_filterbuilder_finish(&fb);
 
-  ldb_filterreader_init(&fr, policy, &block);
+  ldb_filter_init(&fr, policy, &block);
 
   /* Check first filter. */
   key = ldb_string("foo");
-  ASSERT(ldb_filterreader_matches(&fr, 0, &key));
+  ASSERT(ldb_filter_matches(&fr, 0, &key));
   key = ldb_string("bar");
-  ASSERT(ldb_filterreader_matches(&fr, 2000, &key));
+  ASSERT(ldb_filter_matches(&fr, 2000, &key));
   key = ldb_string("box");
-  ASSERT(!ldb_filterreader_matches(&fr, 0, &key));
+  ASSERT(!ldb_filter_matches(&fr, 0, &key));
   key = ldb_string("hello");
-  ASSERT(!ldb_filterreader_matches(&fr, 0, &key));
+  ASSERT(!ldb_filter_matches(&fr, 0, &key));
 
   /* Check second filter. */
   key = ldb_string("box");
-  ASSERT(ldb_filterreader_matches(&fr, 3100, &key));
+  ASSERT(ldb_filter_matches(&fr, 3100, &key));
   key = ldb_string("foo");
-  ASSERT(!ldb_filterreader_matches(&fr, 3100, &key));
+  ASSERT(!ldb_filter_matches(&fr, 3100, &key));
   key = ldb_string("bar");
-  ASSERT(!ldb_filterreader_matches(&fr, 3100, &key));
+  ASSERT(!ldb_filter_matches(&fr, 3100, &key));
   key = ldb_string("hello");
-  ASSERT(!ldb_filterreader_matches(&fr, 3100, &key));
+  ASSERT(!ldb_filter_matches(&fr, 3100, &key));
 
   /* Check third filter (empty). */
   key = ldb_string("foo");
-  ASSERT(!ldb_filterreader_matches(&fr, 4100, &key));
+  ASSERT(!ldb_filter_matches(&fr, 4100, &key));
   key = ldb_string("bar");
-  ASSERT(!ldb_filterreader_matches(&fr, 4100, &key));
+  ASSERT(!ldb_filter_matches(&fr, 4100, &key));
   key = ldb_string("box");
-  ASSERT(!ldb_filterreader_matches(&fr, 4100, &key));
+  ASSERT(!ldb_filter_matches(&fr, 4100, &key));
   key = ldb_string("hello");
-  ASSERT(!ldb_filterreader_matches(&fr, 4100, &key));
+  ASSERT(!ldb_filter_matches(&fr, 4100, &key));
 
   /* Check last filter. */
   key = ldb_string("box");
-  ASSERT(ldb_filterreader_matches(&fr, 9000, &key));
+  ASSERT(ldb_filter_matches(&fr, 9000, &key));
   key = ldb_string("hello");
-  ASSERT(ldb_filterreader_matches(&fr, 9000, &key));
+  ASSERT(ldb_filter_matches(&fr, 9000, &key));
   key = ldb_string("foo");
-  ASSERT(!ldb_filterreader_matches(&fr, 9000, &key));
+  ASSERT(!ldb_filter_matches(&fr, 9000, &key));
   key = ldb_string("bar");
-  ASSERT(!ldb_filterreader_matches(&fr, 9000, &key));
+  ASSERT(!ldb_filter_matches(&fr, 9000, &key));
 
   ldb_filterbuilder_clear(&fb);
 }

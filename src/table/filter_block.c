@@ -32,7 +32,7 @@
 #define LDB_FILTER_BASE (1 << LDB_FILTER_BASE_LG)
 
 /*
- * Filter Builder
+ * FilterBuilder
  */
 
 ldb_filterbuilder_t *
@@ -140,26 +140,26 @@ ldb_filterbuilder_finish(ldb_filterbuilder_t *fb) {
 }
 
 /*
- * Filter Reader
+ * FilterReader
  */
 
-ldb_filterreader_t *
-ldb_filterreader_create(const ldb_bloom_t *policy,
-                        const ldb_slice_t *contents) {
-  ldb_filterreader_t *fr = ldb_malloc(sizeof(ldb_filterreader_t));
-  ldb_filterreader_init(fr, policy, contents);
+ldb_filter_t *
+ldb_filter_create(const ldb_bloom_t *policy,
+                  const ldb_slice_t *contents) {
+  ldb_filter_t *fr = ldb_malloc(sizeof(ldb_filter_t));
+  ldb_filter_init(fr, policy, contents);
   return fr;
 }
 
 void
-ldb_filterreader_destroy(ldb_filterreader_t *fr) {
+ldb_filter_destroy(ldb_filter_t *fr) {
   ldb_free(fr);
 }
 
 void
-ldb_filterreader_init(ldb_filterreader_t *fr,
-                      const ldb_bloom_t *policy,
-                      const ldb_slice_t *contents) {
+ldb_filter_init(ldb_filter_t *fr,
+                const ldb_bloom_t *policy,
+                const ldb_slice_t *contents) {
   size_t n, last_word;
 
   fr->policy = policy;
@@ -186,9 +186,9 @@ ldb_filterreader_init(ldb_filterreader_t *fr,
 }
 
 int
-ldb_filterreader_matches(const ldb_filterreader_t *fr,
-                         uint64_t block_offset,
-                         const ldb_slice_t *key) {
+ldb_filter_matches(const ldb_filter_t *fr,
+                   uint64_t block_offset,
+                   const ldb_slice_t *key) {
   uint64_t index = block_offset >> fr->base_lg;
 
   if (index < fr->num) {
