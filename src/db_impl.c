@@ -88,21 +88,21 @@ ldb_manual_clear(ldb_manual_t *m) {
 
 /* Per level compaction stats. stats[level] stores the stats for
    compactions that produced data for the specified "level". */
-typedef struct ldb_cstats_s {
+typedef struct ldb_stats_s {
   int64_t micros;
   int64_t bytes_read;
   int64_t bytes_written;
-} ldb_cstats_t;
+} ldb_stats_t;
 
 static void
-ldb_cstats_init(ldb_cstats_t *c) {
+ldb_stats_init(ldb_stats_t *c) {
   c->micros = 0;
   c->bytes_read = 0;
   c->bytes_written = 0;
 }
 
 static void
-ldb_cstats_add(ldb_cstats_t *z, const ldb_cstats_t *x) {
+ldb_stats_add(ldb_stats_t *z, const ldb_stats_t *x) {
   z->micros += x->micros;
   z->bytes_read += x->bytes_read;
   z->bytes_written += x->bytes_written;
@@ -113,17 +113,17 @@ ldb_cstats_add(ldb_cstats_t *z, const ldb_cstats_t *x) {
  */
 
 /* Information kept for every waiting writer. */
-typedef struct ldb_writer_s {
+typedef struct ldb_waiter_s {
   int status;
   ldb_batch_t *batch;
   int sync;
   int done;
   ldb_cond_t cv;
-  struct ldb_writer_s *next;
-} ldb_writer_t;
+  struct ldb_waiter_s *next;
+} ldb_waiter_t;
 
 static void
-ldb_writer_init(ldb_writer_t *w) {
+ldb_waiter_init(ldb_waiter_t *w) {
   w->status = LDB_OK;
   w->batch = NULL;
   w->sync = 0;
@@ -134,7 +134,7 @@ ldb_writer_init(ldb_writer_t *w) {
 }
 
 static void
-ldb_writer_clear(ldb_writer_t *w) {
+ldb_waiter_clear(ldb_waiter_t *w) {
   ldb_cond_destroy(&w->cv);
 }
 
@@ -143,8 +143,8 @@ ldb_writer_clear(ldb_writer_t *w) {
  */
 
 typedef struct ldb_queue_s {
-  ldb_writer_t *head;
-  ldb_writer_t *tail;
+  ldb_waiter_t *head;
+  ldb_waiter_t *tail;
   int length;
 } ldb_queue_t;
 
@@ -156,7 +156,7 @@ ldb_queue_init(ldb_queue_t *queue) {
 }
 
 static void
-ldb_queue_push(ldb_queue_t *queue, ldb_writer_t *writer) {
+ldb_queue_push(ldb_queue_t *queue, ldb_waiter_t *writer) {
   if (queue->head == NULL)
     queue->head = writer;
 
@@ -167,9 +167,9 @@ ldb_queue_push(ldb_queue_t *queue, ldb_writer_t *writer) {
   queue->length++;
 }
 
-static ldb_writer_t *
+static ldb_waiter_t *
 ldb_queue_shift(ldb_queue_t *queue) {
-  ldb_writer_t *writer = queue->head;
+  ldb_waiter_t *writer = queue->head;
 
   if (writer == NULL)
     abort(); /* LCOV_EXCL_LINE */
@@ -274,20 +274,20 @@ ldb_cstate_top(ldb_cstate_t *state) {
  * IterState
  */
 
-typedef struct iter_state_s {
+typedef struct ldb_istate_s {
   ldb_mutex_t *mu;
   /* All guarded by mu. */
   ldb_version_t *version;
   ldb_memtable_t *mem;
   ldb_memtable_t *imm;
-} iter_state_t;
+} ldb_istate_t;
 
-static iter_state_t *
-iter_state_create(ldb_mutex_t *mutex,
+static ldb_istate_t *
+ldb_istate_create(ldb_mutex_t *mutex,
                   ldb_memtable_t *mem,
                   ldb_memtable_t *imm,
                   ldb_version_t *version) {
-  iter_state_t *state = ldb_malloc(sizeof(iter_state_t));
+  ldb_istate_t *state = ldb_malloc(sizeof(ldb_istate_t));
 
   state->mu = mutex;
   state->version = version;
@@ -298,7 +298,7 @@ iter_state_create(ldb_mutex_t *mutex,
 }
 
 static void
-iter_state_destroy(iter_state_t *state) {
+ldb_istate_destroy(ldb_istate_t *state) {
   ldb_mutex_lock(state->mu);
 
   ldb_memtable_unref(state->mem);
@@ -433,7 +433,7 @@ struct ldb_s {
   /* Have we encountered a background error in paranoid mode? */
   int bg_error;
 
-  ldb_cstats_t stats[LDB_NUM_LEVELS];
+  ldb_stats_t stats[LDB_NUM_LEVELS];
 };
 
 static ldb_t *
@@ -516,7 +516,7 @@ ldb_create(const char *dbname, const ldb_dbopt_t *options) {
   db->bg_error = LDB_OK;
 
   for (i = 0; i < LDB_NUM_LEVELS; i++)
-    ldb_cstats_init(&db->stats[i]);
+    ldb_stats_init(&db->stats[i]);
 
   return db;
 }
@@ -746,7 +746,7 @@ ldb_write_level0_table(ldb_t *db, ldb_memtable_t *mem,
                                   ldb_version_t *base) {
   int64_t start_micros;
   ldb_filemeta_t meta;
-  ldb_cstats_t stats;
+  ldb_stats_t stats;
   ldb_iter_t *iter;
   int rc = LDB_OK;
   int level = 0;
@@ -754,7 +754,7 @@ ldb_write_level0_table(ldb_t *db, ldb_memtable_t *mem,
   ldb_mutex_assert_held(&db->mutex);
 
   ldb_filemeta_init(&meta);
-  ldb_cstats_init(&stats);
+  ldb_stats_init(&stats);
 
   start_micros = ldb_now_usec();
 
@@ -810,7 +810,7 @@ ldb_write_level0_table(ldb_t *db, ldb_memtable_t *mem,
   stats.micros = ldb_now_usec() - start_micros;
   stats.bytes_written = meta.file_size;
 
-  ldb_cstats_add(&db->stats[level], &stats);
+  ldb_stats_add(&db->stats[level], &stats);
 
   ldb_filemeta_clear(&meta);
 
@@ -1298,7 +1298,7 @@ ldb_do_compaction_work(ldb_t *db, ldb_cstate_t *compact) {
   int64_t imm_micros = 0; /* Micros spent doing db->imm compactions. */
   ldb_buffer_t user_key;
   int has_user_key = 0;
-  ldb_cstats_t stats;
+  ldb_stats_t stats;
   ldb_iter_t *input;
   int rc = LDB_OK;
   int which, level;
@@ -1313,7 +1313,7 @@ ldb_do_compaction_work(ldb_t *db, ldb_cstate_t *compact) {
           compact->compaction->level + 1);
 
   ldb_buffer_init(&user_key);
-  ldb_cstats_init(&stats);
+  ldb_stats_init(&stats);
 
   assert(ldb_vset_num_level_files(db->versions,
                                   compact->compaction->level) > 0);
@@ -1470,7 +1470,7 @@ ldb_do_compaction_work(ldb_t *db, ldb_cstate_t *compact) {
 
   level = compact->compaction->level;
 
-  ldb_cstats_add(&db->stats[level + 1], &stats);
+  ldb_stats_add(&db->stats[level + 1], &stats);
 
   if (rc == LDB_OK)
     rc = ldb_install_compaction_results(db, compact);
@@ -1667,7 +1667,7 @@ ldb_background_call(void *ptr) {
 
 static void
 cleanup_iter_state(void *arg1, void *arg2) {
-  iter_state_destroy((iter_state_t *)arg1);
+  ldb_istate_destroy((ldb_istate_t *)arg1);
   (void)arg2;
 }
 
@@ -1677,7 +1677,7 @@ ldb_internal_iterator(ldb_t *db, const ldb_readopt_t *options,
                                  uint32_t *seed) {
   ldb_iter_t *internal_iter;
   ldb_version_t *current;
-  iter_state_t *cleanup;
+  ldb_istate_t *cleanup;
   ldb_vector_t list;
 
   ldb_vector_init(&list);
@@ -1705,7 +1705,7 @@ ldb_internal_iterator(ldb_t *db, const ldb_readopt_t *options,
 
   ldb_version_ref(current);
 
-  cleanup = iter_state_create(&db->mutex, db->mem, db->imm,
+  cleanup = ldb_istate_create(&db->mutex, db->mem, db->imm,
                               db->versions->current);
 
   ldb_iter_register_cleanup(internal_iter, cleanup_iter_state, cleanup, NULL);
@@ -1722,11 +1722,11 @@ ldb_internal_iterator(ldb_t *db, const ldb_readopt_t *options,
 /* REQUIRES: Writer list must be non-empty. */
 /* REQUIRES: First writer must have a non-null batch. */
 static ldb_batch_t *
-ldb_build_batch_group(ldb_t *db, ldb_writer_t **last_writer) {
-  ldb_writer_t *first = db->writers.head;
+ldb_build_batch_group(ldb_t *db, ldb_waiter_t **last_writer) {
+  ldb_waiter_t *first = db->writers.head;
   ldb_batch_t *result = first->batch;
   size_t size, max_size;
-  ldb_writer_t *w;
+  ldb_waiter_t *w;
 
   ldb_mutex_assert_held(&db->mutex);
 
@@ -2180,15 +2180,15 @@ ldb_del(ldb_t *db, const ldb_slice_t *key, const ldb_writeopt_t *options) {
 
 int
 ldb_write(ldb_t *db, ldb_batch_t *updates, const ldb_writeopt_t *options) {
-  ldb_writer_t *last_writer;
+  ldb_waiter_t *last_writer;
   uint64_t last_sequence;
-  ldb_writer_t w;
+  ldb_waiter_t w;
   int rc;
 
   if (options == NULL)
     options = ldb_writeopt_default;
 
-  ldb_writer_init(&w);
+  ldb_waiter_init(&w);
 
   w.batch = updates;
   w.sync = options->sync;
@@ -2203,7 +2203,7 @@ ldb_write(ldb_t *db, ldb_batch_t *updates, const ldb_writeopt_t *options) {
 
   if (w.done) {
     ldb_mutex_unlock(&db->mutex);
-    ldb_writer_clear(&w);
+    ldb_waiter_clear(&w);
     return w.status;
   }
 
@@ -2262,7 +2262,7 @@ ldb_write(ldb_t *db, ldb_batch_t *updates, const ldb_writeopt_t *options) {
   }
 
   for (;;) {
-    ldb_writer_t *ready = ldb_queue_shift(&db->writers);
+    ldb_waiter_t *ready = ldb_queue_shift(&db->writers);
 
     if (ready != &w) {
       ready->status = rc;
@@ -2279,7 +2279,7 @@ ldb_write(ldb_t *db, ldb_batch_t *updates, const ldb_writeopt_t *options) {
     ldb_cond_signal(&db->writers.head->cv);
 
   ldb_mutex_unlock(&db->mutex);
-  ldb_writer_clear(&w);
+  ldb_waiter_clear(&w);
 
   return rc;
 }
@@ -2377,7 +2377,7 @@ ldb_property(ldb_t *db, const char *property, char **value) {
 
     for (level = 0; level < LDB_NUM_LEVELS; level++) {
       int files = ldb_vset_num_level_files(db->versions, level);
-      ldb_cstats_t *stats = &db->stats[level];
+      ldb_stats_t *stats = &db->stats[level];
 
       if (stats->micros > 0 || files > 0) {
         int64_t bytes = ldb_vset_num_level_bytes(db->versions, level);
