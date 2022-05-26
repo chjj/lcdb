@@ -38,10 +38,10 @@ struct ldb_tcache_s {
   ldb_lru_t *lru;
 };
 
-typedef struct ldb_entry_s {
+typedef struct table_entry_s {
   ldb_rfile_t *file;
   ldb_table_t *table;
-} ldb_entry_t;
+} table_entry_t;
 
 /*
  * Helpers
@@ -49,7 +49,7 @@ typedef struct ldb_entry_s {
 
 static void
 delete_entry(const ldb_slice_t *key, void *value) {
-  ldb_entry_t *entry = (ldb_entry_t *)value;
+  table_entry_t *entry = (table_entry_t *)value;
 
   (void)key;
 
@@ -134,7 +134,7 @@ find_table(ldb_tcache_t *cache,
       /* We do not cache error results so that if the error is transient,
          or somebody repairs the file, we recover automatically. */
     } else {
-      ldb_entry_t *entry = ldb_malloc(sizeof(ldb_entry_t));
+      table_entry_t *entry = ldb_malloc(sizeof(table_entry_t));
 
       entry->file = file;
       entry->table = table;
@@ -165,7 +165,7 @@ ldb_tcache_iterate(ldb_tcache_t *cache,
   if (rc != LDB_OK)
     return ldb_emptyiter_create(rc);
 
-  table = ((ldb_entry_t *)ldb_lru_value(handle))->table;
+  table = ((table_entry_t *)ldb_lru_value(handle))->table;
   result = ldb_tableiter_create(table, options);
 
   ldb_iter_register_cleanup(result, &unref_entry, cache->lru, handle);
@@ -192,7 +192,7 @@ ldb_tcache_get(ldb_tcache_t *cache,
   rc = find_table(cache, file_number, file_size, &handle);
 
   if (rc == LDB_OK) {
-    ldb_table_t *table = ((ldb_entry_t *)ldb_lru_value(handle))->table;
+    ldb_table_t *table = ((table_entry_t *)ldb_lru_value(handle))->table;
 
     rc = ldb_table_internal_get(table, options, k, arg, handle_result);
 
