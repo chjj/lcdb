@@ -954,7 +954,7 @@ builder_clear(builder_t *b) {
 
 /* Apply all of the edits in *edit to the current state. */
 static void
-builder_apply(builder_t *b, const ldb_vedit_t *edit) {
+builder_apply(builder_t *b, const ldb_edit_t *edit) {
   ldb_vset_t *v = b->vset;
   void *item;
   size_t i;
@@ -1244,18 +1244,18 @@ ldb_vset_finalize(ldb_vset_t *vset, ldb_version_t *v) {
 static int
 ldb_vset_write_snapshot(ldb_vset_t *vset, ldb_writer_t *log) {
   ldb_buffer_t record;
-  ldb_vedit_t edit;
+  ldb_edit_t edit;
   int level, rc;
 
   /* Save metadata. */
-  ldb_vedit_init(&edit);
-  ldb_vedit_set_comparator_name(&edit, vset->icmp.user_comparator->name);
+  ldb_edit_init(&edit);
+  ldb_edit_set_comparator_name(&edit, vset->icmp.user_comparator->name);
 
   /* Save compaction pointers. */
   for (level = 0; level < LDB_NUM_LEVELS; level++) {
     if (vset->compact_pointer[level].size > 0) {
-      ldb_vedit_set_compact_pointer(&edit, level,
-                                    &vset->compact_pointer[level]);
+      ldb_edit_set_compact_pointer(&edit, level,
+                                   &vset->compact_pointer[level]);
     }
   }
 
@@ -1267,17 +1267,17 @@ ldb_vset_write_snapshot(ldb_vset_t *vset, ldb_writer_t *log) {
     for (i = 0; i < files->length; i++) {
       const ldb_filemeta_t *f = files->items[i];
 
-      ldb_vedit_add_file(&edit, level,
-                         f->number,
-                         f->file_size,
-                         &f->smallest,
-                         &f->largest);
+      ldb_edit_add_file(&edit, level,
+                        f->number,
+                        f->file_size,
+                        &f->smallest,
+                        &f->largest);
     }
   }
 
   ldb_buffer_init(&record);
-  ldb_vedit_export(&record, &edit);
-  ldb_vedit_clear(&edit);
+  ldb_edit_export(&record, &edit);
+  ldb_edit_clear(&edit);
 
   rc = ldb_writer_add_record(log, &record);
 
@@ -1287,7 +1287,7 @@ ldb_vset_write_snapshot(ldb_vset_t *vset, ldb_writer_t *log) {
 }
 
 int
-ldb_vset_log_and_apply(ldb_vset_t *vset, ldb_vedit_t *edit, ldb_mutex_t *mu) {
+ldb_vset_log_and_apply(ldb_vset_t *vset, ldb_edit_t *edit, ldb_mutex_t *mu) {
   char fname[LDB_PATH_MAX];
   ldb_version_t *v;
   int rc = LDB_OK;
@@ -1298,14 +1298,14 @@ ldb_vset_log_and_apply(ldb_vset_t *vset, ldb_vedit_t *edit, ldb_mutex_t *mu) {
     assert(edit->log_number >= vset->log_number);
     assert(edit->log_number < vset->next_file_number);
   } else {
-    ldb_vedit_set_log_number(edit, vset->log_number);
+    ldb_edit_set_log_number(edit, vset->log_number);
   }
 
   if (!edit->has_prev_log_number)
-    ldb_vedit_set_prev_log_number(edit, vset->prev_log_number);
+    ldb_edit_set_prev_log_number(edit, vset->prev_log_number);
 
-  ldb_vedit_set_next_file(edit, vset->next_file_number);
-  ldb_vedit_set_last_sequence(edit, vset->last_sequence);
+  ldb_edit_set_next_file(edit, vset->next_file_number);
+  ldb_edit_set_last_sequence(edit, vset->last_sequence);
 
   v = ldb_version_create(vset);
 
@@ -1350,7 +1350,7 @@ ldb_vset_log_and_apply(ldb_vset_t *vset, ldb_vedit_t *edit, ldb_mutex_t *mu) {
       ldb_buffer_t record;
 
       ldb_buffer_init(&record);
-      ldb_vedit_export(&record, edit);
+      ldb_edit_export(&record, edit);
 
       rc = ldb_writer_add_record(vset->descriptor_log, &record);
 
@@ -1527,7 +1527,7 @@ ldb_vset_recover(ldb_vset_t *vset, int *save_manifest) {
     ldb_reader_t reader;
     ldb_slice_t record;
     ldb_buffer_t buf;
-    ldb_vedit_t edit;
+    ldb_edit_t edit;
 
     reporter.status = &rc;
     reporter.corruption = report_corruption;
@@ -1535,13 +1535,13 @@ ldb_vset_recover(ldb_vset_t *vset, int *save_manifest) {
     ldb_reader_init(&reader, file, &reporter, 1, 0);
     ldb_slice_init(&record);
     ldb_buffer_init(&buf);
-    ldb_vedit_init(&edit);
+    ldb_edit_init(&edit);
 
     while (ldb_reader_read_record(&reader, &record, &buf) && rc == LDB_OK) {
       ++read_records;
 
-      /* Calls ldb_vedit_reset() internally. */
-      if (!ldb_vedit_import(&edit, &record))
+      /* Calls ldb_edit_reset() internally. */
+      if (!ldb_edit_import(&edit, &record))
         rc = LDB_CORRUPTION;
 
       if (rc == LDB_OK) {
@@ -1575,7 +1575,7 @@ ldb_vset_recover(ldb_vset_t *vset, int *save_manifest) {
       }
     }
 
-    ldb_vedit_clear(&edit);
+    ldb_edit_clear(&edit);
     ldb_buffer_clear(&buf);
     ldb_reader_clear(&reader);
   }
@@ -2034,7 +2034,7 @@ ldb_vset_setup_other_inputs(ldb_vset_t *vset, ldb_compaction_t *c) {
      key range next time. */
   ldb_buffer_copy(&vset->compact_pointer[level], &largest);
 
-  ldb_vedit_set_compact_pointer(&c->edit, level, &largest);
+  ldb_edit_set_compact_pointer(&c->edit, level, &largest);
 }
 
 ldb_compaction_t *
@@ -2234,7 +2234,7 @@ ldb_compaction_init(ldb_compaction_t *c,
   for (i = 0; i < LDB_NUM_LEVELS; i++)
     c->level_ptrs[i] = 0;
 
-  ldb_vedit_init(&c->edit);
+  ldb_edit_init(&c->edit);
   ldb_vector_init(&c->inputs[0]);
   ldb_vector_init(&c->inputs[1]);
   ldb_vector_init(&c->grandparents);
@@ -2245,7 +2245,7 @@ ldb_compaction_clear(ldb_compaction_t *c) {
   if (c->input_version != NULL)
     ldb_version_unref(c->input_version);
 
-  ldb_vedit_clear(&c->edit);
+  ldb_edit_clear(&c->edit);
   ldb_vector_clear(&c->inputs[0]);
   ldb_vector_clear(&c->inputs[1]);
   ldb_vector_clear(&c->grandparents);
@@ -2278,7 +2278,7 @@ ldb_compaction_is_trivial_move(const ldb_compaction_t *c) {
 }
 
 void
-ldb_compaction_add_input_deletions(ldb_compaction_t *c, ldb_vedit_t *edit) {
+ldb_compaction_add_input_deletions(ldb_compaction_t *c, ldb_edit_t *edit) {
   int which;
   size_t i;
 
@@ -2286,7 +2286,7 @@ ldb_compaction_add_input_deletions(ldb_compaction_t *c, ldb_vedit_t *edit) {
     for (i = 0; i < c->inputs[which].length; i++) {
       const ldb_filemeta_t *file = c->inputs[which].items[i];
 
-      ldb_vedit_remove_file(edit, c->level + which, file->number);
+      ldb_edit_remove_file(edit, c->level + which, file->number);
     }
   }
 }

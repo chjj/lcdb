@@ -581,7 +581,7 @@ ldb_user_comparator(const ldb_t *db) {
 static int
 ldb_new_db(ldb_t *db) {
   char manifest[LDB_PATH_MAX];
-  ldb_vedit_t new_db;
+  ldb_edit_t new_db;
   ldb_wfile_t *file;
   int rc;
 
@@ -593,11 +593,11 @@ ldb_new_db(ldb_t *db) {
   if (rc != LDB_OK)
     return rc;
 
-  ldb_vedit_init(&new_db);
-  ldb_vedit_set_comparator_name(&new_db, ldb_user_comparator(db)->name);
-  ldb_vedit_set_log_number(&new_db, 0);
-  ldb_vedit_set_next_file(&new_db, 2);
-  ldb_vedit_set_last_sequence(&new_db, 0);
+  ldb_edit_init(&new_db);
+  ldb_edit_set_comparator_name(&new_db, ldb_user_comparator(db)->name);
+  ldb_edit_set_log_number(&new_db, 0);
+  ldb_edit_set_next_file(&new_db, 2);
+  ldb_edit_set_last_sequence(&new_db, 0);
 
   {
     ldb_writer_t log;
@@ -606,7 +606,7 @@ ldb_new_db(ldb_t *db) {
     ldb_writer_init(&log, file, 0);
     ldb_buffer_init(&record);
 
-    ldb_vedit_export(&record, &new_db);
+    ldb_edit_export(&record, &new_db);
 
     rc = ldb_writer_add_record(&log, &record);
 
@@ -628,7 +628,7 @@ ldb_new_db(ldb_t *db) {
     ldb_remove_file(manifest);
   }
 
-  ldb_vedit_clear(&new_db);
+  ldb_edit_clear(&new_db);
 
   return rc;
 }
@@ -742,7 +742,7 @@ ldb_remove_obsolete_files(ldb_t *db) {
 
 static int
 ldb_write_level0_table(ldb_t *db, ldb_memtable_t *mem,
-                                  ldb_vedit_t *edit,
+                                  ldb_edit_t *edit,
                                   ldb_version_t *base) {
   int64_t start_micros;
   ldb_filemeta_t meta;
@@ -800,11 +800,11 @@ ldb_write_level0_table(ldb_t *db, ldb_memtable_t *mem,
                                                          &max_user_key);
     }
 
-    ldb_vedit_add_file(edit, level,
-                       meta.number,
-                       meta.file_size,
-                       &meta.smallest,
-                       &meta.largest);
+    ldb_edit_add_file(edit, level,
+                      meta.number,
+                      meta.file_size,
+                      &meta.smallest,
+                      &meta.largest);
   }
 
   stats.micros = ldb_now_usec() - start_micros;
@@ -831,7 +831,7 @@ static int
 ldb_recover_log_file(ldb_t *db, uint64_t log_number,
                                 int last_log,
                                 int *save_manifest,
-                                ldb_vedit_t *edit,
+                                ldb_edit_t *edit,
                                 ldb_seqnum_t *max_sequence) {
   char fname[LDB_PATH_MAX];
   ldb_reporter_t reporter;
@@ -973,7 +973,7 @@ compare_ascending(int64_t x, int64_t y) {
    amount of work to recover recently logged updates. Any changes to
    be made to the descriptor are added to *edit. */
 static int
-ldb_recover(ldb_t *db, ldb_vedit_t *edit, int *save_manifest) {
+ldb_recover(ldb_t *db, ldb_edit_t *edit, int *save_manifest) {
   uint64_t min_log, prev_log, number;
   ldb_seqnum_t max_sequence = 0;
   char path[LDB_PATH_MAX];
@@ -1110,10 +1110,10 @@ ldb_record_background_error(ldb_t *db, int status) {
 static void
 ldb_compact_memtable(ldb_t *db) {
   ldb_version_t *base;
-  ldb_vedit_t edit;
+  ldb_edit_t edit;
   int rc = LDB_OK;
 
-  ldb_vedit_init(&edit);
+  ldb_edit_init(&edit);
 
   ldb_mutex_assert_held(&db->mutex);
 
@@ -1133,9 +1133,9 @@ ldb_compact_memtable(ldb_t *db) {
 
   /* Replace immutable memtable with the generated Table. */
   if (rc == LDB_OK) {
-    ldb_vedit_set_prev_log_number(&edit, 0);
-    ldb_vedit_set_log_number(&edit, db->logfile_number); /* Earlier logs no
-                                                            longer needed. */
+    ldb_edit_set_prev_log_number(&edit, 0);
+    ldb_edit_set_log_number(&edit, db->logfile_number); /* Earlier logs no
+                                                           longer needed. */
 
     rc = ldb_vset_log_and_apply(db->versions, &edit, &db->mutex);
   }
@@ -1150,7 +1150,7 @@ ldb_compact_memtable(ldb_t *db) {
     ldb_record_background_error(db, rc);
   }
 
-  ldb_vedit_clear(&edit);
+  ldb_edit_clear(&edit);
 }
 
 static int
@@ -1257,7 +1257,7 @@ ldb_finish_compaction_output_file(ldb_t *db, ldb_cstate_t *compact,
 
 static int
 ldb_install_compaction_results(ldb_t *db, ldb_cstate_t *compact) {
-  ldb_vedit_t *edit = &compact->compaction->edit;
+  ldb_edit_t *edit = &compact->compaction->edit;
   int level;
   size_t i;
 
@@ -1278,11 +1278,11 @@ ldb_install_compaction_results(ldb_t *db, ldb_cstate_t *compact) {
   for (i = 0; i < compact->outputs.length; i++) {
     const ldb_output_t *out = compact->outputs.items[i];
 
-    ldb_vedit_add_file(edit, level + 1,
-                       out->number,
-                       out->file_size,
-                       &out->smallest,
-                       &out->largest);
+    ldb_edit_add_file(edit, level + 1,
+                      out->number,
+                      out->file_size,
+                      &out->smallest,
+                      &out->largest);
   }
 
   return ldb_vset_log_and_apply(db->versions, edit, &db->mutex);
@@ -1553,13 +1553,13 @@ ldb_background_compaction(ldb_t *db) {
 
     f = c->inputs[0].items[0];
 
-    ldb_vedit_remove_file(&c->edit, c->level, f->number);
+    ldb_edit_remove_file(&c->edit, c->level, f->number);
 
-    ldb_vedit_add_file(&c->edit, c->level + 1,
-                                 f->number,
-                                 f->file_size,
-                                 &f->smallest,
-                                 &f->largest);
+    ldb_edit_add_file(&c->edit, c->level + 1,
+                                f->number,
+                                f->file_size,
+                                &f->smallest,
+                                &f->largest);
 
     rc = ldb_vset_log_and_apply(db->versions, &c->edit, &db->mutex);
 
@@ -1980,7 +1980,7 @@ ldb_backup_inner(const char *dbname, const char *bakname, rb_set64_t *live) {
 int
 ldb_open(const char *dbname, const ldb_dbopt_t *options, ldb_t **dbptr) {
   int save_manifest = 0;
-  ldb_vedit_t edit;
+  ldb_edit_t edit;
   int rc = LDB_OK;
   ldb_t *db;
 
@@ -1996,7 +1996,7 @@ ldb_open(const char *dbname, const ldb_dbopt_t *options, ldb_t **dbptr) {
   if (db == NULL)
     return LDB_INVALID;
 
-  ldb_vedit_init(&edit);
+  ldb_edit_init(&edit);
   ldb_mutex_lock(&db->mutex);
 
   /* Recover handles create_if_missing, error_if_exists. */
@@ -2014,7 +2014,7 @@ ldb_open(const char *dbname, const ldb_dbopt_t *options, ldb_t **dbptr) {
     rc = ldb_truncfile_create(fname, &lfile);
 
     if (rc == LDB_OK) {
-      ldb_vedit_set_log_number(&edit, new_log_number);
+      ldb_edit_set_log_number(&edit, new_log_number);
 
       db->logfile = lfile;
       db->logfile_number = new_log_number;
@@ -2026,9 +2026,9 @@ ldb_open(const char *dbname, const ldb_dbopt_t *options, ldb_t **dbptr) {
   }
 
   if (rc == LDB_OK && save_manifest) {
-    ldb_vedit_set_prev_log_number(&edit, 0); /* No older logs needed
-                                                after recovery. */
-    ldb_vedit_set_log_number(&edit, db->logfile_number);
+    ldb_edit_set_prev_log_number(&edit, 0); /* No older logs needed
+                                               after recovery. */
+    ldb_edit_set_log_number(&edit, db->logfile_number);
 
     rc = ldb_vset_log_and_apply(db->versions, &edit, &db->mutex);
   }
@@ -2047,7 +2047,7 @@ ldb_open(const char *dbname, const ldb_dbopt_t *options, ldb_t **dbptr) {
     ldb_destroy_internal(db);
   }
 
-  ldb_vedit_clear(&edit);
+  ldb_edit_clear(&edit);
 
   return rc;
 }

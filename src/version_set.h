@@ -89,7 +89,7 @@ struct ldb_compaction_s {
   int level;
   uint64_t max_output_file_size;
   ldb_version_t *input_version;
-  ldb_vedit_t edit;
+  ldb_edit_t edit;
 
   /* Each compaction reads inputs from "level" and "level+1". */
   ldb_vector_t inputs[2]; /* The two sets of inputs. */
@@ -248,7 +248,7 @@ ldb_vset_needs_compaction(const ldb_vset_t *vset);
 /* REQUIRES: *mu is held on entry. */
 /* REQUIRES: no other thread concurrently calls log_and_apply() */
 int
-ldb_vset_log_and_apply(ldb_vset_t *vset, ldb_vedit_t *edit, ldb_mutex_t *mu);
+ldb_vset_log_and_apply(ldb_vset_t *vset, ldb_edit_t *edit, ldb_mutex_t *mu);
 
 /* Recover the last saved descriptor from persistent storage. */
 int
@@ -338,7 +338,7 @@ ldb_compaction_is_trivial_move(const ldb_compaction_t *c);
 
 /* Add all inputs to this compaction as delete operations to *edit. */
 void
-ldb_compaction_add_input_deletions(ldb_compaction_t *c, ldb_vedit_t *edit);
+ldb_compaction_add_input_deletions(ldb_compaction_t *c, ldb_edit_t *edit);
 
 /* Returns true if the information we have available guarantees that
    the compaction is producing data in "level+1" for which no data exists

@@ -197,27 +197,27 @@ dump_log(const char *fname, FILE *dst) {
    found in a LDB_FILE_DESC. */
 static void
 edit_printer(uint64_t pos, const ldb_slice_t *record, FILE *dst) {
-  ldb_vedit_t edit;
+  ldb_edit_t edit;
   ldb_buffer_t r;
 
-  ldb_vedit_init(&edit);
+  ldb_edit_init(&edit);
 
   ldb_buffer_init(&r);
   ldb_buffer_string(&r, "--- offset ");
   ldb_buffer_number(&r, pos);
   ldb_buffer_string(&r, "; ");
 
-  if (!ldb_vedit_import(&edit, record)) {
+  if (!ldb_edit_import(&edit, record)) {
     ldb_buffer_string(&r, ldb_strerror(LDB_CORRUPTION));
     ldb_buffer_push(&r, '\n');
   } else {
-    ldb_vedit_debug(&r, &edit);
+    ldb_edit_debug(&r, &edit);
   }
 
   stream_append(dst, &r);
 
   ldb_buffer_clear(&r);
-  ldb_vedit_clear(&edit);
+  ldb_edit_clear(&edit);
 }
 
 static int

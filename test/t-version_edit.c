@@ -22,23 +22,23 @@
 #include "version_edit.h"
 
 static void
-encode_and_decode(const ldb_vedit_t *edit) {
+encode_and_decode(const ldb_edit_t *edit) {
   ldb_buffer_t encoded, encoded2;
-  ldb_vedit_t parsed;
+  ldb_edit_t parsed;
 
   ldb_buffer_init(&encoded);
   ldb_buffer_init(&encoded2);
-  ldb_vedit_init(&parsed);
+  ldb_edit_init(&parsed);
 
-  ldb_vedit_export(&encoded, edit);
+  ldb_edit_export(&encoded, edit);
 
-  ASSERT(ldb_vedit_import(&parsed, &encoded));
+  ASSERT(ldb_edit_import(&parsed, &encoded));
 
-  ldb_vedit_export(&encoded2, &parsed);
+  ldb_edit_export(&encoded2, &parsed);
 
   ASSERT(ldb_buffer_equal(&encoded, &encoded2));
 
-  ldb_vedit_clear(&parsed);
+  ldb_edit_clear(&parsed);
   ldb_buffer_clear(&encoded2);
   ldb_buffer_clear(&encoded);
 }
@@ -50,10 +50,10 @@ test_encode_decode(void) {
   ldb_slice_t s2 = ldb_string("zoo");
   ldb_slice_t s3 = ldb_string("x");
   ldb_ikey_t k1, k2, k3;
-  ldb_vedit_t edit;
+  ldb_edit_t edit;
   int i;
 
-  ldb_vedit_init(&edit);
+  ldb_edit_init(&edit);
 
   ldb_ikey_init(&k1);
   ldb_ikey_init(&k2);
@@ -66,23 +66,23 @@ test_encode_decode(void) {
     ldb_ikey_set(&k2, &s2, big + 600 + i, LDB_TYPE_DELETION);
     ldb_ikey_set(&k3, &s3, big + 900 + i, LDB_TYPE_VALUE);
 
-    ldb_vedit_add_file(&edit, 3, big + 300 + i, big + 400 + i, &k1, &k2);
-    ldb_vedit_remove_file(&edit, 4, big + 700 + i);
-    ldb_vedit_set_compact_pointer(&edit, i, &k3);
+    ldb_edit_add_file(&edit, 3, big + 300 + i, big + 400 + i, &k1, &k2);
+    ldb_edit_remove_file(&edit, 4, big + 700 + i);
+    ldb_edit_set_compact_pointer(&edit, i, &k3);
   }
 
   ldb_ikey_clear(&k1);
   ldb_ikey_clear(&k2);
   ldb_ikey_clear(&k3);
 
-  ldb_vedit_set_comparator_name(&edit, "foo");
-  ldb_vedit_set_log_number(&edit, big + 100);
-  ldb_vedit_set_next_file(&edit, big + 200);
-  ldb_vedit_set_last_sequence(&edit, big + 1000);
+  ldb_edit_set_comparator_name(&edit, "foo");
+  ldb_edit_set_log_number(&edit, big + 100);
+  ldb_edit_set_next_file(&edit, big + 200);
+  ldb_edit_set_last_sequence(&edit, big + 1000);
 
   encode_and_decode(&edit);
 
-  ldb_vedit_clear(&edit);
+  ldb_edit_clear(&edit);
 }
 
 int

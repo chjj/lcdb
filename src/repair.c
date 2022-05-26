@@ -110,7 +110,7 @@ typedef struct ldb_repair_s {
   int owns_info_log;
   int owns_cache;
   ldb_tcache_t *table_cache;
-  ldb_vedit_t edit;
+  ldb_edit_t edit;
   ldb_array_t manifests;
   ldb_array_t table_numbers;
   ldb_array_t logs;
@@ -149,7 +149,7 @@ repair_init(ldb_repair_t *rep, const char *dbname, const ldb_dbopt_t *options) {
   /* table_cache can be small since we expect each table to be opened once. */
   rep->table_cache = ldb_tcache_create(rep->dbname, &rep->options, 10);
 
-  ldb_vedit_init(&rep->edit);
+  ldb_edit_init(&rep->edit);
   ldb_array_init(&rep->manifests);
   ldb_array_init(&rep->table_numbers);
   ldb_array_init(&rep->logs);
@@ -175,7 +175,7 @@ repair_clear(ldb_repair_t *rep) {
   for (i = 0; i < rep->tables.length; i++)
     tabinfo_destroy(rep->tables.items[i]);
 
-  ldb_vedit_clear(&rep->edit);
+  ldb_edit_clear(&rep->edit);
   ldb_array_clear(&rep->manifests);
   ldb_array_clear(&rep->table_numbers);
   ldb_array_clear(&rep->logs);
@@ -610,18 +610,18 @@ write_descriptor(ldb_repair_t *rep) {
       max_sequence = t->max_sequence;
   }
 
-  ldb_vedit_set_comparator_name(&rep->edit, rep->icmp.user_comparator->name);
-  ldb_vedit_set_log_number(&rep->edit, 0);
-  ldb_vedit_set_next_file(&rep->edit, rep->next_file_number);
-  ldb_vedit_set_last_sequence(&rep->edit, max_sequence);
+  ldb_edit_set_comparator_name(&rep->edit, rep->icmp.user_comparator->name);
+  ldb_edit_set_log_number(&rep->edit, 0);
+  ldb_edit_set_next_file(&rep->edit, rep->next_file_number);
+  ldb_edit_set_last_sequence(&rep->edit, max_sequence);
 
   for (i = 0; i < rep->tables.length; i++) {
     const ldb_tabinfo_t *t = rep->tables.items[i];
 
-    ldb_vedit_add_file(&rep->edit, 0, t->meta.number,
-                                      t->meta.file_size,
-                                      &t->meta.smallest,
-                                      &t->meta.largest);
+    ldb_edit_add_file(&rep->edit, 0, t->meta.number,
+                                     t->meta.file_size,
+                                     &t->meta.smallest,
+                                     &t->meta.largest);
   }
 
   {
@@ -631,7 +631,7 @@ write_descriptor(ldb_repair_t *rep) {
     ldb_writer_init(&log, file, 0);
     ldb_buffer_init(&record);
 
-    ldb_vedit_export(&record, &rep->edit);
+    ldb_edit_export(&record, &rep->edit);
 
     rc = ldb_writer_add_record(&log, &record);
 
