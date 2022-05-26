@@ -42,8 +42,8 @@ struct ldb_table_s {
   uint64_t cache_id;
   ldb_filter_t *filter;
   const uint8_t *filter_data;
-  ldb_blockhandle_t metaindex_handle; /* Handle to metaindex_block:
-                                         saved from footer. */
+  ldb_handle_t metaindex_handle; /* Handle to metaindex_block:
+                                    saved from footer. */
   ldb_block_t *index_block;
 };
 
@@ -51,11 +51,11 @@ static void
 ldb_table_read_filter(ldb_table_t *table,
                       const ldb_slice_t *filter_handle_value) {
   ldb_readopt_t opt = *ldb_readopt_default;
-  ldb_blockhandle_t filter_handle;
-  ldb_blockcontents_t block;
+  ldb_handle_t filter_handle;
+  ldb_contents_t block;
   int rc;
 
-  if (!ldb_blockhandle_import(&filter_handle, filter_handle_value))
+  if (!ldb_handle_import(&filter_handle, filter_handle_value))
     return;
 
   /* We might want to unify with read_block() if we start
@@ -80,7 +80,7 @@ ldb_table_read_filter(ldb_table_t *table,
 static void
 ldb_table_read_meta(ldb_table_t *table, const ldb_footer_t *footer) {
   ldb_readopt_t opt = *ldb_readopt_default;
-  ldb_blockcontents_t contents;
+  ldb_contents_t contents;
   ldb_block_t *meta;
   ldb_iter_t *iter;
   ldb_slice_t key;
@@ -131,7 +131,7 @@ ldb_table_open(const ldb_dbopt_t *options,
                uint64_t size,
                ldb_table_t **table) {
   ldb_readopt_t opt = *ldb_readopt_default;
-  ldb_blockcontents_t contents;
+  ldb_contents_t contents;
   uint8_t buf[LDB_FOOTER_SIZE];
   ldb_footer_t footer;
   ldb_slice_t input;
@@ -234,18 +234,18 @@ ldb_table_blockreader(void *arg,
   ldb_lru_t *block_cache = table->options.block_cache;
   ldb_block_t *block = NULL;
   ldb_lruhandle_t *cache_handle = NULL;
-  ldb_blockhandle_t handle;
+  ldb_handle_t handle;
   ldb_iter_t *iter;
   int rc = LDB_OK;
 
   /* We intentionally allow extra stuff in index_value so that we
      can add more features in the future. */
 
-  if (!ldb_blockhandle_import(&handle, index_value))
+  if (!ldb_handle_import(&handle, index_value))
     rc = LDB_CORRUPTION;
 
   if (rc == LDB_OK) {
-    ldb_blockcontents_t contents;
+    ldb_contents_t contents;
 
     if (block_cache != NULL) {
       uint8_t cache_key_buffer[16];
@@ -329,10 +329,10 @@ ldb_table_internal_get(ldb_table_t *table,
   if (ldb_iter_valid(index_iter)) {
     ldb_slice_t iter_value = ldb_iter_value(index_iter);
     ldb_filter_t *filter = table->filter;
-    ldb_blockhandle_t handle;
+    ldb_handle_t handle;
 
     if (filter != NULL &&
-        ldb_blockhandle_import(&handle, &iter_value) &&
+        ldb_handle_import(&handle, &iter_value) &&
         !ldb_filter_matches(filter, handle.offset, k)) {
       /* Not found. */
     } else {
@@ -376,9 +376,9 @@ ldb_table_approximate_offset(const ldb_table_t *table,
 
   if (ldb_iter_valid(index_iter)) {
     ldb_slice_t input = ldb_iter_value(index_iter);
-    ldb_blockhandle_t handle;
+    ldb_handle_t handle;
 
-    if (ldb_blockhandle_import(&handle, &input)) {
+    if (ldb_handle_import(&handle, &input)) {
       result = handle.offset;
     } else {
       /* Strange: we can't decode the block handle in the index block.

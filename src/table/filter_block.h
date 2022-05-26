@@ -31,13 +31,13 @@ struct ldb_bloom_s;
  * The sequence of calls to filter block builder must match the regexp:
  *     (start_block add_key*)* finish
  */
-typedef struct ldb_filterbuilder_s {
+typedef struct ldb_filtergen_s {
   const ldb_bloom_t *policy;
   ldb_buffer_t keys;          /* Flattened key contents. */
   ldb_array_t start;          /* Starting index in keys of each key (size_t). */
   ldb_buffer_t result;        /* Filter data computed so far. */
   ldb_array_t filter_offsets; /* Filter offsets (uint32_t). */
-} ldb_filterbuilder_t;
+} ldb_filtergen_t;
 
 typedef struct ldb_filter_s {
   const struct ldb_bloom_s *policy;
@@ -51,27 +51,27 @@ typedef struct ldb_filter_s {
  * FilterBuilder
  */
 
-ldb_filterbuilder_t *
-ldb_filterbuilder_create(const ldb_bloom_t *policy);
+ldb_filtergen_t *
+ldb_filtergen_create(const ldb_bloom_t *policy);
 
 void
-ldb_filterbuilder_destroy(ldb_filterbuilder_t *fb);
+ldb_filtergen_destroy(ldb_filtergen_t *fb);
 
 void
-ldb_filterbuilder_init(ldb_filterbuilder_t *fb,
-                       const struct ldb_bloom_s *policy);
+ldb_filtergen_init(ldb_filtergen_t *fb,
+                   const struct ldb_bloom_s *policy);
 
 void
-ldb_filterbuilder_clear(ldb_filterbuilder_t *fb);
+ldb_filtergen_clear(ldb_filtergen_t *fb);
 
 void
-ldb_filterbuilder_start_block(ldb_filterbuilder_t *fb, uint64_t block_offset);
+ldb_filtergen_start_block(ldb_filtergen_t *fb, uint64_t block_offset);
 
 void
-ldb_filterbuilder_add_key(ldb_filterbuilder_t *fb, const ldb_slice_t *key);
+ldb_filtergen_add_key(ldb_filtergen_t *fb, const ldb_slice_t *key);
 
 ldb_slice_t
-ldb_filterbuilder_finish(ldb_filterbuilder_t *fb);
+ldb_filtergen_finish(ldb_filtergen_t *fb);
 
 /*
  * FilterReader

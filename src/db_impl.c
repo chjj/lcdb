@@ -234,7 +234,7 @@ typedef struct ldb_cstate_s {
 
   /* State kept for output being generated. */
   ldb_wfile_t *outfile;
-  ldb_tablebuilder_t *builder;
+  ldb_tablegen_t *builder;
 
   uint64_t total_bytes;
 } ldb_cstate_t;
@@ -1178,10 +1178,8 @@ ldb_open_compaction_output_file(ldb_t *db, ldb_cstate_t *compact) {
   if (ldb_table_filename(fname, sizeof(fname), db->dbname, file_number)) {
     rc = ldb_truncfile_create(fname, &compact->outfile);
 
-    if (rc == LDB_OK) {
-      compact->builder = ldb_tablebuilder_create(&db->options,
-                                                 compact->outfile);
-    }
+    if (rc == LDB_OK)
+      compact->builder = ldb_tablegen_create(&db->options, compact->outfile);
   } else {
     rc = LDB_INVALID;
   }
@@ -1206,20 +1204,20 @@ ldb_finish_compaction_output_file(ldb_t *db, ldb_cstate_t *compact,
   /* Check for iterator errors. */
   rc = ldb_iter_status(input);
 
-  current_entries = ldb_tablebuilder_num_entries(compact->builder);
+  current_entries = ldb_tablegen_num_entries(compact->builder);
 
   if (rc == LDB_OK)
-    rc = ldb_tablebuilder_finish(compact->builder);
+    rc = ldb_tablegen_finish(compact->builder);
   else
-    ldb_tablebuilder_abandon(compact->builder);
+    ldb_tablegen_abandon(compact->builder);
 
-  current_bytes = ldb_tablebuilder_file_size(compact->builder);
+  current_bytes = ldb_tablegen_file_size(compact->builder);
 
   ldb_cstate_top(compact)->file_size = current_bytes;
 
   compact->total_bytes += current_bytes;
 
-  ldb_tablebuilder_destroy(compact->builder);
+  ldb_tablegen_destroy(compact->builder);
   compact->builder = NULL;
 
   /* Finish and check for file errors. */
@@ -1414,17 +1412,17 @@ ldb_do_compaction_work(ldb_t *db, ldb_cstate_t *compact) {
           break;
       }
 
-      if (ldb_tablebuilder_num_entries(compact->builder) == 0)
+      if (ldb_tablegen_num_entries(compact->builder) == 0)
         ldb_ikey_copy(&ldb_cstate_top(compact)->smallest, &key);
 
       ldb_ikey_copy(&ldb_cstate_top(compact)->largest, &key);
 
       value = ldb_iter_value(input);
 
-      ldb_tablebuilder_add(compact->builder, &key, &value);
+      ldb_tablegen_add(compact->builder, &key, &value);
 
       /* Close output file if it is big enough. */
-      if (ldb_tablebuilder_file_size(compact->builder) >=
+      if (ldb_tablegen_file_size(compact->builder) >=
           compact->compaction->max_output_file_size) {
         rc = ldb_finish_compaction_output_file(db, compact, input);
 
@@ -1494,8 +1492,8 @@ ldb_cleanup_compaction(ldb_t *db, ldb_cstate_t *compact) {
 
   if (compact->builder != NULL) {
     /* May happen if we get a shutdown call in the middle of compaction. */
-    ldb_tablebuilder_abandon(compact->builder);
-    ldb_tablebuilder_destroy(compact->builder);
+    ldb_tablegen_abandon(compact->builder);
+    ldb_tablegen_destroy(compact->builder);
   } else {
     assert(compact->outfile == NULL);
   }

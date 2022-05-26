@@ -50,11 +50,11 @@
  */
 
 /*
- * Block Builder
+ * BlockBuilder
  */
 
 void
-ldb_blockbuilder_init(ldb_blockbuilder_t *bb, const ldb_dbopt_t *options) {
+ldb_blockgen_init(ldb_blockgen_t *bb, const ldb_dbopt_t *options) {
   assert(options->block_restart_interval >= 1);
 
   bb->options = options;
@@ -69,14 +69,14 @@ ldb_blockbuilder_init(ldb_blockbuilder_t *bb, const ldb_dbopt_t *options) {
 }
 
 void
-ldb_blockbuilder_clear(ldb_blockbuilder_t *bb) {
+ldb_blockgen_clear(ldb_blockgen_t *bb) {
   ldb_buffer_clear(&bb->buffer);
   ldb_array_clear(&bb->restarts);
   ldb_buffer_clear(&bb->last_key);
 }
 
 void
-ldb_blockbuilder_reset(ldb_blockbuilder_t *bb) {
+ldb_blockgen_reset(ldb_blockgen_t *bb) {
   ldb_buffer_reset(&bb->buffer);
   ldb_array_reset(&bb->restarts);
 
@@ -89,9 +89,9 @@ ldb_blockbuilder_reset(ldb_blockbuilder_t *bb) {
 }
 
 void
-ldb_blockbuilder_add(ldb_blockbuilder_t *bb,
-                     const ldb_slice_t *key,
-                     const ldb_slice_t *value) {
+ldb_blockgen_add(ldb_blockgen_t *bb,
+                 const ldb_slice_t *key,
+                 const ldb_slice_t *value) {
   const ldb_comparator_t *comparator = bb->options->comparator;
   const uint8_t *key_offset = key->data;
   ldb_slice_t last = bb->last_key;
@@ -99,7 +99,7 @@ ldb_blockbuilder_add(ldb_blockbuilder_t *bb,
 
   assert(!bb->finished);
   assert(bb->counter <= bb->options->block_restart_interval);
-  assert(ldb_blockbuilder_empty(bb) || ldb_compare(comparator, key, &last) > 0);
+  assert(ldb_blockgen_empty(bb) || ldb_compare(comparator, key, &last) > 0);
 
   (void)comparator;
 
@@ -139,7 +139,7 @@ ldb_blockbuilder_add(ldb_blockbuilder_t *bb,
 }
 
 ldb_slice_t
-ldb_blockbuilder_finish(ldb_blockbuilder_t *bb) {
+ldb_blockgen_finish(ldb_blockgen_t *bb) {
   /* Append restart array. */
   size_t i;
 
@@ -154,7 +154,7 @@ ldb_blockbuilder_finish(ldb_blockbuilder_t *bb) {
 }
 
 size_t
-ldb_blockbuilder_size_estimate(const ldb_blockbuilder_t *bb) {
+ldb_blockgen_size_estimate(const ldb_blockgen_t *bb) {
   return (bb->buffer.size +                        /* Raw data buffer */
           bb->restarts.length * sizeof(uint32_t) + /* Restart array */
           sizeof(uint32_t));                       /* Restart array length */

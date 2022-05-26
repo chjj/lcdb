@@ -78,14 +78,14 @@ static const ldb_bloom_t bloom_test = {
 static void
 test_empty_builder(const ldb_bloom_t *policy) {
   static uint8_t expect[] = {0, 0, 0, 0, 11};
-  ldb_filterbuilder_t fb;
+  ldb_filtergen_t fb;
   ldb_filter_t fr;
   ldb_slice_t block;
   ldb_slice_t key;
 
-  ldb_filterbuilder_init(&fb, policy);
+  ldb_filtergen_init(&fb, policy);
 
-  block = ldb_filterbuilder_finish(&fb);
+  block = ldb_filtergen_finish(&fb);
 
   ASSERT(block.size == sizeof(expect));
   ASSERT(memcmp(block.data, expect, sizeof(expect)) == 0);
@@ -97,37 +97,37 @@ test_empty_builder(const ldb_bloom_t *policy) {
   ASSERT(ldb_filter_matches(&fr, 0, &key));
   ASSERT(ldb_filter_matches(&fr, 100000, &key));
 
-  ldb_filterbuilder_clear(&fb);
+  ldb_filtergen_clear(&fb);
 }
 
 static void
 test_single_chunk(const ldb_bloom_t *policy) {
-  ldb_filterbuilder_t fb;
+  ldb_filtergen_t fb;
   ldb_filter_t fr;
   ldb_slice_t block;
   ldb_slice_t key;
 
-  ldb_filterbuilder_init(&fb, policy);
-  ldb_filterbuilder_start_block(&fb, 100);
+  ldb_filtergen_init(&fb, policy);
+  ldb_filtergen_start_block(&fb, 100);
 
   key = ldb_string("foo");
-  ldb_filterbuilder_add_key(&fb, &key);
+  ldb_filtergen_add_key(&fb, &key);
   key = ldb_string("bar");
-  ldb_filterbuilder_add_key(&fb, &key);
+  ldb_filtergen_add_key(&fb, &key);
   key = ldb_string("box");
-  ldb_filterbuilder_add_key(&fb, &key);
+  ldb_filtergen_add_key(&fb, &key);
 
-  ldb_filterbuilder_start_block(&fb, 200);
+  ldb_filtergen_start_block(&fb, 200);
 
   key = ldb_string("box");
-  ldb_filterbuilder_add_key(&fb, &key);
+  ldb_filtergen_add_key(&fb, &key);
 
-  ldb_filterbuilder_start_block(&fb, 300);
+  ldb_filtergen_start_block(&fb, 300);
 
   key = ldb_string("hello");
-  ldb_filterbuilder_add_key(&fb, &key);
+  ldb_filtergen_add_key(&fb, &key);
 
-  block = ldb_filterbuilder_finish(&fb);
+  block = ldb_filtergen_finish(&fb);
 
   ldb_filter_init(&fr, policy, &block);
 
@@ -146,41 +146,41 @@ test_single_chunk(const ldb_bloom_t *policy) {
   key = ldb_string("other");
   ASSERT(!ldb_filter_matches(&fr, 100, &key));
 
-  ldb_filterbuilder_clear(&fb);
+  ldb_filtergen_clear(&fb);
 }
 
 static void
 test_multi_chunk(const ldb_bloom_t *policy) {
-  ldb_filterbuilder_t fb;
+  ldb_filtergen_t fb;
   ldb_filter_t fr;
   ldb_slice_t block;
   ldb_slice_t key;
 
-  ldb_filterbuilder_init(&fb, policy);
+  ldb_filtergen_init(&fb, policy);
 
   /* First filter. */
-  ldb_filterbuilder_start_block(&fb, 0);
+  ldb_filtergen_start_block(&fb, 0);
   key = ldb_string("foo");
-  ldb_filterbuilder_add_key(&fb, &key);
-  ldb_filterbuilder_start_block(&fb, 2000);
+  ldb_filtergen_add_key(&fb, &key);
+  ldb_filtergen_start_block(&fb, 2000);
   key = ldb_string("bar");
-  ldb_filterbuilder_add_key(&fb, &key);
+  ldb_filtergen_add_key(&fb, &key);
 
   /* Second filter. */
-  ldb_filterbuilder_start_block(&fb, 3100);
+  ldb_filtergen_start_block(&fb, 3100);
   key = ldb_string("box");
-  ldb_filterbuilder_add_key(&fb, &key);
+  ldb_filtergen_add_key(&fb, &key);
 
   /* Third filter is empty. */
 
   /* Last filter. */
-  ldb_filterbuilder_start_block(&fb, 9000);
+  ldb_filtergen_start_block(&fb, 9000);
   key = ldb_string("box");
-  ldb_filterbuilder_add_key(&fb, &key);
+  ldb_filtergen_add_key(&fb, &key);
   key = ldb_string("hello");
-  ldb_filterbuilder_add_key(&fb, &key);
+  ldb_filtergen_add_key(&fb, &key);
 
-  block = ldb_filterbuilder_finish(&fb);
+  block = ldb_filtergen_finish(&fb);
 
   ldb_filter_init(&fr, policy, &block);
 
@@ -224,7 +224,7 @@ test_multi_chunk(const ldb_bloom_t *policy) {
   key = ldb_string("bar");
   ASSERT(!ldb_filter_matches(&fr, 9000, &key));
 
-  ldb_filterbuilder_clear(&fb);
+  ldb_filtergen_clear(&fb);
 }
 
 int

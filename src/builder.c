@@ -48,7 +48,7 @@ ldb_build_table(const char *dbname,
     return LDB_INVALID;
 
   if (ldb_iter_valid(iter)) {
-    ldb_tablebuilder_t *builder;
+    ldb_tablegen_t *builder;
     ldb_slice_t key, val;
     ldb_wfile_t *file;
     ldb_iter_t *it;
@@ -58,7 +58,7 @@ ldb_build_table(const char *dbname,
     if (rc != LDB_OK)
       return rc;
 
-    builder = ldb_tablebuilder_create(options, file);
+    builder = ldb_tablegen_create(options, file);
 
     key = ldb_iter_key(iter);
 
@@ -68,21 +68,21 @@ ldb_build_table(const char *dbname,
       key = ldb_iter_key(iter);
       val = ldb_iter_value(iter);
 
-      ldb_tablebuilder_add(builder, &key, &val);
+      ldb_tablegen_add(builder, &key, &val);
     }
 
     ldb_ikey_copy(&meta->largest, &key);
 
     /* Finish and check for builder errors. */
-    rc = ldb_tablebuilder_finish(builder);
+    rc = ldb_tablegen_finish(builder);
 
     if (rc == LDB_OK) {
-      meta->file_size = ldb_tablebuilder_file_size(builder);
+      meta->file_size = ldb_tablegen_file_size(builder);
 
       assert(meta->file_size > 0);
     }
 
-    ldb_tablebuilder_destroy(builder);
+    ldb_tablegen_destroy(builder);
 
     /* Finish and check for file errors. */
     if (rc == LDB_OK)

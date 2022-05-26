@@ -343,8 +343,8 @@ static int
 blockctor_finish(blockctor_t *c,
                  const ldb_dbopt_t *options,
                  const rb_map_t *data) {
-  ldb_blockcontents_t contents;
-  ldb_blockbuilder_t bb;
+  ldb_contents_t contents;
+  ldb_blockgen_t bb;
   void *key, *value;
   ldb_slice_t ret;
 
@@ -353,13 +353,13 @@ blockctor_finish(blockctor_t *c,
 
   c->block = NULL;
 
-  ldb_blockbuilder_init(&bb, options);
+  ldb_blockgen_init(&bb, options);
 
   rb_map_iterate(data, key, value)
-    ldb_blockbuilder_add(&bb, key, value);
+    ldb_blockgen_add(&bb, key, value);
 
   /* Open the block. */
-  ret = ldb_blockbuilder_finish(&bb);
+  ret = ldb_blockgen_finish(&bb);
   ldb_buffer_copy(&c->data, &ret);
 
   contents.data = c->data;
@@ -368,7 +368,7 @@ blockctor_finish(blockctor_t *c,
 
   c->block = ldb_block_create(&contents);
 
-  ldb_blockbuilder_clear(&bb);
+  ldb_blockgen_clear(&bb);
 
   return LDB_OK;
 }
@@ -435,7 +435,7 @@ tablector_finish(tablector_t *c,
                  const ldb_dbopt_t *options,
                  const rb_map_t *data) {
   ldb_dbopt_t table_options = *ldb_dbopt_default;
-  ldb_tablebuilder_t *tb;
+  ldb_tablegen_t *tb;
   ldb_wfile_t *sink;
   void *key, *value;
   uint64_t fsize;
@@ -444,23 +444,23 @@ tablector_finish(tablector_t *c,
 
   ASSERT(ldb_truncfile_create(c->path, &sink) == LDB_OK);
 
-  tb = ldb_tablebuilder_create(options, sink);
+  tb = ldb_tablegen_create(options, sink);
 
   rb_map_iterate(data, key, value) {
-    ldb_tablebuilder_add(tb, key, value);
+    ldb_tablegen_add(tb, key, value);
 
-    ASSERT(ldb_tablebuilder_status(tb) == LDB_OK);
+    ASSERT(ldb_tablegen_status(tb) == LDB_OK);
   }
 
-  ASSERT(ldb_tablebuilder_finish(tb) == LDB_OK);
+  ASSERT(ldb_tablegen_finish(tb) == LDB_OK);
   ASSERT(ldb_wfile_close(sink) == LDB_OK);
 
   ldb_wfile_destroy(sink);
 
   ASSERT(ldb_file_size(c->path, &fsize) == LDB_OK);
-  ASSERT(fsize == ldb_tablebuilder_file_size(tb));
+  ASSERT(fsize == ldb_tablegen_file_size(tb));
 
-  ldb_tablebuilder_destroy(tb);
+  ldb_tablegen_destroy(tb);
 
   /* Open the table. */
   ASSERT(ldb_seqfile_create(c->path, &c->source) == LDB_OK);
@@ -1123,7 +1123,7 @@ test_empty(harness_t *h) {
    seems to. */
 static void
 test_zero_restart_points_in_block(void) {
-  ldb_blockcontents_t contents;
+  ldb_contents_t contents;
   ldb_block_t block;
   ldb_iter_t *iter;
   ldb_slice_t key;

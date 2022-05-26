@@ -30,7 +30,7 @@
  */
 
 ldb_block_t *
-ldb_block_create(const ldb_blockcontents_t *contents) {
+ldb_block_create(const ldb_contents_t *contents) {
   ldb_block_t *block = ldb_malloc(sizeof(ldb_block_t));
   ldb_block_init(block, contents);
   return block;
@@ -49,7 +49,7 @@ ldb_block_restarts(const ldb_block_t *block) {
 }
 
 void
-ldb_block_init(ldb_block_t *block, const ldb_blockcontents_t *contents) {
+ldb_block_init(ldb_block_t *block, const ldb_contents_t *contents) {
   block->data = contents->data.data;
   block->size = contents->data.size;
   block->restart_offset = 0;

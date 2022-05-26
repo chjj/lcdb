@@ -409,7 +409,7 @@ static void
 repair_table(ldb_repair_t *rep, const char *src, ldb_tabinfo_t *t) {
   /* We will copy src contents to a new table and then rename the
      new table over the source. */
-  ldb_tablebuilder_t *builder;
+  ldb_tablegen_t *builder;
   char copy[LDB_PATH_MAX];
   char orig[LDB_PATH_MAX];
   ldb_wfile_t *file;
@@ -430,7 +430,7 @@ repair_table(ldb_repair_t *rep, const char *src, ldb_tabinfo_t *t) {
     return;
   }
 
-  builder = ldb_tablebuilder_create(&rep->options, file);
+  builder = ldb_tablegen_create(&rep->options, file);
 
   /* Copy data. */
   iter = tableiter_create(rep, &t->meta);
@@ -440,7 +440,7 @@ repair_table(ldb_repair_t *rep, const char *src, ldb_tabinfo_t *t) {
     ldb_slice_t key = ldb_iter_key(iter);
     ldb_slice_t val = ldb_iter_value(iter);
 
-    ldb_tablebuilder_add(builder, &key, &val);
+    ldb_tablegen_add(builder, &key, &val);
 
     counter++;
   }
@@ -450,15 +450,15 @@ repair_table(ldb_repair_t *rep, const char *src, ldb_tabinfo_t *t) {
   archive_file(rep, src);
 
   if (counter == 0) {
-    ldb_tablebuilder_abandon(builder); /* Nothing to save. */
+    ldb_tablegen_abandon(builder); /* Nothing to save. */
   } else {
-    rc = ldb_tablebuilder_finish(builder);
+    rc = ldb_tablegen_finish(builder);
 
     if (rc == LDB_OK)
-      t->meta.file_size = ldb_tablebuilder_file_size(builder);
+      t->meta.file_size = ldb_tablegen_file_size(builder);
   }
 
-  ldb_tablebuilder_destroy(builder);
+  ldb_tablegen_destroy(builder);
   builder = NULL;
 
   if (rc == LDB_OK)

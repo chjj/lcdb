@@ -35,21 +35,21 @@
  * FilterBuilder
  */
 
-ldb_filterbuilder_t *
-ldb_filterbuilder_create(const ldb_bloom_t *policy) {
-  ldb_filterbuilder_t *fb = ldb_malloc(sizeof(ldb_filterbuilder_t));
-  ldb_filterbuilder_init(fb, policy);
+ldb_filtergen_t *
+ldb_filtergen_create(const ldb_bloom_t *policy) {
+  ldb_filtergen_t *fb = ldb_malloc(sizeof(ldb_filtergen_t));
+  ldb_filtergen_init(fb, policy);
   return fb;
 }
 
 void
-ldb_filterbuilder_destroy(ldb_filterbuilder_t *fb) {
-  ldb_filterbuilder_clear(fb);
+ldb_filtergen_destroy(ldb_filtergen_t *fb) {
+  ldb_filtergen_clear(fb);
   ldb_free(fb);
 }
 
 void
-ldb_filterbuilder_init(ldb_filterbuilder_t *fb, const ldb_bloom_t *policy) {
+ldb_filtergen_init(ldb_filtergen_t *fb, const ldb_bloom_t *policy) {
   fb->policy = policy;
 
   ldb_buffer_init(&fb->keys);
@@ -59,7 +59,7 @@ ldb_filterbuilder_init(ldb_filterbuilder_t *fb, const ldb_bloom_t *policy) {
 }
 
 void
-ldb_filterbuilder_clear(ldb_filterbuilder_t *fb) {
+ldb_filtergen_clear(ldb_filtergen_t *fb) {
   ldb_buffer_clear(&fb->keys);
   ldb_array_clear(&fb->start);
   ldb_buffer_clear(&fb->result);
@@ -67,7 +67,7 @@ ldb_filterbuilder_clear(ldb_filterbuilder_t *fb) {
 }
 
 static void
-ldb_filterbuilder_generate_filter(ldb_filterbuilder_t *fb) {
+ldb_filtergen_generate(ldb_filtergen_t *fb) {
   size_t num_keys = fb->start.length;
   ldb_slice_t *tmp_keys;
   size_t i;
@@ -100,17 +100,17 @@ ldb_filterbuilder_generate_filter(ldb_filterbuilder_t *fb) {
 }
 
 void
-ldb_filterbuilder_start_block(ldb_filterbuilder_t *fb, uint64_t block_offset) {
+ldb_filtergen_start_block(ldb_filtergen_t *fb, uint64_t block_offset) {
   uint64_t filter_index = (block_offset / LDB_FILTER_BASE);
 
   assert(filter_index >= fb->filter_offsets.length);
 
   while (filter_index > fb->filter_offsets.length)
-    ldb_filterbuilder_generate_filter(fb);
+    ldb_filtergen_generate(fb);
 }
 
 void
-ldb_filterbuilder_add_key(ldb_filterbuilder_t *fb, const ldb_slice_t *key) {
+ldb_filtergen_add_key(ldb_filtergen_t *fb, const ldb_slice_t *key) {
   ldb_slice_t k = *key;
 
   ldb_array_push(&fb->start, fb->keys.size);
@@ -118,12 +118,12 @@ ldb_filterbuilder_add_key(ldb_filterbuilder_t *fb, const ldb_slice_t *key) {
 }
 
 ldb_slice_t
-ldb_filterbuilder_finish(ldb_filterbuilder_t *fb) {
+ldb_filtergen_finish(ldb_filtergen_t *fb) {
   uint32_t array_offset;
   size_t i;
 
   if (fb->start.length > 0)
-    ldb_filterbuilder_generate_filter(fb);
+    ldb_filtergen_generate(fb);
 
   /* Append array of per-filter offsets. */
   array_offset = fb->result.size;
