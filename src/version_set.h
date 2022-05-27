@@ -40,14 +40,14 @@ typedef struct ldb_getstats_s {
 } ldb_getstats_t;
 
 typedef struct ldb_version_s ldb_version_t;
-typedef struct ldb_vset_s ldb_vset_t;
+typedef struct ldb_versions_s ldb_versions_t;
 typedef struct ldb_compaction_s ldb_compaction_t;
 
 struct ldb_version_s {
-  ldb_vset_t *vset;    /* VersionSet to which this Version belongs. */
-  ldb_version_t *next; /* Next version in linked list. */
-  ldb_version_t *prev; /* Previous version in linked list. */
-  int refs;            /* Number of live refs to this version. */
+  ldb_versions_t *vset; /* VersionSet to which this Version belongs. */
+  ldb_version_t *next;  /* Next version in linked list. */
+  ldb_version_t *prev;  /* Previous version in linked list. */
+  int refs;             /* Number of live refs to this version. */
 
   /* List of files per level. */
   ldb_vector_t files[LDB_NUM_LEVELS]; /* ldb_filemeta_t[] */
@@ -63,7 +63,7 @@ struct ldb_version_s {
   int compaction_level;
 };
 
-struct ldb_vset_s {
+struct ldb_versions_s {
   const char *dbname;
   const ldb_dbopt_t *options;
   struct ldb_tables_s *table_cache;
@@ -144,7 +144,7 @@ some_file_overlaps_range(const ldb_comparator_t *icmp,
  */
 
 ldb_version_t *
-ldb_version_create(ldb_vset_t *vset);
+ldb_version_create(ldb_versions_t *vset);
 
 void
 ldb_version_destroy(ldb_version_t *ver);
@@ -219,28 +219,28 @@ ldb_version_debug(ldb_buffer_t *z, const ldb_version_t *x);
  * VersionSet
  */
 
-ldb_vset_t *
-ldb_vset_create(const char *dbname,
-                const ldb_dbopt_t *options,
-                struct ldb_tables_s *table_cache,
-                const ldb_comparator_t *cmp);
+ldb_versions_t *
+ldb_versions_create(const char *dbname,
+                    const ldb_dbopt_t *options,
+                    struct ldb_tables_s *table_cache,
+                    const ldb_comparator_t *cmp);
 
 void
-ldb_vset_destroy(ldb_vset_t *vset);
+ldb_versions_destroy(ldb_versions_t *vset);
 
 /* Allocate and return a new file number. */
 uint64_t
-ldb_vset_new_file_number(ldb_vset_t *vset);
+ldb_versions_new_file_number(ldb_versions_t *vset);
 
 /* Arrange to reuse "file_number" unless a newer file number has
    already been allocated. */
 /* REQUIRES: "file_number" was returned by a call to new_file_number(). */
 void
-ldb_vset_reuse_file_number(ldb_vset_t *vset, uint64_t file_number);
+ldb_versions_reuse_file_number(ldb_versions_t *vset, uint64_t file_number);
 
 /* Returns true iff some level needs a compaction. */
 int
-ldb_vset_needs_compaction(const ldb_vset_t *vset);
+ldb_versions_needs_compaction(const ldb_versions_t *vset);
 
 /* Apply *edit to the current version to form a new descriptor that
    is both saved to persistent state and installed as the new
@@ -248,45 +248,47 @@ ldb_vset_needs_compaction(const ldb_vset_t *vset);
 /* REQUIRES: *mu is held on entry. */
 /* REQUIRES: no other thread concurrently calls log_and_apply() */
 int
-ldb_vset_log_and_apply(ldb_vset_t *vset, ldb_edit_t *edit, ldb_mutex_t *mu);
+ldb_versions_log_and_apply(ldb_versions_t *vset,
+                           ldb_edit_t *edit,
+                           ldb_mutex_t *mu);
 
 /* Recover the last saved descriptor from persistent storage. */
 int
-ldb_vset_recover(ldb_vset_t *vset, int *save_manifest);
+ldb_versions_recover(ldb_versions_t *vset, int *save_manifest);
 
 /* Mark the specified file number as used. */
 void
-ldb_vset_mark_file_number_used(ldb_vset_t *vset, uint64_t number);
+ldb_versions_mark_file_number_used(ldb_versions_t *vset, uint64_t number);
 
 /* Return the number of Table files at the specified level. */
 int
-ldb_vset_num_level_files(const ldb_vset_t *vset, int level);
+ldb_versions_num_level_files(const ldb_versions_t *vset, int level);
 
 /* Return a human-readable short (single-line) summary of the number
    of files per level. Uses *scratch as backing store. */
 const char *
-ldb_vset_level_summary(const ldb_vset_t *vset, char *scratch);
+ldb_versions_level_summary(const ldb_versions_t *vset, char *scratch);
 
 /* Return the approximate offset in the database of the data for
    "key" as of version "v". */
 uint64_t
-ldb_vset_approximate_offset(ldb_vset_t *vset,
-                            ldb_version_t *v,
-                            const ldb_ikey_t *ikey);
+ldb_versions_approximate_offset(ldb_versions_t *vset,
+                                ldb_version_t *v,
+                                const ldb_ikey_t *ikey);
 
 /* Add all files listed in any live version to *live.
    May also mutate some internal state. */
 void
-ldb_vset_add_live_files(ldb_vset_t *vset, rb_set64_t *live);
+ldb_versions_add_live_files(ldb_versions_t *vset, rb_set64_t *live);
 
 /* Return the combined file size of all files at the specified level. */
 int64_t
-ldb_vset_num_level_bytes(const ldb_vset_t *vset, int level);
+ldb_versions_num_level_bytes(const ldb_versions_t *vset, int level);
 
 /* Return the maximum overlapping data (in bytes) at next level for any
    file at a level >= 1. */
 int64_t
-ldb_vset_max_next_level_overlapping_bytes(ldb_vset_t *vset);
+ldb_versions_max_next_level_overlapping_bytes(ldb_versions_t *vset);
 
 #define add_boundary_inputs ldb_add_boundary_inputs
 
@@ -300,17 +302,17 @@ add_boundary_inputs(const ldb_comparator_t *icmp,
    Otherwise returns a pointer to a heap-allocated object that
    describes the compaction. Caller should delete the result. */
 ldb_compaction_t *
-ldb_vset_pick_compaction(ldb_vset_t *vset);
+ldb_versions_pick_compaction(ldb_versions_t *vset);
 
 /* Return a compaction object for compacting the range [begin,end] in
    the specified level. Returns NULL if there is nothing in that
    level that overlaps the specified range. Caller should delete
    the result. */
 ldb_compaction_t *
-ldb_vset_compact_range(ldb_vset_t *vset,
-                       int level,
-                       const ldb_ikey_t *begin,
-                       const ldb_ikey_t *end);
+ldb_versions_compact_range(ldb_versions_t *vset,
+                           int level,
+                           const ldb_ikey_t *begin,
+                           const ldb_ikey_t *end);
 
 /*
  * VersionSet::MakeInputIterator
@@ -319,7 +321,7 @@ ldb_vset_compact_range(ldb_vset_t *vset,
 /* Create an iterator that reads over the compaction inputs for "*c".
    The caller should delete the iterator when no longer needed. */
 struct ldb_iter_s *
-ldb_inputiter_create(ldb_vset_t *vset, ldb_compaction_t *c);
+ldb_inputiter_create(ldb_versions_t *vset, ldb_compaction_t *c);
 
 /*
  * Compaction
