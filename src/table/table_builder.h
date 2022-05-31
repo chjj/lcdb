@@ -91,11 +91,11 @@ ldb_tablegen_abandon(ldb_tablegen_t *tb);
 
 /* Number of calls to add() so far. */
 uint64_t
-ldb_tablegen_num_entries(const ldb_tablegen_t *tb);
+ldb_tablegen_entries(const ldb_tablegen_t *tb);
 
 /* Size of the file generated so far. If invoked after a successful
    finish() call, returns the size of the final generated file. */
 uint64_t
-ldb_tablegen_file_size(const ldb_tablegen_t *tb);
+ldb_tablegen_size(const ldb_tablegen_t *tb);
 
 #endif /* LDB_TABLE_BUILDER_H */

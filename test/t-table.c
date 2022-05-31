@@ -458,7 +458,7 @@ tablector_finish(tablector_t *c,
   ldb_wfile_destroy(sink);
 
   ASSERT(ldb_file_size(c->path, &fsize) == LDB_OK);
-  ASSERT(fsize == ldb_tablegen_file_size(tb));
+  ASSERT(fsize == ldb_tablegen_size(tb));
 
   ldb_tablegen_destroy(tb);
 

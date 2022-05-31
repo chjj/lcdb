@@ -1268,10 +1268,10 @@ ldb_versions_write_snapshot(ldb_versions_t *vset, ldb_writer_t *log) {
       const ldb_filemeta_t *f = files->items[i];
 
       ldb_edit_add_file(&edit, level,
-                        f->number,
-                        f->file_size,
-                        &f->smallest,
-                        &f->largest);
+                               f->number,
+                               f->file_size,
+                               &f->smallest,
+                               &f->largest);
     }
   }
 
@@ -1287,9 +1287,7 @@ ldb_versions_write_snapshot(ldb_versions_t *vset, ldb_writer_t *log) {
 }
 
 int
-ldb_versions_log_and_apply(ldb_versions_t *vset,
-                           ldb_edit_t *edit,
-                           ldb_mutex_t *mu) {
+ldb_versions_apply(ldb_versions_t *vset, ldb_edit_t *edit, ldb_mutex_t *mu) {
   char fname[LDB_PATH_MAX];
   ldb_version_t *v;
   int rc = LDB_OK;
@@ -1326,7 +1324,7 @@ ldb_versions_log_and_apply(ldb_versions_t *vset,
      a temporary file that contains a snapshot of the current version. */
   if (vset->descriptor_log == NULL) {
     /* No reason to unlock *mu here since we only hit this path in the
-       first call to log_and_apply (when opening the database). */
+       first call to apply (when opening the database). */
     assert(vset->descriptor_file == NULL);
 
     if (ldb_desc_filename(fname, sizeof(fname), vset->dbname,
@@ -1596,8 +1594,8 @@ ldb_versions_recover(ldb_versions_t *vset, int *save_manifest) {
     if (!have_prev_log_number)
       prev_log_number = 0;
 
-    ldb_versions_mark_file_number_used(vset, prev_log_number);
-    ldb_versions_mark_file_number_used(vset, log_number);
+    ldb_versions_mark_file_number(vset, prev_log_number);
+    ldb_versions_mark_file_number(vset, log_number);
   }
 
   if (rc == LDB_OK) {
@@ -1633,20 +1631,20 @@ ldb_versions_recover(ldb_versions_t *vset, int *save_manifest) {
 }
 
 void
-ldb_versions_mark_file_number_used(ldb_versions_t *vset, uint64_t number) {
+ldb_versions_mark_file_number(ldb_versions_t *vset, uint64_t number) {
   if (vset->next_file_number <= number)
     vset->next_file_number = number + 1;
 }
 
 int
-ldb_versions_num_level_files(const ldb_versions_t *vset, int level) {
+ldb_versions_files(const ldb_versions_t *vset, int level) {
   assert(level >= 0);
   assert(level < LDB_NUM_LEVELS);
   return vset->current->files[level].length;
 }
 
 const char *
-ldb_versions_level_summary(const ldb_versions_t *vset, char *scratch) {
+ldb_versions_summary(const ldb_versions_t *vset, char *scratch) {
   const ldb_version_t *c = vset->current;
 
   /* Update code if LDB_NUM_LEVELS changes. */
@@ -1733,7 +1731,7 @@ ldb_versions_add_live_files(ldb_versions_t *vset, rb_set64_t *live) {
 }
 
 int64_t
-ldb_versions_num_level_bytes(const ldb_versions_t *vset, int level) {
+ldb_versions_bytes(const ldb_versions_t *vset, int level) {
   assert(level >= 0);
   assert(level < LDB_NUM_LEVELS);
   return total_file_size(&vset->current->files[level]);

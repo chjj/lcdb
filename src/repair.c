@@ -455,7 +455,7 @@ repair_table(ldb_repair_t *rep, const char *src, ldb_tabinfo_t *t) {
     rc = ldb_tablegen_finish(builder);
 
     if (rc == LDB_OK)
-      t->meta.file_size = ldb_tablegen_file_size(builder);
+      t->meta.file_size = ldb_tablegen_size(builder);
   }
 
   ldb_tablegen_destroy(builder);

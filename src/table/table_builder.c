@@ -393,11 +393,11 @@ ldb_tablegen_abandon(ldb_tablegen_t *tb) {
 }
 
 uint64_t
-ldb_tablegen_num_entries(const ldb_tablegen_t *tb) {
+ldb_tablegen_entries(const ldb_tablegen_t *tb) {
   return tb->num_entries;
 }
 
 uint64_t
-ldb_tablegen_file_size(const ldb_tablegen_t *tb) {
+ldb_tablegen_size(const ldb_tablegen_t *tb) {
   return tb->offset;
 }

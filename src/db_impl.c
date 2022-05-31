@@ -1080,7 +1080,7 @@ ldb_recover(ldb_t *db, ldb_edit_t *edit, int *save_manifest) {
     /* The previous incarnation may not have written any MANIFEST
        records after allocating this log number. So we manually
        update the file number allocation counter in VersionSet. */
-    ldb_versions_mark_file_number_used(db->versions, logs.items[i]);
+    ldb_versions_mark_file_number(db->versions, logs.items[i]);
   }
 
   if (db->versions->last_sequence < max_sequence)
@@ -1137,7 +1137,7 @@ ldb_compact_memtable(ldb_t *db) {
     ldb_edit_set_log_number(&edit, db->logfile_number); /* Earlier logs no
                                                            longer needed. */
 
-    rc = ldb_versions_log_and_apply(db->versions, &edit, &db->mutex);
+    rc = ldb_versions_apply(db->versions, &edit, &db->mutex);
   }
 
   if (rc == LDB_OK) {
@@ -1204,14 +1204,14 @@ ldb_finish_compaction_output_file(ldb_t *db, ldb_cstate_t *compact,
   /* Check for iterator errors. */
   rc = ldb_iter_status(input);
 
-  current_entries = ldb_tablegen_num_entries(compact->builder);
+  current_entries = ldb_tablegen_entries(compact->builder);
 
   if (rc == LDB_OK)
     rc = ldb_tablegen_finish(compact->builder);
   else
     ldb_tablegen_abandon(compact->builder);
 
-  current_bytes = ldb_tablegen_file_size(compact->builder);
+  current_bytes = ldb_tablegen_size(compact->builder);
 
   ldb_cstate_top(compact)->file_size = current_bytes;
 
@@ -1285,7 +1285,7 @@ ldb_install_compaction_results(ldb_t *db, ldb_cstate_t *compact) {
                       &out->largest);
   }
 
-  return ldb_versions_log_and_apply(db->versions, edit, &db->mutex);
+  return ldb_versions_apply(db->versions, edit, &db->mutex);
 }
 
 static int
@@ -1313,8 +1313,7 @@ ldb_do_compaction_work(ldb_t *db, ldb_cstate_t *compact) {
   ldb_buffer_init(&user_key);
   ldb_stats_init(&stats);
 
-  assert(ldb_versions_num_level_files(db->versions,
-                                      compact->compaction->level) > 0);
+  assert(ldb_versions_files(db->versions, compact->compaction->level) > 0);
 
   assert(compact->builder == NULL);
   assert(compact->outfile == NULL);
@@ -1412,7 +1411,7 @@ ldb_do_compaction_work(ldb_t *db, ldb_cstate_t *compact) {
           break;
       }
 
-      if (ldb_tablegen_num_entries(compact->builder) == 0)
+      if (ldb_tablegen_entries(compact->builder) == 0)
         ldb_ikey_copy(&ldb_cstate_top(compact)->smallest, &key);
 
       ldb_ikey_copy(&ldb_cstate_top(compact)->largest, &key);
@@ -1422,7 +1421,7 @@ ldb_do_compaction_work(ldb_t *db, ldb_cstate_t *compact) {
       ldb_tablegen_add(compact->builder, &key, &value);
 
       /* Close output file if it is big enough. */
-      if (ldb_tablegen_file_size(compact->builder) >=
+      if (ldb_tablegen_size(compact->builder) >=
           compact->compaction->max_output_file_size) {
         rc = ldb_finish_compaction_output_file(db, compact, input);
 
@@ -1479,7 +1478,7 @@ ldb_do_compaction_work(ldb_t *db, ldb_cstate_t *compact) {
   ldb_buffer_clear(&user_key);
 
   ldb_log(db->options.info_log, "compacted to: %s",
-          ldb_versions_level_summary(db->versions, tmp));
+          ldb_versions_summary(db->versions, tmp));
 
   return rc;
 }
@@ -1561,7 +1560,7 @@ ldb_background_compaction(ldb_t *db) {
                                 &f->smallest,
                                 &f->largest);
 
-    rc = ldb_versions_log_and_apply(db->versions, &c->edit, &db->mutex);
+    rc = ldb_versions_apply(db->versions, &c->edit, &db->mutex);
 
     if (rc != LDB_OK)
       ldb_record_background_error(db, rc);
@@ -1571,7 +1570,7 @@ ldb_background_compaction(ldb_t *db) {
                                   c->level + 1,
                                   (unsigned long)f->file_size,
                                   ldb_strerror(rc),
-                                  ldb_versions_level_summary(db->versions, tmp));
+                                  ldb_versions_summary(db->versions, tmp));
   } else {
     ldb_cstate_t *compact = ldb_cstate_create(c);
 
@@ -1795,7 +1794,7 @@ ldb_make_room_for_write(ldb_t *db, int force) {
   assert(db->writers.length > 0);
 
   for (;;) {
-#define L0_FILES ldb_versions_num_level_files(db->versions, 0)
+#define L0_FILES ldb_versions_files(db->versions, 0)
     if (db->bg_error != LDB_OK) {
       /* Yield previous error. */
       rc = db->bg_error;
@@ -2030,7 +2029,7 @@ ldb_open(const char *dbname, const ldb_dbopt_t *options, ldb_t **dbptr) {
                                                after recovery. */
     ldb_edit_set_log_number(&edit, db->logfile_number);
 
-    rc = ldb_versions_log_and_apply(db->versions, &edit, &db->mutex);
+    rc = ldb_versions_apply(db->versions, &edit, &db->mutex);
   }
 
   if (rc == LDB_OK) {
@@ -2353,7 +2352,7 @@ ldb_property(ldb_t *db, const char *property, char **value) {
 
     *value = ldb_malloc(21);
 
-    ldb_encode_int(*value, ldb_versions_num_level_files(db->versions, level), 0);
+    ldb_encode_int(*value, ldb_versions_files(db->versions, level), 0);
 
     ldb_mutex_unlock(&db->mutex);
 
@@ -2374,11 +2373,11 @@ ldb_property(ldb_t *db, const char *property, char **value) {
     ldb_buffer_string(&val, buf);
 
     for (level = 0; level < LDB_NUM_LEVELS; level++) {
-      int files = ldb_versions_num_level_files(db->versions, level);
+      int files = ldb_versions_files(db->versions, level);
       ldb_stats_t *stats = &db->stats[level];
 
       if (stats->micros > 0 || files > 0) {
-        int64_t bytes = ldb_versions_num_level_bytes(db->versions, level);
+        int64_t bytes = ldb_versions_bytes(db->versions, level);
 
         sprintf(buf, "%3d %8d %8.0f %9.0f %8.0f %9.0f\n",
                      level, files, bytes / 1048576.0,

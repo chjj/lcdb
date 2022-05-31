@@ -77,7 +77,7 @@ ldb_build_table(const char *dbname,
     rc = ldb_tablegen_finish(builder);
 
     if (rc == LDB_OK) {
-      meta->file_size = ldb_tablegen_file_size(builder);
+      meta->file_size = ldb_tablegen_size(builder);
 
       assert(meta->file_size > 0);
     }

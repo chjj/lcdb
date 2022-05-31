@@ -246,11 +246,9 @@ ldb_versions_needs_compaction(const ldb_versions_t *vset);
    is both saved to persistent state and installed as the new
    current version. Will release *mu while actually writing to the file. */
 /* REQUIRES: *mu is held on entry. */
-/* REQUIRES: no other thread concurrently calls log_and_apply() */
+/* REQUIRES: no other thread concurrently calls apply() */
 int
-ldb_versions_log_and_apply(ldb_versions_t *vset,
-                           ldb_edit_t *edit,
-                           ldb_mutex_t *mu);
+ldb_versions_apply(ldb_versions_t *vset, ldb_edit_t *edit, ldb_mutex_t *mu);
 
 /* Recover the last saved descriptor from persistent storage. */
 int
@@ -258,16 +256,16 @@ ldb_versions_recover(ldb_versions_t *vset, int *save_manifest);
 
 /* Mark the specified file number as used. */
 void
-ldb_versions_mark_file_number_used(ldb_versions_t *vset, uint64_t number);
+ldb_versions_mark_file_number(ldb_versions_t *vset, uint64_t number);
 
 /* Return the number of Table files at the specified level. */
 int
-ldb_versions_num_level_files(const ldb_versions_t *vset, int level);
+ldb_versions_files(const ldb_versions_t *vset, int level);
 
 /* Return a human-readable short (single-line) summary of the number
    of files per level. Uses *scratch as backing store. */
 const char *
-ldb_versions_level_summary(const ldb_versions_t *vset, char *scratch);
+ldb_versions_summary(const ldb_versions_t *vset, char *scratch);
 
 /* Return the approximate offset in the database of the data for
    "key" as of version "v". */
@@ -283,7 +281,7 @@ ldb_versions_add_live_files(ldb_versions_t *vset, rb_set64_t *live);
 
 /* Return the combined file size of all files at the specified level. */
 int64_t
-ldb_versions_num_level_bytes(const ldb_versions_t *vset, int level);
+ldb_versions_bytes(const ldb_versions_t *vset, int level);
 
 /* Return the maximum overlapping data (in bytes) at next level for any
    file at a level >= 1. */
