@@ -1711,7 +1711,7 @@ ldb_versions_approximate_offset(ldb_versions_t *vset,
 }
 
 void
-ldb_versions_add_live_files(ldb_versions_t *vset, rb_set64_t *live) {
+ldb_versions_add_files(ldb_versions_t *vset, rb_set64_t *live) {
   ldb_version_t *list = &vset->dummy_versions;
   ldb_version_t *v;
   int level;

@@ -277,7 +277,7 @@ ldb_versions_approximate_offset(ldb_versions_t *vset,
 /* Add all files listed in any live version to *live.
    May also mutate some internal state. */
 void
-ldb_versions_add_live_files(ldb_versions_t *vset, rb_set64_t *live);
+ldb_versions_add_files(ldb_versions_t *vset, rb_set64_t *live);
 
 /* Return the combined file size of all files at the specified level. */
 int64_t

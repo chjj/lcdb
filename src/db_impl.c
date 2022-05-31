@@ -669,7 +669,7 @@ ldb_remove_obsolete_files(ldb_t *db) {
   /* Make a set of all of the live files. */
   rb_set64_copy(&live, &db->pending_outputs);
 
-  ldb_versions_add_live_files(db->versions, &live);
+  ldb_versions_add_files(db->versions, &live);
 
   len = ldb_get_children(db->dbname, &filenames); /* Ignoring errors. */
 
@@ -1046,7 +1046,7 @@ ldb_recover(ldb_t *db, ldb_edit_t *edit, int *save_manifest) {
   rb_set64_init(&expected);
   ldb_array_init(&logs);
 
-  ldb_versions_add_live_files(db->versions, &expected);
+  ldb_versions_add_files(db->versions, &expected);
 
   for (i = 0; i < len; i++) {
     if (ldb_parse_filename(&type, &number, filenames[i])) {
@@ -2513,7 +2513,7 @@ ldb_backup(ldb_t *db, const char *name) {
   if (rc == LDB_OK) {
     rb_set64_init(&live);
 
-    ldb_versions_add_live_files(db->versions, &live);
+    ldb_versions_add_files(db->versions, &live);
 
     rc = ldb_backup_inner(db->dbname, name, &live);
 
