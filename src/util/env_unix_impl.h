@@ -121,7 +121,7 @@ typedef struct ldb_limiter_s {
 } ldb_limiter_t;
 
 struct ldb_filelock_s {
-  char path[LDB_PATH_MAX];
+  char *path;
   int fd;
 };
 
@@ -188,6 +188,12 @@ by_string(rb_val_t x, rb_val_t y, void *arg) {
 /*
  * Path Helpers
  */
+
+static char *
+ldb_strdup(const char *xp) {
+  size_t xn = strlen(xp);
+  return memcpy(ldb_malloc(xn + 1), xp, xn + 1);
+}
 
 static int
 ldb_is_manifest(const char *filename) {
@@ -709,11 +715,7 @@ ldb_link_file(const char *from, const char *to) {
 
 int
 ldb_lock_file(const char *filename, ldb_filelock_t **lock) {
-  size_t len = strlen(filename);
   int fd;
-
-  if (len + 1 > LDB_PATH_MAX)
-    return LDB_INVALID;
 
   ldb_mutex_lock(&file_mutex);
 
@@ -740,9 +742,8 @@ ldb_lock_file(const char *filename, ldb_filelock_t **lock) {
 
   *lock = ldb_malloc(sizeof(ldb_filelock_t));
 
+  (*lock)->path = ldb_strdup(filename);
   (*lock)->fd = fd;
-
-  memcpy((*lock)->path, filename, len + 1);
 
   rb_set_put(&file_set, (*lock)->path);
 
@@ -766,6 +767,7 @@ ldb_unlock_file(ldb_filelock_t *lock) {
 
   close(lock->fd);
 
+  ldb_free(lock->path);
   ldb_free(lock);
 
   ldb_mutex_unlock(&file_mutex);
@@ -805,7 +807,7 @@ ldb_test_directory(char *result, size_t size) {
  */
 
 struct ldb_rfile_s {
-  char filename[LDB_PATH_MAX];
+  char *filename;
   int fd;
   ldb_limiter_t *limiter;
   int mapped;
@@ -818,9 +820,8 @@ struct ldb_rfile_s {
 };
 
 static void
-ldb_seqfile_init(ldb_rfile_t *file, const char *filename, int fd) {
-  strcpy(file->filename, filename);
-
+ldb_seqfile_init(ldb_rfile_t *file, int fd) {
+  file->filename = NULL;
   file->fd = fd;
   file->limiter = NULL;
   file->mapped = 0;
@@ -838,8 +839,7 @@ ldb_randfile_init(ldb_rfile_t *file,
                   ldb_limiter_t *limiter) {
   int acquired = ldb_limiter_acquire(limiter);
 
-  strcpy(file->filename, filename);
-
+  file->filename = acquired ? NULL : ldb_strdup(filename);
   file->fd = acquired ? fd : -1;
   file->limiter = acquired ? limiter : NULL;
   file->mapped = 0;
@@ -858,12 +858,10 @@ ldb_randfile_init(ldb_rfile_t *file,
 #ifdef HAVE_MMAP
 static void
 ldb_mapfile_init(ldb_rfile_t *file,
-                 const char *filename,
                  unsigned char *base,
                  size_t length,
                  ldb_limiter_t *limiter) {
-  strcpy(file->filename, filename);
-
+  file->filename = NULL;
   file->fd = -1;
   file->limiter = limiter;
   file->mapped = 1;
@@ -957,6 +955,9 @@ static int
 ldb_rfile_close(ldb_rfile_t *file) {
   int rc = LDB_OK;
 
+  if (file->filename != NULL)
+    ldb_free(file->filename);
+
   if (file->fd != -1) {
     if (close(file->fd) < 0)
       rc = LDB_IOERR;
@@ -970,6 +971,7 @@ ldb_rfile_close(ldb_rfile_t *file) {
     munmap((void *)file->base, file->length);
 #endif
 
+  file->filename = NULL;
   file->fd = -1;
   file->limiter = NULL;
   file->mapped = 0;
@@ -992,19 +994,14 @@ ldb_rfile_close(ldb_rfile_t *file) {
 
 int
 ldb_seqfile_create(const char *filename, ldb_rfile_t **file) {
-  int fd;
-
-  if (strlen(filename) + 1 > LDB_PATH_MAX)
-    return LDB_INVALID;
-
-  fd = ldb_open(filename, O_RDONLY, 0);
+  int fd = ldb_open(filename, O_RDONLY, 0);
 
   if (fd < 0)
     return LDB_POSIX_ERROR(errno);
 
   *file = ldb_malloc(sizeof(ldb_rfile_t));
 
-  ldb_seqfile_init(*file, filename, fd);
+  ldb_seqfile_init(*file, fd);
 
   return LDB_OK;
 }
@@ -1021,9 +1018,6 @@ ldb_randfile_create(const char *filename, ldb_rfile_t **file, int use_mmap) {
 #ifndef HAVE_MMAP
   (void)use_mmap;
 #endif
-
-  if (strlen(filename) + 1 > LDB_PATH_MAX)
-    return LDB_INVALID;
 
   fd = ldb_open(filename, O_RDONLY, 0);
 
@@ -1054,7 +1048,7 @@ ldb_randfile_create(const char *filename, ldb_rfile_t **file, int use_mmap) {
     if (base != MAP_FAILED) {
       *file = ldb_malloc(sizeof(ldb_rfile_t));
 
-      ldb_mapfile_init(*file, filename, base, size, &ldb_mmap_limiter);
+      ldb_mapfile_init(*file, base, size, &ldb_mmap_limiter);
     } else {
       rc = LDB_IOERR;
     }
@@ -1080,8 +1074,7 @@ ldb_rfile_destroy(ldb_rfile_t *file) {
  */
 
 struct ldb_wfile_s {
-  char filename[LDB_PATH_MAX];
-  char dirname[LDB_PATH_MAX];
+  char *dirname;
   int fd, manifest;
   unsigned char buf[LDB_WRITE_BUFFER];
   size_t pos;
@@ -1089,23 +1082,32 @@ struct ldb_wfile_s {
 
 static void
 ldb_wfile_init(ldb_wfile_t *file, const char *filename, int fd) {
-  strcpy(file->filename, filename);
-
-  if (!ldb_dirname(file->dirname, LDB_PATH_MAX, filename))
-    abort(); /* LCOV_EXCL_LINE */
-
+  file->dirname = NULL;
   file->fd = fd;
   file->manifest = ldb_is_manifest(filename);
   file->pos = 0;
+
+  if (file->manifest) {
+    size_t size = strlen(filename) + 1;
+
+    file->dirname = ldb_malloc(size);
+
+    if (!ldb_dirname(file->dirname, size, filename))
+      abort(); /* LCOV_EXCL_LINE */
+  }
 }
 
 int
 ldb_wfile_close(ldb_wfile_t *file) {
   int rc = ldb_wfile_flush(file);
 
+  if (file->dirname != NULL)
+    ldb_free(file->dirname);
+
   if (close(file->fd) < 0 && rc == LDB_OK)
     rc = LDB_IOERR;
 
+  file->dirname = NULL;
   file->fd = -1;
 
   return rc;
@@ -1183,12 +1185,7 @@ ldb_wfile_sync(ldb_wfile_t *file) {
 
 static int
 ldb_wfile_create(const char *filename, int flags, ldb_wfile_t **file) {
-  int fd;
-
-  if (strlen(filename) + 1 > LDB_PATH_MAX)
-    return LDB_INVALID;
-
-  fd = ldb_open(filename, flags, 0644);
+  int fd = ldb_open(filename, flags, 0644);
 
   if (fd < 0)
     return LDB_POSIX_ERROR(errno);
