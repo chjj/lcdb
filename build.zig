@@ -28,7 +28,7 @@ pub fn build(b: *std.build.Builder) void {
   const prefix = b.option([]const u8, "prefix",
                           "System install prefix (/usr/local)");
   const enable_bench = b.option(bool, "bench",
-                                "Build benchmarks (false)") orelse false;
+                                "Build benchmarks (true)") orelse true;
   const enable_pic = b.option(bool, "pic", "Force PIC (false)");
   const enable_portable = b.option(bool, "portable",
                             "Be as portable as possible (false)") orelse false;

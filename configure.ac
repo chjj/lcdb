@@ -73,9 +73,9 @@ AS_CASE([$host_os], [mingw*], [MINGW="$CC"], [AS_UNSET([MINGW])])
 AC_ARG_ENABLE(
   bench,
   AS_HELP_STRING([--enable-bench],
-                 [build benchmarks [default=no]]),
+                 [build benchmarks [default=yes]]),
   [enable_bench=$enableval],
-  [enable_bench=no]
+  [enable_bench=yes]
 )
 
 AC_ARG_ENABLE(

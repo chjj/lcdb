@@ -44,7 +44,7 @@ include(GNUInstallDirs)
 # Options
 #
 
-option(LDB_BENCH "Build benchmarks" OFF)
+option(LDB_BENCH "Build benchmarks" ON)
 option(LDB_COVERAGE "Enable coverage" OFF)
 option(LDB_FUZZER "Enable fuzzer" OFF)
 option(LDB_LWDB "Enable LWDB" OFF)
