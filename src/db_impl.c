@@ -1154,13 +1154,13 @@ ldb_compact_memtable(ldb_t *db) {
 }
 
 static int
-ldb_open_compaction_output_file(ldb_t *db, ldb_cstate_t *compact) {
+ldb_open_compaction_output_file(ldb_t *db, ldb_cstate_t *state) {
   char fname[LDB_PATH_MAX];
   uint64_t file_number;
   int rc = LDB_OK;
 
-  assert(compact != NULL);
-  assert(compact->builder == NULL);
+  assert(state != NULL);
+  assert(state->builder == NULL);
 
   {
     ldb_mutex_lock(&db->mutex);
@@ -1169,17 +1169,17 @@ ldb_open_compaction_output_file(ldb_t *db, ldb_cstate_t *compact) {
 
     rb_set64_put(&db->pending_outputs, file_number);
 
-    ldb_vector_push(&compact->outputs, ldb_output_create(file_number));
+    ldb_vector_push(&state->outputs, ldb_output_create(file_number));
 
     ldb_mutex_unlock(&db->mutex);
   }
 
   /* Make the output file. */
   if (ldb_table_filename(fname, sizeof(fname), db->dbname, file_number)) {
-    rc = ldb_truncfile_create(fname, &compact->outfile);
+    rc = ldb_truncfile_create(fname, &state->outfile);
 
     if (rc == LDB_OK)
-      compact->builder = ldb_tablegen_create(&db->options, compact->outfile);
+      state->builder = ldb_tablegen_create(&db->options, state->outfile);
   } else {
     rc = LDB_INVALID;
   }
@@ -1188,47 +1188,47 @@ ldb_open_compaction_output_file(ldb_t *db, ldb_cstate_t *compact) {
 }
 
 static int
-ldb_finish_compaction_output_file(ldb_t *db, ldb_cstate_t *compact,
+ldb_finish_compaction_output_file(ldb_t *db, ldb_cstate_t *state,
                                              ldb_iter_t *input) {
   uint64_t output_number, current_entries, current_bytes;
   int rc = LDB_OK;
 
-  assert(compact != NULL);
-  assert(compact->outfile != NULL);
-  assert(compact->builder != NULL);
+  assert(state != NULL);
+  assert(state->outfile != NULL);
+  assert(state->builder != NULL);
 
-  output_number = ldb_cstate_top(compact)->number;
+  output_number = ldb_cstate_top(state)->number;
 
   assert(output_number != 0);
 
   /* Check for iterator errors. */
   rc = ldb_iter_status(input);
 
-  current_entries = ldb_tablegen_entries(compact->builder);
+  current_entries = ldb_tablegen_entries(state->builder);
 
   if (rc == LDB_OK)
-    rc = ldb_tablegen_finish(compact->builder);
+    rc = ldb_tablegen_finish(state->builder);
   else
-    ldb_tablegen_abandon(compact->builder);
+    ldb_tablegen_abandon(state->builder);
 
-  current_bytes = ldb_tablegen_size(compact->builder);
+  current_bytes = ldb_tablegen_size(state->builder);
 
-  ldb_cstate_top(compact)->file_size = current_bytes;
+  ldb_cstate_top(state)->file_size = current_bytes;
 
-  compact->total_bytes += current_bytes;
+  state->total_bytes += current_bytes;
 
-  ldb_tablegen_destroy(compact->builder);
-  compact->builder = NULL;
+  ldb_tablegen_destroy(state->builder);
+  state->builder = NULL;
 
   /* Finish and check for file errors. */
   if (rc == LDB_OK)
-    rc = ldb_wfile_sync(compact->outfile);
+    rc = ldb_wfile_sync(state->outfile);
 
   if (rc == LDB_OK)
-    rc = ldb_wfile_close(compact->outfile);
+    rc = ldb_wfile_close(state->outfile);
 
-  ldb_wfile_destroy(compact->outfile);
-  compact->outfile = NULL;
+  ldb_wfile_destroy(state->outfile);
+  state->outfile = NULL;
 
   if (rc == LDB_OK && current_entries > 0) {
     /* Verify that the table is usable. */
@@ -1246,7 +1246,7 @@ ldb_finish_compaction_output_file(ldb_t *db, ldb_cstate_t *compact,
       ldb_log(db->options.info_log,
               "Generated table #%lu@%d: %lu keys, %lu bytes",
               (unsigned long)output_number,
-              compact->compaction->level,
+              state->compaction->level,
               (unsigned long)current_entries,
               (unsigned long)current_bytes);
     }
@@ -1256,27 +1256,27 @@ ldb_finish_compaction_output_file(ldb_t *db, ldb_cstate_t *compact,
 }
 
 static int
-ldb_install_compaction_results(ldb_t *db, ldb_cstate_t *compact) {
-  ldb_edit_t *edit = &compact->compaction->edit;
+ldb_install_compaction_results(ldb_t *db, ldb_cstate_t *state) {
+  ldb_edit_t *edit = &state->compaction->edit;
   int level;
   size_t i;
 
   ldb_mutex_assert_held(&db->mutex);
 
   ldb_log(db->options.info_log, "Compacted %d@%d + %d@%d files => %ld bytes",
-          (int)compact->compaction->inputs[0].length,
-          compact->compaction->level + 0,
-          (int)compact->compaction->inputs[1].length,
-          compact->compaction->level + 1,
-          (long)compact->total_bytes);
+          (int)state->compaction->inputs[0].length,
+          state->compaction->level + 0,
+          (int)state->compaction->inputs[1].length,
+          state->compaction->level + 1,
+          (long)state->total_bytes);
 
   /* Add compaction outputs. */
-  ldb_compaction_add_input_deletions(compact->compaction, edit);
+  ldb_compaction_add_input_deletions(state->compaction, edit);
 
-  level = compact->compaction->level;
+  level = state->compaction->level;
 
-  for (i = 0; i < compact->outputs.length; i++) {
-    const ldb_output_t *out = compact->outputs.items[i];
+  for (i = 0; i < state->outputs.length; i++) {
+    const ldb_output_t *out = state->outputs.items[i];
 
     ldb_edit_add_file(edit, level + 1,
                       out->number,
@@ -1289,7 +1289,7 @@ ldb_install_compaction_results(ldb_t *db, ldb_cstate_t *compact) {
 }
 
 static int
-ldb_do_compaction_work(ldb_t *db, ldb_cstate_t *compact) {
+ldb_do_compaction_work(ldb_t *db, ldb_cstate_t *state) {
   const ldb_comparator_t *ucmp = ldb_user_comparator(db);
   ldb_seqnum_t last_sequence_for_key = LDB_MAX_SEQUENCE;
   int64_t start_micros = ldb_now_usec();
@@ -1305,27 +1305,27 @@ ldb_do_compaction_work(ldb_t *db, ldb_cstate_t *compact) {
   size_t i;
 
   ldb_log(db->options.info_log, "Compacting %d@%d + %d@%d files",
-          (int)compact->compaction->inputs[0].length,
-          compact->compaction->level + 0,
-          (int)compact->compaction->inputs[1].length,
-          compact->compaction->level + 1);
+          (int)state->compaction->inputs[0].length,
+          state->compaction->level + 0,
+          (int)state->compaction->inputs[1].length,
+          state->compaction->level + 1);
 
   ldb_buffer_init(&user_key);
   ldb_stats_init(&stats);
 
-  assert(ldb_versions_files(db->versions, compact->compaction->level) > 0);
+  assert(ldb_versions_files(db->versions, state->compaction->level) > 0);
 
-  assert(compact->builder == NULL);
-  assert(compact->outfile == NULL);
+  assert(state->builder == NULL);
+  assert(state->outfile == NULL);
 
   if (ldb_snaplist_empty(&db->snapshots)) {
-    compact->smallest_snapshot = db->versions->last_sequence;
+    state->smallest_snapshot = db->versions->last_sequence;
   } else {
-    compact->smallest_snapshot =
+    state->smallest_snapshot =
       ldb_snaplist_oldest(&db->snapshots)->sequence;
   }
 
-  input = ldb_inputiter_create(db->versions, compact->compaction);
+  input = ldb_inputiter_create(db->versions, state->compaction);
 
   /* Release mutex while we're actually doing the compaction work. */
   ldb_mutex_unlock(&db->mutex);
@@ -1357,9 +1357,9 @@ ldb_do_compaction_work(ldb_t *db, ldb_cstate_t *compact) {
 
     key = ldb_iter_key(input);
 
-    if (ldb_compaction_should_stop_before(compact->compaction, &key) &&
-        compact->builder != NULL) {
-      rc = ldb_finish_compaction_output_file(db, compact, input);
+    if (ldb_compaction_should_stop_before(state->compaction, &key) &&
+        state->builder != NULL) {
+      rc = ldb_finish_compaction_output_file(db, state, input);
 
       if (rc != LDB_OK)
         break;
@@ -1379,12 +1379,12 @@ ldb_do_compaction_work(ldb_t *db, ldb_cstate_t *compact) {
         last_sequence_for_key = LDB_MAX_SEQUENCE;
       }
 
-      if (last_sequence_for_key <= compact->smallest_snapshot) {
+      if (last_sequence_for_key <= state->smallest_snapshot) {
         /* Hidden by an newer entry for same user key. */
         drop = 1; /* (A) */
       } else if (ikey.type == LDB_TYPE_DELETION &&
-                 ikey.sequence <= compact->smallest_snapshot &&
-                 ldb_compaction_is_base_level_for_key(compact->compaction,
+                 ikey.sequence <= state->smallest_snapshot &&
+                 ldb_compaction_is_base_level_for_key(state->compaction,
                                                       &ikey.user_key)) {
         /* For this user key:
          *
@@ -1404,26 +1404,26 @@ ldb_do_compaction_work(ldb_t *db, ldb_cstate_t *compact) {
 
     if (!drop) {
       /* Open output file if necessary. */
-      if (compact->builder == NULL) {
-        rc = ldb_open_compaction_output_file(db, compact);
+      if (state->builder == NULL) {
+        rc = ldb_open_compaction_output_file(db, state);
 
         if (rc != LDB_OK)
           break;
       }
 
-      if (ldb_tablegen_entries(compact->builder) == 0)
-        ldb_ikey_copy(&ldb_cstate_top(compact)->smallest, &key);
+      if (ldb_tablegen_entries(state->builder) == 0)
+        ldb_ikey_copy(&ldb_cstate_top(state)->smallest, &key);
 
-      ldb_ikey_copy(&ldb_cstate_top(compact)->largest, &key);
+      ldb_ikey_copy(&ldb_cstate_top(state)->largest, &key);
 
       value = ldb_iter_value(input);
 
-      ldb_tablegen_add(compact->builder, &key, &value);
+      ldb_tablegen_add(state->builder, &key, &value);
 
       /* Close output file if it is big enough. */
-      if (ldb_tablegen_size(compact->builder) >=
-          compact->compaction->max_output_file_size) {
-        rc = ldb_finish_compaction_output_file(db, compact, input);
+      if (ldb_tablegen_size(state->builder) >=
+          state->compaction->max_output_file_size) {
+        rc = ldb_finish_compaction_output_file(db, state, input);
 
         if (rc != LDB_OK)
           break;
@@ -1436,8 +1436,8 @@ ldb_do_compaction_work(ldb_t *db, ldb_cstate_t *compact) {
   if (rc == LDB_OK && ldb_atomic_load(&db->shutting_down, ldb_order_acquire))
     rc = LDB_IOERR; /* "Deleting DB during compaction" */
 
-  if (rc == LDB_OK && compact->builder != NULL)
-    rc = ldb_finish_compaction_output_file(db, compact, input);
+  if (rc == LDB_OK && state->builder != NULL)
+    rc = ldb_finish_compaction_output_file(db, state, input);
 
   if (rc == LDB_OK)
     rc = ldb_iter_status(input);
@@ -1448,29 +1448,29 @@ ldb_do_compaction_work(ldb_t *db, ldb_cstate_t *compact) {
   stats.micros = ldb_now_usec() - start_micros - imm_micros;
 
   for (which = 0; which < 2; which++) {
-    size_t len = compact->compaction->inputs[which].length;
+    size_t len = state->compaction->inputs[which].length;
 
     for (i = 0; i < len; i++) {
-      ldb_filemeta_t *f = compact->compaction->inputs[which].items[i];
+      ldb_filemeta_t *f = state->compaction->inputs[which].items[i];
 
       stats.bytes_read += f->file_size;
     }
   }
 
-  for (i = 0; i < compact->outputs.length; i++) {
-    ldb_output_t *out = compact->outputs.items[i];
+  for (i = 0; i < state->outputs.length; i++) {
+    ldb_output_t *out = state->outputs.items[i];
 
     stats.bytes_written += out->file_size;
   }
 
   ldb_mutex_lock(&db->mutex);
 
-  level = compact->compaction->level;
+  level = state->compaction->level;
 
   ldb_stats_add(&db->stats[level + 1], &stats);
 
   if (rc == LDB_OK)
-    rc = ldb_install_compaction_results(db, compact);
+    rc = ldb_install_compaction_results(db, state);
 
   if (rc != LDB_OK)
     ldb_record_background_error(db, rc);
@@ -1484,29 +1484,29 @@ ldb_do_compaction_work(ldb_t *db, ldb_cstate_t *compact) {
 }
 
 static void
-ldb_cleanup_compaction(ldb_t *db, ldb_cstate_t *compact) {
+ldb_cleanup_compaction(ldb_t *db, ldb_cstate_t *state) {
   size_t i;
 
   ldb_mutex_assert_held(&db->mutex);
 
-  if (compact->builder != NULL) {
+  if (state->builder != NULL) {
     /* May happen if we get a shutdown call in the middle of compaction. */
-    ldb_tablegen_abandon(compact->builder);
-    ldb_tablegen_destroy(compact->builder);
+    ldb_tablegen_abandon(state->builder);
+    ldb_tablegen_destroy(state->builder);
   } else {
-    assert(compact->outfile == NULL);
+    assert(state->outfile == NULL);
   }
 
-  if (compact->outfile != NULL)
-    ldb_wfile_destroy(compact->outfile);
+  if (state->outfile != NULL)
+    ldb_wfile_destroy(state->outfile);
 
-  for (i = 0; i < compact->outputs.length; i++) {
-    const ldb_output_t *out = compact->outputs.items[i];
+  for (i = 0; i < state->outputs.length; i++) {
+    const ldb_output_t *out = state->outputs.items[i];
 
     rb_set64_del(&db->pending_outputs, out->number);
   }
 
-  ldb_cstate_destroy(compact);
+  ldb_cstate_destroy(state);
 }
 
 static void
@@ -1572,14 +1572,14 @@ ldb_background_compaction(ldb_t *db) {
                                   ldb_strerror(rc),
                                   ldb_versions_summary(db->versions, tmp));
   } else {
-    ldb_cstate_t *compact = ldb_cstate_create(c);
+    ldb_cstate_t *state = ldb_cstate_create(c);
 
-    rc = ldb_do_compaction_work(db, compact);
+    rc = ldb_do_compaction_work(db, state);
 
     if (rc != LDB_OK)
       ldb_record_background_error(db, rc);
 
-    ldb_cleanup_compaction(db, compact);
+    ldb_cleanup_compaction(db, state);
 
     ldb_compaction_release_inputs(c);
 
