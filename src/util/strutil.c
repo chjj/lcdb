@@ -118,7 +118,7 @@ ldb_basename(const char *fname) {
 int
 ldb_dirname(char *buf, size_t size, const char *fname) {
   const char *base = ldb_basename(fname);
-  size_t pos;
+  size_t len;
 
   if (base == fname) {
     if (size < 2)
@@ -127,26 +127,26 @@ ldb_dirname(char *buf, size_t size, const char *fname) {
     *buf++ = '.';
     *buf++ = '\0';
   } else {
-    pos = (base - 1) - fname;
+    len = base - fname;
 
-    if (pos == 0)
-      pos = 1;
+#if defined(_WIN32)
+    while (len > 0 && (fname[len - 1] == '/' || fname[len - 1] == '\\'))
+      len -= 1;
+#else
+    while (len > 0 && fname[len - 1] == '/')
+      len -= 1;
+#endif
 
-    if (pos + 1 > size)
+    if (len == 0)
+      len = 1;
+
+    if (len + 1 > size)
       return 0;
 
     if (buf != fname)
-      memcpy(buf, fname, pos + 1);
+      memcpy(buf, fname, len);
 
-#if defined(_WIN32)
-    while (pos > 1 && (buf[pos - 1] == '/' || buf[pos - 1] == '\\'))
-      pos -= 1;
-#else
-    while (pos > 1 && buf[pos - 1] == '/')
-      pos -= 1;
-#endif
-
-    buf[pos] = '\0';
+    buf[len] = '\0';
   }
 
   return 1;
