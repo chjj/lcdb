@@ -173,6 +173,7 @@ lcdbutil_SOURCES = src/dbutil.c
 lcdbutil_LDADD = liblcdb.la
 
 bin_PROGRAMS = lcdbutil
+noinst_PROGRAMS =
 
 #
 # Benchmarks
@@ -189,5 +190,18 @@ db_bench_CFLAGS = -I$(top_srcdir)/src
 db_bench_LDFLAGS = -static
 db_bench_LDADD = liblcdb.la @MATHLIB@
 
-noinst_PROGRAMS = db_bench
+noinst_PROGRAMS += db_bench
+endif
+
+#
+# Fuzzer
+#
+
+if ENABLE_FUZZER
+db_fuzz_SOURCES = $(lcdb_sources) contrib/fuzzer.c
+db_fuzz_CFLAGS = -I$(top_srcdir)/src -DLDB_MEMENV \
+                 -fsanitize=fuzzer,address,undefined
+db_fuzz_LDFLAGS = -fsanitize=fuzzer,address,undefined
+
+noinst_PROGRAMS += db_fuzz
 endif

@@ -95,6 +95,14 @@ AC_ARG_ENABLE(
 )
 
 AC_ARG_ENABLE(
+  fuzzer,
+  AS_HELP_STRING([--enable-fuzzer],
+                 [build fuzzer [default=no]]),
+  [enable_fuzzer=$enableval],
+  [enable_fuzzer=no]
+)
+
+AC_ARG_ENABLE(
   lwdb,
   AS_HELP_STRING([--enable-lwdb],
                  [enable lwdb [default=no]]),
@@ -330,6 +338,7 @@ AS_IF([test x"$EMSCRIPTEN" != x''], [
 ])
 
 AM_CONDITIONAL([ENABLE_BENCH], [test x"$enable_bench" = x'yes'])
+AM_CONDITIONAL([ENABLE_FUZZER], [test x"$enable_fuzzer" = x'yes'])
 AM_CONDITIONAL([ENABLE_LWDB], [test x"$enable_lwdb" = x'yes'])
 AM_CONDITIONAL([ENABLE_SHARED], [test x"$enable_shared" = x'yes'])
 AM_CONDITIONAL([ENABLE_TESTS], [test x"$enable_tests" = x'yes'])

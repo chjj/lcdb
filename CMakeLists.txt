@@ -46,6 +46,7 @@ include(GNUInstallDirs)
 
 option(LDB_BENCH "Build benchmarks" OFF)
 option(LDB_COVERAGE "Enable coverage" OFF)
+option(LDB_FUZZER "Enable fuzzer" OFF)
 option(LDB_LWDB "Enable LWDB" OFF)
 option(LDB_PIC "Enable PIC" OFF)
 option(LDB_PORTABLE "Be as portable as possible" OFF)
@@ -389,6 +390,20 @@ if(LDB_BENCH)
   target_include_directories(lcdb_bench PRIVATE ${PROJECT_SOURCE_DIR}/src)
   target_link_libraries(lcdb_bench PRIVATE lcdb lcdb_static ${bench_libs})
   set_property(TARGET lcdb_bench PROPERTY OUTPUT_NAME db_bench)
+endif()
+
+#
+# Fuzzer
+#
+
+if(LDB_FUZZER)
+  add_executable(lcdb_fuzz ${ldb_sources} contrib/fuzzer.c)
+  target_compile_definitions(lcdb_fuzz PRIVATE LDB_MEMENV)
+  target_compile_options(lcdb_fuzz PRIVATE -fsanitize=fuzzer,address,undefined)
+  target_include_directories(lcdb_fuzz PRIVATE ${PROJECT_SOURCE_DIR}/src)
+  target_link_libraries(lcdb_fuzz PRIVATE lcdb)
+  target_link_options(lcdb_fuzz PRIVATE -fsanitize=fuzzer,address,undefined)
+  set_property(TARGET lcdb_fuzz PROPERTY OUTPUT_NAME db_fuzz)
 endif()
 
 #
