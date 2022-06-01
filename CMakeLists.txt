@@ -54,6 +54,12 @@ option(LDB_PTHREAD "Use pthread" ON)
 option(LDB_SHARED "Build shared library" OFF)
 option(LDB_TESTS "Build tests" ON)
 
+if(WASI OR EMSCRIPTEN)
+  set(LDB_INITIAL_MEMORY "16777216" CACHE STRING "WASM initial memory")
+  set(LDB_MAX_MEMORY "2147483648" CACHE STRING "WASM maximum memory")
+  set(LDB_STACK_SIZE "5242880" CACHE STRING "WASM stack size")
+endif()
+
 if(DEFINED MAKO_COVERAGE)
   set(LDB_COVERAGE ${MAKO_COVERAGE})
 endif()
@@ -404,6 +410,42 @@ if(LDB_FUZZER)
   target_link_libraries(lcdb_fuzz PRIVATE lcdb)
   target_link_options(lcdb_fuzz PRIVATE -fsanitize=fuzzer,address,undefined)
   set_property(TARGET lcdb_fuzz PROPERTY OUTPUT_NAME db_fuzz)
+endif()
+
+#
+# Reactor
+#
+
+if(WASI OR EMSCRIPTEN)
+  if(WASI)
+    set(ldb_ldflags -mexec-model=reactor
+                    -Wl,--allow-undefined
+                    -Wl,--initial-memory=${LDB_INITIAL_MEMORY}
+                    -Wl,--max-memory=${LDB_MAX_MEMORY}
+                    -Wl,-z,stack-size=${LDB_STACK_SIZE}
+                    -Wl,--stack-first
+                    -Wl,--export-dynamic
+                    -Wl,--export=malloc
+                    -Wl,--export=free)
+  else()
+    set(ldb_ldflags "SHELL:-s SINGLE_FILE=1"
+                    "SHELL:-s ASSERTIONS=0"
+                    "SHELL:-s NODERAWFS=1"
+                    "SHELL:-s NODEJS_CATCH_EXIT=0"
+                    "SHELL:-s NODEJS_CATCH_REJECTION=0"
+                    "SHELL:-s ALLOW_MEMORY_GROWTH=1"
+                    "SHELL:-s INITIAL_MEMORY=${LDB_INITIAL_MEMORY}"
+                    "SHELL:-s MAXIMUM_MEMORY=${LDB_MAX_MEMORY}"
+                    "SHELL:-s TOTAL_STACK=${LDB_STACK_SIZE}"
+                    "SHELL:-s ENVIRONMENT=node"
+                    "SHELL:-s EXPORTED_FUNCTIONS=@etc/exports.json")
+  endif()
+
+  add_executable(lcdb_reactor ${ldb_sources})
+  target_compile_definitions(lcdb_reactor PRIVATE LDB_EXPORT)
+  target_link_libraries(lcdb_reactor PRIVATE lcdb)
+  target_link_options(lcdb_reactor PRIVATE ${ldb_ldflags})
+  set_property(TARGET lcdb_reactor PROPERTY OUTPUT_NAME lcdb)
 endif()
 
 #

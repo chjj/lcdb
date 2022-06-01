@@ -205,3 +205,53 @@ db_fuzz_LDFLAGS = -fsanitize=fuzzer,address,undefined
 
 noinst_PROGRAMS += db_fuzz
 endif
+
+#
+# WASI
+#
+
+if WASI
+INITIAL_MEMORY = 16777216
+MAX_MEMORY = 2147483648
+STACK_SIZE = 5242880
+
+lcdb_wasm_SOURCES = $(lcdb_sources)
+lcdb_wasm_CFLAGS = -DLDB_EXPORT
+lcdb_wasm_LDFLAGS = -mexec-model=reactor                   \
+                    -Wl,--allow-undefined                  \
+                    -Wl,--initial-memory=$(INITIAL_MEMORY) \
+                    -Wl,--max-memory=$(MAX_MEMORY)         \
+                    -Wl,-z,stack-size=$(STACK_SIZE)        \
+                    -Wl,--stack-first                      \
+                    -Wl,--export-dynamic                   \
+                    -Wl,--export=malloc                    \
+                    -Wl,--export=free
+
+bin_PROGRAMS += lcdb.wasm
+endif
+
+#
+# Emscripten
+#
+
+if EMSCRIPTEN
+INITIAL_MEMORY = 16777216
+MAX_MEMORY = 2147483648
+STACK_SIZE = 5242880
+
+lcdb_js_SOURCES = $(lcdb_sources)
+lcdb_js_CFLAGS = -DLDB_EXPORT
+lcdb_js_LDFLAGS = -s SINGLE_FILE=1                        \
+                  -s ASSERTIONS=0                         \
+                  -s NODERAWFS=1                          \
+                  -s NODEJS_CATCH_EXIT=0                  \
+                  -s NODEJS_CATCH_REJECTION=0             \
+                  -s ALLOW_MEMORY_GROWTH=1                \
+                  -s INITIAL_MEMORY=$(INITIAL_MEMORY)     \
+                  -s MAXIMUM_MEMORY=$(MAX_MEMORY)         \
+                  -s TOTAL_STACK=$(STACK_SIZE)            \
+                  -s ENVIRONMENT=node                     \
+                  -s EXPORTED_FUNCTIONS=@etc/exports.json
+
+bin_PROGRAMS += lcdb.js
+endif

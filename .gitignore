@@ -46,6 +46,7 @@ config.log
 config.status
 configure
 i686-w64-mingw32/
+lcdb.js
 lcdb.pc
 lcdb-*.asc
 lcdb-*.tar.gz
