@@ -29,8 +29,6 @@ pub fn build(b: *std.build.Builder) void {
                           "System install prefix (/usr/local)");
   const enable_bench = b.option(bool, "bench",
                                 "Build benchmarks (false)") orelse false;
-  const enable_coverage = b.option(bool, "coverage",
-                                   "Enable coverage (false)") orelse false;
   const enable_pic = b.option(bool, "pic", "Force PIC (false)");
   const enable_portable = b.option(bool, "portable",
                             "Be as portable as possible (false)") orelse false;
@@ -69,7 +67,7 @@ pub fn build(b: *std.build.Builder) void {
     flags.append("-mmacosx-version-min=10.7") catch unreachable;
   }
 
-  if (b.is_release and mode == .ReleaseFast) {
+  if (mode == .ReleaseFast) {
     flags.append("-O3") catch unreachable;
   }
 
@@ -180,13 +178,6 @@ pub fn build(b: *std.build.Builder) void {
     flags.append(flag) catch unreachable;
   }
 
-  if (enable_coverage) {
-    flags.append("-O0") catch unreachable;
-    flags.append("--coverage") catch unreachable;
-    defines.append("NDEBUG") catch unreachable;
-    libs.append("gcov") catch unreachable;
-  }
-
   if (!target.isNative()) {
     // Ensure we are redistributable on other OSes.
     flags.append("-static-libgcc") catch unreachable;
@@ -203,11 +194,7 @@ pub fn build(b: *std.build.Builder) void {
   //
   // Defines
   //
-  if (enable_coverage) {
-    defines.append("LDB_COVERAGE") catch unreachable;
-  }
-
-  if (!b.is_release) {
+  if (mode == .Debug) {
     defines.append("LDB_DEBUG") catch unreachable;
   }
 
