@@ -13,7 +13,6 @@
 #include <assert.h>
 #include <errno.h>
 #include <limits.h>
-#include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -120,8 +119,13 @@ typedef struct ldb_limiter_s {
   int max_acquires;
 } ldb_limiter_t;
 
+typedef struct ldb_fileid_s {
+  uint64_t dev;
+  uint64_t ino;
+} ldb_fileid_t;
+
 struct ldb_filelock_s {
-  char *path;
+  ldb_fileid_t id;
   int fd;
 };
 
@@ -180,9 +184,17 @@ ldb_limiter_release(ldb_limiter_t *lim) {
  */
 
 static int
-by_string(rb_val_t x, rb_val_t y, void *arg) {
+by_fileid(rb_val_t x, rb_val_t y, void *arg) {
+  const ldb_fileid_t *xp = x.p;
+  const ldb_fileid_t *yp = y.p;
+  int r = LDB_CMP(xp->dev, yp->dev);
+
   (void)arg;
-  return strcmp(x.p, y.p);
+
+  if (r != 0)
+    return r;
+
+  return LDB_CMP(xp->ino, yp->ino);
 }
 
 /*
@@ -715,59 +727,57 @@ ldb_link_file(const char *from, const char *to) {
 
 int
 ldb_lock_file(const char *filename, ldb_filelock_t **lock) {
+  ldb_fileid_t id;
+  struct stat st;
   int fd;
 
   ldb_mutex_lock(&file_mutex);
 
   if (file_set.root == NULL)
-    rb_set_init(&file_set, by_string, NULL);
-
-  if (rb_set_has(&file_set, filename)) {
-    ldb_mutex_unlock(&file_mutex);
-    return LDB_IOERR;
-  }
+    rb_set_init(&file_set, by_fileid, NULL);
 
   fd = ldb_open(filename, O_RDWR | O_CREAT, 0644);
 
-  if (fd < 0) {
-    ldb_mutex_unlock(&file_mutex);
-    return LDB_POSIX_ERROR(errno);
-  }
+  if (fd < 0 || fstat(fd, &st) != 0)
+    goto fail;
 
-  if (!ldb_flock(fd, 1)) {
-    ldb_mutex_unlock(&file_mutex);
-    close(fd);
-    return LDB_IOERR;
-  }
+  id.dev = st.st_dev;
+  id.ino = st.st_ino;
+
+  if (rb_set_has(&file_set, &id) || !ldb_flock(fd, 1))
+    goto fail;
 
   *lock = ldb_malloc(sizeof(ldb_filelock_t));
 
-  (*lock)->path = ldb_strdup(filename);
+  (*lock)->id = id;
   (*lock)->fd = fd;
 
-  rb_set_put(&file_set, (*lock)->path);
+  rb_set_put(&file_set, &(*lock)->id);
 
   ldb_mutex_unlock(&file_mutex);
 
   return LDB_OK;
+fail:
+  if (fd >= 0)
+    close(fd);
+
+  ldb_mutex_unlock(&file_mutex);
+
+  return LDB_IOERR;
 }
 
 int
 ldb_unlock_file(ldb_filelock_t *lock) {
-  int ok = 0;
+  int ok;
 
   ldb_mutex_lock(&file_mutex);
 
-  if (file_set.root && rb_set_has(&file_set, lock->path)) {
-    rb_set_del(&file_set, lock->path);
-    ok = 1;
-  }
+  rb_set_del(&file_set, &lock->id);
 
-  ok &= ldb_flock(lock->fd, 0);
+  ok = ldb_flock(lock->fd, 0);
 
   close(lock->fd);
 
-  ldb_free(lock->path);
   ldb_free(lock);
 
   ldb_mutex_unlock(&file_mutex);

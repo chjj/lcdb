@@ -532,21 +532,16 @@ ldb_lock_file(const char *filename, ldb_filelock_t **lock) {
 
 int
 ldb_unlock_file(ldb_filelock_t *lock) {
-  int rc = LDB_IOERR;
-
   ldb_mutex_lock(&file_mutex);
 
-  if (file_set.root && rb_set_has(&file_set, lock->path)) {
-    rb_set_del(&file_set, lock->path);
-    rc = LDB_OK;
-  }
+  rb_set_del(&file_set, lock->path);
 
   ldb_free(lock->path);
   ldb_free(lock);
 
   ldb_mutex_unlock(&file_mutex);
 
-  return rc;
+  return LDB_OK;
 }
 
 int
