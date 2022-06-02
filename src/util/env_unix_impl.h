@@ -1101,13 +1101,9 @@ int
 ldb_wfile_close(ldb_wfile_t *file) {
   int rc = ldb_wfile_flush(file);
 
-  if (file->dirname != NULL)
-    ldb_free(file->dirname);
-
   if (close(file->fd) < 0 && rc == LDB_OK)
     rc = LDB_IOERR;
 
-  file->dirname = NULL;
   file->fd = -1;
 
   return rc;
@@ -1211,6 +1207,9 @@ ldb_appendfile_create(const char *filename, ldb_wfile_t **file) {
 
 void
 ldb_wfile_destroy(ldb_wfile_t *file) {
+  if (file->dirname != NULL)
+    ldb_free(file->dirname);
+
   if (file->fd >= 0)
     close(file->fd);
 
