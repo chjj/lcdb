@@ -1470,7 +1470,7 @@ test_approximate_offset_compressed(void) {
   ASSERT(check_range(ctor_approximate_offset(c, "k04"), min_z, max_z));
   /* Emitted two large compressible strings, so adjust expected offset. */
   ASSERT(check_range(ctor_approximate_offset(c, "xyz"), 2 * min_z,
-                                                          2 * max_z));
+                                                        2 * max_z));
 
   ldb_vector_clear(&keys);
   ldb_buffer_clear(&val);
