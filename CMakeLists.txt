@@ -254,8 +254,8 @@ if(MINGW)
   list(APPEND ldb_ldflags -static-libgcc)
   # Much compatibility.
   if(LDB_PORTABLE AND MINGW_ARCH STREQUAL "i686")
-    list(APPEND ldb_cflags -march=i486 -mtune=i686)
-    list(APPEND ldb_ldflags -march=i486 -mtune=i686)
+    list(APPEND ldb_cflags -march=i586 -mtune=i686)
+    list(APPEND ldb_ldflags -march=i586 -mtune=i686)
   endif()
 endif()
 
