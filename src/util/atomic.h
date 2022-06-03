@@ -15,42 +15,40 @@
  * Compiler Compat
  */
 
-/* Ignore the GCC impersonators. */
-#if defined(__GNUC__) && !defined(__clang__)        \
-                      && !defined(__llvm__)         \
-                      && !defined(__INTEL_COMPILER) \
-                      && !defined(__ICC)            \
-                      && !defined(__CC_ARM)         \
-                      && !defined(__TINYC__)        \
-                      && !defined(__PCC__)          \
-                      && !defined(__NWCC__)
-#  define LDB_GNUC_REAL LDB_GNUC_PREREQ
-#else
-#  define LDB_GNUC_REAL(maj, min) 0
-#endif
-
-#if LDB_GNUC_REAL(4, 7)
+#if defined(__clang__)
+#  if defined(__ATOMIC_RELAXED)
+#    define LDB_CLANG_ATOMICS
+#  elif __clang_major__ >= 3
+#    define LDB_GNUC_ATOMICS
+#  endif
+#elif defined(__INTEL_COMPILER) || defined(__ICC)
+#  if __INTEL_COMPILER >= 1100
+#    define LDB_GNUC_ATOMICS
+#  endif
+#elif defined(__CC_ARM)
+/* Unknown. */
+#elif defined(__TINYC__) || defined(__PCC__) || defined(__NWCC__)
+/* Nothing. */
+#elif LDB_GNUC_PREREQ(4, 7)
 #  define LDB_CLANG_ATOMICS
-#elif LDB_GNUC_REAL(4, 6) && defined(__arm__)
+#elif LDB_GNUC_PREREQ(4, 6) && defined(__arm__)
 #  define LDB_GNUC_ATOMICS
-#elif LDB_GNUC_REAL(4, 5) && defined(__BFIN__)
+#elif LDB_GNUC_PREREQ(4, 5) && defined(__BFIN__)
 #  define LDB_GNUC_ATOMICS
-#elif LDB_GNUC_REAL(4, 3) && (defined(__mips__) || defined(__xtensa__))
+#elif LDB_GNUC_PREREQ(4, 3) && (defined(__mips__) || defined(__xtensa__))
 #  define LDB_GNUC_ATOMICS
-#elif LDB_GNUC_REAL(4, 2) && (defined(__sh__) || defined(__sparc__))
+#elif LDB_GNUC_PREREQ(4, 2) && (defined(__sh__) || defined(__sparc__))
 #  define LDB_GNUC_ATOMICS
-#elif LDB_GNUC_REAL(4, 1) && (defined(__alpha__)  \
-                           || defined(__i386__)   \
-                           || defined(__amd64__)  \
-                           || defined(__x86_64__) \
-                           || defined(_IBMR2)     \
-                           || defined(__s390__)   \
-                           || defined(__s390x__))
+#elif LDB_GNUC_PREREQ(4, 1) && (defined(__alpha__)  \
+                             || defined(__i386__)   \
+                             || defined(__x86_64__) \
+                             || defined(__amd64__)  \
+                             || defined(_IBMR2)     \
+                             || defined(__s390__)   \
+                             || defined(__s390x__))
 #  define LDB_GNUC_ATOMICS
-#elif LDB_GNUC_REAL(3, 0) && defined(__ia64__)
+#elif LDB_GNUC_PREREQ(3, 0) && defined(__ia64__)
 #  define LDB_GNUC_ATOMICS
-#elif defined(__clang__) && defined(__ATOMIC_RELAXED)
-#  define LDB_CLANG_ATOMICS
 #elif defined(_WIN32)
 #  define LDB_MSVC_ATOMICS
 #endif
