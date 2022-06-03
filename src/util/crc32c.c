@@ -18,6 +18,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
+
 #include "coding.h"
 #include "crc32c.h"
 #include "internal.h"
@@ -26,37 +27,58 @@
  * Compat
  */
 
-#undef HAVE_X86_64
-#undef HAVE_INSTR
+#undef HAVE_X64_CRC
+#undef HAVE_X64_ASM
+#undef HAVE_X64_INSTR
+#undef HAVE_X64_INTRIN
 #undef HAVE_ATOMICS
 #undef HAVE_PREFETCH
 
-#if LDB_GNUC_PREREQ(4, 1) || defined(__TINYC__)
-#  if defined(__x86_64__) || defined(__amd64__)
-#    define HAVE_X86_64
-#    define HAVE_INSTR
-#    define HAVE_ATOMICS
-#    define HAVE_PREFETCH
-#  endif
-#elif defined(__clang__) && defined(_WIN32)
-#  if defined(_M_X64) || defined(_M_AMD64)
-#    define HAVE_X86_64
-#    define HAVE_INSTR
-#    define HAVE_ATOMICS
+#if defined(__x86_64__) || defined(_M_X64)
+#  if defined(__clang__)
+#    if __clang_major__ >= 3 /* Works with Apple Clang. */
+#      define HAVE_X64_ASM /* Clang 2.0 (May 2007) */
+#      define HAVE_ATOMICS /* Clang 2.3 (Jun 2008) */
+#      define HAVE_PREFETCH /* Clang 2.3 (Jun 2008) */
+#    endif
+#  elif defined(__INTEL_COMPILER) || defined(__ICC)
+#    if __INTEL_COMPILER >= 1100 /* ICC 11.0 (Nov 2008) */
+#      define HAVE_X64_ASM
+#      define HAVE_ATOMICS
+#      define HAVE_PREFETCH
+#    endif
+#  elif defined(__TINYC__) || defined(__PCC__)
+#    define HAVE_X64_ASM
+#  elif defined(__NWCC__)
+/* Nothing. */
+#  elif defined(__GNUC__)
+#    if LDB_GNUC_PREREQ(3, 0)
+#      define HAVE_X64_ASM
+#    endif
+#    if LDB_GNUC_PREREQ(4, 1)
+#      define HAVE_X64_INSTR
+#      define HAVE_ATOMICS
+#    endif
+#    if LDB_GNUC_PREREQ(3, 1)
+#      define HAVE_PREFETCH
+#    endif
+#  elif defined(_MSC_VER) && defined(__AVX__) /* /arch:AVX */
+#    include <intrin.h>
+#    define HAVE_X64_INTRIN
 #    define HAVE_PREFETCH
 #  endif
 #endif
 
-#if defined(HAVE_PREFETCH) && defined(__has_builtin)
-#  if !__has_builtin(__builtin_prefetch)
-#    undef HAVE_PREFETCH
-#  endif
+#if defined(HAVE_X64_ASM) || defined(HAVE_X64_INTRIN)
+#  define HAVE_X64_CRC
 #endif
 
-#if defined(__TINYC__) || defined(__PCC__)
-#  undef HAVE_INSTR
-#  undef HAVE_ATOMICS
-#  undef HAVE_PREFETCH
+#ifdef HAVE_PREFETCH
+#  ifdef HAVE_X64_INTRIN
+#    define request_prefetch(p) _mm_prefetch((const char *)(p), _MM_HINT_NTA)
+#  else
+#    define request_prefetch(p) __builtin_prefetch(p, 0, 0)
+#  endif
 #endif
 
 /*
@@ -400,8 +422,9 @@ static const uint32_t stride_ext_table_3[256] = {
 
 /* CRCs are pre- and post- conditioned by xoring with all ones. */
 #define CRC32_XOR UINT32_C(0xffffffff)
+#define PREFETCH_HORIZON 256
 
-#ifdef HAVE_X86_64
+#ifdef HAVE_X64_CRC
 
 static const uint32_t block0_skip_table[8][16] = {
   {0x00000000, 0xff770459, 0xfb027e43, 0x04757a1a,
@@ -512,9 +535,8 @@ static const uint32_t block2_skip_table[8][16] = {
 #define BLOCK0_SIZE (16 * 1024 / BLOCK_GROUPS / 64 * 64)
 #define BLOCK1_SIZE (4 * 1024 / BLOCK_GROUPS / 8 * 8)
 #define BLOCK2_SIZE (1024 / BLOCK_GROUPS / 8 * 8)
-#define PREFETCH_HORIZON 256
 
-#endif /* HAVE_X86_64 */
+#endif /* HAVE_X64_CRC */
 
 /*
  * Helpers
@@ -594,9 +616,17 @@ crc32c_generic(uint32_t z, const uint8_t *xp, size_t xn) {
 
     p += 16;
 
-    /* It is possible to get better speeds (at least on x86) by interleaving
-       prefetching 256 bytes ahead with processing 64 bytes at a time. See the
-       portable implementation in https://github.com/google/crc32c/. */
+#ifdef HAVE_PREFETCH
+    while ((e - p) > PREFETCH_HORIZON) {
+      request_prefetch(p + PREFETCH_HORIZON);
+
+      /* Process 64 bytes at a time. */
+      STEP16;
+      STEP16;
+      STEP16;
+      STEP16;
+    }
+#endif
 
     /* Process one 16-byte swath at a time. */
     while ((e - p) >= 16)
@@ -643,17 +673,14 @@ static uint32_t
  * CRC32C (Hardware)
  */
 
-#ifdef HAVE_X86_64
-
-#ifdef HAVE_PREFETCH
-#define request_prefetch(p) __builtin_prefetch(p, 0, 0)
-#else
-#define request_prefetch(p) ((void)(p))
-#endif
+#ifdef HAVE_X64_CRC
 
 #define asm_load64(p) (*((const uint64_t *)(const void *)(p)))
 
-#ifdef HAVE_INSTR
+#if defined(HAVE_X64_INTRIN)
+#define asm_crc32_u8(z, x) ((z) = _mm_crc32_u8(z, x))
+#define asm_crc32_u64(z, x) ((z) = _mm_crc32_u64(z, x))
+#elif defined(HAVE_X64_INSTR)
 #define asm_crc32_u8(z, x) \
   __asm__ __volatile__ (   \
     "crc32b %b1, %q0\n"    \
@@ -666,7 +693,7 @@ static uint32_t
     : "+r" (z)              \
     : "rm" (x)              \
   )
-#else /* !HAVE_INSTR */
+#else /* !HAVE_X64_INSTR */
 #define asm_crc32_u8(z, x)                       \
   __asm__ __volatile__ (                         \
     /* crc32 %dl, %rax */                        \
@@ -681,7 +708,7 @@ static uint32_t
     : "+a" (z)                                   \
     : "d" (x)                                    \
   )
-#endif /* !HAVE_INSTR */
+#endif /* !HAVE_X64_INSTR */
 
 static uint32_t
 crc32c_sse42(uint32_t z, const uint8_t *xp, size_t xn) {
@@ -729,6 +756,7 @@ crc32c_sse42(uint32_t z, const uint8_t *xp, size_t xn) {
      sizes where possible so use a hierarchy of decreasing block sizes. */
   l64 = l;
 
+#ifdef HAVE_PREFETCH
   while ((e - p) >= BLOCK_GROUPS * BLOCK0_SIZE /* 16384 */) {
     uint64_t l641 = 0;
     uint64_t l642 = 0;
@@ -758,6 +786,7 @@ crc32c_sse42(uint32_t z, const uint8_t *xp, size_t xn) {
     l64 ^= l642;
     p += (BLOCK_GROUPS - 1) * BLOCK0_SIZE;
   }
+#endif
 
   while ((e - p) >= BLOCK_GROUPS * BLOCK1_SIZE /* 4096 */) {
     uint64_t l641 = 0;
@@ -811,6 +840,11 @@ crc32c_sse42(uint32_t z, const uint8_t *xp, size_t xn) {
 
 static int
 has_sse42(void) {
+#if defined(HAVE_X64_INTRIN)
+  unsigned int regs[4];
+  __cpuid((int *)regs, 1);
+  return (regs[2] >> 20) & 1;
+#elif defined(HAVE_X64_ASM)
   uint64_t a = 1;
   uint64_t c = 0;
   uint64_t b;
@@ -825,6 +859,9 @@ has_sse42(void) {
   );
 
   return (c >> 20) & 1;
+#else
+  return 0;
+#endif
 }
 
 static int
@@ -835,13 +872,19 @@ can_accelerate(void) {
 
 int
 ldb_crc32c_init(void) {
-  static volatile int state = 0;
+  static volatile long state = 0;
   static int result = 0;
   int value;
 
-#ifdef HAVE_ATOMICS
-  while ((value = __sync_val_compare_and_swap(&state, 0, 1)) == 1)
+#if defined(HAVE_X64_INTRIN)
+  while ((value = _InterlockedCompareExchange(&state, 1, 0)) == 1)
+    _mm_pause();
+#elif defined(HAVE_ATOMICS)
+  while ((value = __sync_val_compare_and_swap(&state, 0, 1)) == 1) {
+#  ifdef HAVE_X64_ASM
     __asm__ __volatile__ ("pause\n" ::: "memory");
+#  endif
+  }
 #else
   value = state;
 #endif
@@ -852,7 +895,10 @@ ldb_crc32c_init(void) {
       result = 1;
     }
 
-#ifdef HAVE_ATOMICS
+#if defined(HAVE_X64_INTRIN)
+    if (_InterlockedExchange(&state, 2) != 1)
+      abort(); /* LCOV_EXCL_LINE */
+#elif defined(HAVE_ATOMICS)
     if (__sync_lock_test_and_set(&state, 2) != 1)
       abort(); /* LCOV_EXCL_LINE */
 #else
@@ -865,14 +911,14 @@ ldb_crc32c_init(void) {
   return result;
 }
 
-#else /* !HAVE_X86_64 */
+#else /* !HAVE_X64_CRC */
 
 int
 ldb_crc32c_init(void) {
   return 0;
 }
 
-#endif /* !HAVE_X86_64 */
+#endif /* !HAVE_X64_CRC */
 
 uint32_t
 ldb_crc32c_extend(uint32_t z, const uint8_t *xp, size_t xn) {
