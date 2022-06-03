@@ -24,7 +24,7 @@
 #include "internal.h"
 
 /*
- * Compat
+ * Compat (x86-64)
  */
 
 #undef HAVE_X64_CRC
@@ -79,6 +79,48 @@
 #  else
 #    define request_prefetch(p) __builtin_prefetch(p, 0, 0)
 #  endif
+#endif
+
+/*
+ * Compat (aarch64)
+ */
+
+#undef HAVE_ARM64_CRC
+#undef HAVE_ARMV81A
+#undef HAVE_CAPCHECK
+
+/* Check for -march=armv8-a+crc or -march=armv8.1-a. */
+#if defined(__aarch64__) && defined(__ARM_ARCH) && __ARM_ARCH >= 8
+#  if defined(__ARM_FP) && defined(__ARM_NEON) && defined(__ARM_FEATURE_CRC32)
+#    define HAVE_ARMV81A
+#  endif
+#endif
+
+#ifdef HAVE_ARMV81A
+#  if defined(__linux__)
+#    if defined(__ANDROID__)
+unsigned long getauxval(unsigned long) __attribute__((weak));
+#      define AT_HWCAP 16
+#      define HAVE_CAPCHECK
+#    elif !defined(__UCLIBC__)
+#      include <sys/auxv.h>
+#      define HAVE_CAPCHECK
+#    endif
+#    define CRC32_CAPMASK ((1 << 4) | (1 << 7)) /* (HWCAP_PMULL|HWCAP_CRC32) */
+#  elif defined(__APPLE__)
+#    include <sys/types.h>
+#    include <sys/sysctl.h>
+#    define HAVE_CAPCHECK
+#  endif
+#endif
+
+#if defined(HAVE_ARMV81A) && defined(HAVE_CAPCHECK)
+#  include <arm_acle.h>
+#  include <arm_neon.h>
+#  ifdef LDB_PTHREAD
+#    include <pthread.h>
+#  endif
+#  define HAVE_ARM64_CRC
 #endif
 
 /*
@@ -673,7 +715,7 @@ static uint32_t
  * CRC32C (Hardware)
  */
 
-#ifdef HAVE_X64_CRC
+#if defined(HAVE_X64_CRC)
 
 #define asm_load64(p) (*((const uint64_t *)(const void *)(p)))
 
@@ -911,14 +953,173 @@ ldb_crc32c_init(void) {
   return result;
 }
 
-#else /* !HAVE_X64_CRC */
+#elif defined(HAVE_ARM64_CRC)
+
+#define KBYTES 1032
+#define SEGMENTBYTES 256
+
+#define cast16(p) ((const uint16_t *)(const void *)(p))
+#define cast32(p) ((const uint32_t *)(const void *)(p))
+#define cast64(p) ((const uint64_t *)(const void *)(p))
+
+/* Compute 8bytes for each segment parallelly. */
+#define CRC32C32BYTES(P, IND) do {                        \
+  crc1 = __crc32cd(                                       \
+    crc1, *(cast64(P) + (SEGMENTBYTES / 8) * 1 + (IND))); \
+  crc2 = __crc32cd(                                       \
+    crc2, *(cast64(P) + (SEGMENTBYTES / 8) * 2 + (IND))); \
+  crc3 = __crc32cd(                                       \
+    crc3, *(cast64(P) + (SEGMENTBYTES / 8) * 3 + (IND))); \
+  crc0 = __crc32cd(                                       \
+    crc0, *(cast64(P) + (SEGMENTBYTES / 8) * 0 + (IND))); \
+} while (0)
+
+/* Compute 8*8 bytes for each segment parallelly. */
+#define CRC32C256BYTES(P, IND) do {  \
+  CRC32C32BYTES((P), (IND) * 8 + 0); \
+  CRC32C32BYTES((P), (IND) * 8 + 1); \
+  CRC32C32BYTES((P), (IND) * 8 + 2); \
+  CRC32C32BYTES((P), (IND) * 8 + 3); \
+  CRC32C32BYTES((P), (IND) * 8 + 4); \
+  CRC32C32BYTES((P), (IND) * 8 + 5); \
+  CRC32C32BYTES((P), (IND) * 8 + 6); \
+  CRC32C32BYTES((P), (IND) * 8 + 7); \
+} while (0)
+
+/* Compute 4*8*8 bytes for each segment parallelly. */
+#define CRC32C1024BYTES(P) do { \
+  CRC32C256BYTES((P), 0);       \
+  CRC32C256BYTES((P), 1);       \
+  CRC32C256BYTES((P), 2);       \
+  CRC32C256BYTES((P), 3);       \
+  (P) += 4 * SEGMENTBYTES;      \
+} while (0)
+
+static uint32_t
+crc32c_arm64(uint32_t z, const uint8_t *xp, size_t xn) {
+  const poly64_t k0 = 0x8d96551c;
+  const poly64_t k1 = 0xbd6f81f8;
+  const poly64_t k2 = 0xdcb17aa4;
+  uint32_t crc0, crc1, crc2, crc3;
+  uint64_t t0, t1, t2;
+  const uint8_t *sp;
+
+  z ^= CRC32_XOR;
+
+  /* Point sp at first 8-byte aligned byte in the buffer.
+     This might be past the end of the buffer. */
+  sp = round_up(xp, 8);
+
+  if (sp <= xp + xn) {
+    /* Process bytes xp is 8-byte aligned. */
+    while (xp != sp) {
+      z = __crc32cb(z, *xp);
+      xp += 1;
+      xn -= 1;
+    }
+  }
+
+  while (xn >= KBYTES) {
+    crc0 = z;
+    crc1 = 0;
+    crc2 = 0;
+    crc3 = 0;
+
+    /* Process 1024 bytes in parallel. */
+    CRC32C1024BYTES(xp);
+
+    /* Merge the 4 partial CRC32C values. */
+    t2 = (uint64_t)vmull_p64(crc2, k2);
+    t1 = (uint64_t)vmull_p64(crc1, k1);
+    t0 = (uint64_t)vmull_p64(crc0, k0);
+    z = __crc32cd(crc3, *cast64(xp));
+    xp += sizeof(uint64_t);
+    z ^= __crc32cd(0, t2);
+    z ^= __crc32cd(0, t1);
+    z ^= __crc32cd(0, t0);
+
+    xn -= KBYTES;
+  }
+
+  while (xn >= 8) {
+    z = __crc32cd(z, *cast64(xp));
+    xp += 8;
+    xn -= 8;
+  }
+
+  if (xn & 4) {
+    z = __crc32cw(z, *cast32(xp));
+    xp += 4;
+  }
+
+  if (xn & 2) {
+    z = __crc32ch(z, *cast16(xp));
+    xp += 2;
+  }
+
+  if (xn & 1)
+    z = __crc32cb(z, *xp);
+
+  return z ^ CRC32_XOR;
+}
+
+static int
+has_armv8_crc32(void) {
+#if defined(__linux__)
+#ifdef __ANDROID__
+  unsigned long hwcap = (&getauxval != NULL) ? getauxval(AT_HWCAP) : 0;
+#else
+  unsigned long hwcap = getauxval(AT_HWCAP);
+#endif
+  return (hwcap & CRC32_CAPMASK) == CRC32_CAPMASK;
+#elif defined(__APPLE__)
+  size_t len = sizeof(int);
+  int val = 0;
+
+  if (sysctlbyname("hw.optional.armv8_crc32", &val, &len, NULL, 0) != 0)
+    return 0;
+
+  return val != 0;
+#else
+  return 0;
+#endif
+}
+
+static void
+crc32c_install(void) {
+  static const uint8_t buf[] = "TestCRCBuffer";
+
+  if (has_armv8_crc32()) {
+    uint32_t c = crc32c_arm64(0, buf, sizeof(buf) - 1);
+
+    if (c == 0xdcbc59fa)
+      crc32c_extend = &crc32c_arm64;
+  }
+}
+
+int
+ldb_crc32c_init(void) {
+#if defined(LDB_PTHREAD)
+  static pthread_once_t guard = PTHREAD_ONCE_INIT;
+  pthread_once(&guard, crc32c_install);
+#else
+  static int guard = 0;
+  if (guard == 0) {
+    crc32c_install();
+    guard = 1;
+  }
+#endif
+  return crc32c_extend == &crc32c_arm64;
+}
+
+#else /* !HAVE_ARM64_CRC */
 
 int
 ldb_crc32c_init(void) {
   return 0;
 }
 
-#endif /* !HAVE_X64_CRC */
+#endif /* !HAVE_ARM64_CRC */
 
 uint32_t
 ldb_crc32c_extend(uint32_t z, const uint8_t *xp, size_t xn) {
