@@ -95,20 +95,20 @@ ldb_cond_wait(ldb_cond_t *cond, ldb_mutex_t *mtx) {
 /* Set a sane stack size for thread (from libuv). */
 #if defined(__APPLE__) || defined(__linux__)
 static size_t
-thread_stack_size(void) {
+ldb_thread_stack_size(void) {
   struct rlimit lim;
 
-  if (getrlimit(RLIMIT_STACK, &lim) != 0)
-    abort(); /* LCOV_EXCL_LINE */
+  if (getrlimit(RLIMIT_STACK, &lim) == 0 && lim.rlim_cur != RLIM_INFINITY) {
+    rlim_t stack_min = 8192;
 
-  if (lim.rlim_cur != RLIM_INFINITY) {
+#ifdef PTHREAD_STACK_MIN
+    if (stack_min < (rlim_t)PTHREAD_STACK_MIN)
+      stack_min = PTHREAD_STACK_MIN;
+#endif
+
     lim.rlim_cur -= (lim.rlim_cur % (rlim_t)getpagesize());
 
-#if defined(PTHREAD_STACK_MIN)
-    if (lim.rlim_cur >= (rlim_t)PTHREAD_STACK_MIN)
-#else
-    if (lim.rlim_cur >= (16 << 10))
-#endif
+    if (lim.rlim_cur >= stack_min)
       return lim.rlim_cur;
   }
 
@@ -139,7 +139,7 @@ ldb_thread_create(ldb_thread_t *thread, void (*start)(void *), void *arg) {
   pthread_attr_t *attr = NULL;
 
 #if defined(__APPLE__) || defined(__linux__)
-  size_t stack_size = thread_stack_size();
+  size_t stack_size = ldb_thread_stack_size();
   pthread_attr_t tmp;
 
   if (stack_size > 0) {
@@ -158,6 +158,11 @@ ldb_thread_create(ldb_thread_t *thread, void (*start)(void *), void *arg) {
 
   if (pthread_create(&thread->handle, attr, ldb_thread_run, args) != 0)
     abort(); /* LCOV_EXCL_LINE */
+
+#if defined(__APPLE__) || defined(__linux__)
+  if (attr != NULL)
+    pthread_attr_destroy(attr);
+#endif
 }
 
 void
