@@ -49,12 +49,19 @@
 #  define LDB_GNUC_ATOMICS
 #elif LDB_GNUC_PREREQ(3, 0) && defined(__ia64__)
 #  define LDB_GNUC_ATOMICS
+#elif defined(__sun) && defined(__SVR4)
+#  if defined(__SUNPRO_C) && __SUNPRO_C >= 0x5110 /* Sun Studio 12.2 */
+#    include <atomic.h>
+#    include <mbarrier.h>
+#    define LDB_SUN_ATOMICS
+#  endif
 #elif defined(_WIN32)
 #  define LDB_MSVC_ATOMICS
 #endif
 
 #if (defined(LDB_CLANG_ATOMICS) \
   || defined(LDB_GNUC_ATOMICS)  \
+  || defined(LDB_SUN_ATOMICS)   \
   || defined(LDB_MSVC_ATOMICS))
 #  define LDB_HAVE_ATOMICS
 #endif
@@ -63,7 +70,7 @@
  * Backend Selection
  */
 
-#if defined(LDB_MSVC_ATOMICS)
+#if defined(LDB_SUN_ATOMICS) || defined(LDB_MSVC_ATOMICS)
 #  define ldb_atomic(type) volatile long
 #  define ldb_atomic_ptr(type) void *volatile
 #elif defined(LDB_HAVE_ATOMICS)
@@ -152,6 +159,38 @@
 } while (0)
 
 #define ldb_atomic_load_ptr ldb_atomic_load
+#define ldb_atomic_store_ptr ldb_atomic_store
+
+#elif defined(LDB_SUN_ATOMICS)
+
+#define ldb_atomic_add_long_nv(object, operand) \
+  ((long)atomic_add_long_nv((volatile unsigned long *)(object), operand))
+
+#define ldb_atomic_fetch_add(object, operand, order) \
+  (ldb_atomic_add_long_nv(object, operand) - (operand))
+
+#define ldb_atomic_fetch_sub(object, operand, order) \
+  ldb_atomic_fetch_add(object, -(operand))
+
+static inline long
+ldb_atomic_load(volatile long *object, int order) {
+  (void)order;
+  __machine_rw_barrier();
+  return *object;
+}
+
+#define ldb_atomic_store(object, desired, order) do { \
+  *(object) = (desired);                              \
+  __machine_rw_barrier();                             \
+} while (0)
+
+static inline void *
+ldb_atomic_load_ptr(void *volatile *object, int order) {
+  (void)order;
+  __machine_rw_barrier();
+  return *object;
+}
+
 #define ldb_atomic_store_ptr ldb_atomic_store
 
 #elif defined(LDB_MSVC_ATOMICS)
