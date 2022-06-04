@@ -22,7 +22,7 @@
 #    define LDB_GNUC_ATOMICS
 #  endif
 #elif defined(__INTEL_COMPILER) || defined(__ICC)
-#  if __INTEL_COMPILER >= 1100
+#  if __INTEL_COMPILER >= 1100 /* 11.0 */
 #    define LDB_GNUC_ATOMICS
 #  endif
 #elif defined(__CC_ARM)
@@ -50,7 +50,7 @@
 #elif LDB_GNUC_PREREQ(3, 0) && defined(__ia64__)
 #  define LDB_GNUC_ATOMICS
 #elif defined(__sun) && defined(__SVR4)
-#  if defined(__SUNPRO_C) && __SUNPRO_C >= 0x5110 /* Sun Studio 12.2 */
+#  if defined(__SUNPRO_C) && __SUNPRO_C >= 0x5110 /* 12.2 */
 #    include <atomic.h>
 #    include <mbarrier.h>
 #    define LDB_SUN_ATOMICS
@@ -70,16 +70,16 @@
  * Backend Selection
  */
 
-#if defined(LDB_SUN_ATOMICS) || defined(LDB_MSVC_ATOMICS)
-#  define ldb_atomic(type) volatile long
-#  define ldb_atomic_ptr(type) void *volatile
-#elif defined(LDB_HAVE_ATOMICS)
+#if defined(LDB_CLANG_ATOMICS) || defined(LDB_GNUC_ATOMICS)
 #  define ldb_atomic(type) volatile type
 #  define ldb_atomic_ptr(type) type *volatile
-#else /* !LDB_HAVE_ATOMICS */
+#elif defined(LDB_SUN_ATOMICS) || defined(LDB_MSVC_ATOMICS)
+#  define ldb_atomic(type) volatile long
+#  define ldb_atomic_ptr(type) void *volatile
+#else
 #  define ldb_atomic(type) long
 #  define ldb_atomic_ptr(type) void *
-#endif /* !LDB_HAVE_ATOMICS */
+#endif
 
 /*
  * Memory Order
@@ -167,17 +167,19 @@
   ((long)atomic_add_long_nv((volatile unsigned long *)(object), operand))
 
 #define ldb_atomic_fetch_add(object, operand, order) \
-  (ldb_atomic_add_long_nv(object, operand) - (operand))
+  (ldb_atomic_add_long_nv(object, operand) - (long)(operand))
 
 #define ldb_atomic_fetch_sub(object, operand, order) \
-  ldb_atomic_fetch_add(object, -(operand))
+  ldb_atomic_fetch_add(object, -((long)(operand)))
 
 static inline long
-ldb_atomic_load(volatile long *object, int order) {
-  (void)order;
+ldb_atomic__load(volatile long *object) {
   __machine_rw_barrier();
   return *object;
 }
+
+#define ldb_atomic_load(object, order) \
+  ldb_atomic__load((volatile long *)(object))
 
 #define ldb_atomic_store(object, desired, order) do { \
   *(object) = (desired);                              \
@@ -185,11 +187,13 @@ ldb_atomic_load(volatile long *object, int order) {
 } while (0)
 
 static inline void *
-ldb_atomic_load_ptr(void *volatile *object, int order) {
-  (void)order;
+ldb_atomic__load_ptr(void *volatile *object) {
   __machine_rw_barrier();
   return *object;
 }
+
+#define ldb_atomic_load_ptr(object, order) \
+  ldb_atomic__load_ptr((void *volatile *)(object))
 
 #define ldb_atomic_store_ptr ldb_atomic_store
 
@@ -214,7 +218,7 @@ ldb_atomic__store_ptr(void *volatile *object, void *desired);
   ldb_atomic__fetch_add(object, operand)
 
 #define ldb_atomic_fetch_sub(object, operand, order) \
-  ldb_atomic__fetch_add(object, -(operand))
+  ldb_atomic__fetch_add(object, -((long)(operand)))
 
 #define ldb_atomic_load(object, order) \
   ldb_atomic__load((volatile long *)(object))
@@ -249,7 +253,7 @@ ldb_atomic__store_ptr(void **object, void *desired);
   ldb_atomic__fetch_add(object, operand)
 
 #define ldb_atomic_fetch_sub(object, operand, order) \
-  ldb_atomic__fetch_add(object, -(operand))
+  ldb_atomic__fetch_add(object, -((long)(operand)))
 
 #define ldb_atomic_load(object, order) \
   ldb_atomic__load((long *)(object))
