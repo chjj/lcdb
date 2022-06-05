@@ -19,11 +19,11 @@
 #  if defined(__ATOMIC_RELAXED)
 #    define LDB_CLANG_ATOMICS
 #  elif __clang_major__ >= 3
-#    define LDB_GNUC_ATOMICS
+#    define LDB_SYNC_ATOMICS
 #  endif
 #elif defined(__INTEL_COMPILER) || defined(__ICC)
 #  if __INTEL_COMPILER >= 1100 /* 11.0 */
-#    define LDB_GNUC_ATOMICS
+#    define LDB_SYNC_ATOMICS
 #  endif
 #elif defined(__CC_ARM)
 /* Unknown. */
@@ -32,13 +32,13 @@
 #elif LDB_GNUC_PREREQ(4, 7)
 #  define LDB_CLANG_ATOMICS
 #elif LDB_GNUC_PREREQ(4, 6) && defined(__arm__)
-#  define LDB_GNUC_ATOMICS
+#  define LDB_SYNC_ATOMICS
 #elif LDB_GNUC_PREREQ(4, 5) && defined(__BFIN__)
-#  define LDB_GNUC_ATOMICS
+#  define LDB_SYNC_ATOMICS
 #elif LDB_GNUC_PREREQ(4, 3) && (defined(__mips__) || defined(__xtensa__))
-#  define LDB_GNUC_ATOMICS
+#  define LDB_SYNC_ATOMICS
 #elif LDB_GNUC_PREREQ(4, 2) && (defined(__sh__) || defined(__sparc__))
-#  define LDB_GNUC_ATOMICS
+#  define LDB_SYNC_ATOMICS
 #elif LDB_GNUC_PREREQ(4, 1) && (defined(__alpha__)  \
                              || defined(__i386__)   \
                              || defined(__x86_64__) \
@@ -46,9 +46,9 @@
                              || defined(_IBMR2)     \
                              || defined(__s390__)   \
                              || defined(__s390x__))
-#  define LDB_GNUC_ATOMICS
+#  define LDB_SYNC_ATOMICS
 #elif LDB_GNUC_PREREQ(3, 0) && defined(__ia64__)
-#  define LDB_GNUC_ATOMICS
+#  define LDB_SYNC_ATOMICS
 #elif defined(__sun) && defined(__SVR4)
 #  if defined(__SUNPRO_C) && __SUNPRO_C >= 0x5110 /* 12.2 */
 #    include <atomic.h>
@@ -60,7 +60,7 @@
 #endif
 
 #if (defined(LDB_CLANG_ATOMICS) \
-  || defined(LDB_GNUC_ATOMICS)  \
+  || defined(LDB_SYNC_ATOMICS)  \
   || defined(LDB_SUN_ATOMICS)   \
   || defined(LDB_MSVC_ATOMICS))
 #  define LDB_HAVE_ATOMICS
@@ -70,7 +70,7 @@
  * Backend Selection
  */
 
-#if defined(LDB_CLANG_ATOMICS) || defined(LDB_GNUC_ATOMICS)
+#if defined(LDB_CLANG_ATOMICS) || defined(LDB_SYNC_ATOMICS)
 #  define ldb_atomic(type) volatile type
 #  define ldb_atomic_ptr(type) type *volatile
 #elif defined(LDB_SUN_ATOMICS) || defined(LDB_MSVC_ATOMICS)
@@ -127,22 +127,14 @@
 
 #if defined(LDB_CLANG_ATOMICS)
 
-#define ldb_atomic_fetch_add(object, operand, order) \
-  __atomic_fetch_add(object, operand, order)
+#define ldb_atomic_fetch_add __atomic_fetch_add
+#define ldb_atomic_fetch_sub __atomic_fetch_sub
+#define ldb_atomic_load __atomic_load_n
+#define ldb_atomic_store __atomic_store_n
+#define ldb_atomic_load_ptr __atomic_load_n
+#define ldb_atomic_store_ptr __atomic_store_n
 
-#define ldb_atomic_fetch_sub(object, operand, order) \
-  __atomic_fetch_sub(object, operand, order)
-
-#define ldb_atomic_load(object, order) \
-  __atomic_load_n(object, order)
-
-#define ldb_atomic_store(object, desired, order) \
-  __atomic_store_n(object, desired, order)
-
-#define ldb_atomic_load_ptr ldb_atomic_load
-#define ldb_atomic_store_ptr ldb_atomic_store
-
-#elif defined(LDB_GNUC_ATOMICS)
+#elif defined(LDB_SYNC_ATOMICS)
 
 #define ldb_atomic_fetch_add(object, operand, order) \
   __sync_fetch_and_add(object, operand)
@@ -163,6 +155,18 @@
 
 #elif defined(LDB_SUN_ATOMICS)
 
+static inline long
+ldb_atomic__load(volatile long *object) {
+  __machine_rw_barrier();
+  return *object;
+}
+
+static inline void *
+ldb_atomic__load_ptr(void *volatile *object) {
+  __machine_rw_barrier();
+  return *object;
+}
+
 #define ldb_atomic_add_long_nv(object, operand) \
   ((long)atomic_add_long_nv((volatile unsigned long *)(object), operand))
 
@@ -172,12 +176,6 @@
 #define ldb_atomic_fetch_sub(object, operand, order) \
   ldb_atomic_fetch_add(object, -((long)(operand)))
 
-static inline long
-ldb_atomic__load(volatile long *object) {
-  __machine_rw_barrier();
-  return *object;
-}
-
 #define ldb_atomic_load(object, order) \
   ldb_atomic__load((volatile long *)(object))
 
@@ -185,12 +183,6 @@ ldb_atomic__load(volatile long *object) {
   *(object) = (desired);                              \
   __machine_rw_barrier();                             \
 } while (0)
-
-static inline void *
-ldb_atomic__load_ptr(void *volatile *object) {
-  __machine_rw_barrier();
-  return *object;
-}
 
 #define ldb_atomic_load_ptr(object, order) \
   ldb_atomic__load_ptr((void *volatile *)(object))
