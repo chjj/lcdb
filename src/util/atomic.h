@@ -16,10 +16,15 @@
  */
 
 #if defined(__clang__)
-#  if defined(__ATOMIC_RELAXED)
-#    define LDB_CLANG_ATOMICS
-#  elif __clang_major__ >= 3
-#    define LDB_SYNC_ATOMICS
+#  ifdef __has_extension
+#    if __has_extension(c_atomic)
+#      define LDB_GNUC_ATOMICS
+#    endif
+#  endif
+#  ifndef LDB_GNUC_ATOMICS
+#    if __clang_major__ >= 3
+#      define LDB_SYNC_ATOMICS
+#    endif
 #  endif
 #elif defined(__INTEL_COMPILER) || defined(__ICC)
 #  if __INTEL_COMPILER >= 1100 /* 11.0 */
@@ -30,7 +35,7 @@
 #elif defined(__TINYC__) || defined(__PCC__) || defined(__NWCC__)
 /* Nothing. */
 #elif LDB_GNUC_PREREQ(4, 7)
-#  define LDB_CLANG_ATOMICS
+#  define LDB_GNUC_ATOMICS
 #elif LDB_GNUC_PREREQ(4, 6) && defined(__arm__)
 #  define LDB_SYNC_ATOMICS
 #elif LDB_GNUC_PREREQ(4, 5) && defined(__BFIN__)
@@ -59,7 +64,7 @@
 #  define LDB_MSVC_ATOMICS
 #endif
 
-#if (defined(LDB_CLANG_ATOMICS) \
+#if (defined(LDB_GNUC_ATOMICS)  \
   || defined(LDB_SYNC_ATOMICS)  \
   || defined(LDB_SUN_ATOMICS)   \
   || defined(LDB_MSVC_ATOMICS))
@@ -70,7 +75,7 @@
  * Backend Selection
  */
 
-#if defined(LDB_CLANG_ATOMICS) || defined(LDB_SYNC_ATOMICS)
+#if defined(LDB_GNUC_ATOMICS) || defined(LDB_SYNC_ATOMICS)
 #  define ldb_atomic(type) volatile type
 #  define ldb_atomic_ptr(type) type *volatile
 #elif defined(LDB_SUN_ATOMICS) || defined(LDB_MSVC_ATOMICS)
@@ -125,7 +130,7 @@
  * Builtins
  */
 
-#if defined(LDB_CLANG_ATOMICS)
+#if defined(LDB_GNUC_ATOMICS)
 
 #define ldb_atomic_fetch_add __atomic_fetch_add
 #define ldb_atomic_fetch_sub __atomic_fetch_sub
