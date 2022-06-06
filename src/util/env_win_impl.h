@@ -823,7 +823,7 @@ ldb_file_size(const char *filename, uint64_t *size) {
 
   handle = LDBCreateFile(filename,
                          0,
-                         0,
+                         FILE_SHARE_READ | FILE_SHARE_WRITE,
                          NULL,
                          OPEN_EXISTING,
                          FILE_ATTRIBUTE_NORMAL,
@@ -959,7 +959,7 @@ int
 ldb_lock_file(const char *filename, ldb_filelock_t **lock) {
   HANDLE handle = LDBCreateFile(filename,
                                 GENERIC_READ | GENERIC_WRITE,
-                                FILE_SHARE_READ,
+                                0,
                                 NULL,
                                 OPEN_ALWAYS,
                                 FILE_ATTRIBUTE_NORMAL,
@@ -967,11 +967,6 @@ ldb_lock_file(const char *filename, ldb_filelock_t **lock) {
 
   if (handle == INVALID_HANDLE_VALUE)
     return LDB_WIN32_ERROR(GetLastError());
-
-  if (!LockFile(handle, 0, 0, 4096, 0)) {
-    CloseHandle(handle);
-    return LDB_IOERR;
-  }
 
   *lock = ldb_malloc(sizeof(ldb_filelock_t));
 
@@ -982,13 +977,9 @@ ldb_lock_file(const char *filename, ldb_filelock_t **lock) {
 
 int
 ldb_unlock_file(ldb_filelock_t *lock) {
-  BOOL result = UnlockFile(lock->handle, 0, 0, 4096, 0);
-
   CloseHandle(lock->handle);
-
   ldb_free(lock);
-
-  return result ? LDB_OK : LDB_IOERR;
+  return LDB_OK;
 }
 
 static int
@@ -1216,7 +1207,8 @@ ldb_seqfile_create(const char *filename, ldb_rfile_t **file) {
                                 FILE_SHARE_READ | FILE_SHARE_WRITE,
                                 NULL,
                                 OPEN_EXISTING,
-                                FILE_ATTRIBUTE_NORMAL,
+                                FILE_ATTRIBUTE_NORMAL |
+                                FILE_FLAG_SEQUENTIAL_SCAN,
                                 NULL);
 
   if (handle == INVALID_HANDLE_VALUE)
@@ -1241,7 +1233,7 @@ ldb_randfile_create(const char *filename, ldb_rfile_t **file, int use_mmap) {
                          FILE_SHARE_READ | FILE_SHARE_WRITE,
                          NULL,
                          OPEN_EXISTING,
-                         FILE_ATTRIBUTE_NORMAL,
+                         FILE_ATTRIBUTE_NORMAL | FILE_FLAG_RANDOM_ACCESS,
                          NULL);
 
   if (handle == INVALID_HANDLE_VALUE)
