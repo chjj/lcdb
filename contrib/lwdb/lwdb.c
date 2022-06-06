@@ -1104,12 +1104,13 @@ ldb_destroy(const char *dbname, const ldb_dbopt_t *options) {
 #  else
 #    include <sys/types.h>
 #    include <sys/stat.h>
+#    include <unistd.h>
 #  endif
 #endif
 
 int
 ldb_test_directory(char *result, size_t size) {
-#ifdef LWDB_LATEST
+#if defined(LWDB_LATEST)
   leveldb_env_t *env = leveldb_create_default_env();
   /* Requires leveldb 1.21 (March 2019). */
   char *path = leveldb_env_get_test_directory(env);
@@ -1132,27 +1133,48 @@ ldb_test_directory(char *result, size_t size) {
   safe_free(path);
 
   return 1;
-#else /* !LWDB_LATEST */
-#ifdef _WIN32
-  static const char tmp[] = "C:/temp/leveldbtest";
-#else
-  static const char tmp[] = "/tmp/leveldbtest";
-#endif
+#elif defined(_WIN32)
+  char tmp[MAX_PATH];
+  DWORD len;
 
-  if (sizeof(tmp) > size)
+  len = GetEnvironmentVariableA("TEST_TMPDIR", result, size);
+
+  if (len > 0 && len < size)
+    return 1;
+
+  if (!GetTempPathA(sizeof(tmp), tmp))
     return 0;
 
-  memcpy(result, tmp, sizeof(tmp));
+  if (strlen(tmp) + 12 + 20 + 1 > size)
+    return 0;
 
-#ifdef _WIN32
-  CreateDirectoryA("C:/temp", NULL);
-  CreateDirectoryA(tmp, NULL);
-#else
-  mkdir(tmp, 0755);
-#endif
+  sprintf(result, "%sleveldbtest-%lu",
+          tmp, GetCurrentThreadId());
+
+  CreateDirectoryA(result, NULL);
 
   return 1;
-#endif /* !LWDB_LATEST */
+#else
+  const char *dir = getenv("TEST_TMPDIR");
+  char tmp[100];
+  size_t len;
+
+  if (dir != NULL && dir[0] != '\0') {
+    len = strlen(dir);
+  } else {
+    len = sprintf(tmp, "/tmp/leveldbtest-%d", (int)geteuid());
+    dir = tmp;
+  }
+
+  if (len + 1 > size)
+    return 0;
+
+  memcpy(result, dir, len + 1);
+
+  mkdir(result, 0755);
+
+  return 1;
+#endif
 }
 
 int
