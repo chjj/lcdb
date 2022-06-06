@@ -283,7 +283,7 @@ ctest_corrupt(ctest_t *t, ldb_filetype_t target, int offset, int bytes) {
   for (i = 0; i < bytes; i++)
     contents.data[i + offset] ^= 0x80;
 
-  rc = ldb_write_file(fname, &contents, 1);
+  rc = ldb_write_file(fname, &contents, 0);
 
   ASSERT(rc == LDB_OK);
 
