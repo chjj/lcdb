@@ -76,6 +76,7 @@ ctest_init(ctest_t *t) {
   t->tiny_cache = ldb_lru_create(100);
   t->options = *ldb_dbopt_default;
   t->options.block_cache = t->tiny_cache;
+  t->options.use_mmap = 0;
   t->db = NULL;
 
   ctest_destroy(t);
@@ -282,7 +283,7 @@ ctest_corrupt(ctest_t *t, ldb_filetype_t target, int offset, int bytes) {
   for (i = 0; i < bytes; i++)
     contents.data[i + offset] ^= 0x80;
 
-  rc = ldb_write_file(fname, &contents, 0);
+  rc = ldb_write_file(fname, &contents, 1);
 
   ASSERT(rc == LDB_OK);
 
