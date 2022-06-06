@@ -1464,14 +1464,16 @@ ldb_logger_open(const char *filename, ldb_logger_t **result) {
 
 int64_t
 ldb_now_usec(void) {
-  uint64_t ticks;
+  static const uint64_t epoch = UINT64_C(116444736000000000);
+  ULARGE_INTEGER ticks;
   FILETIME ft;
 
   GetSystemTimeAsFileTime(&ft);
 
-  ticks = ((uint64_t)ft.dwHighDateTime << 32) | ft.dwLowDateTime;
+  ticks.LowPart = ft.dwLowDateTime;
+  ticks.HighPart = ft.dwHighDateTime;
 
-  return ticks / 10;
+  return (ticks.QuadPart - epoch) / 10;
 }
 
 void
