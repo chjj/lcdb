@@ -101,12 +101,12 @@ test_unaligned_results(void) {
 static void
 test_large(void) {
   size_t len = (1 << 20) + 17;
-  uint8_t *buf = ldb_malloc(len);
+  uint8_t *buf = ldb_malloc(len + 3);
 
-  memset(buf, 0xaa, len);
+  memset(buf, 0xaa, len + 3);
 
   ASSERT(0xb0d7025a == ldb_crc32c_value(buf, len));
-  ASSERT(0x5a3a95f6 == ldb_crc32c_value(buf + 3, len));
+  ASSERT(0xb0d7025a == ldb_crc32c_value(buf + 3, len));
 
   ldb_free(buf);
 }
