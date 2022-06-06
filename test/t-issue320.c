@@ -177,7 +177,7 @@ main(void) {
 
     free(test_keys);
     free(test_vals);
-    free(snapshots);
+    free((void *)snapshots);
   }
 
   ldb_close(db);
