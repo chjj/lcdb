@@ -1213,7 +1213,7 @@ int
 ldb_seqfile_create(const char *filename, ldb_rfile_t **file) {
   HANDLE handle = LDBCreateFile(filename,
                                 GENERIC_READ,
-                                FILE_SHARE_READ,
+                                FILE_SHARE_READ | FILE_SHARE_WRITE,
                                 NULL,
                                 OPEN_EXISTING,
                                 FILE_ATTRIBUTE_NORMAL,
@@ -1238,10 +1238,10 @@ ldb_randfile_create(const char *filename, ldb_rfile_t **file, int use_mmap) {
 
   handle = LDBCreateFile(filename,
                          GENERIC_READ,
-                         FILE_SHARE_READ,
+                         FILE_SHARE_READ | FILE_SHARE_WRITE,
                          NULL,
                          OPEN_EXISTING,
-                         FILE_ATTRIBUTE_READONLY,
+                         FILE_ATTRIBUTE_NORMAL,
                          NULL);
 
   if (handle == INVALID_HANDLE_VALUE)
@@ -1385,7 +1385,7 @@ int
 ldb_truncfile_create(const char *filename, ldb_wfile_t **file) {
   HANDLE handle = LDBCreateFile(filename,
                                 GENERIC_WRITE,
-                                0,
+                                FILE_SHARE_READ | FILE_SHARE_WRITE,
                                 NULL,
                                 CREATE_ALWAYS,
                                 FILE_ATTRIBUTE_NORMAL,
@@ -1405,7 +1405,7 @@ int
 ldb_appendfile_create(const char *filename, ldb_wfile_t **file) {
   HANDLE handle = LDBCreateFile(filename,
                                 GENERIC_WRITE,
-                                0,
+                                FILE_SHARE_READ | FILE_SHARE_WRITE,
                                 NULL,
                                 OPEN_ALWAYS,
                                 FILE_ATTRIBUTE_NORMAL,
