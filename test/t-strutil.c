@@ -235,7 +235,7 @@ test_join(void) {
 
   ASSERT(!ldb_join(path, 7, "foo", "bar"));
 
-#if defined(_WIN32)
+#ifdef _WIN32
   ASSERT(ldb_join(path, 8, "foo", "bar"));
   ASSERT(strcmp(path, "foo\\bar") == 0);
 

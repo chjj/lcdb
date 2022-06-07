@@ -17,7 +17,7 @@
 #include <string.h>
 #include <time.h>
 
-#if defined(_WIN32)
+#ifdef _WIN32
 #  include <windows.h>
 #else /* !_WIN32 */
 #  include <sys/types.h>
@@ -350,7 +350,7 @@ ldb_get_children(const char *path, char ***out) {
   ldb_vector_t names;
   void *key;
 
-#if defined(_WIN32)
+#ifdef _WIN32
   while (plen > 0 && (path[plen - 1] == '/' || path[plen - 1] == '\\')
     plen -= 1;
 #else
@@ -367,7 +367,7 @@ ldb_get_children(const char *path, char ***out) {
     const char *name = key;
     size_t nlen = strlen(name);
 
-#if defined(_WIN32)
+#ifdef _WIN32
     if (nlen > plen + 1 && (name[plen] == '/' || name[plen] == '\\'))
 #else
     if (nlen > plen + 1 && name[plen] == '/')
@@ -546,7 +546,7 @@ ldb_unlock_file(ldb_filelock_t *lock) {
 
 int
 ldb_test_directory(char *result, size_t size) {
-#if defined(_WIN32)
+#ifdef _WIN32
   if (size < 8)
     return 0;
 
@@ -765,7 +765,7 @@ ldb_logger_open(const char *filename, ldb_logger_t **result) {
 
 int64_t
 ldb_now_usec(void) {
-#if defined(_WIN32)
+#ifdef _WIN32
   uint64_t ticks;
   FILETIME ft;
 
@@ -786,7 +786,7 @@ ldb_now_usec(void) {
 
 void
 ldb_sleep_usec(int64_t usec) {
-#if defined(_WIN32)
+#ifdef _WIN32
   if (usec < 0)
     usec = 0;
 

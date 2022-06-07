@@ -412,7 +412,7 @@ env_init(void) {
 
 static void
 ldb_env_init(void) {
-#if defined(LDB_PTHREAD)
+#ifdef LDB_PTHREAD
   static pthread_once_t guard = PTHREAD_ONCE_INIT;
   pthread_once(&guard, env_init);
 #else
@@ -430,7 +430,7 @@ ldb_env_init(void) {
 
 int
 ldb_path_absolute(char *buf, size_t size, const char *name) {
-#if defined(__wasi__)
+#ifdef __wasi__
   size_t len = strlen(name);
 
   if (name[0] != '/')
