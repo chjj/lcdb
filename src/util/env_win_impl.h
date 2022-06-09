@@ -604,13 +604,13 @@ succeed:
   return i;
 fail:
   for (j = 0; j < i; j++)
-    ldb_free(list[j]);
+    free(list[j]);
 
   if (list != NULL)
-    ldb_free(list);
+    free(list);
 
   if (name != NULL)
-    ldb_free(name);
+    free(name);
 
   if (handle != INVALID_HANDLE_VALUE)
     FindClose(handle);
@@ -711,13 +711,13 @@ succeed:
   return i;
 fail:
   for (j = 0; j < i; j++)
-    ldb_free(list[j]);
+    free(list[j]);
 
   if (list != NULL)
-    ldb_free(list);
+    free(list);
 
   if (name != NULL)
-    ldb_free(name);
+    free(name);
 
   if (handle != INVALID_HANDLE_VALUE)
     FindClose(handle);
@@ -740,9 +740,10 @@ ldb_free_children(char **list, int len) {
   int i;
 
   for (i = 0; i < len; i++)
-    ldb_free(list[i]);
+    free(list[i]);
 
-  ldb_free(list);
+  if (list != NULL)
+    free(list);
 }
 
 int
