@@ -417,8 +417,11 @@ ldb_pread(HANDLE handle, void *dst, size_t len, uint64_t off) {
     ol.OffsetHigh = ul.HighPart;
     ol.Offset = ul.LowPart;
 
-    if (!ReadFile(handle, buf, max, &nread, &ol))
+    if (!ReadFile(handle, buf, max, &nread, &ol)) {
+      if (GetLastError() == ERROR_HANDLE_EOF)
+        return cnt + nread;
       return -1;
+    }
 
     if (nread == 0)
       break;
