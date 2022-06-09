@@ -981,13 +981,15 @@ ldb_rfile_pread(ldb_rfile_t *file,
   ldb_mutex_unlock(&file->mutex);
 #endif
 
-  if (nread >= 0)
-    ldb_slice_set(result, buf, nread);
-
   if (file->fd == -1)
     close(fd);
 
-  return nread < 0 ? LDB_IOERR : LDB_OK;
+  if (nread < 0)
+    return LDB_IOERR;
+
+  ldb_slice_set(result, buf, nread);
+
+  return LDB_OK;
 }
 
 static int
@@ -1002,13 +1004,13 @@ ldb_rfile_close(ldb_rfile_t *file) {
       rc = LDB_IOERR;
   }
 
-  if (file->limiter != NULL)
-    ldb_limiter_release(file->limiter);
-
 #ifdef HAVE_MMAP
   if (file->mapped)
     munmap((void *)file->base, file->length);
 #endif
+
+  if (file->limiter != NULL)
+    ldb_limiter_release(file->limiter);
 
   file->filename = NULL;
   file->fd = -1;

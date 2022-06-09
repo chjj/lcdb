@@ -1153,6 +1153,9 @@ ldb_rfile_pread(ldb_rfile_t *file,
     return LDB_OK;
   }
 
+  if (buf == NULL)
+    return LDB_INVALID;
+
   if (file->has_mutex) {
     /* Windows 9x. */
     LARGE_INTEGER dist;
@@ -1172,10 +1175,12 @@ ldb_rfile_pread(ldb_rfile_t *file,
     nread = ldb_pread(file->handle, buf, count, offset);
   }
 
-  if (nread >= 0)
-    ldb_slice_set(result, buf, nread);
+  if (nread < 0)
+    return LDB_IOERR;
 
-  return nread < 0 ? LDB_IOERR : LDB_OK;
+  ldb_slice_set(result, buf, nread);
+
+  return LDB_OK;
 }
 
 static int
@@ -1187,11 +1192,11 @@ ldb_rfile_close(ldb_rfile_t *file) {
       rc = LDB_IOERR;
   }
 
-  if (file->limiter != NULL)
-    ldb_limiter_release(file->limiter);
-
   if (file->mapped)
     UnmapViewOfFile((void *)file->base);
+
+  if (file->limiter != NULL)
+    ldb_limiter_release(file->limiter);
 
   file->handle = INVALID_HANDLE_VALUE;
   file->limiter = NULL;
