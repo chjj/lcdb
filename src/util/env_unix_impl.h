@@ -133,7 +133,7 @@ struct ldb_filelock_s {
  * Globals
  */
 
-static ldb_limiter_t ldb_fd_limiter = {1638, 1638};
+static ldb_limiter_t ldb_fd_limiter = {50, 50};
 #ifdef HAVE_MMAP
 static ldb_limiter_t ldb_mmap_limiter = {LDB_MMAP_LIMIT, LDB_MMAP_LIMIT};
 #endif
@@ -386,18 +386,30 @@ ldb_flock(int fd, int lock) {
 
 static int
 ldb_max_open_files(void) {
-#ifdef RLIMIT_NOFILE
+#if defined(__Fuchsia__)
+  return sysconf(_SC_OPEN_MAX); /* FDIO_MAX_FD */
+#elif defined(__wasi__) || defined(__EMSCRIPTEN__)
+  return 8192; /* Linux default. */
+#elif defined(RLIMIT_NOFILE)
   struct rlimit rlim;
 
   if (getrlimit(RLIMIT_NOFILE, &rlim) != 0)
-    return 1638;
+    return -1;
 
+#ifdef RLIM_INFINITY
   if (rlim.rlim_cur == RLIM_INFINITY)
-    return INT_MAX / 2;
+    return INT_MAX;
+#endif
 
-  return rlim.rlim_cur / 5;
+  if (rlim.rlim_cur < 1)
+    return -1;
+
+  if (rlim.rlim_cur > INT_MAX - 1)
+    return INT_MAX;
+
+  return rlim.rlim_cur;
 #else
-  return 1638;
+  return -1;
 #endif
 }
 
@@ -407,7 +419,10 @@ ldb_max_open_files(void) {
 
 static void
 env_init(void) {
-  ldb_limiter_init(&ldb_fd_limiter, ldb_max_open_files());
+  int max_open = ldb_max_open_files();
+
+  if (max_open > 0)
+    ldb_limiter_init(&ldb_fd_limiter, max_open / 5);
 }
 
 static void
