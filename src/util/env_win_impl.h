@@ -1339,11 +1339,13 @@ ldb_wfile_append(ldb_wfile_t *file, const ldb_slice_t *data) {
 
   copy_size = LDB_MIN(write_size, LDB_WRITE_BUFFER - file->pos);
 
-  memcpy(file->buf + file->pos, write_data, copy_size);
+  if (copy_size > 0) {
+    memcpy(file->buf + file->pos, write_data, copy_size);
 
-  write_data += copy_size;
-  write_size -= copy_size;
-  file->pos += copy_size;
+    write_data += copy_size;
+    write_size -= copy_size;
+    file->pos += copy_size;
+  }
 
   if (write_size == 0)
     return LDB_OK;

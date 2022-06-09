@@ -101,8 +101,11 @@ ldb_fstate_create(const char *path) {
 static ldb_fstate_t *
 ldb_fstate_clone(const char *path, const ldb_fstate_t *x) {
   ldb_fstate_t *z = ldb_fstate_create(path);
-  size_t remain = x->size % BLOCK_SIZE;
-  size_t i;
+  size_t i, remain;
+
+  ldb_mutex_lock(&x->blocks_mutex);
+
+  remain = x->size % BLOCK_SIZE;
 
   ldb_vector_grow(&z->blocks, x->blocks.length);
 
@@ -119,6 +122,8 @@ ldb_fstate_clone(const char *path, const ldb_fstate_t *x) {
   }
 
   z->size = x->size;
+
+  ldb_mutex_unlock(&x->blocks_mutex);
 
   return z;
 }
