@@ -89,7 +89,7 @@ LDB_EXTERN int
 ldb_test_filename(char *result, size_t size, const char *name);
 
 /*
- * Readable File
+ * ReadableFile
  */
 
 int
@@ -97,9 +97,6 @@ ldb_seqfile_create(const char *filename, ldb_rfile_t **file);
 
 int
 ldb_randfile_create(const char *filename, ldb_rfile_t **file, int use_mmap);
-
-void
-ldb_rfile_destroy(ldb_rfile_t *file);
 
 int
 ldb_rfile_mapped(ldb_rfile_t *file);
@@ -120,8 +117,11 @@ ldb_rfile_pread(ldb_rfile_t *file,
                 size_t count,
                 uint64_t offset);
 
+void
+ldb_rfile_destroy(ldb_rfile_t *file);
+
 /*
- * Writable File
+ * WritableFile
  */
 
 int
@@ -129,12 +129,6 @@ ldb_truncfile_create(const char *filename, ldb_wfile_t **file);
 
 int
 ldb_appendfile_create(const char *filename, ldb_wfile_t **file);
-
-void
-ldb_wfile_destroy(ldb_wfile_t *file);
-
-int
-ldb_wfile_close(ldb_wfile_t *file);
 
 int
 ldb_wfile_append(ldb_wfile_t *file, const ldb_slice_t *data);
@@ -144,6 +138,12 @@ ldb_wfile_flush(ldb_wfile_t *file);
 
 int
 ldb_wfile_sync(ldb_wfile_t *file);
+
+int
+ldb_wfile_close(ldb_wfile_t *file);
+
+void
+ldb_wfile_destroy(ldb_wfile_t *file);
 
 /*
  * Logging

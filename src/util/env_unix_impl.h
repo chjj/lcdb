@@ -842,7 +842,7 @@ ldb_test_directory(char *result, size_t size) {
 }
 
 /*
- * Readable File
+ * ReadableFile (backend)
  */
 
 struct ldb_rfile_s {
@@ -1029,8 +1029,14 @@ ldb_rfile_close(ldb_rfile_t *file) {
   return rc;
 }
 
+void
+ldb_rfile_destroy(ldb_rfile_t *file) {
+  ldb_rfile_close(file);
+  ldb_free(file);
+}
+
 /*
- * Readable File Instantiation
+ * SequentialFile
  */
 
 int
@@ -1046,6 +1052,10 @@ ldb_seqfile_create(const char *filename, ldb_rfile_t **file) {
 
   return LDB_OK;
 }
+
+/*
+ * RandomAccessFile
+ */
 
 int
 ldb_randfile_create(const char *filename, ldb_rfile_t **file, int use_mmap) {
@@ -1104,14 +1114,8 @@ ldb_randfile_create(const char *filename, ldb_rfile_t **file, int use_mmap) {
 #endif
 }
 
-void
-ldb_rfile_destroy(ldb_rfile_t *file) {
-  ldb_rfile_close(file);
-  ldb_free(file);
-}
-
 /*
- * Writable File
+ * WritableFile (backend)
  */
 
 struct ldb_wfile_s {
@@ -1138,16 +1142,18 @@ ldb_wfile_init(ldb_wfile_t *file, const char *filename, int fd) {
   }
 }
 
-int
-ldb_wfile_close(ldb_wfile_t *file) {
-  int rc = ldb_wfile_flush(file);
+static int
+ldb_wfile_create(const char *filename, int flags, ldb_wfile_t **file) {
+  int fd = ldb_open(filename, flags, 0644);
 
-  if (close(file->fd) < 0 && rc == LDB_OK)
-    rc = LDB_IOERR;
+  if (fd < 0)
+    return LDB_POSIX_ERROR(errno);
 
-  file->fd = -1;
+  *file = ldb_malloc(sizeof(ldb_wfile_t));
 
-  return rc;
+  ldb_wfile_init(*file, filename, fd);
+
+  return LDB_OK;
 }
 
 static int
@@ -1216,34 +1222,16 @@ ldb_wfile_sync(ldb_wfile_t *file) {
   return ldb_fsync(file->fd);
 }
 
-/*
- * Writable File Instantiation
- */
-
-static int
-ldb_wfile_create(const char *filename, int flags, ldb_wfile_t **file) {
-  int fd = ldb_open(filename, flags, 0644);
-
-  if (fd < 0)
-    return LDB_POSIX_ERROR(errno);
-
-  *file = ldb_malloc(sizeof(ldb_wfile_t));
-
-  ldb_wfile_init(*file, filename, fd);
-
-  return LDB_OK;
-}
-
 int
-ldb_truncfile_create(const char *filename, ldb_wfile_t **file) {
-  int flags = O_TRUNC | O_WRONLY | O_CREAT;
-  return ldb_wfile_create(filename, flags, file);
-}
+ldb_wfile_close(ldb_wfile_t *file) {
+  int rc = ldb_wfile_flush(file);
 
-int
-ldb_appendfile_create(const char *filename, ldb_wfile_t **file) {
-  int flags = O_APPEND | O_WRONLY | O_CREAT;
-  return ldb_wfile_create(filename, flags, file);
+  if (close(file->fd) < 0 && rc == LDB_OK)
+    rc = LDB_IOERR;
+
+  file->fd = -1;
+
+  return rc;
 }
 
 void
@@ -1255,6 +1243,26 @@ ldb_wfile_destroy(ldb_wfile_t *file) {
     close(file->fd);
 
   ldb_free(file);
+}
+
+/*
+ * WritableFile
+ */
+
+int
+ldb_truncfile_create(const char *filename, ldb_wfile_t **file) {
+  int flags = O_TRUNC | O_WRONLY | O_CREAT;
+  return ldb_wfile_create(filename, flags, file);
+}
+
+/*
+ * AppendableFile
+ */
+
+int
+ldb_appendfile_create(const char *filename, ldb_wfile_t **file) {
+  int flags = O_APPEND | O_WRONLY | O_CREAT;
+  return ldb_wfile_create(filename, flags, file);
 }
 
 /*

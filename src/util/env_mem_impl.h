@@ -562,7 +562,7 @@ ldb_test_directory(char *result, size_t size) {
 }
 
 /*
- * Readable File
+ * ReadableFile (backend)
  */
 
 struct ldb_rfile_s {
@@ -574,6 +574,25 @@ static void
 ldb_rfile_init(ldb_rfile_t *file, ldb_fstate_t *state) {
   file->state = ldb_fstate_ref(state);
   file->pos = 0;
+}
+
+static int
+ldb_rfile_create(const char *filename, ldb_rfile_t **file) {
+  ldb_fstate_t *state;
+
+  ldb_mutex_lock(&file_mutex);
+
+  state = rb_map_get(&file_map, filename);
+
+  if (state != NULL) {
+    *file = ldb_malloc(sizeof(ldb_rfile_t));
+
+    ldb_rfile_init(*file, state);
+  }
+
+  ldb_mutex_unlock(&file_mutex);
+
+  return state ? LDB_OK : LDB_NOTFOUND; /* "File not found" */
 }
 
 int
@@ -621,35 +640,6 @@ ldb_rfile_pread(ldb_rfile_t *file,
   return ldb_fstate_pread(file->state, result, buf, count, offset);
 }
 
-/*
- * Readable File Instantiation
- */
-
-int
-ldb_seqfile_create(const char *filename, ldb_rfile_t **file) {
-  ldb_fstate_t *state;
-
-  ldb_mutex_lock(&file_mutex);
-
-  state = rb_map_get(&file_map, filename);
-
-  if (state != NULL) {
-    *file = ldb_malloc(sizeof(ldb_rfile_t));
-
-    ldb_rfile_init(*file, state);
-  }
-
-  ldb_mutex_unlock(&file_mutex);
-
-  return state ? LDB_OK : LDB_NOTFOUND; /* "File not found" */
-}
-
-int
-ldb_randfile_create(const char *filename, ldb_rfile_t **file, int use_mmap) {
-  (void)use_mmap;
-  return ldb_seqfile_create(filename, file);
-}
-
 void
 ldb_rfile_destroy(ldb_rfile_t *file) {
   ldb_fstate_unref(file->state);
@@ -657,7 +647,26 @@ ldb_rfile_destroy(ldb_rfile_t *file) {
 }
 
 /*
- * Writable File
+ * SequentialFile
+ */
+
+int
+ldb_seqfile_create(const char *filename, ldb_rfile_t **file) {
+  return ldb_rfile_create(filename, file);
+}
+
+/*
+ * RandomAccessFile
+ */
+
+int
+ldb_randfile_create(const char *filename, ldb_rfile_t **file, int use_mmap) {
+  (void)use_mmap;
+  return ldb_rfile_create(filename, file);
+}
+
+/*
+ * WritableFile (backend)
  */
 
 struct ldb_wfile_s {
@@ -667,12 +676,6 @@ struct ldb_wfile_s {
 static void
 ldb_wfile_init(ldb_wfile_t *file, ldb_fstate_t *state) {
   file->state = ldb_fstate_ref(state);
-}
-
-int
-ldb_wfile_close(ldb_wfile_t *file) {
-  (void)file;
-  return LDB_OK;
 }
 
 int
@@ -692,8 +695,20 @@ ldb_wfile_sync(ldb_wfile_t *file) {
   return LDB_OK;
 }
 
+int
+ldb_wfile_close(ldb_wfile_t *file) {
+  (void)file;
+  return LDB_OK;
+}
+
+void
+ldb_wfile_destroy(ldb_wfile_t *file) {
+  ldb_fstate_unref(file->state);
+  ldb_free(file);
+}
+
 /*
- * Writable File Instantiation
+ * WritableFile
  */
 
 int
@@ -720,6 +735,10 @@ ldb_truncfile_create(const char *filename, ldb_wfile_t **file) {
   return LDB_OK;
 }
 
+/*
+ * AppendableFile
+ */
+
 int
 ldb_appendfile_create(const char *filename, ldb_wfile_t **file) {
   ldb_fstate_t *state;
@@ -740,12 +759,6 @@ ldb_appendfile_create(const char *filename, ldb_wfile_t **file) {
   ldb_mutex_unlock(&file_mutex);
 
   return LDB_OK;
-}
-
-void
-ldb_wfile_destroy(ldb_wfile_t *file) {
-  ldb_fstate_unref(file->state);
-  ldb_free(file);
 }
 
 /*

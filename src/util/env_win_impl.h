@@ -1053,7 +1053,7 @@ ldb_test_directory(char *result, size_t size) {
 }
 
 /*
- * Readable File
+ * ReadableFile (backend)
  */
 
 struct ldb_rfile_s {
@@ -1212,8 +1212,14 @@ ldb_rfile_close(ldb_rfile_t *file) {
   return rc;
 }
 
+void
+ldb_rfile_destroy(ldb_rfile_t *file) {
+  ldb_rfile_close(file);
+  ldb_free(file);
+}
+
 /*
- * Readable File Instantiation
+ * SequentialFile
  */
 
 int
@@ -1236,6 +1242,10 @@ ldb_seqfile_create(const char *filename, ldb_rfile_t **file) {
 
   return LDB_OK;
 }
+
+/*
+ * RandomAccessFile
+ */
 
 int
 ldb_randfile_create(const char *filename, ldb_rfile_t **file, int use_mmap) {
@@ -1293,14 +1303,8 @@ ldb_randfile_create(const char *filename, ldb_rfile_t **file, int use_mmap) {
   return rc;
 }
 
-void
-ldb_rfile_destroy(ldb_rfile_t *file) {
-  ldb_rfile_close(file);
-  ldb_free(file);
-}
-
 /*
- * Writable File
+ * WritableFile (backend)
  */
 
 struct ldb_wfile_s {
@@ -1313,18 +1317,6 @@ static void
 ldb_wfile_init(ldb_wfile_t *file, HANDLE handle) {
   file->handle = handle;
   file->pos = 0;
-}
-
-int
-ldb_wfile_close(ldb_wfile_t *file) {
-  int rc = ldb_wfile_flush(file);
-
-  if (!CloseHandle(file->handle) && rc == LDB_OK)
-    rc = LDB_IOERR;
-
-  file->handle = INVALID_HANDLE_VALUE;
-
-  return rc;
 }
 
 static int
@@ -1385,8 +1377,28 @@ ldb_wfile_sync(ldb_wfile_t *file) {
   return LDB_OK;
 }
 
+int
+ldb_wfile_close(ldb_wfile_t *file) {
+  int rc = ldb_wfile_flush(file);
+
+  if (!CloseHandle(file->handle) && rc == LDB_OK)
+    rc = LDB_IOERR;
+
+  file->handle = INVALID_HANDLE_VALUE;
+
+  return rc;
+}
+
+void
+ldb_wfile_destroy(ldb_wfile_t *file) {
+  if (file->handle != INVALID_HANDLE_VALUE)
+    CloseHandle(file->handle);
+
+  ldb_free(file);
+}
+
 /*
- * Writable File Instantiation
+ * WritableFile
  */
 
 int
@@ -1408,6 +1420,10 @@ ldb_truncfile_create(const char *filename, ldb_wfile_t **file) {
 
   return LDB_OK;
 }
+
+/*
+ * AppendableFile
+ */
 
 int
 ldb_appendfile_create(const char *filename, ldb_wfile_t **file) {
@@ -1437,14 +1453,6 @@ ldb_appendfile_create(const char *filename, ldb_wfile_t **file) {
   return LDB_OK;
 }
 
-void
-ldb_wfile_destroy(ldb_wfile_t *file) {
-  if (file->handle != INVALID_HANDLE_VALUE)
-    CloseHandle(file->handle);
-
-  ldb_free(file);
-}
-
 /*
  * Logging
  */
@@ -1459,11 +1467,11 @@ ldb_logger_open(const char *filename, ldb_logger_t **result) {
     if (!ldb_wide_import(&path, filename))
       return LDB_INVALID;
 
-    stream = _wfopen(path.data, L"w"); /* L"wN" */
+    stream = _wfopen(path.data, L"w");
 
     ldb_wide_clear(&path);
   } else {
-    stream = fopen(filename, "w"); /* "wN" */
+    stream = fopen(filename, "w");
   }
 
   if (stream == NULL)
