@@ -504,6 +504,7 @@ ldb_get_children(const char *path, char ***out) {
   size_t size = 8;
   size_t i = 0;
   size_t j, len;
+  void *ptr;
 
   list = (char **)malloc(size * sizeof(char *));
 
@@ -540,10 +541,12 @@ ldb_get_children(const char *path, char ***out) {
 
     if (i == size) {
       size = (size * 3) / 2;
-      list = (char **)realloc(list, size * sizeof(char *));
+      ptr = realloc(list, size * sizeof(char *));
 
-      if (list == NULL)
+      if (ptr == NULL)
         goto fail;
+
+      list = (char **)ptr;
     }
 
     list[i++] = name;

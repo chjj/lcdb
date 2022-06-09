@@ -513,6 +513,7 @@ ldb_get_children_wide(const char *path, char ***out) {
   ldb_wide_t buf;
   size_t i = 0;
   DWORD attrs;
+  void *ptr;
   size_t j;
 
   if (len == 0) {
@@ -581,10 +582,12 @@ ldb_get_children_wide(const char *path, char ***out) {
 
     if (i == size) {
       size = (size * 3) / 2;
-      list = (char **)realloc(list, size * sizeof(char *));
+      ptr = realloc(list, size * sizeof(char *));
 
-      if (list == NULL)
+      if (ptr == NULL)
         goto fail;
+
+      list = (char **)ptr;
     }
 
     list[i++] = name;
@@ -634,6 +637,7 @@ ldb_get_children_ansi(const char *path, char ***out) {
   size_t size = 8;
   size_t i = 0;
   DWORD attrs;
+  void *ptr;
   size_t j;
 
   if (len + 4 > sizeof(buf))
@@ -690,10 +694,12 @@ ldb_get_children_ansi(const char *path, char ***out) {
 
     if (i == size) {
       size = (size * 3) / 2;
-      list = (char **)realloc(list, size * sizeof(char *));
+      ptr = realloc(list, size * sizeof(char *));
 
-      if (list == NULL)
+      if (ptr == NULL)
         goto fail;
+
+      list = (char **)ptr;
     }
 
     list[i++] = name;
