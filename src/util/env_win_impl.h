@@ -23,6 +23,10 @@
 #include "status.h"
 #include "strutil.h"
 
+/*
+ * Fixes
+ */
+
 #ifdef __GNUC__
 #  pragma GCC diagnostic ignored "-Wcast-function-type"
 #endif
@@ -1456,6 +1460,15 @@ ldb_logger_open(const char *filename, ldb_logger_t **result) {
   *result = ldb_logger_fopen(stream);
 
   return LDB_OK;
+}
+
+/*
+ * Misc
+ */
+
+unsigned long
+ldb_thread_id(void) {
+  return GetCurrentThreadId();
 }
 
 /*

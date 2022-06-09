@@ -165,6 +165,13 @@ int
 ldb_logger_open(const char *filename, ldb_logger_t **result);
 
 /*
+ * Misc
+ */
+
+unsigned long
+ldb_thread_id(void);
+
+/*
  * Time
  */
 

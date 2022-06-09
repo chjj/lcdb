@@ -19,25 +19,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if defined(_WIN32)
-#  include <windows.h>
-#elif defined(__linux__)
-#  if !defined(__NEWLIB__) && !defined(__dietlibc__)
-#    include <sys/types.h>
-#    include <sys/syscall.h>
-#    ifdef __NR_gettid
-#      define HAVE_GETTID
-#    endif
-#  endif
-#  include <unistd.h>
-#else
-#  include <unistd.h>
-#endif
-
-#if !defined(_WIN32) && defined(LDB_PTHREAD)
-#  include <pthread.h>
-#endif
-
 #include "env.h"
 #include "internal.h"
 
@@ -87,26 +68,11 @@ ldb_date(char *zp, int64_t x) {
 static void
 stream_log(void *state, const char *fmt, va_list ap) {
   FILE *stream = state;
-  unsigned long tid = 0;
   char date[64];
 
   ldb_date(date, ldb_now_usec());
 
-#if defined(_WIN32)
-  tid = GetCurrentThreadId();
-#elif defined(HAVE_GETTID)
-  tid = syscall(__NR_gettid);
-#elif defined(LDB_PTHREAD)
-  {
-    pthread_t thread = pthread_self();
-
-    memcpy(&tid, &thread, LDB_MIN(sizeof(tid), sizeof(thread)));
-  }
-#elif !defined(__wasi__)
-  tid = getpid();
-#endif
-
-  fprintf(stream, "%s %lu ", date, tid);
+  fprintf(stream, "%s %lu ", date, ldb_thread_id());
 
   vfprintf(stream, fmt, ap);
 
