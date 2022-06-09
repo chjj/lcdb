@@ -73,10 +73,10 @@ ldb_atomic__store_ptr(void *volatile *object, void *desired) {
 #elif defined(LDB_HAVE_ATOMICS)
 
 int
-ldb_atomic_no_empty_translation_unit(void);
+ldb_atomic__empty(void);
 
 int
-ldb_atomic_no_empty_translation_unit(void) {
+ldb_atomic__empty(void) {
   return 0;
 }
 

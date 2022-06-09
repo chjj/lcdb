@@ -468,6 +468,7 @@ static const uint32_t stride_ext_table_3[256] = {
 
 #ifdef HAVE_X64_CRC
 
+#ifdef HAVE_PREFETCH
 static const uint32_t block0_skip_table[8][16] = {
   {0x00000000, 0xff770459, 0xfb027e43, 0x04757a1a,
    0xf3e88a77, 0x0c9f8e2e, 0x08eaf434, 0xf79df06d,
@@ -502,6 +503,7 @@ static const uint32_t block0_skip_table[8][16] = {
    0xaca00c83, 0xd8f29e71, 0x44052967, 0x3057bb95,
    0x780631ba, 0x0c54a348, 0x90a3145e, 0xe4f186ac}
 };
+#endif
 
 static const uint32_t block1_skip_table[8][16] = {
   {0x00000000, 0x79113270, 0xf22264e0, 0x8b335690,
@@ -610,12 +612,12 @@ crc32c_generic(uint32_t z, const uint8_t *xp, size_t xn) {
 } while (0)
 
 /* Process one of the 4 strides of 4-byte data. */
-#define STEP4(s) do {                                \
-  crc##s = ldb_fixed32_decode(p + s * 4)             \
-         ^ stride_ext_table_3[crc##s & 0xff]         \
-         ^ stride_ext_table_2[(crc##s >> 8) & 0xff]  \
-         ^ stride_ext_table_1[(crc##s >> 16) & 0xff] \
-         ^ stride_ext_table_0[crc##s >> 24];         \
+#define STEP4(s) do {                                  \
+  crc##s = ldb_fixed32_decode(p + s * 4) ^             \
+           stride_ext_table_3[crc##s & 0xff] ^         \
+           stride_ext_table_2[(crc##s >> 8) & 0xff] ^  \
+           stride_ext_table_1[(crc##s >> 16) & 0xff] ^ \
+           stride_ext_table_0[crc##s >> 24];           \
 } while (0)
 
 /* Process a 16-byte swath of 4 strides, each of which has 4 bytes of data. */

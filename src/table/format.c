@@ -154,7 +154,7 @@ ldb_contents_init(ldb_contents_t *x) {
 }
 
 /*
- * Block Read
+ * ReadBlock
  */
 
 int
