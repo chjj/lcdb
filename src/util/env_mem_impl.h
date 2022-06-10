@@ -25,11 +25,10 @@
 #  if !defined(FD_SETSIZE) && !defined(FD_SET)
 #    include <sys/select.h>
 #  endif
+#  ifdef LDB_PTHREAD
+#    include <pthread.h>
+#  endif
 #endif /* !_WIN32 */
-
-#ifdef LDB_PTHREAD
-#  include <pthread.h>
-#endif
 
 #include "env.h"
 #include "internal.h"
