@@ -118,7 +118,7 @@ main(void) {
     ASSERT(rc == LDB_OK);
 
     {
-      ret = ldb_slice(0, 0);
+      ret = ldb_slice(NULL, 0);
       rc = ldb_get(db, &key, &ret, NULL);
 
       ASSERT(rc == LDB_OK);

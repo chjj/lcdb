@@ -226,7 +226,7 @@ ldb_fstate_pread(const ldb_fstate_t *state,
 
   if (count == 0) {
     ldb_mutex_unlock(mutex);
-    *result = ldb_slice(0, 0);
+    *result = ldb_slice(buf, 0);
     return LDB_OK;
   }
 
@@ -621,12 +621,13 @@ ldb_rfile_read(ldb_rfile_t *file,
 
 int
 ldb_rfile_skip(ldb_rfile_t *file, uint64_t offset) {
+  uint64_t size = ldb_fstate_size(file->state);
   uint64_t available;
 
-  if (file->pos > ldb_fstate_size(file->state))
+  if (file->pos > size)
     return LDB_IOERR;
 
-  available = ldb_fstate_size(file->state) - file->pos;
+  available = size - file->pos;
 
   if (offset > available)
     offset = available;
@@ -784,14 +785,16 @@ ldb_logger_open(const char *filename, ldb_logger_t **result) {
 int64_t
 ldb_now_usec(void) {
 #ifdef _WIN32
-  uint64_t ticks;
+  static const uint64_t epoch = UINT64_C(116444736000000000);
+  ULARGE_INTEGER ticks;
   FILETIME ft;
 
   GetSystemTimeAsFileTime(&ft);
 
-  ticks = ((uint64_t)ft.dwHighDateTime << 32) | ft.dwLowDateTime;
+  ticks.LowPart = ft.dwLowDateTime;
+  ticks.HighPart = ft.dwHighDateTime;
 
-  return ticks / 10;
+  return (ticks.QuadPart - epoch) / 10;
 #else /* !_WIN32 */
   struct timeval tv;
 

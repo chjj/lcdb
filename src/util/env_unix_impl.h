@@ -958,9 +958,6 @@ ldb_rfile_pread(ldb_rfile_t *file,
     return LDB_OK;
   }
 
-  if (buf == NULL)
-    return LDB_INVALID;
-
   if (file->fd == -1) {
     fd = ldb_open(file->filename, O_RDONLY, 0);
 

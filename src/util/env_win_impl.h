@@ -409,7 +409,7 @@ ldb_pread(HANDLE handle, void *dst, size_t len, uint64_t off) {
 
   while (len > 0) {
     DWORD max = LDB_MIN(len, 1 << 30);
-    DWORD nread;
+    DWORD nread = 0;
 
     memset(&ol, 0, sizeof(ol));
 
@@ -418,9 +418,8 @@ ldb_pread(HANDLE handle, void *dst, size_t len, uint64_t off) {
     ol.Offset = ul.LowPart;
 
     if (!ReadFile(handle, buf, max, &nread, &ol)) {
-      if (GetLastError() == ERROR_HANDLE_EOF)
-        return cnt + nread;
-      return -1;
+      if (GetLastError() != ERROR_HANDLE_EOF)
+        return -1;
     }
 
     if (nread == 0)
@@ -1156,9 +1155,6 @@ ldb_rfile_pread(ldb_rfile_t *file,
     return LDB_OK;
   }
 
-  if (buf == NULL)
-    return LDB_INVALID;
-
   if (file->has_mutex) {
     /* Windows 9x. */
     LARGE_INTEGER dist;
@@ -1480,7 +1476,7 @@ ldb_logger_open(const char *filename, ldb_logger_t **result) {
   }
 
   if (stream == NULL)
-    return LDB_WIN32_ERROR(GetLastError());
+    return LDB_IOERR;
 
   *result = ldb_logger_fopen(stream);
 
