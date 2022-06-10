@@ -27,6 +27,10 @@
 #  endif
 #endif /* !_WIN32 */
 
+#ifdef LDB_PTHREAD
+#  include <pthread.h>
+#endif
+
 #include "env.h"
 #include "internal.h"
 #include "port.h"
@@ -100,10 +104,11 @@ ldb_fstate_create(const char *path) {
 
 static ldb_fstate_t *
 ldb_fstate_clone(const char *path, const ldb_fstate_t *x) {
+  ldb_mutex_t *mutex = (ldb_mutex_t *)&x->blocks_mutex;
   ldb_fstate_t *z = ldb_fstate_create(path);
   size_t i, remain;
 
-  ldb_mutex_lock(&x->blocks_mutex);
+  ldb_mutex_lock(mutex);
 
   remain = x->size % BLOCK_SIZE;
 
@@ -123,7 +128,7 @@ ldb_fstate_clone(const char *path, const ldb_fstate_t *x) {
 
   z->size = x->size;
 
-  ldb_mutex_unlock(&x->blocks_mutex);
+  ldb_mutex_unlock(mutex);
 
   return z;
 }
@@ -364,7 +369,7 @@ ldb_get_children(const char *path, char ***out) {
 #endif
 
   ldb_vector_init(&names);
-  ldb_vector_grow(&names, 1);
+  ldb_vector_grow(&names, 8);
 
   ldb_mutex_lock(&file_mutex);
 
@@ -485,7 +490,7 @@ ldb_rename_file(const char *from, const char *to) {
 
 int
 ldb_copy_file(const char *from, const char *to) {
-  rb_node_t *node;
+  ldb_fstate_t *state;
 
   ldb_mutex_lock(&file_mutex);
 
@@ -494,17 +499,17 @@ ldb_copy_file(const char *from, const char *to) {
     return LDB_IOERR;
   }
 
-  node = rb_map_get(&file_map, from);
+  state = rb_map_get(&file_map, from);
 
-  if (node != NULL) {
-    ldb_fstate_t *state = ldb_fstate_clone(to, node->value.p);
+  if (state != NULL) {
+    ldb_fstate_t *copy = ldb_fstate_clone(to, state);
 
-    rb_map_put(&file_map, state->path, ldb_fstate_ref(state));
+    rb_map_put(&file_map, copy->path, ldb_fstate_ref(copy));
   }
 
   ldb_mutex_unlock(&file_mutex);
 
-  return node ? LDB_OK : LDB_NOTFOUND; /* "File not found" */
+  return state ? LDB_OK : LDB_NOTFOUND; /* "File not found" */
 }
 
 int
@@ -776,6 +781,26 @@ ldb_logger_open(const char *filename, ldb_logger_t **result) {
   (void)filename;
   *result = ldb_logger_create(NULL, NULL);
   return LDB_OK;
+}
+
+/*
+ * Misc
+ */
+
+unsigned long
+ldb_thread_id(void) {
+#if defined(_WIN32)
+  return GetCurrentThreadId();
+#elif defined(LDB_PTHREAD)
+  pthread_t thread = pthread_self();
+  unsigned long tid = 0;
+
+  memcpy(&tid, &thread, LDB_MIN(sizeof(tid), sizeof(thread)));
+
+  return tid;
+#else
+  return 0;
+#endif
 }
 
 /*
