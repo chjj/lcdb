@@ -1291,6 +1291,8 @@ ldb_randfile_create(const char *filename, ldb_rfile_t **file, int use_mmap) {
       } else {
         rc = LDB_IOERR;
       }
+    } else {
+      rc = LDB_IOERR;
     }
   }
 
