@@ -148,7 +148,7 @@ ldb_tablegen_write_raw_block(ldb_tablegen_t *tb,
   tb->status = ldb_wfile_append(tb->file, block_contents);
 
   if (tb->status == LDB_OK) {
-    uint8_t trailer[LDB_BLOCK_TRAILER_SIZE];
+    uint8_t trailer[LDB_TRAILER_SIZE];
     ldb_slice_t trail;
     uint32_t crc;
 
@@ -244,7 +244,7 @@ ldb_tablegen_add(ldb_tablegen_t *tb,
     assert(ldb_compare(tb->options.comparator, key, &tb->last_key) > 0);
 
   if (tb->pending_index_entry) {
-    uint8_t tmp[LDB_BLOCKHANDLE_MAX];
+    uint8_t tmp[LDB_HANDLE_SIZE];
     ldb_buffer_t handle_encoding;
 
     assert(ldb_blockgen_empty(&tb->data_block));
@@ -328,7 +328,7 @@ ldb_tablegen_finish(ldb_tablegen_t *tb) {
 
     if (tb->filter_block != NULL) {
       /* Add mapping from "filter.Name" to location of filter data. */
-      uint8_t tmp[LDB_BLOCKHANDLE_MAX];
+      uint8_t tmp[LDB_HANDLE_SIZE];
       ldb_buffer_t handle_encoding;
       ldb_slice_t key;
       char name[72];
@@ -352,7 +352,7 @@ ldb_tablegen_finish(ldb_tablegen_t *tb) {
   /* Write index block. */
   if (tb->status == LDB_OK) {
     if (tb->pending_index_entry) {
-      uint8_t tmp[LDB_BLOCKHANDLE_MAX];
+      uint8_t tmp[LDB_HANDLE_SIZE];
       ldb_buffer_t handle_encoding;
 
       ldb_short_successor(tb->options.comparator, &tb->last_key);
