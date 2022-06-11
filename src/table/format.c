@@ -170,6 +170,13 @@ ldb_read_block(ldb_contents_t *result,
 
   ldb_contents_init(result);
 
+  /* Check for overflows. */
+  if (handle->size > SIZE_MAX - LDB_BLOCK_TRAILER_SIZE)
+    return LDB_CORRUPTION;
+
+  if (handle->offset > INT64_MAX)
+    return LDB_CORRUPTION;
+
   /* Read the block contents as well as the type/crc footer. */
   /* See table_builder.c for the code that built this structure. */
   n = handle->size;

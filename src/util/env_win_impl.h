@@ -1147,8 +1147,11 @@ ldb_rfile_pread(ldb_rfile_t *file,
   int64_t nread;
 
   if (file->mapped) {
+    if (offset + count < count)
+      return LDB_IOERR;
+
     if (offset + count > file->length)
-      return LDB_INVALID;
+      return LDB_IOERR;
 
     ldb_slice_set(result, file->base + offset, count);
 
