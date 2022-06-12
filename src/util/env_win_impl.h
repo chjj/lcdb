@@ -1253,6 +1253,7 @@ int
 ldb_randfile_create(const char *filename, ldb_rfile_t **file, int use_mmap) {
   HANDLE mapping = NULL;
   LARGE_INTEGER size;
+  void *base = NULL;
   int rc = LDB_OK;
   HANDLE handle;
 
@@ -1279,21 +1280,28 @@ ldb_randfile_create(const char *filename, ldb_rfile_t **file, int use_mmap) {
     rc = LDB_WIN32_ERROR(GetLastError());
 
   if (rc == LDB_OK) {
-    mapping = CreateFileMappingA(handle, NULL, PAGE_READONLY, 0, 0, NULL);
+    mapping = CreateFileMappingA(handle,
+                                 NULL,
+                                 PAGE_READONLY,
+                                 size.HighPart,
+                                 size.LowPart,
+                                 NULL);
 
-    if (mapping != NULL) {
-      void *base = MapViewOfFile(mapping, FILE_MAP_READ, 0, 0, 0);
-
-      if (base != NULL) {
-        *file = ldb_malloc(sizeof(ldb_rfile_t));
-
-        ldb_mapfile_init(*file, base, size.QuadPart, &ldb_mmap_limiter);
-      } else {
-        rc = LDB_IOERR;
-      }
-    } else {
+    if (mapping == NULL)
       rc = LDB_IOERR;
-    }
+  }
+
+  if (rc == LDB_OK) {
+    base = MapViewOfFile(mapping, FILE_MAP_READ, 0, 0, 0);
+
+    if (base == NULL)
+      rc = LDB_IOERR;
+  }
+
+  if (rc == LDB_OK) {
+    *file = ldb_malloc(sizeof(ldb_rfile_t));
+
+    ldb_mapfile_init(*file, base, size.QuadPart, &ldb_mmap_limiter);
   }
 
   if (mapping != NULL)

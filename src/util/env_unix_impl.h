@@ -1060,7 +1060,8 @@ ldb_seqfile_create(const char *filename, ldb_rfile_t **file) {
 int
 ldb_randfile_create(const char *filename, ldb_rfile_t **file, int use_mmap) {
 #ifdef HAVE_MMAP
-  uint64_t size = 0;
+  void *base = NULL;
+  size_t size = 0;
   int rc = LDB_OK;
   struct stat st;
 #endif
@@ -1090,19 +1091,19 @@ ldb_randfile_create(const char *filename, ldb_rfile_t **file, int use_mmap) {
 #ifdef HAVE_MMAP
   if (fstat(fd, &st) != 0)
     rc = LDB_POSIX_ERROR(errno);
-  else
-    size = st.st_size;
 
   if (rc == LDB_OK) {
-    void *base = mmap(NULL, size, PROT_READ, MAP_SHARED, fd, 0);
+    size = st.st_size;
+    base = mmap(NULL, size, PROT_READ, MAP_SHARED, fd, 0);
 
-    if (base != MAP_FAILED) {
-      *file = ldb_malloc(sizeof(ldb_rfile_t));
-
-      ldb_mapfile_init(*file, base, size, &ldb_mmap_limiter);
-    } else {
+    if (base == MAP_FAILED)
       rc = LDB_IOERR;
-    }
+  }
+
+  if (rc == LDB_OK) {
+    *file = ldb_malloc(sizeof(ldb_rfile_t));
+
+    ldb_mapfile_init(*file, base, size, &ldb_mmap_limiter);
   }
 
   close(fd);
