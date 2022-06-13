@@ -1175,14 +1175,13 @@ ldb_open_compaction_output_file(ldb_t *db, ldb_cstate_t *state) {
   }
 
   /* Make the output file. */
-  if (ldb_table_filename(fname, sizeof(fname), db->dbname, file_number)) {
-    rc = ldb_truncfile_create(fname, &state->outfile);
+  if (!ldb_table_filename(fname, sizeof(fname), db->dbname, file_number))
+    return LDB_INVALID;
 
-    if (rc == LDB_OK)
-      state->builder = ldb_tablegen_create(&db->options, state->outfile);
-  } else {
-    rc = LDB_INVALID;
-  }
+  rc = ldb_truncfile_create(fname, &state->outfile);
+
+  if (rc == LDB_OK)
+    state->builder = ldb_tablegen_create(&db->options, state->outfile);
 
   return rc;
 }
