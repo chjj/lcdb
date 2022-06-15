@@ -104,8 +104,8 @@ test_open_non_existent_file(void) {
 
   ASSERT(ldb_test_filename(path, sizeof(path), "non_existent_file"));
   ASSERT(!ldb_file_exists(path));
-  ASSERT(ldb_randfile_create(path, &rfile, 1) == LDB_NOTFOUND);
-  ASSERT(ldb_seqfile_create(path, &rfile) == LDB_NOTFOUND);
+  ASSERT(ldb_randfile_create(path, &rfile, 1) == LDB_ENOENT);
+  ASSERT(ldb_seqfile_create(path, &rfile) == LDB_ENOENT);
 }
 
 static void

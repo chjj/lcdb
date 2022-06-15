@@ -63,6 +63,22 @@ static rb_map_t file_map_;
 static rb_set_t file_set;
 
 /*
+ * Errors
+ */
+
+int
+ldb_system_error(void) {
+  return LDB_IOERR;
+}
+
+const char *
+ldb_error_string(int code) {
+  if (code == LDB_ENOENT)
+    return "File not found";
+  return "Unknown error";
+}
+
+/*
  * Helpers
  */
 
@@ -427,7 +443,7 @@ ldb_remove_file(const char *filename) {
 
   ldb_mutex_unlock(&file_mutex);
 
-  return result ? LDB_OK : LDB_NOTFOUND; /* "File not found" */
+  return result ? LDB_OK : LDB_ENOENT;
 }
 
 int
@@ -461,7 +477,7 @@ ldb_file_size(const char *filename, uint64_t *size) {
 
   ldb_mutex_unlock(&file_mutex);
 
-  return state ? LDB_OK : LDB_NOTFOUND; /* "File not found" */
+  return state ? LDB_OK : LDB_ENOENT;
 }
 
 int
@@ -484,7 +500,7 @@ ldb_rename_file(const char *from, const char *to) {
 
   ldb_mutex_unlock(&file_mutex);
 
-  return node ? LDB_OK : LDB_NOTFOUND; /* "File not found" */
+  return node ? LDB_OK : LDB_ENOENT;
 }
 
 int
@@ -508,7 +524,7 @@ ldb_copy_file(const char *from, const char *to) {
 
   ldb_mutex_unlock(&file_mutex);
 
-  return state ? LDB_OK : LDB_NOTFOUND; /* "File not found" */
+  return state ? LDB_OK : LDB_ENOENT;
 }
 
 int
@@ -601,7 +617,7 @@ ldb_rfile_create(const char *filename, ldb_rfile_t **file) {
 
   ldb_mutex_unlock(&file_mutex);
 
-  return state ? LDB_OK : LDB_NOTFOUND; /* "File not found" */
+  return state ? LDB_OK : LDB_ENOENT;
 }
 
 int

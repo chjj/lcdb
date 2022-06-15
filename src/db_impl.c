@@ -1041,7 +1041,7 @@ ldb_recover(ldb_t *db, ldb_edit_t *edit, int *save_manifest) {
   len = ldb_get_children(db->dbname, &filenames);
 
   if (len < 0)
-    return LDB_IOERR;
+    return ldb_system_error();
 
   rb_set64_init(&expected);
   ldb_array_init(&logs);
@@ -1894,7 +1894,7 @@ ldb_backup_inner(const char *dbname, const char *bakname, rb_set64_t *live) {
     len = ldb_get_children(dbname, &filenames);
 
     if (len < 0)
-      rc = LDB_IOERR;
+      rc = ldb_system_error();
   }
 
   for (i = 0; i < len && rc == LDB_OK; i++) {

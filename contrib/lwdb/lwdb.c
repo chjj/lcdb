@@ -47,12 +47,12 @@
  * Constants
  */
 
-#define LDB_OK (0)
-#define LDB_NOTFOUND (-1)
-#define LDB_CORRUPTION (-2)
-#define LDB_NOSUPPORT (-3)
-#define LDB_INVALID (-4)
-#define LDB_IOERR (-5)
+#define LDB_OK             0
+#define LDB_NOTFOUND   30001
+#define LDB_CORRUPTION 30002
+#define LDB_NOSUPPORT  30003
+#define LDB_INVALID    30004
+#define LDB_IOERR      30005
 
 enum ldb_compression {
   LDB_NO_COMPRESSION = 0,

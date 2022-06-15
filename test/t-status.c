@@ -25,6 +25,8 @@ main(void) {
   ASSERT(strcmp(ldb_strerror(LDB_NOSUPPORT), "Not implemented") == 0);
   ASSERT(strcmp(ldb_strerror(LDB_INVALID), "Invalid argument") == 0);
   ASSERT(strcmp(ldb_strerror(LDB_IOERR), "IO error") == 0);
-  ASSERT(strcmp(ldb_strerror(1000), "Invalid argument") == 0);
+#ifdef __linux__
+  ASSERT(strcmp(ldb_strerror(ENOENT), strerror(ENOENT)) == 0);
+#endif
   return 0;
 }

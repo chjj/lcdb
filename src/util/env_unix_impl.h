@@ -118,7 +118,6 @@
 
 #define LDB_WRITE_BUFFER 65536
 #define LDB_MMAP_LIMIT (sizeof(void *) >= 8 ? 1000 : 0)
-#define LDB_POSIX_ERROR(rc) ((rc) == ENOENT ? LDB_NOTFOUND : LDB_IOERR)
 
 /*
  * Types
@@ -208,7 +207,101 @@ by_fileid(rb_val_t x, rb_val_t y, void *arg) {
 }
 
 /*
- * Path Helpers
+ * Errors
+ */
+
+static int
+ldb_convert_error(int code) {
+  if (LDB_IS_STATUS(code))
+    return LDB_IOERR;
+
+  return code;
+}
+
+int
+ldb_system_error(void) {
+  return ldb_convert_error(errno);
+}
+
+/* Thread-safety of strerror(3):
+ *
+ *   msvcrt - yes
+ *   borland - yes
+ *   watcom - yes
+ *   glibc - yes
+ *   musl - yes
+ *   bionic - yes
+ *   dietlibc - yes
+ *   uclibc - no
+ *   newlib - yes
+ *   apple - if libc is built w/o NLS
+ *   freebsd - no
+ *   openbsd - no
+ *   netbsd - yes
+ *   dragonfly - no
+ *   solaris - yes
+ *   illumos - yes
+ *   cygwin - yes
+ *   hpux - ??
+ *   aix - ??
+ *   qnx - yes
+ *   haiku - if known errno
+ *   minix - yes
+ *   plan9 - yes
+ *   tru64 - ??
+ *   irix - ??
+ *   sco - ??
+ *   redox - yes
+ *   fuchsia - yes
+ *   wasi - yes
+ *   emscripten - yes
+ *   cosmopolitan - no
+ *
+ * Luckily, the platforms which are not
+ * thread-safe also support sys_errlist.
+ */
+#undef USE_SYS_ERRLIST
+
+#if (defined(__APPLE__)     \
+  || defined(__FreeBSD__)   \
+  || defined(__OpenBSD__)   \
+  || defined(__DragonFly__) \
+  || defined(__hpux)        \
+  || defined(__sgi)         \
+  || defined(_AIX))
+#  ifdef __APPLE__
+/* Apple has some stupid FTMs. */
+extern const char *const sys_errlist[];
+extern const int sys_nerr;
+#  endif
+/* AIX and IRIX also have some stupid FTMs. */
+/* HP-UX 9.07 only declares these for C++. */
+#  if defined(_AIX) || defined(__hpux) || defined(__sgi)
+extern char *sys_errlist[];
+extern int sys_nerr;
+#  endif
+#  define USE_SYS_ERRLIST
+#endif
+
+const char *
+ldb_error_string(int code) {
+#ifdef USE_SYS_ERRLIST
+  if (code < 0 || code >= sys_nerr)
+    return "Unknown error";
+
+  return sys_errlist[code];
+#else
+  const char *msg = strerror(code);
+
+  if (msg == NULL)
+    return "Unknown error";
+
+  return msg;
+#endif
+}
+
+/*
+ * Helpers
  */
 
 static char *
@@ -228,10 +321,6 @@ ldb_is_manifest(const char *filename) {
 
   return ldb_starts_with(base, "MANIFEST");
 }
-
-/*
- * File Helpers
- */
 
 static int
 ldb_try_open(const char *name, int flags, uint32_t mode) {
@@ -360,18 +449,14 @@ static int
 ldb_fsync(int fd) {
 #if defined(__APPLE__) && defined(F_FULLFSYNC)
   if (fcntl(fd, F_FULLFSYNC) == 0)
-    return LDB_OK;
+    return 0;
 #endif
 
 #ifdef HAVE_FDATASYNC
-  if (fdatasync(fd) == 0)
-    return LDB_OK;
+  return fdatasync(fd);
 #else
-  if (fsync(fd) == 0)
-    return LDB_OK;
+  return fsync(fd);
 #endif
-
-  return LDB_IOERR;
 }
 
 static int
@@ -384,13 +469,13 @@ ldb_flock(int fd, int lock) {
   info.l_type = lock ? F_WRLCK : F_UNLCK;
   info.l_whence = SEEK_SET;
 
-  return fcntl(fd, F_SETLK, &info) == 0;
+  return fcntl(fd, F_SETLK, &info);
 #elif defined(HAVE_FLOCK)
-  return flock(fd, lock ? (LOCK_EX | LOCK_NB) : LOCK_UN) == 0;
+  return flock(fd, lock ? (LOCK_EX | LOCK_NB) : LOCK_UN);
 #else
   (void)fd;
   (void)lock;
-  return 1;
+  return 0;
 #endif
 }
 
@@ -590,7 +675,7 @@ ldb_free_children(char **list, int len) {
 int
 ldb_remove_file(const char *filename) {
   if (unlink(filename) != 0)
-    return LDB_POSIX_ERROR(errno);
+    return ldb_system_error();
 
   return LDB_OK;
 }
@@ -598,7 +683,7 @@ ldb_remove_file(const char *filename) {
 int
 ldb_create_dir(const char *dirname) {
   if (mkdir(dirname, 0755) != 0)
-    return LDB_POSIX_ERROR(errno);
+    return ldb_system_error();
 
   return LDB_OK;
 }
@@ -606,7 +691,7 @@ ldb_create_dir(const char *dirname) {
 int
 ldb_remove_dir(const char *dirname) {
   if (rmdir(dirname) != 0)
-    return LDB_POSIX_ERROR(errno);
+    return ldb_system_error();
 
   return LDB_OK;
 }
@@ -614,15 +699,13 @@ ldb_remove_dir(const char *dirname) {
 int
 ldb_sync_dir(const char *dirname) {
   int fd = ldb_open(dirname, O_RDONLY, 0);
-  int rc;
+  int rc = LDB_OK;
 
   if (fd < 0) {
-    rc = LDB_POSIX_ERROR(errno);
+    rc = ldb_system_error();
   } else {
-    rc = ldb_fsync(fd);
-
-    if (rc == LDB_IOERR && errno == EINVAL)
-      rc = LDB_OK;
+    if (ldb_fsync(fd) != 0 && errno != EINVAL)
+      rc = ldb_system_error();
 
     close(fd);
   }
@@ -635,7 +718,7 @@ ldb_file_size(const char *filename, uint64_t *size) {
   struct stat st;
 
   if (stat(filename, &st) != 0)
-    return LDB_POSIX_ERROR(errno);
+    return ldb_system_error();
 
   *size = st.st_size;
 
@@ -645,7 +728,7 @@ ldb_file_size(const char *filename, uint64_t *size) {
 int
 ldb_rename_file(const char *from, const char *to) {
   if (rename(from, to) != 0)
-    return LDB_POSIX_ERROR(errno);
+    return ldb_system_error();
 
   return LDB_OK;
 }
@@ -664,18 +747,22 @@ ldb_copy_file(const char *from, const char *to) {
   rfd = ldb_open(from, O_RDONLY, 0);
 
   if (rfd < 0)
-    return LDB_POSIX_ERROR(errno);
+    return ldb_system_error();
+
+  errno = EPERM;
 
   if (fstat(rfd, &st) != 0 || !S_ISREG(st.st_mode)) {
+    rc = ldb_system_error();
     close(rfd);
-    return LDB_IOERR;
+    return rc;
   }
 
   wfd = ldb_open(to, O_WRONLY | O_CREAT | O_EXCL, 0644);
 
   if (wfd < 0) {
+    rc = ldb_system_error();
     close(rfd);
-    return LDB_POSIX_ERROR(errno);
+    return rc;
   }
 
   buf = malloc(buflen);
@@ -710,9 +797,17 @@ ldb_copy_file(const char *from, const char *to) {
     }
   }
 
-  rc = ldb_fsync(wfd);
+  if (ldb_fsync(wfd) != 0)
+    goto fail;
+
+  rc = LDB_OK;
 fail:
-  close(wfd);
+  if (rc != LDB_OK)
+    rc = ldb_system_error();
+
+  if (close(wfd) != 0 && rc == LDB_OK)
+    rc = ldb_system_error();
+
   close(rfd);
 
   if (buf != NULL)
@@ -748,7 +843,7 @@ ldb_link_file(const char *from, const char *to) {
       return ldb_copy_file(from, to);
     }
 
-    return LDB_POSIX_ERROR(errno);
+    return ldb_system_error();
   }
 
   return LDB_OK;
@@ -758,7 +853,7 @@ int
 ldb_lock_file(const char *filename, ldb_filelock_t **lock) {
   ldb_fileid_t id;
   struct stat st;
-  int fd;
+  int fd, rc;
 
   ldb_mutex_lock(&file_mutex);
 
@@ -773,7 +868,12 @@ ldb_lock_file(const char *filename, ldb_filelock_t **lock) {
   id.dev = st.st_dev;
   id.ino = st.st_ino;
 
-  if (rb_set_has(&file_set, &id) || !ldb_flock(fd, 1))
+  if (rb_set_has(&file_set, &id)) {
+    errno = ENOLCK;
+    goto fail;
+  }
+
+  if (ldb_flock(fd, 1) != 0)
     goto fail;
 
   *lock = ldb_malloc(sizeof(ldb_filelock_t));
@@ -787,23 +887,26 @@ ldb_lock_file(const char *filename, ldb_filelock_t **lock) {
 
   return LDB_OK;
 fail:
+  rc = ldb_system_error();
+
   if (fd >= 0)
     close(fd);
 
   ldb_mutex_unlock(&file_mutex);
 
-  return LDB_IOERR;
+  return rc;
 }
 
 int
 ldb_unlock_file(ldb_filelock_t *lock) {
-  int ok;
+  int rc = LDB_OK;
 
   ldb_mutex_lock(&file_mutex);
 
   rb_set_del(&file_set, &lock->id);
 
-  ok = ldb_flock(lock->fd, 0);
+  if (ldb_flock(lock->fd, 0) != 0)
+    rc = ldb_system_error();
 
   close(lock->fd);
 
@@ -811,7 +914,7 @@ ldb_unlock_file(ldb_filelock_t *lock) {
 
   ldb_mutex_unlock(&file_mutex);
 
-  return ok ? LDB_OK : LDB_IOERR;
+  return rc;
 }
 
 int
@@ -925,7 +1028,7 @@ ldb_rfile_read(ldb_rfile_t *file,
   int64_t nread = ldb_read(file->fd, buf, count);
 
   if (nread < 0)
-    return LDB_IOERR;
+    return ldb_system_error();
 
   ldb_slice_set(result, buf, nread);
 
@@ -935,7 +1038,7 @@ ldb_rfile_read(ldb_rfile_t *file,
 int
 ldb_rfile_skip(ldb_rfile_t *file, uint64_t offset) {
   if (lseek(file->fd, offset, SEEK_CUR) == -1)
-    return LDB_IOERR;
+    return ldb_system_error();
 
   return LDB_OK;
 }
@@ -946,15 +1049,16 @@ ldb_rfile_pread(ldb_rfile_t *file,
                 void *buf,
                 size_t count,
                 uint64_t offset) {
+  int64_t nread = -1;
   int fd = file->fd;
-  int64_t nread;
+  int rc = LDB_OK;
 
   if (file->mapped) {
     if (offset + count < count)
-      return LDB_IOERR;
+      return ldb_convert_error(ESPIPE);
 
     if (offset + count > file->length)
-      return LDB_IOERR;
+      return ldb_convert_error(ESPIPE);
 
     ldb_slice_set(result, file->base + offset, count);
 
@@ -965,7 +1069,7 @@ ldb_rfile_pread(ldb_rfile_t *file,
     fd = ldb_open(file->filename, O_RDONLY, 0);
 
     if (fd < 0)
-      return LDB_POSIX_ERROR(errno);
+      return ldb_system_error();
   }
 
 #ifdef HAVE_PREAD
@@ -975,21 +1079,21 @@ ldb_rfile_pread(ldb_rfile_t *file,
 
   if ((uint64_t)lseek(fd, offset, SEEK_SET) == offset)
     nread = ldb_read(fd, buf, count);
-  else
-    nread = -1;
 
   ldb_mutex_unlock(&file->mutex);
 #endif
 
+  if (nread < 0) {
+    rc = ldb_system_error();
+    nread = 0;
+  }
+
   if (file->fd == -1)
     close(fd);
 
-  if (nread < 0)
-    return LDB_IOERR;
-
   ldb_slice_set(result, buf, nread);
 
-  return LDB_OK;
+  return rc;
 }
 
 static int
@@ -1000,8 +1104,8 @@ ldb_rfile_close(ldb_rfile_t *file) {
     ldb_free(file->filename);
 
   if (file->fd != -1) {
-    if (close(file->fd) < 0)
-      rc = LDB_IOERR;
+    if (close(file->fd) != 0)
+      rc = ldb_system_error();
   }
 
 #ifdef HAVE_MMAP
@@ -1044,7 +1148,7 @@ ldb_seqfile_create(const char *filename, ldb_rfile_t **file) {
   int fd = ldb_open(filename, O_RDONLY, 0);
 
   if (fd < 0)
-    return LDB_POSIX_ERROR(errno);
+    return ldb_system_error();
 
   *file = ldb_malloc(sizeof(ldb_rfile_t));
 
@@ -1074,7 +1178,7 @@ ldb_randfile_create(const char *filename, ldb_rfile_t **file, int use_mmap) {
   fd = ldb_open(filename, O_RDONLY, 0);
 
   if (fd < 0)
-    return LDB_POSIX_ERROR(errno);
+    return ldb_system_error();
 
 #ifdef HAVE_MMAP
   if (!use_mmap || !ldb_limiter_acquire(&ldb_mmap_limiter))
@@ -1090,14 +1194,14 @@ ldb_randfile_create(const char *filename, ldb_rfile_t **file, int use_mmap) {
 
 #ifdef HAVE_MMAP
   if (fstat(fd, &st) != 0)
-    rc = LDB_POSIX_ERROR(errno);
+    rc = ldb_system_error();
 
   if (rc == LDB_OK) {
     size = st.st_size;
     base = mmap(NULL, size, PROT_READ, MAP_SHARED, fd, 0);
 
     if (base == MAP_FAILED)
-      rc = LDB_IOERR;
+      rc = ldb_system_error();
   }
 
   if (rc == LDB_OK) {
@@ -1148,7 +1252,7 @@ ldb_wfile_create(const char *filename, int flags, ldb_wfile_t **file) {
   int fd = ldb_open(filename, flags, 0644);
 
   if (fd < 0)
-    return LDB_POSIX_ERROR(errno);
+    return ldb_system_error();
 
   *file = ldb_malloc(sizeof(ldb_wfile_t));
 
@@ -1160,7 +1264,7 @@ ldb_wfile_create(const char *filename, int flags, ldb_wfile_t **file) {
 static int
 ldb_wfile_write(ldb_wfile_t *file, const unsigned char *data, size_t size) {
   if (ldb_write(file->fd, data, size) < 0)
-    return LDB_IOERR;
+    return ldb_system_error();
 
   return LDB_OK;
 }
@@ -1222,15 +1326,18 @@ ldb_wfile_sync(ldb_wfile_t *file) {
   if ((rc = ldb_wfile_flush(file)))
     return rc;
 
-  return ldb_fsync(file->fd);
+  if (ldb_fsync(file->fd) != 0)
+    return ldb_system_error();
+
+  return LDB_OK;
 }
 
 int
 ldb_wfile_close(ldb_wfile_t *file) {
   int rc = ldb_wfile_flush(file);
 
-  if (close(file->fd) < 0 && rc == LDB_OK)
-    rc = LDB_IOERR;
+  if (close(file->fd) != 0 && rc == LDB_OK)
+    rc = ldb_system_error();
 
   file->fd = -1;
 
@@ -1278,14 +1385,14 @@ ldb_logger_open(const char *filename, ldb_logger_t **result) {
   FILE *stream;
 
   if (fd < 0)
-    return LDB_POSIX_ERROR(errno);
+    return ldb_system_error();
 
   stream = fdopen(fd, "w");
 
   if (stream == NULL) {
-    int code = errno;
+    int rc = ldb_system_error();
     close(fd);
-    return LDB_POSIX_ERROR(code);
+    return rc;
   }
 
   *result = ldb_logger_fopen(stream);

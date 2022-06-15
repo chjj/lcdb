@@ -37,6 +37,16 @@ typedef struct ldb_rfile_s ldb_rfile_t;
 typedef struct ldb_wfile_s ldb_wfile_t;
 
 /*
+ * Errors
+ */
+
+int
+ldb_system_error(void);
+
+const char *
+ldb_error_string(int code);
+
+/*
  * Filesystem
  */
 

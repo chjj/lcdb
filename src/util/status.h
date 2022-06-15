@@ -13,18 +13,34 @@
 #ifndef LDB_STATUS_H
 #define LDB_STATUS_H
 
+#include <errno.h>
 #include "extern.h"
 
 /*
  * Constants
  */
 
-#define LDB_OK (0)
-#define LDB_NOTFOUND (-1)
-#define LDB_CORRUPTION (-2)
-#define LDB_NOSUPPORT (-3)
-#define LDB_INVALID (-4)
-#define LDB_IOERR (-5)
+#define LDB_OK             0
+#define LDB_MINERR     30000
+#define LDB_NOTFOUND   30001
+#define LDB_CORRUPTION 30002
+#define LDB_NOSUPPORT  30003
+#define LDB_INVALID    30004
+#define LDB_IOERR      30005
+#define LDB_MAXERR     30005
+
+#ifdef _WIN32
+#  define LDB_ENOENT 2 /* ERROR_FILE_NOT_FOUND */
+#else
+#  define LDB_ENOENT ENOENT
+#endif
+
+/*
+ * Macros
+ */
+
+#define LDB_IS_STATUS(x) \
+  ((x) == LDB_OK || ((x) >= LDB_MINERR && (x) <= LDB_MAXERR))
 
 /*
  * Helpers

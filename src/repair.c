@@ -192,7 +192,7 @@ find_files(ldb_repair_t *rep) {
   len = ldb_get_children(rep->dbname, &filenames);
 
   if (len < 0)
-    return LDB_IOERR;
+    return ldb_system_error();
 
   if (len == 0) {
     ldb_free_children(filenames, len);

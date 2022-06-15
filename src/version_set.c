@@ -1513,7 +1513,7 @@ ldb_versions_recover(ldb_versions_t *vset, int *save_manifest) {
   rc = ldb_seqfile_create(fname, &file);
 
   if (rc != LDB_OK) {
-    if (rc == LDB_NOTFOUND)
+    if (rc == LDB_ENOENT)
       return LDB_CORRUPTION; /* "CURRENT points to a non-existent file" */
 
     return rc;
