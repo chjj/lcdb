@@ -30,9 +30,17 @@
 #define LDB_MAXERR     30005
 
 #ifdef _WIN32
-#  define LDB_ENOENT 2 /* ERROR_FILE_NOT_FOUND */
+#  define LDB_ENOENT  2 /* ERROR_FILE_NOT_FOUND */
+#  define LDB_ENOMEM  8 /* ERROR_NOT_ENOUGH_MEMORY */
+#  define LDB_EINVAL 87 /* ERROR_INVALID_PARAMETER */
+#  define LDB_EEXIST 80 /* ERROR_FILE_EXISTS */
+#  define LDB_ENOLCK 33 /* ERROR_LOCK_VIOLATION */
 #else
 #  define LDB_ENOENT ENOENT
+#  define LDB_ENOMEM ENOMEM
+#  define LDB_EINVAL EINVAL
+#  define LDB_EEXIST EEXIST
+#  define LDB_ENOLCK ENOLCK
 #endif
 
 /*

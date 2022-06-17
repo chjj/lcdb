@@ -74,7 +74,20 @@ ldb_system_error(void) {
 const char *
 ldb_error_string(int code) {
   if (code == LDB_ENOENT)
-    return "File not found";
+    return "No such file or directory";
+
+  if (code == LDB_ENOMEM)
+    return "Cannot allocate memory";
+
+  if (code == LDB_EINVAL)
+    return "Invalid argument";
+
+  if (code == LDB_EEXIST)
+    return "File exists";
+
+  if (code == LDB_ENOLCK)
+    return "No locks available";
+
   return "Unknown error";
 }
 
@@ -236,7 +249,7 @@ ldb_fstate_pread(const ldb_fstate_t *state,
 
   if (offset > state->size) {
     ldb_mutex_unlock(mutex);
-    return LDB_IOERR; /* "Offset greater than file size." */
+    return LDB_EINVAL;
   }
 
   available = state->size - offset;
@@ -511,7 +524,7 @@ ldb_copy_file(const char *from, const char *to) {
 
   if (rb_map_has(&file_map, to)) {
     ldb_mutex_unlock(&file_mutex);
-    return LDB_IOERR;
+    return LDB_EEXIST;
   }
 
   state = rb_map_get(&file_map, from);
@@ -541,7 +554,7 @@ ldb_lock_file(const char *filename, ldb_filelock_t **lock) {
 
   if (rb_set_has(&file_set, filename)) {
     ldb_mutex_unlock(&file_mutex);
-    return LDB_IOERR;
+    return LDB_ENOLCK;
   }
 
   *lock = ldb_malloc(sizeof(ldb_filelock_t));
@@ -645,7 +658,7 @@ ldb_rfile_skip(ldb_rfile_t *file, uint64_t offset) {
   uint64_t available;
 
   if (file->pos > size)
-    return LDB_IOERR;
+    return LDB_EINVAL;
 
   available = size - file->pos;
 

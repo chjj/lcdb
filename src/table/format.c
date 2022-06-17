@@ -182,7 +182,7 @@ ldb_read_block(ldb_contents_t *result,
 
   if (!ldb_rfile_mapped(file)) {
     if ((buf = malloc(len)) == NULL)
-      return LDB_IOERR; /* "cannot allocate memory" */
+      return LDB_ENOMEM;
   }
 
   rc = ldb_rfile_pread(file, &contents, buf, len, handle->offset);
@@ -241,7 +241,7 @@ ldb_read_block(ldb_contents_t *result,
 
       if ((ubuf = malloc(ulength)) == NULL) {
         ldb_free(buf);
-        return LDB_IOERR; /* "cannot allocate memory" */
+        return LDB_ENOMEM;
       }
 
       if (!snappy_decode(ubuf, data, n)) {
