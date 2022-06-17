@@ -872,8 +872,7 @@ ldb_recover_log_file(ldb_t *db, uint64_t log_number,
     ldb_seqnum_t last_seq;
 
     if (record.size < 12) {
-      /* "log record too small" */
-      reporter.corruption(&reporter, record.size, LDB_CORRUPTION);
+      reporter.corruption(&reporter, record.size, LDB_SMALL_RECORD);
       continue;
     }
 
@@ -1008,11 +1007,11 @@ ldb_recover(ldb_t *db, ldb_edit_t *edit, int *save_manifest) {
       if (rc != LDB_OK)
         return rc;
     } else {
-      return LDB_INVALID; /* "does not exist (create_if_missing is false)" */
+      return LDB_NOEXIST;
     }
   } else {
     if (db->options.error_if_exists)
-      return LDB_INVALID; /* "exists (error_if_exists is true)" */
+      return LDB_EXISTS;
   }
 
   rc = ldb_versions_recover(db->versions, save_manifest);
@@ -1053,7 +1052,7 @@ ldb_recover(ldb_t *db, ldb_edit_t *edit, int *save_manifest) {
   ldb_free_children(filenames, len);
 
   if (expected.size != 0) {
-    rc = LDB_CORRUPTION; /* "[expected.size] missing files" */
+    rc = LDB_MISSING_FILES;
     goto fail;
   }
 
@@ -1122,7 +1121,7 @@ ldb_compact_memtable(ldb_t *db) {
   ldb_version_unref(base);
 
   if (rc == LDB_OK && ldb_atomic_load(&db->shutting_down, ldb_order_acquire))
-    rc = LDB_IOERR; /* "Deleting DB during memtable compaction" */
+    rc = LDB_DELETE_COMPACTION;
 
   /* Replace immutable memtable with the generated Table. */
   if (rc == LDB_OK) {
@@ -1426,7 +1425,7 @@ ldb_do_compaction_work(ldb_t *db, ldb_cstate_t *state) {
   }
 
   if (rc == LDB_OK && ldb_atomic_load(&db->shutting_down, ldb_order_acquire))
-    rc = LDB_IOERR; /* "Deleting DB during compaction" */
+    rc = LDB_DELETE_COMPACTION;
 
   if (rc == LDB_OK && state->builder != NULL)
     rc = ldb_finish_compaction_output_file(db, state, input);

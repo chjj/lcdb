@@ -188,7 +188,7 @@ find_files(ldb_repair_t *rep) {
 
   if (len == 0) {
     ldb_free_children(filenames, len);
-    return LDB_IOERR; /* "repair found no files" */
+    return LDB_NO_FILES;
   }
 
   for (i = 0; i < len; i++) {
@@ -300,7 +300,7 @@ convert_log_to_table(ldb_repair_t *rep, uint64_t log) {
 
   while (ldb_reader_read_record(&reader, &record, &scratch)) {
     if (record.size < 12) {
-      reporter.corruption(&reporter, record.size, LDB_CORRUPTION);
+      reporter.corruption(&reporter, record.size, LDB_SMALL_RECORD);
       continue;
     }
 

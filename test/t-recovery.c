@@ -589,7 +589,7 @@ test_recovery_manifest_missing(rtest_t *t) {
 
   rc = rtest_open_with_status(t, 0);
 
-  ASSERT(rc == LDB_CORRUPTION);
+  ASSERT(rc == LDB_BAD_CURRENT);
 }
 
 /*

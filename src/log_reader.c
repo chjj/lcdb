@@ -84,12 +84,6 @@ report_drop(ldb_reader_t *lr, int64_t bytes, int reason) {
   }
 }
 
-static void
-report_corruption(ldb_reader_t *lr, uint64_t bytes, const char *reason) {
-  report_drop(lr, bytes, LDB_CORRUPTION /* reason */);
-  (void)reason;
-}
-
 /* Return type, or one of the preceding special values. */
 static unsigned int
 read_physical_record(ldb_reader_t *lr, ldb_slice_t *result) {
@@ -162,7 +156,7 @@ read_physical_record(ldb_reader_t *lr, ldb_slice_t *result) {
       ldb_slice_reset(&lr->buffer);
 
       if (!lr->eof) {
-        report_corruption(lr, drop_size, "bad record length");
+        report_drop(lr, drop_size, LDB_BAD_RECORD_LENGTH);
         return LDB_BAD_RECORD;
       }
 
@@ -195,7 +189,7 @@ read_physical_record(ldb_reader_t *lr, ldb_slice_t *result) {
 
         ldb_slice_reset(&lr->buffer);
 
-        report_corruption(lr, drop_size, "checksum mismatch");
+        report_drop(lr, drop_size, LDB_CHECKSUM_MISMATCH);
 
         return LDB_BAD_RECORD;
       }
@@ -303,10 +297,8 @@ ldb_reader_read_record(ldb_reader_t *lr,
              emit an empty LDB_TYPE_FIRST record at the tail end of a
              block followed by a LDB_TYPE_FULL or LDB_TYPE_FIRST record
              at the beginning of the next block. */
-          if (scratch->size > 0) {
-            report_corruption(lr, scratch->size,
-                              "partial record without end(1)");
-          }
+          if (scratch->size > 0)
+            report_drop(lr, scratch->size, LDB_PARTIAL_RECORD_1);
         }
 
         prospective_offset = physical_offset;
@@ -326,10 +318,8 @@ ldb_reader_read_record(ldb_reader_t *lr,
              it could emit an empty LDB_TYPE_FIRST record at the tail end
              of a block followed by a LDB_TYPE_FULL or LDB_TYPE_FIRST record
              at the beginning of the next block. */
-          if (scratch->size > 0) {
-            report_corruption(lr, scratch->size,
-                              "partial record without end(2)");
-          }
+          if (scratch->size > 0)
+            report_drop(lr, scratch->size, LDB_PARTIAL_RECORD_2);
         }
 
         prospective_offset = physical_offset;
@@ -342,20 +332,17 @@ ldb_reader_read_record(ldb_reader_t *lr,
       }
 
       case LDB_TYPE_MIDDLE: {
-        if (!in_fragmented_record) {
-          report_corruption(lr, fragment.size,
-                            "missing start of fragmented record(1)");
-        } else {
+        if (!in_fragmented_record)
+          report_drop(lr, fragment.size, LDB_MISSING_START_1);
+        else
           ldb_buffer_append(scratch, fragment.data, fragment.size);
-        }
 
         break;
       }
 
       case LDB_TYPE_LAST: {
         if (!in_fragmented_record) {
-          report_corruption(lr, fragment.size,
-                            "missing start of fragmented record(2)");
+          report_drop(lr, fragment.size, LDB_MISSING_START_2);
         } else {
           ldb_buffer_append(scratch, fragment.data, fragment.size);
 
@@ -382,7 +369,7 @@ ldb_reader_read_record(ldb_reader_t *lr,
 
       case LDB_BAD_RECORD:
         if (in_fragmented_record) {
-          report_corruption(lr, scratch->size, "error in middle of record");
+          report_drop(lr, scratch->size, LDB_ERROR_IN_MIDDLE);
 
           in_fragmented_record = 0;
 
@@ -392,13 +379,9 @@ ldb_reader_read_record(ldb_reader_t *lr,
         break;
 
       default: {
-        char buf[40];
-
-        sprintf(buf, "unknown record type %u", record_type);
-
-        report_corruption(lr,
+        report_drop(lr,
           (fragment.size + (in_fragmented_record ? scratch->size : 0)),
-          buf);
+          LDB_UNKNOWN_RECORD);
 
         in_fragmented_record = 0;
 

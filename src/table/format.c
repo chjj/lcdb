@@ -173,7 +173,7 @@ ldb_read_block(ldb_contents_t *result,
 
   /* Check for overflow. */
   if (handle->size > SIZE_MAX - LDB_TRAILER_SIZE)
-    return LDB_CORRUPTION;
+    return LDB_BAD_BLOCK_HANDLE;
 
   /* Read the block contents as well as the type/crc footer. */
   /* See table_builder.c for the code that built this structure. */
@@ -194,7 +194,7 @@ ldb_read_block(ldb_contents_t *result,
 
   if (contents.size != len) {
     ldb_free(buf);
-    return LDB_IOERR; /* "truncated block read" */
+    return LDB_TRUNCATED_READ;
   }
 
   /* Check the crc of the type and the block contents. */
@@ -206,7 +206,7 @@ ldb_read_block(ldb_contents_t *result,
 
     if (crc != actual) {
       ldb_free(buf);
-      return LDB_CORRUPTION; /* "block checksum mismatch" */
+      return LDB_BAD_BLOCK_CHECKSUM;
     }
   }
 
@@ -236,7 +236,7 @@ ldb_read_block(ldb_contents_t *result,
 
       if (!snappy_decode_size(&ulength, data, n)) {
         ldb_free(buf);
-        return LDB_CORRUPTION; /* "corrupted compressed block contents" */
+        return LDB_BAD_BLOCK_COMPRESS;
       }
 
       if ((ubuf = malloc(ulength)) == NULL) {
@@ -247,7 +247,7 @@ ldb_read_block(ldb_contents_t *result,
       if (!snappy_decode(ubuf, data, n)) {
         ldb_free(buf);
         ldb_free(ubuf);
-        return LDB_CORRUPTION; /* "corrupted compressed block contents" */
+        return LDB_BAD_BLOCK_COMPRESS;
       }
 
       ldb_free(buf);
@@ -262,7 +262,7 @@ ldb_read_block(ldb_contents_t *result,
 
     default: {
       ldb_free(buf);
-      return LDB_CORRUPTION; /* "bad block type" */
+      return LDB_BAD_BLOCK_TYPE;
     }
   }
 

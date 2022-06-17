@@ -208,7 +208,7 @@ edit_printer(uint64_t pos, const ldb_slice_t *record, FILE *dst) {
   ldb_buffer_string(&r, "; ");
 
   if (!ldb_edit_import(&edit, record)) {
-    ldb_buffer_string(&r, ldb_strerror(LDB_CORRUPTION));
+    ldb_buffer_string(&r, ldb_strerror(LDB_MALFORMED_META));
     ldb_buffer_push(&r, '\n');
   } else {
     ldb_edit_debug(&r, &edit);

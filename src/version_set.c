@@ -330,10 +330,8 @@ get_file_iterator(void *arg,
                   const ldb_slice_t *file_value) {
   ldb_tables_t *cache = (ldb_tables_t *)arg;
 
-  if (file_value->size != 16) {
-    /* "FileReader invoked with unexpected value" */
-    return ldb_emptyiter_create(LDB_CORRUPTION);
-  }
+  if (file_value->size != 16)
+    return ldb_emptyiter_create(LDB_UNEXPECTED_VALUE);
 
   return ldb_tables_iterate(cache, options,
                             ldb_fixed64_decode(file_value->data + 0),
@@ -440,7 +438,7 @@ getstate_match(void *arg, int level, ldb_filemeta_t *f) {
     case S_DELETED:
       return 0;
     case S_CORRUPT:
-      state->status = LDB_CORRUPTION; /* "corrupted key for [saver.user_key]" */
+      state->status = LDB_BAD_INTERNAL_KEY;
       state->found = 1;
       return 0;
   }
@@ -1470,7 +1468,7 @@ read_current_filename(char *path, size_t size, const char *dbname) {
   len = data.size;
 
   if (len == 0 || name[len - 1] != '\n') {
-    rc = LDB_CORRUPTION; /* "CURRENT file does not end with newline" */
+    rc = LDB_NO_NEWLINE;
     goto fail;
   }
 
@@ -1514,7 +1512,7 @@ ldb_versions_recover(ldb_versions_t *vset, int *save_manifest) {
 
   if (rc != LDB_OK) {
     if (rc == LDB_ENOENT)
-      return LDB_CORRUPTION; /* "CURRENT points to a non-existent file" */
+      return LDB_BAD_CURRENT;
 
     return rc;
   }
@@ -1542,13 +1540,11 @@ ldb_versions_recover(ldb_versions_t *vset, int *save_manifest) {
 
       /* Calls ldb_edit_reset() internally. */
       if (!ldb_edit_import(&edit, &record))
-        rc = LDB_CORRUPTION;
+        rc = LDB_MALFORMED_META;
 
-      if (rc == LDB_OK) {
-        if (edit.has_comparator && !ldb_slice_equal(&edit.comparator, &name)) {
-          rc = LDB_INVALID; /* "[edit.comparator] does not match
-                                existing comparator [vset.user_comparator]" */
-        }
+      if (rc == LDB_OK && edit.has_comparator) {
+        if (!ldb_slice_equal(&edit.comparator, &name))
+          rc = LDB_COMPARATOR_MISMATCH;
       }
 
       if (rc == LDB_OK)
@@ -1585,11 +1581,11 @@ ldb_versions_recover(ldb_versions_t *vset, int *save_manifest) {
 
   if (rc == LDB_OK) {
     if (!have_next_file)
-      rc = LDB_CORRUPTION; /* "no meta-nextfile entry in descriptor" */
+      rc = LDB_NO_META_NEXTFILE;
     else if (!have_log_number)
-      rc = LDB_CORRUPTION; /* "no meta-lognumber entry in descriptor" */
+      rc = LDB_NO_META_LOGNUM;
     else if (!have_last_sequence)
-      rc = LDB_CORRUPTION; /* "no last-sequence-number entry in descriptor" */
+      rc = LDB_NO_META_LASTSEQ;
 
     if (!have_prev_log_number)
       prev_log_number = 0;

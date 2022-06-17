@@ -91,7 +91,7 @@ ldb_batch_iterate(const ldb_batch_t *batch, ldb_handler_t *handler) {
   int found = 0;
 
   if (input.size < LDB_HEADER)
-    return LDB_CORRUPTION; /* "malformed WriteBatch (too small)" */
+    return LDB_MALFORMED_BATCH;
 
   ldb_slice_eat(&input, LDB_HEADER);
 
@@ -105,10 +105,10 @@ ldb_batch_iterate(const ldb_batch_t *batch, ldb_handler_t *handler) {
     switch (tag) {
       case LDB_TYPE_VALUE: {
         if (!ldb_slice_slurp(&key, &input))
-          return LDB_CORRUPTION; /* "bad WriteBatch Put" */
+          return LDB_BAD_BATCH_PUT;
 
         if (!ldb_slice_slurp(&value, &input))
-          return LDB_CORRUPTION; /* "bad WriteBatch Put" */
+          return LDB_BAD_BATCH_PUT;
 
         handler->put(handler, &key, &value);
 
@@ -117,7 +117,7 @@ ldb_batch_iterate(const ldb_batch_t *batch, ldb_handler_t *handler) {
 
       case LDB_TYPE_DELETION: {
         if (!ldb_slice_slurp(&key, &input))
-          return LDB_CORRUPTION; /* "bad WriteBatch Delete" */
+          return LDB_BAD_BATCH_DELETE;
 
         handler->del(handler, &key);
 
@@ -125,13 +125,13 @@ ldb_batch_iterate(const ldb_batch_t *batch, ldb_handler_t *handler) {
       }
 
       default: {
-        return LDB_CORRUPTION; /* "unknown WriteBatch tag" */
+        return LDB_BAD_BATCH_TAG;
       }
     }
   }
 
   if (found != ldb_batch_count(batch))
-    return LDB_CORRUPTION; /* "WriteBatch has wrong count" */
+    return LDB_BAD_BATCH_COUNT;
 
   return LDB_OK;
 }

@@ -571,7 +571,7 @@ conviter_key(const conviter_t *iter) {
   k = ldb_iter_key(iter->it);
 
   if (!ldb_pkey_import(&key, &k)) {
-    ((conviter_t *)iter)->status = LDB_CORRUPTION;
+    ((conviter_t *)iter)->status = LDB_BAD_INTERNAL_KEY;
     return ldb_string("corrupted key");
   }
 

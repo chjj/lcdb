@@ -2033,7 +2033,7 @@ test_db_comparator_check(test_t *t) {
 
   options.comparator = &comparator;
 
-  ASSERT(test_try_reopen(t, &options) != LDB_OK);
+  ASSERT(test_try_reopen(t, &options) == LDB_COMPARATOR_MISMATCH);
 }
 
 static int
@@ -2174,7 +2174,7 @@ test_db_open_options(test_t *t) {
   /* Does not exist, and create_if_missing == 0: error */
   opts.create_if_missing = 0;
 
-  ASSERT(ldb_open(dbname, &opts, &db) == LDB_INVALID);
+  ASSERT(ldb_open(dbname, &opts, &db) == LDB_NOEXIST);
   ASSERT(db == NULL);
 
   /* Does not exist, and create_if_missing == 1: OK */
@@ -2190,7 +2190,7 @@ test_db_open_options(test_t *t) {
   opts.create_if_missing = 0;
   opts.error_if_exists = 1;
 
-  ASSERT(ldb_open(dbname, &opts, &db) == LDB_INVALID);
+  ASSERT(ldb_open(dbname, &opts, &db) == LDB_EXISTS);
   ASSERT(db == NULL);
 
   /* Does exist, and error_if_exists == 0: OK */
@@ -2450,7 +2450,7 @@ test_db_missing_sst_file(test_t *t) {
   options = test_current_options(t);
   options.paranoid_checks = 1;
 
-  ASSERT(test_try_reopen(t, &options) != LDB_OK);
+  ASSERT(test_try_reopen(t, &options) == LDB_MISSING_FILES);
 }
 
 static void

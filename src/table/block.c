@@ -211,7 +211,7 @@ static void
 ldb_blockiter_corruption(ldb_blockiter_t *iter) {
   iter->current = iter->restarts;
   iter->restart_index = iter->num_restarts;
-  iter->status = LDB_CORRUPTION; /* "bad entry in block" */
+  iter->status = LDB_BAD_BLOCK_ENTRY;
 
   ldb_buffer_reset(&iter->key);
   ldb_slice_reset(&iter->value);
@@ -432,7 +432,7 @@ ldb_blockiter_create(const ldb_block_t *block,
   uint32_t num_restarts;
 
   if (block->size < 4)
-    return ldb_emptyiter_create(LDB_CORRUPTION); /* "bad block contents" */
+    return ldb_emptyiter_create(LDB_BAD_BLOCK_CONTENTS);
 
   num_restarts = ldb_block_restarts(block);
 

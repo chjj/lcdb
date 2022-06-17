@@ -50,6 +50,8 @@ typedef unsigned long long ldb_uint64_t;
 #define LDB_NOSUPPORT  30003
 #define LDB_INVALID    30004
 #define LDB_IOERR      30005
+#define LDB_NOEXIST    30006
+#define LDB_EXISTS     30007
 
 enum ldb_compression {
   LDB_NO_COMPRESSION = 0,

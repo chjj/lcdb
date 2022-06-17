@@ -91,7 +91,7 @@ parse_key(ldb_dbiter_t *iter, ldb_pkey_t *ikey) {
   iter->bytes_until_read_sampling -= bytes_read;
 
   if (!ldb_pkey_import(ikey, &k)) {
-    iter->status = LDB_CORRUPTION; /* "corrupted internal key in DBIter" */
+    iter->status = LDB_BAD_INTERNAL_KEY;
     return 0;
   }
 

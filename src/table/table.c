@@ -140,7 +140,7 @@ ldb_table_open(const ldb_dbopt_t *options,
   *table = NULL;
 
   if (size < LDB_FOOTER_SIZE)
-    return LDB_CORRUPTION; /* "file is too short to be an sstable" */
+    return LDB_SHORT_SSTABLE;
 
   rc = ldb_rfile_pread(file,
                        &input,
@@ -152,7 +152,7 @@ ldb_table_open(const ldb_dbopt_t *options,
     return rc;
 
   if (!ldb_footer_import(&footer, &input))
-    return LDB_CORRUPTION;
+    return LDB_BAD_FOOTER;
 
   /* Read the index block. */
   if (options->paranoid_checks)
@@ -242,7 +242,7 @@ ldb_table_blockreader(void *arg,
      can add more features in the future. */
 
   if (!ldb_handle_import(&handle, index_value))
-    rc = LDB_CORRUPTION;
+    rc = LDB_BAD_BLOCK_HANDLE;
 
   if (rc == LDB_OK) {
     ldb_contents_t contents;

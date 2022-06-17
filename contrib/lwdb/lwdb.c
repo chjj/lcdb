@@ -54,7 +54,9 @@
 #define LDB_NOSUPPORT  30003
 #define LDB_INVALID    30004
 #define LDB_IOERR      30005
-#define LDB_MAXERR     30005
+#define LDB_NOEXIST    30006
+#define LDB_EXISTS     30007
+#define LDB_MAXERR     30007
 
 enum ldb_compression {
   LDB_NO_COMPRESSION = 0,
@@ -418,8 +420,17 @@ convert_error(char *err) {
   if (strcmp(err, "Not implemented") == 0)
     return LDB_NOSUPPORT;
 
-  if (strcmp(err, "Invalid argument") == 0)
+  if (strcmp(err, "Invalid argument") == 0) {
+    if (p != NULL) {
+      if (strstr(p + 1, "create_if_missing") != NULL)
+        return LDB_NOEXIST;
+
+      if (strstr(p + 1, "error_if_exists") != NULL)
+        return LDB_EXISTS;
+    }
+
     return LDB_INVALID;
+  }
 
   if (strcmp(err, "IO error") == 0)
     return LDB_IOERR;
@@ -1440,7 +1451,10 @@ static const char *ldb_errmsg[] = {
   /* .LDB_CORRUPTION = */ "Corruption",
   /* .LDB_NOSUPPORT = */ "Not implemented",
   /* .LDB_INVALID = */ "Invalid argument",
-  /* .LDB_IOERR = */ "IO error"
+  /* .LDB_IOERR = */ "IO error",
+  /* .LDB_NOEXIST = */
+    "Invalid argument: does not exist (create_if_missing is false)",
+  /* .LDB_EXISTS = */ "Invalid argument: exists (error_if_exists is true)"
 };
 
 const char *

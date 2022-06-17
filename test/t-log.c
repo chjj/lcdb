@@ -475,7 +475,7 @@ test_log_read_error(ltest_t *t) {
 
   ASSERT_EQ("EOF", ltest_read(t));
   ASSERT(LDB_BLOCK_SIZE == ltest_dropped_bytes(t));
-  ASSERT(t->status == LDB_CORRUPTION); /* "read error" */
+  ASSERT(t->status == LDB_CORRUPTION);
 }
 
 static void
@@ -488,7 +488,7 @@ test_log_bad_record_type(ltest_t *t) {
 
   ASSERT_EQ("EOF", ltest_read(t));
   ASSERT(3 == ltest_dropped_bytes(t));
-  ASSERT(t->status == LDB_CORRUPTION); /* "unknown record type" */
+  ASSERT(t->status == LDB_UNKNOWN_RECORD);
 }
 
 static void
@@ -515,7 +515,7 @@ test_log_bad_length(ltest_t *t) {
 
   ASSERT_EQ("foo", ltest_read(t));
   ASSERT(LDB_BLOCK_SIZE == ltest_dropped_bytes(t));
-  ASSERT(t->status == LDB_CORRUPTION); /* "bad record length" */
+  ASSERT(t->status == LDB_BAD_RECORD_LENGTH);
 }
 
 static void
@@ -535,7 +535,7 @@ test_log_checksum_mismatch(ltest_t *t) {
 
   ASSERT_EQ("EOF", ltest_read(t));
   ASSERT(10 == ltest_dropped_bytes(t));
-  ASSERT(t->status == LDB_CORRUPTION); /* "checksum mismatch" */
+  ASSERT(t->status == LDB_CHECKSUM_MISMATCH);
 }
 
 static void
@@ -546,7 +546,7 @@ test_log_unexpected_middle_type(ltest_t *t) {
 
   ASSERT_EQ("EOF", ltest_read(t));
   ASSERT(3 == ltest_dropped_bytes(t));
-  ASSERT(t->status == LDB_CORRUPTION); /* "missing start" */
+  ASSERT(t->status == LDB_MISSING_START_1);
 }
 
 static void
@@ -557,7 +557,7 @@ test_log_unexpected_last_type(ltest_t *t) {
 
   ASSERT_EQ("EOF", ltest_read(t));
   ASSERT(3 == ltest_dropped_bytes(t));
-  ASSERT(t->status == LDB_CORRUPTION); /* "missing start" */
+  ASSERT(t->status == LDB_MISSING_START_2);
 }
 
 static void
@@ -570,7 +570,7 @@ test_log_unexpected_full_type(ltest_t *t) {
   ASSERT_EQ("bar", ltest_read(t));
   ASSERT_EQ("EOF", ltest_read(t));
   ASSERT(3 == ltest_dropped_bytes(t));
-  ASSERT(t->status == LDB_CORRUPTION); /* "partial record without end" */
+  ASSERT(t->status == LDB_PARTIAL_RECORD_1);
 }
 
 static void
@@ -583,7 +583,7 @@ test_log_unexpected_first_type(ltest_t *t) {
   ASSERT_EQ(ltest_big_string(t, "bar", 100000), ltest_read(t));
   ASSERT_EQ("EOF", ltest_read(t));
   ASSERT(3 == ltest_dropped_bytes(t));
-  ASSERT(t->status == LDB_CORRUPTION); /* "partial record without end" */
+  ASSERT(t->status == LDB_PARTIAL_RECORD_2);
 }
 
 static void
