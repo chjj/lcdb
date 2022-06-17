@@ -201,5 +201,8 @@ LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   ldb_close(db);
   db = NULL;
 
+  /* Destroy database. */
+  ldb_destroy("leveldbfuzztest", NULL);
+
   return 0;
 }
