@@ -149,7 +149,7 @@ ldb_table_open(const ldb_dbopt_t *options,
                        size - LDB_FOOTER_SIZE);
 
   if (rc != LDB_OK)
-    return LDB_CORRUPTION;
+    return rc;
 
   if (!ldb_footer_import(&footer, &input))
     return LDB_CORRUPTION;
