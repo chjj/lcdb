@@ -48,11 +48,13 @@
  */
 
 #define LDB_OK             0
+#define LDB_MINERR     30000
 #define LDB_NOTFOUND   30001
 #define LDB_CORRUPTION 30002
 #define LDB_NOSUPPORT  30003
 #define LDB_INVALID    30004
 #define LDB_IOERR      30005
+#define LDB_MAXERR     30005
 
 enum ldb_compression {
   LDB_NO_COMPRESSION = 0,
@@ -1443,11 +1445,11 @@ static const char *ldb_errmsg[] = {
 
 const char *
 ldb_strerror(int code) {
-  if (code < 0)
-    code = -code;
+  if (code == LDB_OK)
+    return ldb_errmsg[LDB_OK];
 
-  if (code >= (int)lengthof(ldb_errmsg))
-    code = -LDB_INVALID;
+  if (code >= LDB_MINERR && code <= LDB_MAXERR)
+    return ldb_errmsg[code - LDB_MINERR];
 
-  return ldb_errmsg[code];
+  return "Unknown error";
 }
