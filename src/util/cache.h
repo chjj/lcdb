@@ -94,7 +94,7 @@ ldb_lru_value(ldb_entry_t *handle);
  * client will allocate a new id at startup and prepend the id to
  * its cache keys.
  */
-uint32_t
+uint64_t
 ldb_lru_id(ldb_lru_t *lru);
 
 /* Remove all cache entries that are not actively in use. Memory-constrained

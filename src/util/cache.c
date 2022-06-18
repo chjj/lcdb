@@ -541,7 +541,7 @@ ldb_lru_value(lru_handle_t *handle) {
   return handle->value;
 }
 
-uint32_t
+uint64_t
 ldb_lru_id(ldb_lru_t *lru) {
   uint64_t id;
   ldb_mutex_lock(&lru->id_mutex);
