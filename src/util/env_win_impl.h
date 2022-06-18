@@ -1247,10 +1247,10 @@ ldb_rfile_pread(ldb_rfile_t *file,
 
   if (file->mapped) {
     if (offset + count < count)
-      return ldb_convert_error(ERROR_SEEK);
+      return ldb_convert_error(ERROR_INVALID_PARAMETER);
 
     if (offset + count > file->length)
-      return ldb_convert_error(ERROR_SEEK);
+      return ldb_convert_error(ERROR_INVALID_PARAMETER);
 
     ldb_slice_set(result, file->base + offset, count);
 
