@@ -93,9 +93,6 @@ lru_handle_equal(const lru_handle_t *x, const ldb_slice_t *y) {
   if (x->key_length != y->size)
     return 0;
 
-  if (x->key_length == 0)
-    return 1;
-
   return memcmp(x->key_data, y->data, y->size) == 0;
 }
 
