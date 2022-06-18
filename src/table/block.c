@@ -157,8 +157,16 @@ next_entry_offset(const ldb_blockiter_t *iter) {
 
 static uint32_t
 get_restart_point(const ldb_blockiter_t *iter, uint32_t index) {
+  uint32_t offset;
+
   assert(index < iter->num_restarts);
-  return ldb_fixed32_decode(iter->data + iter->restarts + index * 4);
+
+  offset = ldb_fixed32_decode(iter->data + iter->restarts + index * 4);
+
+  if (UNLIKELY(offset > iter->restarts))
+    offset = iter->restarts;
+
+  return offset;
 }
 
 static void
