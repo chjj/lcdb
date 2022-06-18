@@ -13,6 +13,7 @@
 #include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #include "../util/buffer.h"
 #include "../util/coding.h"
@@ -170,11 +171,8 @@ ldb_read_block(ldb_contents_t *result,
 
   ldb_contents_init(result);
 
-  /* Check for overflows. */
+  /* Check for overflow. */
   if (handle->size > SIZE_MAX - LDB_TRAILER_SIZE)
-    return LDB_CORRUPTION;
-
-  if (handle->offset > INT64_MAX)
     return LDB_CORRUPTION;
 
   /* Read the block contents as well as the type/crc footer. */
@@ -182,8 +180,10 @@ ldb_read_block(ldb_contents_t *result,
   n = handle->size;
   len = n + LDB_TRAILER_SIZE;
 
-  if (!ldb_rfile_mapped(file))
-    buf = ldb_malloc(len);
+  if (!ldb_rfile_mapped(file)) {
+    if ((buf = malloc(len)) == NULL)
+      return LDB_IOERR; /* "cannot allocate memory" */
+  }
 
   rc = ldb_rfile_pread(file, &contents, buf, len, handle->offset);
 

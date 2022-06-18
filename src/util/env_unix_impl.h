@@ -118,6 +118,7 @@
 
 #define LDB_WRITE_BUFFER 65536
 #define LDB_MMAP_LIMIT (sizeof(void *) >= 8 ? 1000 : 0)
+#define LDB_OFFSET_MAX (sizeof(off_t) >= 8 ? INT64_MAX : INT32_MAX)
 
 /*
  * Types
@@ -1037,7 +1038,10 @@ ldb_rfile_read(ldb_rfile_t *file,
 
 int
 ldb_rfile_skip(ldb_rfile_t *file, uint64_t offset) {
-  if (lseek(file->fd, offset, SEEK_CUR) == -1)
+  if (offset > LDB_OFFSET_MAX)
+    return ldb_convert_error(EINVAL);
+
+  if (lseek(file->fd, offset, SEEK_CUR) < 0)
     return ldb_system_error();
 
   return LDB_OK;
@@ -1065,6 +1069,9 @@ ldb_rfile_pread(ldb_rfile_t *file,
     return LDB_OK;
   }
 
+  if (offset > LDB_OFFSET_MAX)
+    return ldb_convert_error(EINVAL);
+
   if (file->fd == -1) {
     fd = ldb_open(file->filename, O_RDONLY, 0);
 
@@ -1077,7 +1084,7 @@ ldb_rfile_pread(ldb_rfile_t *file,
 #else
   ldb_mutex_lock(&file->mutex);
 
-  if ((uint64_t)lseek(fd, offset, SEEK_SET) == offset)
+  if (lseek(fd, offset, SEEK_SET) >= 0)
     nread = ldb_read(fd, buf, count);
 
   ldb_mutex_unlock(&file->mutex);

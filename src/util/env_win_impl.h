@@ -1229,6 +1229,9 @@ int
 ldb_rfile_skip(ldb_rfile_t *file, uint64_t offset) {
   LARGE_INTEGER dist;
 
+  if (offset > _I64_MAX)
+    return ldb_convert_error(ERROR_INVALID_PARAMETER);
+
   dist.QuadPart = offset;
 
   if (!LDBSetFilePointerEx(file->handle, dist, NULL, FILE_CURRENT))
@@ -1260,6 +1263,9 @@ ldb_rfile_pread(ldb_rfile_t *file,
   if (file->has_mutex) {
     /* Windows 9x. */
     LARGE_INTEGER dist;
+
+    if (offset > _I64_MAX)
+      return ldb_convert_error(ERROR_INVALID_PARAMETER);
 
     dist.QuadPart = offset;
 
