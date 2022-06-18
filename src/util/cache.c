@@ -75,12 +75,21 @@ typedef struct lru_handle_s {
 static ldb_slice_t
 lru_handle_key(const lru_handle_t *handle) {
   ldb_slice_t key;
+
+  /* next is only equal to this if the LRU handle
+     is the list head of an empty list. List heads
+     never have meaningful keys. */
+  assert(handle->next != handle);
+
   ldb_slice_set(&key, handle->key_data, handle->key_length);
+
   return key;
 }
 
 static int
 lru_handle_equal(const lru_handle_t *x, const ldb_slice_t *y) {
+  assert(x->next != x);
+
   if (x->key_length != y->size)
     return 0;
 
