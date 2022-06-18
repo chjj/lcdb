@@ -118,7 +118,7 @@ decode_entry(uint32_t *shared,
       return NULL;
   }
 
-  if (xn < (*non_shared + *value_length))
+  if (xn < ((uint64_t)*non_shared + *value_length))
     return NULL;
 
   return xp;
@@ -262,7 +262,7 @@ parse_next_key(ldb_blockiter_t *iter) {
     return 0;
   }
 
-  if (is_internal && shared + non_shared < 8) {
+  if (is_internal && (uint64_t)shared + non_shared < 8) {
     ldb_blockiter_corruption(iter);
     return 0;
   }
