@@ -239,7 +239,10 @@ ldb_read_block(ldb_contents_t *result,
         return LDB_CORRUPTION; /* "corrupted compressed block contents" */
       }
 
-      ubuf = ldb_malloc(ulength);
+      if ((ubuf = malloc(ulength)) == NULL) {
+        ldb_free(buf);
+        return LDB_IOERR; /* "cannot allocate memory" */
+      }
 
       if (!snappy_decode(ubuf, data, n)) {
         ldb_free(buf);
