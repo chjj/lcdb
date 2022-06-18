@@ -96,7 +96,7 @@ test_deleter(const ldb_slice_t *key, void *value) {
 
 static int
 test_lookup(test_t *t, int key) {
-  ldb_lruhandle_t *h;
+  ldb_entry_t *h;
   uint8_t buf[4];
   ldb_slice_t k;
   int r = -1;
@@ -115,7 +115,7 @@ test_lookup(test_t *t, int key) {
 
 static void
 test_insert(test_t *t, int key, int value, int charge) {
-  ldb_lruhandle_t *h;
+  ldb_entry_t *h;
   uint8_t buf[4];
   ldb_slice_t k;
 
@@ -129,7 +129,7 @@ test_insert(test_t *t, int key, int value, int charge) {
   ldb_lru_release(t->cache, h);
 }
 
-static ldb_lruhandle_t *
+static ldb_entry_t *
 test_insert2(test_t *t, int key, int value, int charge) {
   uint8_t buf[4];
   ldb_slice_t k;
@@ -220,7 +220,7 @@ test_cache_erase(void) {
 
 static void
 test_cache_entries_are_pinned(void) {
-  ldb_lruhandle_t *h1, *h2;
+  ldb_entry_t *h1, *h2;
   ldb_slice_t key;
   uint8_t buf[4];
   test_t t;
@@ -264,7 +264,7 @@ test_cache_entries_are_pinned(void) {
 
 static void
 test_cache_eviction_policy(void) {
-  ldb_lruhandle_t *h;
+  ldb_entry_t *h;
   ldb_slice_t key;
   uint8_t buf[4];
   test_t t;
@@ -377,7 +377,7 @@ test_cache_newid(void) {
 
 static void
 test_cache_prune(void) {
-  ldb_lruhandle_t *h;
+  ldb_entry_t *h;
   ldb_slice_t key;
   uint8_t buf[4];
   test_t t;
