@@ -2412,7 +2412,7 @@ ldb_property(ldb_t *db, const char *property, char **value) {
   }
 
   if (strcmp(in, "approximate-memory-usage") == 0) {
-    size_t total_usage = ldb_lru_total_charge(db->options.block_cache);
+    size_t total_usage = ldb_lru_usage(db->options.block_cache);
 
     if (db->mem != NULL)
       total_usage += ldb_memtable_usage(db->mem);

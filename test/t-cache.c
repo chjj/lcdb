@@ -361,14 +361,14 @@ test_cache_heavy_entries(void) {
 }
 
 static void
-test_cache_newid(void) {
+test_cache_id(void) {
   uint64_t a, b;
   test_t t;
 
   test_init(&t);
 
-  a = ldb_lru_newid(t.cache);
-  b = ldb_lru_newid(t.cache);
+  a = ldb_lru_id(t.cache);
+  b = ldb_lru_id(t.cache);
 
   ASSERT(a != b);
 
@@ -430,7 +430,7 @@ main(void) {
   test_cache_eviction_policy();
   test_cache_use_exceeds_cache_size();
   test_cache_heavy_entries();
-  test_cache_newid();
+  test_cache_id();
   test_cache_prune();
   test_cache_zero_size_cache();
   return 0;

@@ -14,6 +14,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "cache.h"
 #include "hash.h"
 #include "internal.h"
@@ -242,7 +243,7 @@ typedef struct lru_shard_s {
 } lru_shard_t;
 
 static size_t
-lru_shard_total_charge(lru_shard_t *lru) {
+lru_shard_usage(lru_shard_t *lru) {
   size_t usage;
   ldb_mutex_lock(&lru->mutex);
   usage = lru->usage;
@@ -364,7 +365,7 @@ lru_shard_release(lru_shard_t *lru, lru_handle_t *handle) {
 /* If e != NULL, finish removing *e from the cache; it has already been
    removed from the hash table. Return whether e != NULL. */
 static int
-lru_shard_finish_erase(lru_shard_t *lru, lru_handle_t *e) {
+lru_shard_finish(lru_shard_t *lru, lru_handle_t *e) {
   if (e != NULL) {
     assert(e->in_cache);
 
@@ -383,7 +384,7 @@ lru_shard_finish_erase(lru_shard_t *lru, lru_handle_t *e) {
 static void
 lru_shard_erase(lru_shard_t *lru, const ldb_slice_t *key, uint32_t hash) {
   ldb_mutex_lock(&lru->mutex);
-  lru_shard_finish_erase(lru, lru_table_remove(&lru->table, key, hash));
+  lru_shard_finish(lru, lru_table_remove(&lru->table, key, hash));
   ldb_mutex_unlock(&lru->mutex);
 }
 
@@ -397,7 +398,7 @@ lru_shard_prune(lru_shard_t *lru) {
 
     assert(e->refs == 1);
 
-    lru_shard_finish_erase(lru,
+    lru_shard_finish(lru,
       lru_table_remove(&lru->table, &key, e->hash));
   }
 
@@ -432,7 +433,7 @@ lru_shard_insert(lru_shard_t *lru,
     e->in_cache = 1;
     lru_shard_append(&lru->in_use, e);
     lru->usage += charge;
-    lru_shard_finish_erase(lru, lru_table_insert(&lru->table, e));
+    lru_shard_finish(lru, lru_table_insert(&lru->table, e));
   } else { /* Don't cache (capacity==0 is supported and turns off caching). */
     /* next is read by key() in an assert, so it must be initialized. */
     e->next = NULL;
@@ -444,7 +445,7 @@ lru_shard_insert(lru_shard_t *lru,
 
     assert(old->refs == 1);
 
-    lru_shard_finish_erase(lru,
+    lru_shard_finish(lru,
       lru_table_remove(&lru->table, &old_key, old->hash));
   }
 
@@ -541,7 +542,7 @@ ldb_lru_value(lru_handle_t *handle) {
 }
 
 uint32_t
-ldb_lru_newid(ldb_lru_t *lru) {
+ldb_lru_id(ldb_lru_t *lru) {
   uint64_t id;
   ldb_mutex_lock(&lru->id_mutex);
   id = ++lru->last_id;
@@ -558,12 +559,12 @@ ldb_lru_prune(ldb_lru_t *lru) {
 }
 
 size_t
-ldb_lru_total_charge(ldb_lru_t *lru) {
+ldb_lru_usage(ldb_lru_t *lru) {
   size_t total = 0;
   int i;
 
   for (i = 0; i < LDB_SHARDS; i++)
-    total += lru_shard_total_charge(&lru->shard[i]);
+    total += lru_shard_usage(&lru->shard[i]);
 
   return total;
 }

@@ -95,7 +95,7 @@ ldb_lru_value(ldb_entry_t *handle);
  * its cache keys.
  */
 uint32_t
-ldb_lru_newid(ldb_lru_t *lru);
+ldb_lru_id(ldb_lru_t *lru);
 
 /* Remove all cache entries that are not actively in use. Memory-constrained
  * applications may wish to call this method to reduce memory usage.
@@ -109,6 +109,6 @@ ldb_lru_prune(ldb_lru_t *lru);
 /* Return an estimate of the combined charges of all elements stored in the
    cache. */
 size_t
-ldb_lru_total_charge(ldb_lru_t *lru);
+ldb_lru_usage(ldb_lru_t *lru);
 
 #endif /* LDB_CACHE_H */

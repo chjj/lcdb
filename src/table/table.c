@@ -179,7 +179,7 @@ ldb_table_open(const ldb_dbopt_t *options,
     tbl->index_block = index_block;
 
     if (options->block_cache != NULL)
-      tbl->cache_id = ldb_lru_newid(options->block_cache);
+      tbl->cache_id = ldb_lru_id(options->block_cache);
 
     ldb_table_read_meta(tbl, &footer);
 
