@@ -63,7 +63,6 @@
  *      compact     -- Compact the entire DB
  *      stats       -- Print DB stats
  *      sstables    -- Print sstable info
- *      heapprofile -- Dump a heap profile (if supported by this port)
  */
 static const char *FLAGS_benchmarks =
     "fillseq,"
@@ -550,10 +549,6 @@ typedef struct bench_s {
 
 static void
 bench_init(bench_t *bench) {
-  char path[LDB_PATH_MAX];
-  char **files;
-  int i, len;
-
   bench->cache = FLAGS_cache_size >= 0
                ? ldb_lru_create(FLAGS_cache_size)
                : NULL;
@@ -572,18 +567,6 @@ bench_init(bench_t *bench) {
   bench->count_state.count = 0;
   count_comparator_init(&bench->count_comparator, &bench->count_state);
   bench->total_thread_count = 0;
-
-  len = ldb_get_children(FLAGS_db, &files);
-
-  for (i = 0; i < len; i++) {
-    if (ldb_starts_with(files[i], "heap-") &&
-        ldb_join(path, sizeof(path), FLAGS_db, files[i])) {
-      ldb_remove_file(path);
-    }
-  }
-
-  if (len >= 0)
-    ldb_free_children(files, len);
 
   if (!FLAGS_use_existing_db)
     ldb_destroy(FLAGS_db, ldb_dbopt_default);
@@ -634,8 +617,8 @@ bench_open(bench_t *bench) {
 static void
 bench_print_environment(bench_t *bench) {
 #ifdef __linux__
+  time_t now = time(NULL);
   FILE *cpuinfo;
-  time_t now;
 #endif
 
   (void)bench;
@@ -643,8 +626,6 @@ bench_print_environment(bench_t *bench) {
   fprintf(stderr, "Database:   version %d.%d\n", 0, 0);
 
 #ifdef __linux__
-  now = time(NULL);
-
   fprintf(stderr, "Date:       %s", ctime(&now)); /* ctime() adds newline. */
 
   cpuinfo = fopen("/proc/cpuinfo", "r");
@@ -714,9 +695,11 @@ bench_print_header(bench_t *bench) {
   fprintf(stdout, "RawSize:    %.1f MB (estimated)\n",
           ((int64_t)(key_size + FLAGS_value_size) * bench->num) / 1048576.0);
 
-  fprintf(stdout, "FileSize:   %.1f MB (estimated)\n",
-    ((key_size + FLAGS_value_size * FLAGS_compression_ratio) * bench->num)
-    / 1048576.0);
+  if (FLAGS_compression) {
+    fprintf(stdout, "FileSize:   %.1f MB (estimated)\n",
+      ((key_size + FLAGS_value_size * FLAGS_compression_ratio) * bench->num)
+      / 1048576.0);
+  }
 
   bench_print_warnings(bench);
 
@@ -1380,52 +1363,6 @@ bench_print_stats(bench_t *bench, const char *key) {
 }
 
 static void
-write_to_file(void *arg, const char *buf, int n) {
-  ldb_slice_t data = ldb_slice((const unsigned char *)buf, n);
-  ldb_wfile_t *file = (ldb_wfile_t *)arg;
-
-  ldb_wfile_append(file, &data);
-}
-
-static int
-ldb_heap_profile(void (*writer)(void *, const char *, int), void *arg) {
-  (void)writer;
-  (void)arg;
-  return 0;
-}
-
-static void
-bench_heap_profile(bench_t *bench) {
-  ldb_wfile_t *file = NULL;
-  char path[LDB_PATH_MAX];
-  char name[100];
-  int rc = LDB_OK;
-  int ok;
-
-  sprintf(name, "heap-%04d", ++bench->heap_counter);
-
-  if (!ldb_join(path, sizeof(path), FLAGS_db, name))
-    rc = LDB_INVALID;
-
-  if (rc == LDB_OK)
-    rc = ldb_truncfile_create(path, &file);
-
-  if (rc != LDB_OK) {
-    fprintf(stderr, "%s\n", ldb_strerror(rc));
-    return;
-  }
-
-  ok = ldb_heap_profile(write_to_file, file);
-
-  ldb_wfile_destroy(file);
-
-  if (!ok) {
-    fprintf(stderr, "heap profiling not supported\n");
-    ldb_remove_file(path);
-  }
-}
-
-static void
 bench_run(bench_t *bench) {
   const char *benchmarks = FLAGS_benchmarks;
   char name[128];
@@ -1530,8 +1467,6 @@ bench_run(bench_t *bench) {
       method = &bench_snappy_compress;
     } else if (strcmp(name, "snappyuncomp") == 0) {
       method = &bench_snappy_uncompress;
-    } else if (strcmp(name, "heapprofile") == 0) {
-      bench_heap_profile(bench);
     } else if (strcmp(name, "stats") == 0) {
       bench_print_stats(bench, "leveldb.stats");
     } else if (strcmp(name, "sstables") == 0) {
