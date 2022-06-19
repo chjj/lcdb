@@ -47,12 +47,10 @@ pub fn build(b: *std.build.Builder) void {
   var flags = ArrayList([]const u8).init(b.allocator);
   var defines = ArrayList([]const u8).init(b.allocator);
   var libs = ArrayList([]const u8).init(b.allocator);
-  var bench_libs = ArrayList([]const u8).init(b.allocator);
 
   defer flags.deinit();
   defer defines.deinit();
   defer libs.deinit();
-  defer bench_libs.deinit();
 
   //
   // Global Flags
@@ -191,13 +189,6 @@ pub fn build(b: *std.build.Builder) void {
   }
 
   //
-  // Libraries
-  //
-  if (enable_bench and !target.isWindows()) {
-    bench_libs.append("m") catch unreachable;
-  }
-
-  //
   // Targets
   //
   const libname = if (target.isWindows()) "liblcdb" else "lcdb";
@@ -280,10 +271,6 @@ pub fn build(b: *std.build.Builder) void {
   }
 
   for (libs.items) |lib| {
-    bench.linkSystemLibrary(lib);
-  }
-
-  for (bench_libs.items) |lib| {
     bench.linkSystemLibrary(lib);
   }
 

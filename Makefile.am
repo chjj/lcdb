@@ -188,7 +188,7 @@ db_bench_SOURCES = bench/db_bench.c    \
 
 db_bench_CFLAGS = -I$(top_srcdir)/src
 db_bench_LDFLAGS = -static
-db_bench_LDADD = liblcdb.la @MATHLIB@
+db_bench_LDADD = liblcdb.la
 
 noinst_PROGRAMS += db_bench
 endif

@@ -303,23 +303,6 @@ AS_IF([test x"$has_pread" = x'yes'], [
 ])
 
 #
-# Libraries
-#
-
-AS_IF([test x"$enable_bench" = x'yes'], [
-  AC_LINK_IFELSE([
-    AC_LANG_SOURCE([[
-#     include <math.h>
-      int main(int argc, char **argv) {
-        return (int)sqrt((double)argc);
-      }
-    ]])
-  ], [], [
-    AC_SUBST([MATHLIB], ['-lm'])
-  ])
-])
-
-#
 # Configuration
 #
 

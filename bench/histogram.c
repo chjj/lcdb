@@ -11,8 +11,6 @@
  */
 
 #include <stdio.h>
-#include <math.h>
-
 #include "histogram.h"
 
 /*
@@ -278,6 +276,30 @@ histogram_average(const histogram_t *h) {
 }
 
 static double
+histogram_sqrt(double x) {
+  double z, t;
+
+  if (x != x)
+    return x;
+
+  if (x + x == x)
+    return x;
+
+  if (x < 0)
+    return 0;
+
+  z = x / 2;
+  t = 0;
+
+  while (z != t) {
+    t = z;
+    z = (x / t + t) / 2;
+  }
+
+  return z;
+}
+
+static double
 histogram_standard_deviation(const histogram_t *h) {
   double variance;
 
@@ -286,7 +308,7 @@ histogram_standard_deviation(const histogram_t *h) {
 
   variance = (h->sum_squares * h->num - h->sum * h->sum) / (h->num * h->num);
 
-  return sqrt(variance);
+  return histogram_sqrt(variance);
 }
 
 char *

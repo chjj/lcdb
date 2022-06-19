@@ -83,8 +83,6 @@ set(ldb_includes)
 set(ldb_ldflags)
 set(ldb_libs)
 
-set(bench_libs)
-
 #
 # Global Flags
 #
@@ -285,23 +283,6 @@ endif()
 list(APPEND ldb_includes ${PROJECT_SOURCE_DIR}/include)
 
 #
-# Libraries
-#
-
-if(LDB_BENCH)
-  check_c_source_compiles([=[
-#   include <math.h>
-    int main(int argc, char **argv) {
-      return (int)sqrt((double)argc);
-    }
-  ]=] LDB_LIBC_MATH)
-
-  if(NOT LDB_LIBC_MATH)
-    list(APPEND bench_libs m)
-  endif()
-endif()
-
-#
 # Subproject
 #
 
@@ -395,7 +376,7 @@ if(LDB_BENCH)
                             src/util/testutil.c)
 
   target_include_directories(lcdb_bench PRIVATE ${PROJECT_SOURCE_DIR}/src)
-  target_link_libraries(lcdb_bench PRIVATE lcdb lcdb_static ${bench_libs})
+  target_link_libraries(lcdb_bench PRIVATE lcdb lcdb_static)
   set_property(TARGET lcdb_bench PROPERTY OUTPUT_NAME db_bench)
 endif()
 
