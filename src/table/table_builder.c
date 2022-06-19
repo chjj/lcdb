@@ -120,23 +120,6 @@ ldb_tablegen_destroy(ldb_tablegen_t *tb) {
   ldb_free(tb);
 }
 
-int
-ldb_tablegen_change_options(ldb_tablegen_t *tb, const ldb_dbopt_t *options) {
-  /* Note: if more fields are added to Options, update
-     this function to catch changes that should not be allowed to
-     change in the middle of building a Table. */
-  if (options->comparator != tb->options.comparator)
-    return LDB_INVALID; /* "changing comparator while building table" */
-
-  /* Note that any live BlockBuilders point to tb->options and therefore
-     will automatically pick up the updated options. */
-  tb->options = *options;
-  tb->index_block_options = *options;
-  tb->index_block_options.block_restart_interval = 1;
-
-  return LDB_OK;
-}
-
 static void
 ldb_tablegen_write_raw_block(ldb_tablegen_t *tb,
                              const ldb_slice_t *block_contents,
@@ -295,11 +278,6 @@ ldb_tablegen_flush(ldb_tablegen_t *tb) {
 }
 
 int
-ldb_tablegen_status(const ldb_tablegen_t *tb) {
-  return tb->status;
-}
-
-int
 ldb_tablegen_finish(ldb_tablegen_t *tb) {
   ldb_handle_t metaindex_handle = {0, 0};
   ldb_handle_t index_handle = {0, 0};
@@ -390,6 +368,11 @@ void
 ldb_tablegen_abandon(ldb_tablegen_t *tb) {
   assert(!tb->closed);
   tb->closed = 1;
+}
+
+int
+ldb_tablegen_status(const ldb_tablegen_t *tb) {
+  return tb->status;
 }
 
 uint64_t
