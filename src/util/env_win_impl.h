@@ -1071,7 +1071,7 @@ int
 ldb_lock_file(const char *filename, ldb_filelock_t **lock) {
   HANDLE handle = LDBCreateFile(filename,
                                 GENERIC_READ | GENERIC_WRITE,
-                                0,
+                                FILE_SHARE_READ | FILE_SHARE_WRITE,
                                 NULL,
                                 OPEN_ALWAYS,
                                 FILE_ATTRIBUTE_NORMAL,
@@ -1079,6 +1079,12 @@ ldb_lock_file(const char *filename, ldb_filelock_t **lock) {
 
   if (handle == INVALID_HANDLE_VALUE)
     return ldb_system_error();
+
+  if (!LockFile(handle, 0, 0, 1, 0)) {
+    int rc = ldb_system_error();
+    CloseHandle(handle);
+    return rc;
+  }
 
   *lock = ldb_malloc(sizeof(ldb_filelock_t));
 
@@ -1089,9 +1095,16 @@ ldb_lock_file(const char *filename, ldb_filelock_t **lock) {
 
 int
 ldb_unlock_file(ldb_filelock_t *lock) {
+  int rc = LDB_OK;
+
+  if (!UnlockFile(lock->handle, 0, 0, 1, 0))
+    rc = ldb_system_error();
+
   CloseHandle(lock->handle);
+
   ldb_free(lock);
-  return LDB_OK;
+
+  return rc;
 }
 
 static int
