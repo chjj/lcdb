@@ -1093,7 +1093,6 @@ bench_read_random(bench_t *bench, thread_state_t *thread) {
   }
 
   sprintf(msg, "(%d of %d found)", found, bench->num);
-
   stats_add_message(&thread->stats, msg);
 }
 
@@ -1159,7 +1158,6 @@ bench_seek_random(bench_t *bench, thread_state_t *thread) {
   }
 
   sprintf(msg, "(%d of %d found)", found, bench->num);
-
   stats_add_message(&thread->stats, msg);
 }
 
@@ -1189,7 +1187,6 @@ bench_seek_ordered(bench_t *bench, thread_state_t *thread) {
   ldb_iter_destroy(iter);
 
   sprintf(msg, "(%d of %d found)", found, bench->num);
-
   stats_add_message(&thread->stats, msg);
 }
 

@@ -738,7 +738,6 @@ bench_read_random(bench_t *bench, bench_state_t *state) {
   }
 
   sprintf(msg, "(%d of %d found)", found, bench->num);
-
   stats_add_message(&state->stats, msg);
 }
 
@@ -829,7 +828,6 @@ bench_seek_random(bench_t *bench, bench_state_t *state) {
   }
 
   sprintf(msg, "(%d of %d found)", found, bench->num);
-
   stats_add_message(&state->stats, msg);
 }
 
@@ -867,7 +865,6 @@ bench_seek_ordered(bench_t *bench, bench_state_t *state) {
   leveldb_iter_destroy(iter);
 
   sprintf(msg, "(%d of %d found)", found, bench->num);
-
   stats_add_message(&state->stats, msg);
 }
 
