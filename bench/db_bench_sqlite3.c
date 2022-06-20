@@ -211,14 +211,14 @@ trim_space(char *xp) {
 #endif
 
 static void
-append_with_space(ldb_buffer_t *buf, const ldb_slice_t *msg) {
-  if (msg->size == 0)
+append_with_space(ldb_buffer_t *z, const ldb_slice_t *x) {
+  if (x->size == 0)
     return;
 
-  if (buf->size > 0)
-    ldb_buffer_push(buf, ' ');
+  if (z->size > 0)
+    ldb_buffer_push(z, ' ');
 
-  ldb_buffer_concat(buf, msg);
+  ldb_buffer_concat(z, x);
 }
 
 /*
@@ -505,13 +505,11 @@ bench_reopen(bench_t *bench) {
 }
 
 static void
-bench_print_environment(bench_t *bench) {
+bench_print_environment(void) {
 #ifdef __linux__
   time_t now = time(NULL);
   FILE *cpuinfo;
 #endif
-
-  (void)bench;
 
   fprintf(stderr, "SQLite:     version %s\n", SQLITE_VERSION);
 
@@ -558,8 +556,7 @@ bench_print_environment(bench_t *bench) {
 }
 
 static void
-bench_print_warnings(bench_t *bench) {
-  (void)bench;
+bench_print_warnings(void) {
 #if defined(__GNUC__) && !defined(__OPTIMIZE__)
   fprintf(stdout,
     "WARNING: Optimization is disabled: benchmarks unnecessarily slow\n");
@@ -574,7 +571,7 @@ static void
 bench_print_header(bench_t *bench) {
   const int key_size = 16;
 
-  bench_print_environment(bench);
+  bench_print_environment();
 
   fprintf(stdout, "Keys:       %d bytes each\n", key_size);
   fprintf(stdout, "Values:     %d bytes each\n", FLAGS_value_size);
@@ -582,7 +579,7 @@ bench_print_header(bench_t *bench) {
   fprintf(stdout, "RawSize:    %.1f MB (estimated)\n",
           ((int64_t)(key_size + FLAGS_value_size) * bench->num) / 1048576.0);
 
-  bench_print_warnings(bench);
+  bench_print_warnings();
 
   fprintf(stdout, "------------------------------------------------\n");
 }
@@ -668,7 +665,6 @@ bench_write(bench_t *bench,
       error_check(status);
 
       /* Execute replace_stmt. */
-      stats_add_bytes(&bench->stats, strlen(key) + value_size);
       status = sqlite3_step(replace_stmt);
       step_error_check(status);
 
@@ -679,6 +675,7 @@ bench_write(bench_t *bench,
       status = sqlite3_reset(replace_stmt);
       error_check(status);
 
+      stats_add_bytes(&bench->stats, 16 + value_size);
       stats_finished_single_op(&bench->stats);
     }
 
@@ -738,6 +735,7 @@ bench_read(bench_t *bench, enum bench_order order, int entries_per_batch) {
       /* Create key value. */
       uint32_t next = ldb_rand_next(&bench->rnd);
       int k = (order == SEQUENTIAL) ? i + j : (int)(next % bench->reads);
+      int64_t bytes = 0;
       char key[100];
 
       sprintf(key, "%016d", k);
@@ -747,8 +745,10 @@ bench_read(bench_t *bench, enum bench_order order, int entries_per_batch) {
       error_check(status);
 
       /* Execute read statement. */
-      while ((status = sqlite3_step(read_stmt)) == SQLITE_ROW)
-        ;
+      while ((status = sqlite3_step(read_stmt)) == SQLITE_ROW) {
+        bytes += sqlite3_column_bytes(read_stmt, 1);
+        bytes += sqlite3_column_bytes(read_stmt, 2);
+      }
 
       step_error_check(status);
 
@@ -759,6 +759,7 @@ bench_read(bench_t *bench, enum bench_order order, int entries_per_batch) {
       status = sqlite3_reset(read_stmt);
       error_check(status);
 
+      stats_add_bytes(&bench->stats, bytes);
       stats_finished_single_op(&bench->stats);
     }
 
@@ -784,22 +785,24 @@ bench_read(bench_t *bench, enum bench_order order, int entries_per_batch) {
 
 static void
 bench_read_sequential(bench_t *bench) {
-  stats_t *stats = &bench->stats;
   sqlite3 *db = bench->db;
   const char *stmt_str;
   sqlite3_stmt *stmt;
+  int64_t bytes = 0;
   int i, status;
 
   stmt_str = "SELECT * FROM test ORDER BY key";
   status = sqlite3_prepare_v2(db, stmt_str, -1, &stmt, NULL);
   error_check(status);
 
-  for (i = 0; i < bench->reads && SQLITE_ROW == sqlite3_step(stmt); i++) {
-    stats->bytes += sqlite3_column_bytes(stmt, 1);
-    stats->bytes += sqlite3_column_bytes(stmt, 2);
+  for (i = 0; i < bench->reads && sqlite3_step(stmt) == SQLITE_ROW; i++) {
+    bytes += sqlite3_column_bytes(stmt, 1);
+    bytes += sqlite3_column_bytes(stmt, 2);
 
     stats_finished_single_op(&bench->stats);
   }
+
+  stats_add_bytes(&bench->stats, bytes);
 
   status = sqlite3_finalize(stmt);
   error_check(status);
