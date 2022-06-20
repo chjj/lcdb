@@ -10,12 +10,14 @@
  * See LICENSE for more information.
  */
 
+#include <assert.h>
 #include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
 #include <lmdb.h>
 
 #include "util/buffer.h"

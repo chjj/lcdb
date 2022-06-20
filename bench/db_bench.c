@@ -10,6 +10,7 @@
  * See LICENSE for more information.
  */
 
+#include <assert.h>
 #include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
