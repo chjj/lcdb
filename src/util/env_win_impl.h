@@ -1103,12 +1103,11 @@ ldb_test_directory_wide(char *result, size_t size) {
     ret = ldb_wide_export(result, size, &path);
     ldb_wide_clear(&path);
   } else if (LDBGetTempPathW(&tmp)) {
-    DWORD n = lstrlenW(tmp.data) + 12 + 20 + 1;
+    DWORD n = lstrlenW(tmp.data) + 11 + 1;
 
     ldb_wide_init(&path, n);
 
-    _snwprintf(path.data, n, L"%sleveldbtest-%lu",
-               tmp.data, GetCurrentThreadId());
+    _snwprintf(path.data, n, L"%sleveldbtest", tmp.data);
 
     CreateDirectoryW(path.data, NULL);
 
@@ -1134,11 +1133,10 @@ ldb_test_directory_ansi(char *result, size_t size) {
   if (!GetTempPathA(sizeof(tmp), tmp))
     return 0;
 
-  if (strlen(tmp) + 12 + 20 + 1 > size)
+  if (strlen(tmp) + 11 + 1 > size)
     return 0;
 
-  sprintf(result, "%sleveldbtest-%lu",
-          tmp, GetCurrentThreadId());
+  sprintf(result, "%sleveldbtest", tmp);
 
   CreateDirectoryA(result, NULL);
 
