@@ -95,6 +95,14 @@ AC_ARG_ENABLE(
 )
 
 AC_ARG_ENABLE(
+  extra,
+  AS_HELP_STRING([--enable-extra],
+                 [build extra benchmarks [default=no]]),
+  [enable_debug=$enableval],
+  [enable_debug=no]
+)
+
+AC_ARG_ENABLE(
   fuzzer,
   AS_HELP_STRING([--enable-fuzzer],
                  [build fuzzer [default=no]]),
@@ -303,6 +311,37 @@ AS_IF([test x"$has_pread" = x'yes'], [
 ])
 
 #
+# Libraries
+#
+
+has_kcdb=no
+has_leveldb=no
+has_lmdb=no
+has_sqlite3=no
+
+AS_IF([test x"$enable_bench $enable_extra" = x'yes yes'], [
+  # Check for Kyoto Cabinet.
+  AC_CHECK_HEADER([kclangc.h], [
+    AC_CHECK_LIB([kyotocabinet], [kcdbopen], [has_kcdb=yes])
+  ])
+
+  # Check for LevelDB.
+  AC_CHECK_HEADER([leveldb/c.h], [
+    AC_CHECK_LIB([leveldb], [leveldb_open], [has_leveldb=yes])
+  ])
+
+  # Check for LMDB.
+  AC_CHECK_HEADER([lmdb.h], [
+    AC_CHECK_LIB([lmdb], [mdb_env_open], [has_lmdb=yes])
+  ])
+
+  # Check for SQLite3.
+  AC_CHECK_HEADER([sqlite3.h], [
+    AC_CHECK_LIB([sqlite3], [sqlite3_open], [has_sqlite3=yes])
+  ])
+])
+
+#
 # Configuration
 #
 
@@ -326,6 +365,10 @@ AM_CONDITIONAL([ENABLE_FUZZER], [test x"$enable_fuzzer" = x'yes'])
 AM_CONDITIONAL([ENABLE_LWDB], [test x"$enable_lwdb" = x'yes'])
 AM_CONDITIONAL([ENABLE_SHARED], [test x"$enable_shared" = x'yes'])
 AM_CONDITIONAL([ENABLE_TESTS], [test x"$enable_tests" = x'yes'])
+AM_CONDITIONAL([HAVE_KCDB], [test x"$has_kcdb" = x'yes'])
+AM_CONDITIONAL([HAVE_LEVELDB], [test x"$has_leveldb" = x'yes'])
+AM_CONDITIONAL([HAVE_LMDB], [test x"$has_lmdb" = x'yes'])
+AM_CONDITIONAL([HAVE_SQLITE3], [test x"$has_sqlite3" = x'yes'])
 AM_CONDITIONAL([MINGW], [test x"$MINGW" != x''])
 AM_CONDITIONAL([WASI], [test x"$WASI" != x''])
 

@@ -46,6 +46,7 @@ include(GNUInstallDirs)
 
 option(LDB_BENCH "Build benchmarks" ON)
 option(LDB_COVERAGE "Enable coverage" OFF)
+option(LDB_EXTRA "Build extra benchmarks" OFF)
 option(LDB_FUZZER "Enable fuzzer" OFF)
 option(LDB_LWDB "Enable LWDB" OFF)
 option(LDB_PIC "Enable PIC" OFF)
@@ -370,14 +371,55 @@ set_property(TARGET lcdb_util PROPERTY OUTPUT_NAME lcdbutil)
 # Benchmarks
 #
 
-if(LDB_BENCH)
-  add_executable(lcdb_bench bench/db_bench.c
-                            bench/histogram.c
-                            src/util/testutil.c)
+function(build_benchmark target name lib)
+  add_executable(${target} bench/${name}.c
+                           bench/histogram.c
+                           src/util/testutil.c)
 
-  target_include_directories(lcdb_bench PRIVATE ${PROJECT_SOURCE_DIR}/src)
-  target_link_libraries(lcdb_bench PRIVATE lcdb lcdb_static)
-  set_property(TARGET lcdb_bench PROPERTY OUTPUT_NAME db_bench)
+  target_include_directories(${target} PRIVATE ${PROJECT_SOURCE_DIR}/src)
+  target_link_libraries(${target} PRIVATE lcdb lcdb_static ${lib})
+  set_property(TARGET ${target} PROPERTY OUTPUT_NAME ${name})
+endfunction()
+
+if(LDB_BENCH)
+  build_benchmark(lcdb_bench db_bench "")
+endif()
+
+if(LDB_BENCH AND LDB_EXTRA)
+  include(CheckIncludeFile)
+  include(CheckLibraryExists)
+
+  # Check for Kyoto Cabinet.
+  check_include_file(kclangc.h LDB_HAVE_KCDB_H)
+  check_library_exists(kyotocabinet kcdbopen "" LDB_HAVE_KCDB_A)
+
+  if(LDB_HAVE_KCDB_H AND LDB_HAVE_KCDB_A)
+    build_benchmark(lcdb_bench_tree_db db_bench_tree_db kyotocabinet)
+  endif()
+
+  # Check for LevelDB.
+  check_include_file(leveldb/c.h LDB_HAVE_LEVELDB_H)
+  check_library_exists(leveldb leveldb_open "" LDB_HAVE_LEVELDB_A)
+
+  if(LDB_HAVE_LEVELDB_H AND LDB_HAVE_LEVELDB_A)
+    build_benchmark(lcdb_bench_leveldb db_bench_leveldb leveldb)
+  endif()
+
+  # Check for LMDB.
+  check_include_file(lmdb.h LDB_HAVE_LMDB_H)
+  check_library_exists(lmdb mdb_env_open "" LDB_HAVE_LMDB_A)
+
+  if(LDB_HAVE_LMDB_H AND LDB_HAVE_LMDB_A)
+    build_benchmark(lcdb_bench_lmdb db_bench_lmdb lmdb)
+  endif()
+
+  # Check for SQLite3.
+  check_include_file(sqlite3.h LDB_HAVE_SQLITE3_H)
+  check_library_exists(sqlite3 sqlite3_open "" LDB_HAVE_SQLITE3_A)
+
+  if(LDB_HAVE_SQLITE3_H AND LDB_HAVE_SQLITE3_A)
+    build_benchmark(lcdb_bench_sqlite3 db_bench_sqlite3 sqlite3)
+  endif()
 endif()
 
 #

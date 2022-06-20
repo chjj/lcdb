@@ -179,18 +179,49 @@ noinst_PROGRAMS =
 # Benchmarks
 #
 
-if ENABLE_BENCH
-db_bench_SOURCES = bench/db_bench.c    \
-                   bench/histogram.c   \
-                   bench/histogram.h   \
-                   src/util/testutil.c \
-                   src/util/testutil.h
+bench_sources = bench/histogram.c   \
+                bench/histogram.h   \
+                src/util/testutil.c \
+                src/util/testutil.h
 
+if ENABLE_BENCH
+db_bench_SOURCES = bench/db_bench.c $(bench_sources)
 db_bench_CFLAGS = -I$(top_srcdir)/src
 db_bench_LDFLAGS = -static
 db_bench_LDADD = liblcdb.la
-
 noinst_PROGRAMS += db_bench
+endif
+
+if HAVE_KCDB
+db_bench_tree_db_SOURCES = bench/db_bench_tree_db.c $(bench_sources)
+db_bench_tree_db_CFLAGS = -I$(top_srcdir)/src
+db_bench_tree_db_LDFLAGS = -static
+db_bench_tree_db_LDADD = liblcdb.la -lkyotocabinet
+noinst_PROGRAMS += db_bench_tree_db
+endif
+
+if HAVE_LEVELDB
+db_bench_leveldb_SOURCES = bench/db_bench_leveldb.c $(bench_sources)
+db_bench_leveldb_CFLAGS = -I$(top_srcdir)/src
+db_bench_leveldb_LDFLAGS = -static
+db_bench_leveldb_LDADD = liblcdb.la -lleveldb
+noinst_PROGRAMS += db_bench_leveldb
+endif
+
+if HAVE_LMDB
+db_bench_lmdb_SOURCES = bench/db_bench_lmdb.c $(bench_sources)
+db_bench_lmdb_CFLAGS = -I$(top_srcdir)/src
+db_bench_lmdb_LDFLAGS = -static
+db_bench_lmdb_LDADD = liblcdb.la -llmdb
+noinst_PROGRAMS += db_bench_lmdb
+endif
+
+if HAVE_SQLITE3
+db_bench_sqlite3_SOURCES = bench/db_bench_sqlite3.c $(bench_sources)
+db_bench_sqlite3_CFLAGS = -I$(top_srcdir)/src
+db_bench_sqlite3_LDFLAGS = -static
+db_bench_sqlite3_LDADD = liblcdb.la -lsqlite3
+noinst_PROGRAMS += db_bench_sqlite3
 endif
 
 #
