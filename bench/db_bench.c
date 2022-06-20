@@ -248,26 +248,11 @@ rng_generate(rng_t *rng, size_t len) {
  * KeyBuffer
  */
 
-typedef struct keybuf_s {
-  char buffer[1024];
-} keybuf_t;
-
-static void
-keybuf_init(keybuf_t *kb) {
-  if ((size_t)FLAGS_key_prefix >= sizeof(kb->buffer) - 32)
-    abort();
-
-  memset(kb->buffer, 'a', FLAGS_key_prefix);
-}
-
-static void
-keybuf_set(keybuf_t *kb, int k) {
-  sprintf(kb->buffer + FLAGS_key_prefix, "%016d", k);
-}
-
 static ldb_slice_t
-keybuf_slice(const keybuf_t *kb) {
-  return ldb_slice((unsigned char *)kb->buffer, FLAGS_key_prefix + 16);
+key_encode(int k, char *buffer) {
+  memset(buffer, 'a', FLAGS_key_prefix);
+  sprintf(buffer + FLAGS_key_prefix, "%016d", k);
+  return ldb_slice((uint8_t *)buffer, FLAGS_key_prefix + 16);
 }
 
 /*
@@ -294,14 +279,14 @@ trim_space(char *xp) {
 #endif
 
 static void
-append_with_space(ldb_buffer_t *buf, const ldb_slice_t *msg) {
-  if (msg->size == 0)
+append_with_space(ldb_buffer_t *z, const ldb_slice_t *x) {
+  if (x->size == 0)
     return;
 
-  if (buf->size > 0)
-    ldb_buffer_push(buf, ' ');
+  if (z->size > 0)
+    ldb_buffer_push(z, ' ');
 
-  ldb_buffer_concat(buf, msg);
+  ldb_buffer_concat(z, x);
 }
 
 /*
@@ -347,6 +332,7 @@ stats_clear(stats_t *st) {
   ldb_buffer_clear(&st->message);
 }
 
+#if defined(_WIN32) || defined(LDB_PTHREAD)
 static void
 stats_merge(stats_t *z, const stats_t *x) {
   histogram_merge(&z->hist, &x->hist);
@@ -365,6 +351,7 @@ stats_merge(stats_t *z, const stats_t *x) {
   if (z->message.size == 0)
     ldb_buffer_copy(&z->message, &x->message);
 }
+#endif /* _WIN32 || LDB_PTHREAD */
 
 static void
 stats_stop(stats_t *st) {
@@ -615,13 +602,11 @@ bench_open(bench_t *bench) {
 }
 
 static void
-bench_print_environment(bench_t *bench) {
+bench_print_environment(void) {
 #ifdef __linux__
   time_t now = time(NULL);
   FILE *cpuinfo;
 #endif
-
-  (void)bench;
 
   fprintf(stderr, "Database:   version %d.%d\n", 0, 0);
 
@@ -668,8 +653,7 @@ bench_print_environment(bench_t *bench) {
 }
 
 static void
-bench_print_warnings(bench_t *bench) {
-  (void)bench;
+bench_print_warnings(void) {
 #if defined(__GNUC__) && !defined(__OPTIMIZE__)
   fprintf(stdout,
     "WARNING: Optimization is disabled: benchmarks unnecessarily slow\n");
@@ -684,7 +668,7 @@ static void
 bench_print_header(bench_t *bench) {
   const int key_size = 16 + FLAGS_key_prefix;
 
-  bench_print_environment(bench);
+  bench_print_environment();
 
   fprintf(stdout, "Keys:       %d bytes each\n", key_size);
   fprintf(stdout, "Values:     %d bytes each (%d bytes after compression)\n",
@@ -695,13 +679,11 @@ bench_print_header(bench_t *bench) {
   fprintf(stdout, "RawSize:    %.1f MB (estimated)\n",
           ((int64_t)(key_size + FLAGS_value_size) * bench->num) / 1048576.0);
 
-  if (FLAGS_compression) {
-    fprintf(stdout, "FileSize:   %.1f MB (estimated)\n",
-      ((key_size + FLAGS_value_size * FLAGS_compression_ratio) * bench->num)
-      / 1048576.0);
-  }
+  fprintf(stdout, "FileSize:   %.1f MB (estimated)\n",
+    ((key_size + FLAGS_value_size * FLAGS_compression_ratio) * bench->num)
+    / 1048576.0);
 
-  bench_print_warnings(bench);
+  bench_print_warnings();
 
   fprintf(stdout, "------------------------------------------------\n");
 }
@@ -833,16 +815,16 @@ run_benchmark(bench_t *bench, int n, const char *name,
   shared_state_t shared;
   thread_state_t thread;
 
+  ++bench->total_thread_count;
+
   shared_state_init(&shared, n);
-  thread_state_init(&thread, 0, 1001);
+  thread_state_init(&thread, 0, 1000 + bench->total_thread_count);
 
   thread.shared = &shared;
 
   stats_start(&thread.stats);
 
   method(bench, &thread);
-
-  (void)stats_merge;
 
   stats_stop(&thread.stats);
   stats_report(&thread.stats, name);
@@ -993,13 +975,12 @@ static void
 bench_do_write(bench_t *bench, thread_state_t *thread, int seq) {
   ldb_batch_t batch;
   int64_t bytes = 0;
+  char buffer[1024];
   int rc = LDB_OK;
-  keybuf_t kb;
   rng_t gen;
   int i, j;
 
   ldb_batch_init(&batch);
-  keybuf_init(&kb);
   rng_init(&gen);
 
   if (bench->num != FLAGS_num) {
@@ -1012,13 +993,9 @@ bench_do_write(bench_t *bench, thread_state_t *thread, int seq) {
     ldb_batch_reset(&batch);
 
     for (j = 0; j < bench->entries_per_batch; j++) {
-      int L = seq ? i + j : (int)ldb_rand_uniform(&thread->rnd, FLAGS_num);
-      ldb_slice_t key, val;
-
-      keybuf_set(&kb, L);
-
-      key = keybuf_slice(&kb);
-      val = rng_generate(&gen, bench->value_size);
+      int k = seq ? i + j : (int)ldb_rand_uniform(&thread->rnd, FLAGS_num);
+      ldb_slice_t key = key_encode(k, buffer);
+      ldb_slice_t val = rng_generate(&gen, bench->value_size);
 
       ldb_batch_put(&batch, &key, &val);
 
@@ -1098,20 +1075,14 @@ bench_read_reverse(bench_t *bench, thread_state_t *thread) {
 static void
 bench_read_random(bench_t *bench, thread_state_t *thread) {
   ldb_readopt_t options = *ldb_readopt_default;
-  ldb_slice_t key, val;
+  char buffer[1024], msg[100];
   int found = 0;
-  char msg[100];
-  keybuf_t kb;
   int i;
 
-  keybuf_init(&kb);
-
   for (i = 0; i < bench->reads; i++) {
-    const int L = ldb_rand_uniform(&thread->rnd, FLAGS_num);
-
-    keybuf_set(&kb, L);
-
-    key = keybuf_slice(&kb);
+    const int k = ldb_rand_uniform(&thread->rnd, FLAGS_num);
+    ldb_slice_t key = key_encode(k, buffer);
+    ldb_slice_t val;
 
     if (ldb_get(bench->db, &key, &val, &options) == LDB_OK) {
       ldb_free(val.data);
@@ -1129,23 +1100,17 @@ bench_read_random(bench_t *bench, thread_state_t *thread) {
 static void
 bench_read_missing(bench_t *bench, thread_state_t *thread) {
   ldb_readopt_t options = *ldb_readopt_default;
-  ldb_slice_t key, val;
-  keybuf_t kb;
+  char buffer[1024];
   int i;
 
-  keybuf_init(&kb);
-
   for (i = 0; i < bench->reads; i++) {
-    const int L = ldb_rand_uniform(&thread->rnd, FLAGS_num);
-    ldb_slice_t s;
+    const int k = ldb_rand_uniform(&thread->rnd, FLAGS_num);
+    ldb_slice_t key = key_encode(k, buffer);
+    ldb_slice_t val;
 
-    keybuf_set(&kb, L);
+    key.size -= 1;
 
-    key = keybuf_slice(&kb);
-
-    s = ldb_slice(key.data, key.size - 1);
-
-    if (ldb_get(bench->db, &s, &val, &options) == LDB_OK)
+    if (ldb_get(bench->db, &key, &val, &options) == LDB_OK)
       ldb_free(val.data);
 
     stats_finished_single_op(&thread->stats);
@@ -1156,18 +1121,13 @@ static void
 bench_read_hot(bench_t *bench, thread_state_t *thread) {
   ldb_readopt_t options = *ldb_readopt_default;
   const int range = (FLAGS_num + 99) / 100;
-  ldb_slice_t key, val;
-  keybuf_t kb;
+  char buffer[1024];
   int i;
 
-  keybuf_init(&kb);
-
   for (i = 0; i < bench->reads; i++) {
-    const int L = ldb_rand_uniform(&thread->rnd, range);
-
-    keybuf_set(&kb, L);
-
-    key = keybuf_slice(&kb);
+    const int k = ldb_rand_uniform(&thread->rnd, range);
+    ldb_slice_t key = key_encode(k, buffer);
+    ldb_slice_t val;
 
     if (ldb_get(bench->db, &key, &val, &options) == LDB_OK)
       ldb_free(val.data);
@@ -1179,21 +1139,14 @@ bench_read_hot(bench_t *bench, thread_state_t *thread) {
 static void
 bench_seek_random(bench_t *bench, thread_state_t *thread) {
   ldb_readopt_t options = *ldb_readopt_default;
-  ldb_slice_t key;
+  char buffer[1024], msg[100];
   int found = 0;
-  char msg[100];
-  keybuf_t kb;
   int i;
-
-  keybuf_init(&kb);
 
   for (i = 0; i < bench->reads; i++) {
     ldb_iter_t *iter = ldb_iterator(bench->db, &options);
-    const int L = ldb_rand_uniform(&thread->rnd, FLAGS_num);
-
-    keybuf_set(&kb, L);
-
-    key = keybuf_slice(&kb);
+    const int k = ldb_rand_uniform(&thread->rnd, FLAGS_num);
+    ldb_slice_t key = key_encode(k, buffer);
 
     ldb_iter_seek(iter, &key);
 
@@ -1214,21 +1167,14 @@ static void
 bench_seek_ordered(bench_t *bench, thread_state_t *thread) {
   ldb_readopt_t options = *ldb_readopt_default;
   ldb_iter_t *iter = ldb_iterator(bench->db, &options);
-  ldb_slice_t key;
+  char buffer[1024], msg[100];
   int found = 0;
-  char msg[100];
-  keybuf_t kb;
-  int L = 0;
+  int last = 0;
   int i;
 
-  keybuf_init(&kb);
-
   for (i = 0; i < bench->reads; i++) {
-    L = (L + ldb_rand_uniform(&thread->rnd, 100)) % FLAGS_num;
-
-    keybuf_set(&kb, L);
-
-    key = keybuf_slice(&kb);
+    const int k = (last + ldb_rand_uniform(&thread->rnd, 100)) % FLAGS_num;
+    ldb_slice_t key = key_encode(k, buffer);
 
     ldb_iter_seek(iter, &key);
 
@@ -1236,6 +1182,8 @@ bench_seek_ordered(bench_t *bench, thread_state_t *thread) {
       found++;
 
     stats_finished_single_op(&thread->stats);
+
+    last = k;
   }
 
   ldb_iter_destroy(iter);
@@ -1248,24 +1196,18 @@ bench_seek_ordered(bench_t *bench, thread_state_t *thread) {
 static void
 bench_do_delete(bench_t *bench, thread_state_t *thread, int seq) {
   ldb_batch_t batch;
+  char buffer[1024];
   int rc = LDB_OK;
-  ldb_slice_t key;
-  keybuf_t kb;
   int i, j;
 
   ldb_batch_init(&batch);
-
-  keybuf_init(&kb);
 
   for (i = 0; i < bench->num; i += bench->entries_per_batch) {
     ldb_batch_reset(&batch);
 
     for (j = 0; j < bench->entries_per_batch; j++) {
-      int L = seq ? i + j : (int)ldb_rand_uniform(&thread->rnd, FLAGS_num);
-
-      keybuf_set(&kb, L);
-
-      key = keybuf_slice(&kb);
+      int k = seq ? i + j : (int)ldb_rand_uniform(&thread->rnd, FLAGS_num);
+      ldb_slice_t key = key_encode(k, buffer);
 
       ldb_batch_del(&batch, &key);
 
@@ -1301,11 +1243,10 @@ bench_read_while_writing(bench_t *bench, thread_state_t *thread) {
   } else {
     /* Special thread that keeps writing until other threads are done. */
     ldb_slice_t key, val;
-    keybuf_t kb;
+    char buffer[1024];
     rng_t gen;
-    int L, rc;
+    int k, rc;
 
-    keybuf_init(&kb);
     rng_init(&gen);
 
     for (;;) {
@@ -1321,11 +1262,8 @@ bench_read_while_writing(bench_t *bench, thread_state_t *thread) {
         ldb_mutex_unlock(&thread->shared->mu);
       }
 
-      L = ldb_rand_uniform(&thread->rnd, FLAGS_num);
-
-      keybuf_set(&kb, L);
-
-      key = keybuf_slice(&kb);
+      k = ldb_rand_uniform(&thread->rnd, FLAGS_num);
+      key = key_encode(k, buffer);
       val = rng_generate(&gen, bench->value_size);
 
       rc = ldb_put(bench->db, &key, &val, &bench->write_options);
@@ -1550,7 +1488,7 @@ main(int argc, char **argv) {
     } else if (sscanf(argv[i], "--block_size=%d%c", &n, &junk) == 1) {
       FLAGS_block_size = n;
     } else if (sscanf(argv[i], "--key_prefix=%d%c", &n, &junk) == 1) {
-      FLAGS_key_prefix = n;
+      FLAGS_key_prefix = n < 0 ? 0 : LDB_MIN(n, 1000);
     } else if (sscanf(argv[i], "--cache_size=%d%c", &n, &junk) == 1) {
       FLAGS_cache_size = n;
     } else if (sscanf(argv[i], "--bloom_bits=%d%c", &n, &junk) == 1) {
