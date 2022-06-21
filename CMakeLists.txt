@@ -158,6 +158,51 @@ else()
   check_symbol_exists(pread unistd.h LDB_HAVE_PREAD)
 endif()
 
+if(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
+  set(CMAKE_REQUIRED_FLAGS "/arch:AVX")
+
+  check_c_source_compiles([=[
+#   include <intrin.h>
+#   if !defined(_M_X64) || !defined(__AVX__)
+#     error unsupported
+#   endif
+    int main(void) {
+      _mm_crc32_u8(0, 0);
+      _mm_crc32_u32(0, 0);
+      _mm_crc32_u64(0, 0);
+      return 0;
+    }
+  ]=] LDB_HAVE_MSVC_AVX)
+
+  unset(CMAKE_REQUIRED_FLAGS)
+else()
+  set(LDB_HAVE_MSVC_AVX 0)
+endif()
+
+if(CMAKE_C_COMPILER_ID MATCHES "^GNU$|^Clang$")
+  set(CMAKE_REQUIRED_FLAGS "-march=armv8-a+crc")
+
+  check_c_source_compiles([=[
+#   include <arm_acle.h>
+#   include <arm_neon.h>
+#   if !defined(__aarch64__) || !defined(__ARM_FEATURE_CRC32)
+#     error unsupported
+#   endif
+    int main(void) {
+      __crc32cb(0, 0);
+      __crc32ch(0, 0);
+      __crc32cw(0, 0);
+      __crc32cd(0, 0);
+      vmull_p64(0, 0);
+      return 0;
+    }
+  ]=] LDB_HAVE_ARM_CRC)
+
+  unset(CMAKE_REQUIRED_FLAGS)
+else()
+  set(LDB_HAVE_ARM_CRC 0)
+endif()
+
 #
 # Sources
 #
@@ -257,6 +302,15 @@ if(MINGW)
     list(APPEND ldb_cflags -march=i586 -mtune=i686)
     list(APPEND ldb_ldflags -march=i586 -mtune=i686)
   endif()
+endif()
+
+if(LDB_HAVE_MSVC_AVX)
+  set_property(SOURCE src/util/crc32c.c PROPERTY COMPILE_FLAGS "/arch:AVX")
+endif()
+
+if(LDB_HAVE_ARM_CRC)
+  set_property(SOURCE src/util/crc32c.c
+               PROPERTY COMPILE_FLAGS "-march=armv8-a+crc")
 endif()
 
 #

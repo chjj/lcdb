@@ -212,6 +212,7 @@ AS_IF([test x"$MINGW" != x''], [
 
 has_fdatasync=no
 has_pread=no
+has_arm_crc=no
 
 AS_IF([test x"$enable_portable" != x'yes'], [
   AC_MSG_CHECKING(for fdatasync support)
@@ -241,6 +242,31 @@ AS_IF([test x"$enable_portable" != x'yes'], [
   ])
   AC_MSG_RESULT([$has_pread])
 ])
+
+AC_MSG_CHECKING(for armv8 crc support)
+ldb_save_CFLAGS="$CFLAGS"
+CFLAGS="$CFLAGS -march=armv8-a+crc"
+AC_LINK_IFELSE([
+  AC_LANG_SOURCE([[
+#   include <arm_acle.h>
+#   include <arm_neon.h>
+#   if !defined(__aarch64__) || !defined(__ARM_FEATURE_CRC32)
+#     error unsupported
+#   endif
+    int main(void) {
+      __crc32cb(0, 0);
+      __crc32ch(0, 0);
+      __crc32cw(0, 0);
+      __crc32cd(0, 0);
+      vmull_p64(0, 0);
+      return 0;
+    }
+  ]])
+], [
+  has_arm_crc=yes
+])
+CFLAGS="$ldb_save_CFLAGS"
+AC_MSG_RESULT([$has_arm_crc])
 
 #
 # Flags
@@ -288,6 +314,10 @@ AS_IF([test x"$MINGW" != x''], [
   AS_IF([test x"$enable_portable $MINGW_ARCH" = x'yes i686'], [
     CFLAGS="$CFLAGS -march=i586 -mtune=i686"
   ])
+])
+
+AS_IF([test x"$has_arm_crc" = x'yes'], [
+  CFLAGS="$CFLAGS -march=armv8-a+crc"
 ])
 
 #
