@@ -448,16 +448,25 @@ ldb_write(int fd, const void *src, size_t len) {
 
 static int
 ldb_fsync(int fd) {
+  int rc;
+
 #if defined(__APPLE__) && defined(F_FULLFSYNC)
   if (fcntl(fd, F_FULLFSYNC) == 0)
     return 0;
 #endif
 
+  do {
 #ifdef HAVE_FDATASYNC
-  return fdatasync(fd);
+    rc = fdatasync(fd);
+
+    if (rc != 0 && errno == ENOSYS)
+      rc = fsync(fd);
 #else
-  return fsync(fd);
+    rc = fsync(fd);
 #endif
+  } while (rc != 0 && errno == EINTR);
+
+  return rc;
 }
 
 static int
@@ -705,8 +714,16 @@ ldb_sync_dir(const char *dirname) {
   if (fd < 0) {
     rc = ldb_system_error();
   } else {
-    if (ldb_fsync(fd) != 0 && errno != EINVAL)
+#ifdef __wasi__
+    if (fsync(fd) != 0)
       rc = ldb_system_error();
+#else
+    if (ldb_fsync(fd) != 0)
+      rc = ldb_system_error();
+#endif
+
+    if (rc == EBADF || rc == EINVAL)
+      rc = LDB_OK;
 
     close(fd);
   }
@@ -928,7 +945,10 @@ ldb_test_directory(char *result, size_t size) {
     len = strlen(dir);
   } else {
 #ifdef __wasi__
-    len = sprintf(tmp, "/leveldbtest");
+    if (access("/tmp", R_OK | W_OK) == 0)
+      len = sprintf(tmp, "/tmp/leveldbtest");
+    else
+      len = sprintf(tmp, "/leveldbtest");
 #else
     len = sprintf(tmp, "/tmp/leveldbtest-%d", (int)geteuid());
 #endif

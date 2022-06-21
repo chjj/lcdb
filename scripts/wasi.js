@@ -7,6 +7,7 @@
 'use strict';
 
 const fs = require('fs');
+const os = require('os');
 const {WASI} = require('wasi');
 
 if (process.argv.length < 3) {
@@ -21,7 +22,7 @@ const wasi = new WASI({
   args: process.argv.slice(2),
   env: process.env,
   preopens: {
-    '/': process.cwd()
+    '/tmp': os.tmpdir()
   }
 });
 
