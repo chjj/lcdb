@@ -753,7 +753,7 @@ ldb_rename_file(const char *from, const char *to) {
 
 int
 ldb_copy_file(const char *from, const char *to) {
-  static const size_t buflen = 1 << 20;
+  const size_t buflen = (1 << 20);
   unsigned char *buf, *ptr;
   int rc = LDB_IOERR;
   int len, nwrite;
@@ -837,29 +837,48 @@ fail:
   return rc;
 }
 
+static int
+ldb_should_copy(int code) {
+  /* Cross-device link (V7). */
+  if (code == EXDEV)
+    return 1;
+
+  /* Too many links (V7). */
+  if (code == EMLINK)
+    return 1;
+
+#ifdef ENOSYS
+  /* Function not supported. */
+  if (code == ENOSYS)
+    return 1;
+#endif
+
+#if defined(__linux__) || defined(__CYGWIN__)
+  /* No hard link support (Linux, Cygwin). */
+  if (code == EPERM)
+    return 1;
+#endif
+
+#ifdef EOPNOTSUPP
+  /* No hard link support (*BSD). */
+  if (code == EOPNOTSUPP)
+    return 1;
+#endif
+
+#ifdef ENOTSUP
+  /* Possibly returned by IBM i. */
+  if (code == ENOTSUP)
+    return 1;
+#endif
+
+  return 0;
+}
+
 int
 ldb_link_file(const char *from, const char *to) {
   if (link(from, to) != 0) {
-    if (errno == EXDEV /* The link and file are on different file systems. */
-#if defined(__linux__) || defined(__CYGWIN__)
-     || errno == EPERM /* Filesystem does not support creation of hard links. */
-#endif
-#if defined(__FreeBSD__) \
- || defined(__OpenBSD__) \
- || defined(__NetBSD__)  \
- || defined(__DragonFly__)
-     || errno == EOPNOTSUPP /* The file system does not support links. */
-#endif
-#ifdef __PASE__
-     || errno == ENOSYS /* Function not implemented. */
-     || errno == ENOTSUP /* Operation is not supported. */
-#endif
-#ifdef __QNX__
-     || errno == ENOSYS /* link() isn't implemented for the filesystem. */
-#endif
-    ) {
+    if (ldb_should_copy(errno))
       return ldb_copy_file(from, to);
-    }
 
     return ldb_system_error();
   }
