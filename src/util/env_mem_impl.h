@@ -30,12 +30,14 @@
 #  endif
 #endif /* !_WIN32 */
 
+#include "buffer.h"
 #include "env.h"
 #include "internal.h"
 #include "port.h"
 #include "rbt.h"
 #include "slice.h"
 #include "status.h"
+#include "strutil.h"
 #include "vector.h"
 
 /*
@@ -99,6 +101,12 @@ static char *
 ldb_strdup(const char *xp) {
   size_t xn = strlen(xp);
   return memcpy(ldb_malloc(xn + 1), xp, xn + 1);
+}
+
+static int
+ldb_is_manifest(const char *filename) {
+  const char *base = ldb_basename(filename);
+  return ldb_starts_with(base, "MANIFEST");
 }
 
 /*
@@ -670,12 +678,12 @@ ldb_rfile_skip(ldb_rfile_t *file, uint64_t offset) {
   return LDB_OK;
 }
 
-int
-ldb_rfile_pread(ldb_rfile_t *file,
-                ldb_slice_t *result,
-                void *buf,
-                size_t count,
-                uint64_t offset) {
+static LDB_INLINE int
+ldb_rfile_pread0(ldb_rfile_t *file,
+                 ldb_slice_t *result,
+                 void *buf,
+                 size_t count,
+                 uint64_t offset) {
   return ldb_fstate_pread(file->state, result, buf, count, offset);
 }
 
@@ -710,15 +718,17 @@ ldb_randfile_create(const char *filename, ldb_rfile_t **file, int use_mmap) {
 
 struct ldb_wfile_s {
   ldb_fstate_t *state;
+  int manifest;
 };
 
 static void
-ldb_wfile_init(ldb_wfile_t *file, ldb_fstate_t *state) {
+ldb_wfile_init(ldb_wfile_t *file, const char *filename, ldb_fstate_t *state) {
   file->state = ldb_fstate_ref(state);
+  file->manifest = ldb_is_manifest(filename);
 }
 
-int
-ldb_wfile_append(ldb_wfile_t *file, const ldb_slice_t *data) {
+static LDB_INLINE int
+ldb_wfile_append0(ldb_wfile_t *file, const ldb_slice_t *data) {
   return ldb_fstate_append(file->state, data);
 }
 
@@ -728,8 +738,8 @@ ldb_wfile_flush(ldb_wfile_t *file) {
   return LDB_OK;
 }
 
-int
-ldb_wfile_sync(ldb_wfile_t *file) {
+static LDB_INLINE int
+ldb_wfile_sync0(ldb_wfile_t *file) {
   (void)file;
   return LDB_OK;
 }
@@ -750,8 +760,8 @@ ldb_wfile_destroy(ldb_wfile_t *file) {
  * WritableFile
  */
 
-int
-ldb_truncfile_create(const char *filename, ldb_wfile_t **file) {
+static LDB_INLINE int
+ldb_truncfile_create0(const char *filename, ldb_wfile_t **file) {
   ldb_fstate_t *state;
 
   ldb_mutex_lock(&file_mutex);
@@ -767,7 +777,7 @@ ldb_truncfile_create(const char *filename, ldb_wfile_t **file) {
 
   *file = ldb_malloc(sizeof(ldb_wfile_t));
 
-  ldb_wfile_init(*file, state);
+  ldb_wfile_init(*file, filename, state);
 
   ldb_mutex_unlock(&file_mutex);
 
@@ -778,8 +788,8 @@ ldb_truncfile_create(const char *filename, ldb_wfile_t **file) {
  * AppendableFile
  */
 
-int
-ldb_appendfile_create(const char *filename, ldb_wfile_t **file) {
+static LDB_INLINE int
+ldb_appendfile_create0(const char *filename, ldb_wfile_t **file) {
   ldb_fstate_t *state;
 
   ldb_mutex_lock(&file_mutex);
@@ -793,7 +803,7 @@ ldb_appendfile_create(const char *filename, ldb_wfile_t **file) {
 
   *file = ldb_malloc(sizeof(ldb_wfile_t));
 
-  ldb_wfile_init(*file, state);
+  ldb_wfile_init(*file, filename, state);
 
   ldb_mutex_unlock(&file_mutex);
 

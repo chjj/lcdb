@@ -40,6 +40,7 @@
 #endif
 
 #include "atomic.h"
+#include "buffer.h"
 #include "env.h"
 #include "internal.h"
 #include "port.h"
@@ -1086,12 +1087,12 @@ ldb_rfile_skip(ldb_rfile_t *file, uint64_t offset) {
   return LDB_OK;
 }
 
-int
-ldb_rfile_pread(ldb_rfile_t *file,
-                ldb_slice_t *result,
-                void *buf,
-                size_t count,
-                uint64_t offset) {
+static LDB_INLINE int
+ldb_rfile_pread0(ldb_rfile_t *file,
+                 ldb_slice_t *result,
+                 void *buf,
+                 size_t count,
+                 uint64_t offset) {
   int64_t nread = -1;
   int fd = file->fd;
   int rc = LDB_OK;
@@ -1323,8 +1324,8 @@ ldb_wfile_sync_dir(ldb_wfile_t *file) {
   return ldb_sync_dir(file->dirname);
 }
 
-int
-ldb_wfile_append(ldb_wfile_t *file, const ldb_slice_t *data) {
+static LDB_INLINE int
+ldb_wfile_append0(ldb_wfile_t *file, const ldb_slice_t *data) {
   const unsigned char *write_data = data->data;
   size_t write_size = data->size;
   size_t copy_size;
@@ -1362,8 +1363,8 @@ ldb_wfile_flush(ldb_wfile_t *file) {
   return rc;
 }
 
-int
-ldb_wfile_sync(ldb_wfile_t *file) {
+static LDB_INLINE int
+ldb_wfile_sync0(ldb_wfile_t *file) {
   int rc;
 
   if ((rc = ldb_wfile_sync_dir(file)))
@@ -1405,8 +1406,8 @@ ldb_wfile_destroy(ldb_wfile_t *file) {
  * WritableFile
  */
 
-int
-ldb_truncfile_create(const char *filename, ldb_wfile_t **file) {
+static LDB_INLINE int
+ldb_truncfile_create0(const char *filename, ldb_wfile_t **file) {
   int flags = O_TRUNC | O_WRONLY | O_CREAT;
   return ldb_wfile_create(filename, flags, file);
 }
@@ -1415,8 +1416,8 @@ ldb_truncfile_create(const char *filename, ldb_wfile_t **file) {
  * AppendableFile
  */
 
-int
-ldb_appendfile_create(const char *filename, ldb_wfile_t **file) {
+static LDB_INLINE int
+ldb_appendfile_create0(const char *filename, ldb_wfile_t **file) {
   int flags = O_APPEND | O_WRONLY | O_CREAT;
   return ldb_wfile_create(filename, flags, file);
 }

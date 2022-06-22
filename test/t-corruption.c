@@ -353,14 +353,14 @@ test_corrupt_recovery(ctest_t *t) {
   ctest_check(t, 36, 36);
 }
 
-#if 0
+#ifndef NDEBUG
 static void
 test_corrupt_recover_write_error(ctest_t *t) {
-  ldb_env_writable_file_error(1);
+  ldb_env_state.writable_file_error = 1;
 
   ASSERT(ctest_try_reopen(t) != LDB_OK);
 
-  ldb_env_writable_file_error(0);
+  ldb_env_state.writable_file_error = 0;
 }
 
 static void
@@ -374,7 +374,8 @@ test_corrupt_new_file_error_during_write(ctest_t *t) {
 
   ldb_buffer_init(&storage);
   ldb_batch_init(&batch);
-  ldb_env_writable_file_error(1);
+
+  ldb_env_state.writable_file_error = 1;
 
   for (i = 0; rc == LDB_OK && i < num; i++) {
     ldb_slice_t key = ldb_string("a");
@@ -387,15 +388,16 @@ test_corrupt_new_file_error_during_write(ctest_t *t) {
   }
 
   ASSERT(rc != LDB_OK);
-  ASSERT(ldb_env_writable_file_errors() >= 1);
+  ASSERT(ldb_env_state.num_writable_file_errors >= 1);
 
-  ldb_env_writable_file_error(0);
+  ldb_env_state.writable_file_error = 0;
+
   ldb_batch_clear(&batch);
   ldb_buffer_clear(&storage);
 
   ctest_reopen(t);
 }
-#endif
+#endif /* !NDEBUG */
 
 static void
 test_corrupt_table_file(ctest_t *t) {
@@ -592,7 +594,7 @@ int
 main(void) {
   static void (*tests[])(ctest_t *) = {
     test_corrupt_recovery,
-#if 0
+#ifndef NDEBUG
     test_corrupt_recover_write_error,
     test_corrupt_new_file_error_during_write,
 #endif
@@ -608,6 +610,10 @@ main(void) {
   };
 
   size_t i;
+
+#ifndef NDEBUG
+  ldb_env_state.enable_testing = 1;
+#endif
 
   for (i = 0; i < lengthof(tests); i++) {
     ctest_t t;

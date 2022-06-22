@@ -772,8 +772,11 @@ test_db_put_delete_get(test_t *t) {
   } while (test_change_options(t));
 }
 
+#ifndef NDEBUG
 static void
 test_db_get_from_immutable_layer(test_t *t) {
+  struct ldb_env_state_s *state = &ldb_env_state;
+
   do {
     ldb_dbopt_t options = test_current_options(t);
 
@@ -786,7 +789,7 @@ test_db_get_from_immutable_layer(test_t *t) {
     ASSERT_EQ("v1", test_get(t, "foo"));
 
     /* Block sync calls. */
-    /* ldb_atomic_store(&env->delay_data_sync, 1, ldb_order_release); */
+    ldb_atomic_store(&state->delay_data_sync, 1, ldb_order_release);
 
     test_put(t, "k1", string_fill(t, 'x', 100000)); /* Fill memtable. */
     test_put(t, "k2", string_fill(t, 'y', 100000)); /* Trigger compaction. */
@@ -794,9 +797,10 @@ test_db_get_from_immutable_layer(test_t *t) {
     ASSERT_EQ("v1", test_get(t, "foo"));
 
     /* Release sync calls. */
-    /* ldb_atomic_store(&env->delay_data_sync, 0, ldb_order_release); */
+    ldb_atomic_store(&state->delay_data_sync, 0, ldb_order_release);
   } while (test_change_options(t));
 }
+#endif /* !NDEBUG */
 
 static void
 test_db_get_from_versions(test_t *t) {
@@ -2271,10 +2275,11 @@ test_db_locking(test_t *t) {
   ASSERT(ldb_open(t->dbname, &opt, &db) != LDB_OK);
 }
 
-#if 0
+#ifndef NDEBUG
 /* Check that number of files does not grow when we are out of space */
 static void
 test_db_no_space(test_t *t) {
+  struct ldb_env_state_s *state = &ldb_env_state;
   ldb_dbopt_t options = test_current_options(t);
   int i, level, num_files;
 
@@ -2288,20 +2293,21 @@ test_db_no_space(test_t *t) {
   num_files = test_count_files(t);
 
   /* Force out-of-space errors. */
-  ldb_atomic_store(&env->no_space, 1, ldb_order_release);
+  ldb_atomic_store(&state->no_space, 1, ldb_order_release);
 
   for (i = 0; i < 10; i++) {
     for (level = 0; level < LDB_NUM_LEVELS - 1; level++)
       ldb_test_compact_range(t->db, level, NULL, NULL);
   }
 
-  ldb_atomic_store(&env->no_space, 0, ldb_order_release);
+  ldb_atomic_store(&state->no_space, 0, ldb_order_release);
 
   ASSERT(test_count_files(t) < num_files + 3);
 }
 
 static void
 test_db_non_writable_filesystem(test_t *t) {
+  struct ldb_env_state_s *state = &ldb_env_state;
   ldb_dbopt_t options = test_current_options(t);
   const char *big;
   int i, errors;
@@ -2313,7 +2319,7 @@ test_db_non_writable_filesystem(test_t *t) {
   ASSERT(test_put(t, "foo", "v1") == LDB_OK);
 
   /* Force errors for new files. */
-  ldb_atomic_store(&env->non_writable, 1, ldb_order_release);
+  ldb_atomic_store(&state->non_writable, 1, ldb_order_release);
 
   big = string_fill(t, 'x', 100000);
   errors = 0;
@@ -2329,12 +2335,13 @@ test_db_non_writable_filesystem(test_t *t) {
 
   ASSERT(errors > 0);
 
-  ldb_atomic_store(&env->non_writable, 0, ldb_order_release);
+  ldb_atomic_store(&state->non_writable, 0, ldb_order_release);
 }
 
 static void
 test_db_write_sync_error(test_t *t) {
   /* Check that log sync errors cause the DB to disallow future writes. */
+  struct ldb_env_state_s *state = &ldb_env_state;
   ldb_dbopt_t options = test_current_options(t);
   ldb_writeopt_t w = *ldb_writeopt_default;
   ldb_slice_t k1 = ldb_string("k1");
@@ -2346,7 +2353,7 @@ test_db_write_sync_error(test_t *t) {
 
   /* (a) Cause log sync calls to fail */
   test_reopen(t, &options);
-  ldb_atomic_store(&env->data_sync_error, 1, ldb_order_release);
+  ldb_atomic_store(&state->data_sync_error, 1, ldb_order_release);
 
   /* (b) Normal write should succeed */
   w.sync = 0;
@@ -2362,7 +2369,7 @@ test_db_write_sync_error(test_t *t) {
   ASSERT_EQ("NOT_FOUND", test_get(t, "k2"));
 
   /* (d) make sync behave normally */
-  ldb_atomic_store(&env->data_sync_error, 0, ldb_order_release);
+  ldb_atomic_store(&state->data_sync_error, 0, ldb_order_release);
 
   /* (e) Do a non-sync write; should fail */
   w.sync = 0;
@@ -2382,14 +2389,15 @@ test_db_manifest_write_error(test_t *t) {
    *   (c) GC deletes F
    *   (d) After reopening DB, reads fail since deleted F is named in log record
    */
+  struct ldb_env_state_s *state = &ldb_env_state;
   const int last = LDB_MAX_MEM_COMPACT_LEVEL;
   int iter;
 
   /* We iterate twice. In the second iteration, everything is the
      same except the log record never makes it to the MANIFEST file. */
   for (iter = 0; iter < 2; iter++) {
-    ldb_atomic(int) *error_type = (iter == 0) ? &env->manifest_sync_error
-                                              : &env->manifest_write_error;
+    ldb_atomic(int) *error_type = (iter == 0) ? &state->manifest_sync_error
+                                              : &state->manifest_write_error;
 
     /* Insert foo=>bar mapping */
     ldb_dbopt_t options = test_current_options(t);
@@ -2421,7 +2429,7 @@ test_db_manifest_write_error(test_t *t) {
     ASSERT_EQ("bar", test_get(t, "foo"));
   }
 }
-#endif
+#endif /* !NDEBUG */
 
 static void
 test_db_missing_sst_file(test_t *t) {
@@ -2487,13 +2495,15 @@ test_db_files_deleted_after_compaction(test_t *t) {
   ASSERT(test_count_files(t) == num_files);
 }
 
+#ifndef NDEBUG
 static void
 test_db_bloom_filter(test_t *t) {
+  struct ldb_env_state_s *state = &ldb_env_state;
   ldb_dbopt_t options = test_current_options(t);
   const int N = 10000;
   int i, reads;
 
-  /* env->count_random_reads = 1; */
+  state->count_random_reads = 1;
 
   options.block_cache = ldb_lru_create(0); /* Prevent cache hits */
   options.filter_policy = ldb_bloom_create(10);
@@ -2512,16 +2522,15 @@ test_db_bloom_filter(test_t *t) {
   ldb_test_compact_memtable(t->db);
 
   /* Prevent auto compactions triggered by seeks */
-  /* ldb_atomic_store(&env->delay_data_sync, 1, ldb_order_release); */
+  ldb_atomic_store(&state->delay_data_sync, 1, ldb_order_release);
 
   /* Lookup present keys. Should rarely read from small sstable. */
-  /* atom_reset(&env->random_read_counter); */
+  ldb_atomic_store(&state->random_read_counter, 0, ldb_order_seq_cst);
 
   for (i = 0; i < N; i++)
     ASSERT_EQ(test_key(t, i), test_get(t, test_key(t, i)));
 
-  /* reads = atom_read(&env->random_read_counter); */
-  reads = N;
+  reads = ldb_atomic_load(&state->random_read_counter, ldb_order_seq_cst);
 
   fprintf(stderr, "%d present => %d reads\n", N, reads);
 
@@ -2529,25 +2538,27 @@ test_db_bloom_filter(test_t *t) {
   ASSERT(reads <= N + 2 * N / 100);
 
   /* Lookup present keys. Should rarely read from either sstable. */
-  /* atom_reset(&env->random_read_counter); */
+  ldb_atomic_store(&state->random_read_counter, 0, ldb_order_seq_cst);
 
   for (i = 0; i < N; i++)
     ASSERT_EQ("NOT_FOUND", test_get(t, test_key2(t, i, ".missing")));
 
-  /* reads = atom_read(&env->random_read_counter); */
-  reads = 3 * N / 100;
+  reads = ldb_atomic_load(&state->random_read_counter, ldb_order_seq_cst);
 
   fprintf(stderr, "%d missing => %d reads\n", N, reads);
 
   ASSERT(reads <= 3 * N / 100);
 
-  /* ldb_atomic_store(&env->delay_data_sync, 0, ldb_order_release); */
+  ldb_atomic_store(&state->delay_data_sync, 0, ldb_order_release);
 
   test_close(t);
 
   ldb_lru_destroy(options.block_cache);
   ldb_bloom_destroy((ldb_bloom_t *)options.filter_policy);
+
+  state->count_random_reads = 0;
 }
+#endif /* !NDEBUG */
 
 /*
  * Multi-threaded Testing
@@ -2966,7 +2977,9 @@ main(void) {
     test_db_empty_value,
     test_db_read_write,
     test_db_put_delete_get,
+#ifndef NDEBUG
     test_db_get_from_immutable_layer,
+#endif
     test_db_get_from_versions,
     test_db_get_memusage,
     test_db_get_snapshot,
@@ -3008,7 +3021,7 @@ main(void) {
     test_db_destroy_empty_dir,
     test_db_destroy_open_db,
     test_db_locking,
-#if 0
+#ifndef NDEBUG
     test_db_no_space,
     test_db_non_writable_filesystem,
     test_db_write_sync_error,
@@ -3017,7 +3030,9 @@ main(void) {
     test_db_missing_sst_file,
     test_db_still_read_sst,
     test_db_files_deleted_after_compaction,
+#ifndef NDEBUG
     test_db_bloom_filter,
+#endif
 #if defined(_WIN32) || defined(LDB_PTHREAD)
     test_db_multi_threaded,
 #endif
@@ -3025,6 +3040,10 @@ main(void) {
   };
 
   size_t i;
+
+#ifndef NDEBUG
+  ldb_env_state.enable_testing = 1;
+#endif
 
   for (i = 0; i < lengthof(tests); i++) {
     test_t t;

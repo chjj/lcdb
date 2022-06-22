@@ -18,6 +18,7 @@
 #include <string.h>
 #include <windows.h>
 
+#include "buffer.h"
 #include "env.h"
 #include "internal.h"
 #include "slice.h"
@@ -439,6 +440,12 @@ ldb_error_string(int code) {
 /*
  * Helpers
  */
+
+static int
+ldb_is_manifest(const char *filename) {
+  const char *base = ldb_basename(filename);
+  return ldb_starts_with(base, "MANIFEST");
+}
 
 static WCHAR *
 ldb_basename_w(const WCHAR *fname) {
@@ -1251,12 +1258,12 @@ ldb_rfile_skip(ldb_rfile_t *file, uint64_t offset) {
   return LDB_OK;
 }
 
-int
-ldb_rfile_pread(ldb_rfile_t *file,
-                ldb_slice_t *result,
-                void *buf,
-                size_t count,
-                uint64_t offset) {
+static LDB_INLINE int
+ldb_rfile_pread0(ldb_rfile_t *file,
+                 ldb_slice_t *result,
+                 void *buf,
+                 size_t count,
+                 uint64_t offset) {
   int64_t nread = -1;
 
   if (file->mapped) {
@@ -1435,13 +1442,15 @@ ldb_randfile_create(const char *filename, ldb_rfile_t **file, int use_mmap) {
 
 struct ldb_wfile_s {
   HANDLE handle;
+  int manifest;
   unsigned char buf[LDB_WRITE_BUFFER];
   size_t pos;
 };
 
 static void
-ldb_wfile_init(ldb_wfile_t *file, HANDLE handle) {
+ldb_wfile_init(ldb_wfile_t *file, const char *filename, HANDLE handle) {
   file->handle = handle;
+  file->manifest = ldb_is_manifest(filename);
   file->pos = 0;
 }
 
@@ -1453,8 +1462,8 @@ ldb_wfile_write(ldb_wfile_t *file, const unsigned char *data, size_t size) {
   return LDB_OK;
 }
 
-int
-ldb_wfile_append(ldb_wfile_t *file, const ldb_slice_t *data) {
+static LDB_INLINE int
+ldb_wfile_append0(ldb_wfile_t *file, const ldb_slice_t *data) {
   const unsigned char *write_data = data->data;
   size_t write_size = data->size;
   size_t copy_size;
@@ -1492,8 +1501,8 @@ ldb_wfile_flush(ldb_wfile_t *file) {
   return rc;
 }
 
-int
-ldb_wfile_sync(ldb_wfile_t *file) {
+static LDB_INLINE int
+ldb_wfile_sync0(ldb_wfile_t *file) {
   int rc;
 
   if ((rc = ldb_wfile_flush(file)))
@@ -1529,8 +1538,8 @@ ldb_wfile_destroy(ldb_wfile_t *file) {
  * WritableFile
  */
 
-int
-ldb_truncfile_create(const char *filename, ldb_wfile_t **file) {
+static LDB_INLINE int
+ldb_truncfile_create0(const char *filename, ldb_wfile_t **file) {
   HANDLE handle = LDBCreateFile(filename,
                                 GENERIC_WRITE,
                                 FILE_SHARE_READ | FILE_SHARE_WRITE,
@@ -1544,7 +1553,7 @@ ldb_truncfile_create(const char *filename, ldb_wfile_t **file) {
 
   *file = ldb_malloc(sizeof(ldb_wfile_t));
 
-  ldb_wfile_init(*file, handle);
+  ldb_wfile_init(*file, filename, handle);
 
   return LDB_OK;
 }
@@ -1553,8 +1562,8 @@ ldb_truncfile_create(const char *filename, ldb_wfile_t **file) {
  * AppendableFile
  */
 
-int
-ldb_appendfile_create(const char *filename, ldb_wfile_t **file) {
+static LDB_INLINE int
+ldb_appendfile_create0(const char *filename, ldb_wfile_t **file) {
   HANDLE handle = LDBCreateFile(filename,
                                 GENERIC_WRITE,
                                 FILE_SHARE_READ | FILE_SHARE_WRITE,
@@ -1576,7 +1585,7 @@ ldb_appendfile_create(const char *filename, ldb_wfile_t **file) {
 
   *file = ldb_malloc(sizeof(ldb_wfile_t));
 
-  ldb_wfile_init(*file, handle);
+  ldb_wfile_init(*file, filename, handle);
 
   return LDB_OK;
 }
