@@ -129,7 +129,8 @@ find_table(ldb_tables_t *cache,
     if (rc != LDB_OK) {
       assert(table == NULL);
 
-      ldb_rfile_destroy(file);
+      if (file != NULL)
+        ldb_rfile_destroy(file);
 
       /* We do not cache error results so that if the error is transient,
          or somebody repairs the file, we recover automatically. */
