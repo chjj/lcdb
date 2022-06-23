@@ -44,14 +44,14 @@ typedef unsigned long long ldb_uint64_t;
  * Constants
  */
 
-#define LDB_OK             0
-#define LDB_NOTFOUND   30001
-#define LDB_CORRUPTION 30002
-#define LDB_NOSUPPORT  30003
-#define LDB_INVALID    30004
-#define LDB_IOERR      30005
-#define LDB_NOEXIST    30006
-#define LDB_EXISTS     30007
+#define LDB_OK              (0)
+#define LDB_NOTFOUND   (-30099)
+#define LDB_CORRUPTION (-30098)
+#define LDB_NOSUPPORT  (-30097)
+#define LDB_INVALID    (-30096)
+#define LDB_IOERR      (-30095)
+#define LDB_NOEXIST    (-30094)
+#define LDB_EXISTS     (-30093)
 
 enum ldb_compression {
   LDB_NO_COMPRESSION = 0,

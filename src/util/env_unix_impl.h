@@ -219,7 +219,7 @@ ldb_system_error(void) {
   if (code == 0)
     return LDB_IOERR;
 
-  return code;
+  return LDB_ERR(code);
 }
 
 /* Thread-safety of strerror(3):
@@ -285,12 +285,12 @@ extern int sys_nerr;
 const char *
 ldb_error_string(int code) {
 #ifdef USE_SYS_ERRLIST
-  if (code < 0 || code >= sys_nerr)
+  if (-code < 0 || -code >= sys_nerr)
     return "Unknown error";
 
-  return sys_errlist[code];
+  return sys_errlist[-code];
 #else
-  const char *msg = strerror(code);
+  const char *msg = strerror(LDB_ERR(code));
 
   if (msg == NULL)
     return "Unknown error";

@@ -408,7 +408,7 @@ ldb_convert_error(DWORD code) {
   if (code == ERROR_PATH_NOT_FOUND)
     return ERROR_FILE_NOT_FOUND;
 
-  return code;
+  return -(int)code;
 }
 
 int
@@ -426,16 +426,16 @@ ldb_error_string(int code) {
   if (LDBIsWindowsNT()) {
     WCHAR tmpbuf[512];
 
-    result = FormatMessageW(flags, NULL, code, 0, tmpbuf, 512, NULL);
+    result = FormatMessageW(flags, NULL, -code, 0, tmpbuf, 512, NULL);
 
     if (result)
       result = ldb_utf8_write(errbuf, 1024, tmpbuf);
   } else {
-    result = FormatMessageA(flags, NULL, code, 0, errbuf, 1024, NULL);
+    result = FormatMessageA(flags, NULL, -code, 0, errbuf, 1024, NULL);
   }
 
   if (!result)
-    sprintf(errbuf, "Unknown error %d", code);
+    sprintf(errbuf, "Unknown error %d", -code);
 
   return errbuf;
 }
