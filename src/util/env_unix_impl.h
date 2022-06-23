@@ -720,7 +720,7 @@ ldb_sync_dir(const char *dirname) {
       rc = ldb_system_error();
 #endif
 
-    if (rc == EBADF || rc == EINVAL)
+    if (rc == LDB_EBADF || rc == LDB_EINVAL)
       rc = LDB_OK;
 
     close(fd);
