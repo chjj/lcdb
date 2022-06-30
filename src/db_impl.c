@@ -439,19 +439,12 @@ struct ldb_s {
 static ldb_t *
 ldb_create(const char *dbname, const ldb_dbopt_t *options) {
   ldb_t *db = ldb_malloc(sizeof(ldb_t));
+  size_t len = strlen(dbname);
   int i;
 
-  if (!ldb_path_absolute(db->dbname, sizeof(db->dbname) - 64, dbname)) {
-    ldb_free(db);
-    return NULL;
-  }
+  assert(len + 1 <= sizeof(db->dbname));
 
-  if (options->filter_policy != NULL) {
-    if (strlen(options->filter_policy->name) > 64) {
-      ldb_free(db);
-      return NULL;
-    }
-  }
+  memcpy(db->dbname, dbname, len + 1);
 
   if (options->comparator != NULL) {
     db->user_comparator = *options->comparator;
@@ -1977,6 +1970,7 @@ ldb_backup_inner(const char *dbname, const char *bakname, rb_set64_t *live) {
 
 int
 ldb_open(const char *dbname, const ldb_dbopt_t *options, ldb_t **dbptr) {
+  char path[LDB_PATH_MAX];
   int save_manifest = 0;
   ldb_edit_t edit;
   int rc = LDB_OK;
@@ -1989,10 +1983,15 @@ ldb_open(const char *dbname, const ldb_dbopt_t *options, ldb_t **dbptr) {
   if (options == NULL)
     return LDB_INVALID;
 
-  db = ldb_create(dbname, options);
+  if (options->filter_policy != NULL) {
+    if (strlen(options->filter_policy->name) > 64)
+      return LDB_INVALID;
+  }
 
-  if (db == NULL)
+  if (!ldb_path_absolute(path, sizeof(path) - 35, dbname))
     return LDB_INVALID;
+
+  db = ldb_create(path, options);
 
   ldb_edit_init(&edit);
   ldb_mutex_lock(&db->mutex);
@@ -2003,13 +2002,12 @@ ldb_open(const char *dbname, const ldb_dbopt_t *options, ldb_t **dbptr) {
   if (rc == LDB_OK && db->mem == NULL) {
     /* Create new log and a corresponding memtable. */
     uint64_t new_log_number = ldb_versions_new_file_number(db->versions);
-    char fname[LDB_PATH_MAX];
     ldb_wfile_t *lfile;
 
-    if (!ldb_log_filename(fname, sizeof(fname), db->dbname, new_log_number))
+    if (!ldb_log_filename(path, sizeof(path), db->dbname, new_log_number))
       abort(); /* LCOV_EXCL_LINE */
 
-    rc = ldb_truncfile_create(fname, &lfile);
+    rc = ldb_truncfile_create(path, &lfile);
 
     if (rc == LDB_OK) {
       ldb_edit_set_log_number(&edit, new_log_number);
@@ -2502,6 +2500,9 @@ ldb_backup(ldb_t *db, const char *name) {
   rb_set64_t live;
   int rc;
 
+  if (strlen(name) + 1 > LDB_PATH_MAX - 35)
+    return LDB_INVALID;
+
   ldb_mutex_lock(&db->mutex);
 
   while (db->background_compaction_scheduled)
@@ -2546,6 +2547,12 @@ ldb_copy(const char *from, const char *to, const ldb_dbopt_t *options) {
 
   (void)options;
 
+  if (strlen(from) + 1 > LDB_PATH_MAX - 35)
+    return LDB_INVALID;
+
+  if (strlen(to) + 1 > LDB_PATH_MAX - 35)
+    return LDB_INVALID;
+
   if (!ldb_lock_filename(lockname, sizeof(lockname), from))
     return LDB_INVALID;
 
@@ -2571,6 +2578,9 @@ ldb_destroy(const char *dbname, const ldb_dbopt_t *options) {
   int len;
 
   (void)options;
+
+  if (strlen(dbname) + 1 > LDB_PATH_MAX - 35)
+    return LDB_INVALID;
 
   if (!ldb_lock_filename(lockname, sizeof(lockname), dbname))
     return LDB_INVALID;
