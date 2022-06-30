@@ -36,6 +36,7 @@
 #include "util/slice.h"
 #include "util/status.h"
 #include "util/strutil.h"
+#include "util/tar.h"
 #include "util/thread_pool.h"
 #include "util/vector.h"
 
@@ -1964,6 +1965,86 @@ ldb_backup_inner(const char *dbname, const char *bakname, rb_set64_t *live) {
   return rc;
 }
 
+static int
+compare_names(const void *x, const void *y) {
+  return strcmp(*(const char **)x, *(const char **)y);
+}
+
+static int
+ldb_archive_inner(const char *dbname, const char *bakname, rb_set64_t *live) {
+  ldb_wfile_t *file = NULL;
+  char path[LDB_PATH_MAX];
+  char **names = NULL;
+  ldb_filetype_t type;
+  uint64_t number;
+  int i, rc, len;
+  ldb_tar_t tar;
+
+  rc = ldb_truncfile_create(bakname, &file);
+
+  if (rc != LDB_OK)
+    return rc;
+
+  ldb_tar_init(&tar, file);
+
+  len = ldb_get_children(dbname, &names);
+
+  if (len < 0)
+    rc = ldb_system_error();
+
+  if (len > 1)
+    qsort(names, len, sizeof(names[0]), compare_names);
+
+  for (i = 0; i < len && rc == LDB_OK; i++) {
+    const char *name = names[i];
+
+    if (!ldb_parse_filename(&type, &number, name))
+      continue;
+
+    if (!ldb_join(path, sizeof(path), dbname, name)) {
+      rc = LDB_INVALID;
+      break;
+    }
+
+    switch (type) {
+      case LDB_FILE_LOG:
+      case LDB_FILE_DESC:
+      case LDB_FILE_CURRENT:
+        rc = ldb_tar_append(&tar, name, path);
+        break;
+      case LDB_FILE_TABLE:
+        if (live == NULL || rb_set64_has(live, number))
+          rc = ldb_tar_append(&tar, name, path);
+        break;
+      case LDB_FILE_LOCK:
+      case LDB_FILE_TEMP:
+      case LDB_FILE_INFO:
+        break;
+    }
+  }
+
+  if (len >= 0)
+    ldb_free_children(names, len);
+
+  if (rc == LDB_OK)
+    rc = ldb_tar_finish(&tar);
+
+  ldb_tar_clear(&tar);
+
+  if (rc == LDB_OK)
+    rc = ldb_wfile_sync(file);
+
+  if (rc == LDB_OK)
+    rc = ldb_wfile_close(file);
+
+  ldb_wfile_destroy(file);
+
+  if (rc != LDB_OK)
+    ldb_remove_file(bakname);
+
+  return rc;
+}
+
 /*
  * API
  */
@@ -2515,7 +2596,10 @@ ldb_backup(ldb_t *db, const char *name) {
 
     ldb_versions_add_files(db->versions, &live);
 
-    rc = ldb_backup_inner(db->dbname, name, &live);
+    if (ldb_ends_with(name, ".tar"))
+      rc = ldb_archive_inner(db->dbname, name, &live);
+    else
+      rc = ldb_backup_inner(db->dbname, name, &live);
 
     rb_set64_clear(&live);
   }
@@ -2565,7 +2649,10 @@ ldb_copy(const char *from, const char *to, const ldb_dbopt_t *options) {
   rc = ldb_lock_file(path, &lock);
 
   if (rc == LDB_OK) {
-    rc = ldb_backup_inner(from, to, NULL);
+    if (ldb_ends_with(to, ".tar"))
+      rc = ldb_archive_inner(from, to, NULL);
+    else
+      rc = ldb_backup_inner(from, to, NULL);
 
     ldb_unlock_file(lock);
   }

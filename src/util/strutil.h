@@ -32,6 +32,9 @@ ldb_decode_int(uint64_t *z, const char **xp);
 int
 ldb_starts_with(const char *xp, const char *yp);
 
+int
+ldb_ends_with(const char *xp, const char *yp);
+
 char *
 ldb_basename(const char *fname);
 

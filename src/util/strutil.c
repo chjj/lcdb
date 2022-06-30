@@ -90,6 +90,26 @@ ldb_starts_with(const char *xp, const char *yp) {
   return *yp == 0;
 }
 
+int
+ldb_ends_with(const char *xp, const char *yp) {
+  size_t xn = strlen(xp);
+  size_t yn = strlen(yp);
+  size_t i;
+
+  if (xn < yn)
+    return 0;
+
+  xp += xn;
+  xp -= yn;
+
+  for (i = 0; i < yn; i++) {
+    if ((xp[i] | 32) != (yp[i] | 32))
+      return 0;
+  }
+
+  return 1;
+}
+
 char *
 ldb_basename(const char *fname) {
 #ifdef _WIN32
