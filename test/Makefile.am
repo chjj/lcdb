@@ -38,6 +38,7 @@ check_PROGRAMS = t-arena        \
                  t-status       \
                  t-strutil      \
                  t-table        \
+                 t-tar          \
                  t-version_edit \
                  t-version_set  \
                  t-write_batch

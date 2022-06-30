@@ -228,6 +228,7 @@ list(APPEND ldb_sources # util
                         src/util/snappy.c
                         src/util/status.c
                         src/util/strutil.c
+                        src/util/tar.c
                         src/util/thread_pool.c
                         src/util/vector.c
                         # table
@@ -557,6 +558,7 @@ if(LDB_TESTS)
             status
             strutil
             table
+            tar
             version_edit
             version_set
             write_batch)

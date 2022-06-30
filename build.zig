@@ -125,6 +125,7 @@ pub fn build(b: *std.build.Builder) void {
     "src/util/snappy.c",
     "src/util/status.c",
     "src/util/strutil.c",
+    "src/util/tar.c",
     "src/util/thread_pool.c",
     "src/util/vector.c",
     "src/table/block.c",
@@ -322,6 +323,7 @@ pub fn build(b: *std.build.Builder) void {
     "status",
     "strutil",
     "table",
+    "tar",
     "version_edit",
     "version_set",
     "write_batch"

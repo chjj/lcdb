@@ -86,6 +86,8 @@ lcdb_sources = src/util/arena.c               \
                src/util/status.h              \
                src/util/strutil.c             \
                src/util/strutil.h             \
+               src/util/tar.c                 \
+               src/util/tar.h                 \
                src/util/thread_pool.c         \
                src/util/thread_pool.h         \
                src/util/types.h               \
