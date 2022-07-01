@@ -488,9 +488,9 @@ ldb_version_init(ldb_version_t *ver, ldb_versions_t *vset) {
   ver->prev = ver;
   ver->refs = 0;
   ver->file_to_compact = NULL;
-  ver->file_to_compact_level = 1;
-  ver->compaction_score = 1;
-  ver->compaction_level = 1;
+  ver->file_to_compact_level = -1;
+  ver->compaction_score = -1;
+  ver->compaction_level = -1;
 
   for (level = 0; level < LDB_NUM_LEVELS; level++)
     ldb_vector_init(&ver->files[level]);
