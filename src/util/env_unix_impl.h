@@ -1076,7 +1076,7 @@ ldb_rfile_read(ldb_rfile_t *file,
 int
 ldb_rfile_skip(ldb_rfile_t *file, uint64_t offset) {
   if (offset > LDB_OFFSET_MAX)
-    return EINVAL;
+    return LDB_ERR(EINVAL);
 
   if (lseek(file->fd, offset, SEEK_CUR) < 0)
     return ldb_system_error();
@@ -1096,10 +1096,10 @@ ldb_rfile_pread0(ldb_rfile_t *file,
 
   if (file->mapped) {
     if (offset + count < count)
-      return EINVAL;
+      return LDB_ERR(EINVAL);
 
     if (offset + count > file->length)
-      return EINVAL;
+      return LDB_ERR(EINVAL);
 
     ldb_slice_set(result, file->base + offset, count);
 
@@ -1107,7 +1107,7 @@ ldb_rfile_pread0(ldb_rfile_t *file,
   }
 
   if (offset > LDB_OFFSET_MAX)
-    return EINVAL;
+    return LDB_ERR(EINVAL);
 
   if (file->fd == -1) {
     fd = ldb_open(file->filename, O_RDONLY, 0);

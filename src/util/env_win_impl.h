@@ -406,9 +406,9 @@ ldb_convert_error(DWORD code) {
     return LDB_IOERR;
 
   if (code == ERROR_PATH_NOT_FOUND)
-    return ERROR_FILE_NOT_FOUND;
+    code = ERROR_FILE_NOT_FOUND;
 
-  return -(int)code;
+  return LDB_ERR(code);
 }
 
 int
@@ -1253,7 +1253,7 @@ ldb_rfile_skip(ldb_rfile_t *file, uint64_t offset) {
   LARGE_INTEGER dist;
 
   if (offset > _I64_MAX)
-    return ERROR_INVALID_PARAMETER;
+    return LDB_ERR(ERROR_INVALID_PARAMETER);
 
   dist.QuadPart = offset;
 
@@ -1273,10 +1273,10 @@ ldb_rfile_pread0(ldb_rfile_t *file,
 
   if (file->mapped) {
     if (offset + count < count)
-      return ERROR_INVALID_PARAMETER;
+      return LDB_ERR(ERROR_INVALID_PARAMETER);
 
     if (offset + count > file->length)
-      return ERROR_INVALID_PARAMETER;
+      return LDB_ERR(ERROR_INVALID_PARAMETER);
 
     ldb_slice_set(result, file->base + offset, count);
 
@@ -1288,7 +1288,7 @@ ldb_rfile_pread0(ldb_rfile_t *file,
     LARGE_INTEGER dist;
 
     if (offset > _I64_MAX)
-      return ERROR_INVALID_PARAMETER;
+      return LDB_ERR(ERROR_INVALID_PARAMETER);
 
     dist.QuadPart = offset;
 
