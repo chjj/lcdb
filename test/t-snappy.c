@@ -55,7 +55,7 @@ test_snappy_1(void) {
 static void
 test_snappy_2(void) {
   const uint8_t *data = snappy_test_input;
-  size_t size = sizeof(snappy_test_input) - 1;
+  size_t size = sizeof(snappy_test_input);
   size_t encsize, decsize;
   uint8_t *enc, *dec;
 
@@ -81,7 +81,7 @@ test_snappy_2(void) {
 static void
 test_snappy_3(void) {
   const uint8_t *data = snappy_test_input;
-  size_t size = sizeof(snappy_test_input) - 1;
+  size_t size = sizeof(snappy_test_input);
   const uint8_t *enc = snappy_test_output;
   size_t encsize = sizeof(snappy_test_output);
   size_t decsize;
