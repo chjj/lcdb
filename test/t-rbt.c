@@ -44,29 +44,29 @@ test_strdup(const char *xp) {
 static int
 compare_string(rb_val_t x, rb_val_t y, void *arg) {
   (void)arg;
-  return strcmp(x.p, y.p);
+  return strcmp(x.ptr, y.ptr);
 }
 
 static void
 clear_string(rb_node_t *node) {
-  free(node->key.p);
+  free(node->key.ptr);
 }
 
 static void
 clear_strings(rb_node_t *node) {
-  free(node->key.p);
-  free(node->value.p);
+  free(node->key.ptr);
+  free(node->val.ptr);
 }
 
 static void
 copy_string(rb_node_t *z, const rb_node_t *x) {
-  z->key.p = test_strdup(x->key.p);
+  z->key.ptr = test_strdup(x->key.ptr);
 }
 
 static void
 copy_strings(rb_node_t *z, const rb_node_t *x) {
-  z->key.p = test_strdup(x->key.p);
-  z->value.p = test_strdup(x->value.p);
+  z->key.ptr = test_strdup(x->key.ptr);
+  z->val.ptr = test_strdup(x->val.ptr);
 }
 
 static int
@@ -109,11 +109,9 @@ static void
 test_tree_api(void) {
   struct item_s *items, *sorted;
   rb_tree_t tree, copy;
-  rb_node_t *node;
   ldb_rand_t rnd;
-  rb_val_t k, v;
-  rb_iter_t it;
   int total = 0;
+  rb_iter_t it;
   int i;
 
   items = ldb_malloc(COUNT * ITEM_SIZE);
@@ -121,7 +119,7 @@ test_tree_api(void) {
 
   ldb_rand_init(&rnd, 301);
 
-  rb_tree_init(&tree, compare_string, NULL, 1);
+  rb_tree_init(&tree, compare_string, NULL);
 
   /* Populate data. */
   while (total < COUNT) {
@@ -130,10 +128,7 @@ test_tree_api(void) {
     uint32_t val = ldb_rand_next(&rnd);
     struct item_s *item;
 
-    k.p = key;
-    v.ui = val;
-
-    if (rb_tree_put(&tree, k, v) != NULL) {
+    if (rb_tree_put(&tree, rb_ptr(key), rb_ui(val)) != NULL) {
       ldb_free(key);
       continue;
     }
@@ -152,27 +147,24 @@ test_tree_api(void) {
 
   /* Insert duplicates. */
   for (i = 0; i < COUNT; i++) {
-    k.p = items[i].key;
-    v.ui = items[i].val;
-
-    node = rb_tree_put(&tree, k, v);
+    rb_node_t *node = rb_tree_put(&tree, rb_ptr(items[i].key),
+                                         rb_ui(items[i].val));
 
     ASSERT(node != NULL);
-    ASSERT(strcmp(node->key.p, k.p) == 0);
-    ASSERT(node->value.ui == v.ui);
+    ASSERT(strcmp(node->key.ptr, items[i].key) == 0);
+    ASSERT(node->val.ui == items[i].val);
   }
 
   ASSERT(tree.size == COUNT);
 
   /* Random read. */
   for (i = 0; i < COUNT; i++) {
-    k.p = items[i].key;
-
-    node = rb_tree_get(&tree, k);
+    const rb_node_t *node = rb_tree_get(&tree, rb_ptr(items[i].key));
 
     ASSERT(node != NULL);
-    ASSERT(strcmp(node->key.p, k.p) == 0);
-    ASSERT(node->value.ui == items[i].val);
+    ASSERT(rb_tree_has(&tree, rb_ptr(items[i].key)));
+    ASSERT(strcmp(node->key.ptr, items[i].key) == 0);
+    ASSERT(node->val.ui == items[i].val);
   }
 
   /* Random read/delete (non-existent). */
@@ -180,10 +172,9 @@ test_tree_api(void) {
     size_t len = ldb_rand_uniform(&rnd, 20);
     char *key = random_string(&rnd, len);
 
-    k.p = key;
-
-    ASSERT(rb_tree_get(&tree, k) == NULL);
-    ASSERT(rb_tree_del(&tree, k) == NULL);
+    ASSERT(rb_tree_get(&tree, rb_ptr(key)) == NULL);
+    ASSERT(!rb_tree_has(&tree, rb_ptr(key)));
+    ASSERT(!rb_tree_del(&tree, rb_ptr(key), NULL));
 
     ldb_free(key);
   }
@@ -196,104 +187,36 @@ test_tree_api(void) {
 
   for (rb_iter_first(&it); rb_iter_valid(&it); rb_iter_next(&it)) {
     ASSERT(i < COUNT);
-    ASSERT(strcmp(rb_iter_key(&it).p, sorted[i].key) == 0);
-    ASSERT(rb_iter_value(&it).ui == sorted[i].val);
+    ASSERT(strcmp(rb_key_ptr(&it), sorted[i].key) == 0);
+    ASSERT(rb_val_ui(&it) == sorted[i].val);
     i++;
   }
 
   ASSERT(i == COUNT);
 
   /* Sequential read (backwards). */
-  rb_iter_reset(&it);
+  it = rb_tree_iterator(&tree);
   i = COUNT - 1;
 
   for (rb_iter_last(&it); rb_iter_valid(&it); rb_iter_prev(&it)) {
     ASSERT(i >= 0);
-    ASSERT(strcmp(rb_iter_key(&it).p, sorted[i].key) == 0);
-    ASSERT(rb_iter_value(&it).ui == sorted[i].val);
+    ASSERT(strcmp(rb_key_ptr(&it), sorted[i].key) == 0);
+    ASSERT(rb_val_ui(&it) == sorted[i].val);
     i--;
   }
 
   ASSERT(i == -1);
 
   /* Sequential read (seek). */
-  rb_iter_init(&it, &tree);
+  it = rb_tree_iterator(&tree);
   i = COUNT / 2;
 
-  k.p = sorted[i].key;
-
-  for (rb_iter_seek(&it, k); rb_iter_valid(&it); rb_iter_next(&it)) {
+  for (rb_iter_seek(&it, rb_ptr(sorted[i].key));
+       rb_iter_valid(&it);
+       rb_iter_next(&it)) {
     ASSERT(i < COUNT);
-    ASSERT(strcmp(rb_iter_key(&it).p, sorted[i].key) == 0);
-    ASSERT(rb_iter_value(&it).ui == sorted[i].val);
-    i++;
-  }
-
-  ASSERT(i == COUNT);
-
-  /* Sequential read (iter_iterate). */
-  i = 0;
-
-  rb_iter_iterate(&tree, &it, k, v) {
-    ASSERT(i < COUNT);
-    ASSERT(strcmp(k.p, sorted[i].key) == 0);
-    ASSERT(v.ui == sorted[i].val);
-    i++;
-  }
-
-  ASSERT(i == COUNT);
-
-  /* Sequential read (iter_keys). */
-  i = 0;
-
-  rb_iter_keys(&tree, &it, k) {
-    ASSERT(i < COUNT);
-    ASSERT(strcmp(k.p, sorted[i].key) == 0);
-    i++;
-  }
-
-  ASSERT(i == COUNT);
-
-  /* Sequential read (iter_values). */
-  i = 0;
-
-  rb_iter_values(&tree, &it, v) {
-    ASSERT(i < COUNT);
-    ASSERT(v.ui == sorted[i].val);
-    i++;
-  }
-
-  ASSERT(i == COUNT);
-
-  /* Sequential read (tree_iterate). */
-  i = 0;
-
-  rb_tree_iterate(&tree, k, v) {
-    ASSERT(i < COUNT);
-    ASSERT(strcmp(k.p, sorted[i].key) == 0);
-    ASSERT(v.ui == sorted[i].val);
-    i++;
-  }
-
-  ASSERT(i == COUNT);
-
-  /* Sequential read (tree_keys). */
-  i = 0;
-
-  rb_tree_keys(&tree, k) {
-    ASSERT(i < COUNT);
-    ASSERT(strcmp(k.p, sorted[i].key) == 0);
-    i++;
-  }
-
-  ASSERT(i == COUNT);
-
-  /* Sequential read (tree_values). */
-  i = 0;
-
-  rb_tree_values(&tree, v) {
-    ASSERT(i < COUNT);
-    ASSERT(v.ui == sorted[i].val);
+    ASSERT(strcmp(rb_key_ptr(&it), sorted[i].key) == 0);
+    ASSERT(rb_val_ui(&it) == sorted[i].val);
     i++;
   }
 
@@ -301,15 +224,13 @@ test_tree_api(void) {
 
   /* Deletion. */
   for (i = 0; i < HALF; i++) {
-    k.p = items[i].key;
-    node = rb_tree_del(&tree, k);
+    rb_node_t node;
 
-    ASSERT(node != NULL);
-    ASSERT(strcmp(node->key.p, k.p) == 0);
-    ASSERT(node->value.ui == items[i].val);
+    ASSERT(rb_tree_del(&tree, rb_ptr(items[i].key), &node));
+    ASSERT(strcmp(node.key.ptr, items[i].key) == 0);
+    ASSERT(node.val.ui == items[i].val);
 
-    ldb_free(node->key.p);
-    rb_node_destroy(node);
+    ldb_free(node.key.ptr);
   }
 
   ASSERT(tree.size == HALF);
@@ -322,10 +243,10 @@ test_tree_api(void) {
   /* Verify deletion. */
   i = 0;
 
-  rb_tree_iterate(&tree, k, v) {
+  rb_iter_each(&it, &tree) {
     ASSERT(i < HALF);
-    ASSERT(strcmp(k.p, sorted[i].key) == 0);
-    ASSERT(v.ui == sorted[i].val);
+    ASSERT(strcmp(rb_key_ptr(&it), sorted[i].key) == 0);
+    ASSERT(rb_val_ui(&it) == sorted[i].val);
     i++;
   }
 
@@ -337,10 +258,10 @@ test_tree_api(void) {
   /* Verify snapshot. */
   i = 0;
 
-  rb_tree_iterate(&copy, k, v) {
+  rb_iter_each(&it, &copy) {
     ASSERT(i < HALF);
-    ASSERT(strcmp(k.p, sorted[i].key) == 0);
-    ASSERT(v.ui == sorted[i].val);
+    ASSERT(strcmp(rb_key_ptr(&it), sorted[i].key) == 0);
+    ASSERT(rb_val_ui(&it) == sorted[i].val);
     i++;
   }
 
@@ -363,10 +284,9 @@ static void
 test_map_api(void) {
   struct item_s *items, *sorted;
   rb_map_t map, copy;
-  rb_node_t *node;
   ldb_rand_t rnd;
   int total = 0;
-  void *k, *v;
+  rb_iter_t it;
   int i;
 
   items = ldb_malloc(COUNT * ITEM_SIZE);
@@ -423,7 +343,7 @@ test_map_api(void) {
 
     ASSERT(rb_map_get(&map, key) == NULL);
     ASSERT(!rb_map_has(&map, key));
-    ASSERT(rb_map_del(&map, key) == NULL);
+    ASSERT(!rb_map_del(&map, key, NULL));
 
     ldb_free(key);
   }
@@ -433,32 +353,10 @@ test_map_api(void) {
   /* Sequential read. */
   i = 0;
 
-  rb_map_iterate(&map, k, v) {
+  rb_iter_each(&it, &map) {
     ASSERT(i < COUNT);
-    ASSERT(strcmp(k, sorted[i].key) == 0);
-    ASSERT(strcmp(v, sorted[i].ptr) == 0);
-    i++;
-  }
-
-  ASSERT(i == COUNT);
-
-  /* Sequential read (keys). */
-  i = 0;
-
-  rb_map_keys(&map, k) {
-    ASSERT(i < COUNT);
-    ASSERT(strcmp(k, sorted[i].key) == 0);
-    i++;
-  }
-
-  ASSERT(i == COUNT);
-
-  /* Sequential read (values). */
-  i = 0;
-
-  rb_map_values(&map, v) {
-    ASSERT(i < COUNT);
-    ASSERT(strcmp(v, sorted[i].ptr) == 0);
+    ASSERT(strcmp(rb_key_ptr(&it), sorted[i].key) == 0);
+    ASSERT(strcmp(rb_val_ptr(&it), sorted[i].ptr) == 0);
     i++;
   }
 
@@ -466,15 +364,14 @@ test_map_api(void) {
 
   /* Deletion. */
   for (i = 0; i < HALF; i++) {
-    node = rb_map_del(&map, items[i].key);
+    rb_entry_t entry;
 
-    ASSERT(node != NULL);
-    ASSERT(strcmp(node->key.p, items[i].key) == 0);
-    ASSERT(strcmp(node->value.p, items[i].ptr) == 0);
+    ASSERT(rb_map_del(&map, items[i].key, &entry));
+    ASSERT(strcmp(entry.key, items[i].key) == 0);
+    ASSERT(strcmp(entry.val, items[i].ptr) == 0);
 
-    ldb_free(node->key.p);
-    ldb_free(node->value.p);
-    rb_node_destroy(node);
+    ldb_free(entry.key);
+    ldb_free(entry.val);
   }
 
   ASSERT(map.size == HALF);
@@ -487,10 +384,10 @@ test_map_api(void) {
   /* Verify deletion. */
   i = 0;
 
-  rb_map_iterate(&map, k, v) {
+  rb_iter_each(&it, &map) {
     ASSERT(i < HALF);
-    ASSERT(strcmp(k, sorted[i].key) == 0);
-    ASSERT(strcmp(v, sorted[i].ptr) == 0);
+    ASSERT(strcmp(rb_key_ptr(&it), sorted[i].key) == 0);
+    ASSERT(strcmp(rb_val_ptr(&it), sorted[i].ptr) == 0);
     i++;
   }
 
@@ -502,10 +399,10 @@ test_map_api(void) {
   /* Verify snapshot. */
   i = 0;
 
-  rb_map_iterate(&copy, k, v) {
+  rb_iter_each(&it, &copy) {
     ASSERT(i < HALF);
-    ASSERT(strcmp(k, sorted[i].key) == 0);
-    ASSERT(strcmp(v, sorted[i].ptr) == 0);
+    ASSERT(strcmp(rb_key_ptr(&it), sorted[i].key) == 0);
+    ASSERT(strcmp(rb_val_ptr(&it), sorted[i].ptr) == 0);
     i++;
   }
 
@@ -530,7 +427,7 @@ test_set_api(void) {
   rb_set_t set, copy;
   ldb_rand_t rnd;
   int total = 0;
-  void *k;
+  rb_iter_t it;
   int i;
 
   items = ldb_malloc(COUNT * sizeof(char *));
@@ -585,9 +482,9 @@ test_set_api(void) {
   /* Sequential read. */
   i = 0;
 
-  rb_set_iterate(&set, k) {
+  rb_iter_each(&it, &set) {
     ASSERT(i < COUNT);
-    ASSERT(strcmp(k, sorted[i]) == 0);
+    ASSERT(strcmp(rb_key_ptr(&it), sorted[i]) == 0);
     i++;
   }
 
@@ -613,9 +510,9 @@ test_set_api(void) {
   /* Verify deletion. */
   i = 0;
 
-  rb_set_iterate(&set, k) {
+  rb_iter_each(&it, &set) {
     ASSERT(i < HALF);
-    ASSERT(strcmp(k, sorted[i]) == 0);
+    ASSERT(strcmp(rb_key_ptr(&it), sorted[i]) == 0);
     i++;
   }
 
@@ -627,9 +524,9 @@ test_set_api(void) {
   /* Verify snapshot. */
   i = 0;
 
-  rb_set_iterate(&copy, k) {
+  rb_iter_each(&it, &copy) {
     ASSERT(i < HALF);
-    ASSERT(strcmp(k, sorted[i]) == 0);
+    ASSERT(strcmp(rb_key_ptr(&it), sorted[i]) == 0);
     i++;
   }
 
@@ -654,7 +551,7 @@ test_set64_api(void) {
   rb_set64_t set, copy;
   ldb_rand_t rnd;
   int total = 0;
-  uint64_t k;
+  rb_iter_t it;
   int i;
 
   items = ldb_malloc(COUNT * sizeof(uint64_t));
@@ -703,9 +600,9 @@ test_set64_api(void) {
   /* Sequential read. */
   i = 0;
 
-  rb_set64_iterate(&set, k) {
+  rb_iter_each(&it, &set) {
     ASSERT(i < COUNT);
-    ASSERT(k == sorted[i]);
+    ASSERT(rb_key_ui(&it) == sorted[i]);
     i++;
   }
 
@@ -725,9 +622,9 @@ test_set64_api(void) {
   /* Verify deletion. */
   i = 0;
 
-  rb_set64_iterate(&set, k) {
+  rb_iter_each(&it, &set) {
     ASSERT(i < HALF);
-    ASSERT(k == sorted[i]);
+    ASSERT(rb_key_ui(&it) == sorted[i]);
     i++;
   }
 
@@ -739,9 +636,9 @@ test_set64_api(void) {
   /* Verify snapshot. */
   i = 0;
 
-  rb_set64_iterate(&copy, k) {
+  rb_iter_each(&it, &copy) {
     ASSERT(i < HALF);
-    ASSERT(k == sorted[i]);
+    ASSERT(rb_key_ui(&it) == sorted[i]);
     i++;
   }
 
@@ -756,6 +653,18 @@ test_set64_api(void) {
   ldb_free(sorted);
 }
 
+static void
+test_static_api(void) {
+  static rb_set64_t set = RB_SET64_INIT;
+
+  ASSERT(!rb_set64_has(&set, 1));
+  ASSERT(!rb_set64_del(&set, 2));
+  ASSERT(rb_set64_put(&set, 1));
+  ASSERT(rb_set64_has(&set, 1));
+  ASSERT(rb_set64_del(&set, 1));
+  ASSERT(!rb_set64_has(&set, 1));
+}
+
 /*
  * Main
  */
@@ -766,5 +675,6 @@ main(void) {
   test_map_api();
   test_set_api();
   test_set64_api();
+  test_static_api();
   return 0;
 }

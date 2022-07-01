@@ -149,7 +149,6 @@ static ldb_limiter_t ldb_fd_limiter = {50, 50};
 static ldb_limiter_t ldb_mmap_limiter = {LDB_MMAP_LIMIT, LDB_MMAP_LIMIT};
 #endif
 static ldb_mutex_t file_mutex = LDB_MUTEX_INITIALIZER;
-static rb_set_t file_set;
 
 /*
  * Limiter
@@ -191,13 +190,13 @@ ldb_limiter_release(ldb_limiter_t *lim) {
 }
 
 /*
- * Comparator
+ * File Set
  */
 
 static int
 by_fileid(rb_val_t x, rb_val_t y, void *arg) {
-  const ldb_fileid_t *xp = x.p;
-  const ldb_fileid_t *yp = y.p;
+  const ldb_fileid_t *xp = x.ptr;
+  const ldb_fileid_t *yp = y.ptr;
   int r = LDB_CMP(xp->dev, yp->dev);
 
   (void)arg;
@@ -207,6 +206,8 @@ by_fileid(rb_val_t x, rb_val_t y, void *arg) {
 
   return LDB_CMP(xp->ino, yp->ino);
 }
+
+static rb_set_t file_set = RB_SET_INIT(by_fileid);
 
 /*
  * Errors
@@ -891,9 +892,6 @@ ldb_lock_file(const char *filename, ldb_filelock_t **lock) {
   int fd, rc;
 
   ldb_mutex_lock(&file_mutex);
-
-  if (file_set.root == NULL)
-    rb_set_init(&file_set, by_fileid, NULL);
 
   fd = ldb_open(filename, O_RDWR | O_CREAT, 0644);
 

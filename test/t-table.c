@@ -158,19 +158,19 @@ cmp_increment(const ldb_comparator_t *cmp, ldb_buffer_t *key) {
 static int
 map_compare(rb_val_t x, rb_val_t y, void *arg) {
   const ldb_comparator_t *cmp = arg;
-  ldb_buffer_t *a = x.p;
-  ldb_buffer_t *b = y.p;
+  ldb_buffer_t *a = x.ptr;
+  ldb_buffer_t *b = y.ptr;
 
   return ldb_compare(cmp, a, b);
 }
 
 static void
 map_clear(rb_node_t *node) {
-  ldb_buffer_clear(node->key.p);
-  ldb_buffer_clear(node->value.p);
+  ldb_buffer_clear(node->key.ptr);
+  ldb_buffer_clear(node->val.ptr);
 
-  ldb_free(node->key.p);
-  ldb_free(node->value.p);
+  ldb_free(node->key.ptr);
+  ldb_free(node->val.ptr);
 }
 
 /*
@@ -296,13 +296,13 @@ ctor_add_str(ctor_t *c, const char *key, const char *value) {
    and stores the key/value pairs in "*kvmap" */
 static void
 ctor_finish(ctor_t *c, const ldb_dbopt_t *options, ldb_vector_t *keys) {
-  void *key;
+  rb_iter_t it;
   int rc;
 
   ASSERT(keys->length == 0);
 
-  rb_map_keys(&c->data, key)
-    ldb_vector_push(keys, key);
+  rb_iter_each(&it, &c->data)
+    ldb_vector_push(keys, rb_key_ptr(&it));
 
   rc = c->table->finish(c->ptr, options, &c->data);
 
@@ -345,8 +345,8 @@ blockctor_finish(blockctor_t *c,
                  const rb_map_t *data) {
   ldb_contents_t contents;
   ldb_blockgen_t bb;
-  void *key, *value;
   ldb_slice_t ret;
+  rb_iter_t it;
 
   if (c->block != NULL)
     ldb_block_destroy(c->block);
@@ -355,8 +355,12 @@ blockctor_finish(blockctor_t *c,
 
   ldb_blockgen_init(&bb, options);
 
-  rb_map_iterate(data, key, value)
-    ldb_blockgen_add(&bb, key, value);
+  rb_iter_each(&it, data) {
+    ldb_slice_t *key = rb_key_ptr(&it);
+    ldb_slice_t *val = rb_val_ptr(&it);
+
+    ldb_blockgen_add(&bb, key, val);
+  }
 
   /* Open the block. */
   ret = ldb_blockgen_finish(&bb);
@@ -437,8 +441,8 @@ tablector_finish(tablector_t *c,
   ldb_dbopt_t table_options = *ldb_dbopt_default;
   ldb_tablegen_t *tb;
   ldb_wfile_t *sink;
-  void *key, *value;
   uint64_t fsize;
+  rb_iter_t it;
 
   tablector_clear(c);
 
@@ -446,8 +450,11 @@ tablector_finish(tablector_t *c,
 
   tb = ldb_tablegen_create(options, sink);
 
-  rb_map_iterate(data, key, value) {
-    ldb_tablegen_add(tb, key, value);
+  rb_iter_each(&it, data) {
+    ldb_slice_t *key = rb_key_ptr(&it);
+    ldb_slice_t *val = rb_val_ptr(&it);
+
+    ldb_tablegen_add(tb, key, val);
 
     ASSERT(ldb_tablegen_status(tb) == LDB_OK);
   }
@@ -629,7 +636,7 @@ static int
 memctor_finish(memctor_t *c,
                const ldb_dbopt_t *options,
                const rb_map_t *data) {
-  void *key, *value;
+  rb_iter_t it;
   int seq = 1;
 
   (void)options;
@@ -640,8 +647,12 @@ memctor_finish(memctor_t *c,
 
   ldb_memtable_ref(c->mt);
 
-  rb_map_iterate(data, key, value) {
-    ldb_memtable_add(c->mt, seq, LDB_TYPE_VALUE, key, value);
+  rb_iter_each(&it, data) {
+    ldb_slice_t *key = rb_key_ptr(&it);
+    ldb_slice_t *val = rb_val_ptr(&it);
+
+    ldb_memtable_add(c->mt, seq, LDB_TYPE_VALUE, key, val);
+
     seq++;
   }
 
@@ -720,7 +731,7 @@ static int
 dbctor_finish(dbctor_t *c,
               const ldb_dbopt_t *options,
               const rb_map_t *data) {
-  void *key, *value;
+  rb_iter_t it;
 
   (void)options;
 
@@ -730,11 +741,13 @@ dbctor_finish(dbctor_t *c,
 
   dbctor_newdb(c);
 
-  rb_map_iterate(data, key, value) {
+  rb_iter_each(&it, data) {
+    ldb_slice_t *key = rb_key_ptr(&it);
+    ldb_slice_t *val = rb_val_ptr(&it);
     ldb_batch_t batch;
 
     ldb_batch_init(&batch);
-    ldb_batch_put(&batch, key, value);
+    ldb_batch_put(&batch, key, val);
 
     ASSERT(ldb_write(c->db, &batch, NULL) == LDB_OK);
 
@@ -918,10 +931,10 @@ iter_equal(ldb_iter_t *iter, rb_iter_t *it) {
   v1 = ldb_iter_value(iter);
 
   k2 = rb_iter_key(it);
-  v2 = rb_iter_value(it);
+  v2 = rb_iter_val(it);
 
-  return ldb_buffer_equal(&k1, k2.p) &&
-         ldb_buffer_equal(&v1, v2.p);
+  return ldb_buffer_equal(&k1, k2.ptr) &&
+         ldb_buffer_equal(&v1, v2.ptr);
 }
 
 static void
@@ -1027,9 +1040,6 @@ harness_test_random_access(harness_t *h,
 
       case 2: {
         ldb_buffer_t key;
-        rb_val_t k;
-
-        k.p = &key;
 
         if (verbose)
           fprintf(stderr, "Seek\n");
@@ -1039,7 +1049,7 @@ harness_test_random_access(harness_t *h,
         harness_random_key(h, &key, rnd, keys);
 
         ldb_iter_seek(iter, &key);
-        rb_iter_seek(&it, k);
+        rb_iter_seek(&it, rb_ptr(&key));
 
         ASSERT(iter_equal(iter, &it));
 

@@ -2700,34 +2700,20 @@ test_db_multi_threaded(test_t *t) {
 static int
 map_compare(rb_val_t x, rb_val_t y, void *arg) {
   (void)arg;
-  return strcmp(x.p, y.p);
+  return strcmp(x.ptr, y.ptr);
 }
 
 static void
 map_put(rb_map_t *map, const char *k, const char *v) {
-  rb_val_t key, val;
-  rb_node_t *node;
-
-  key.p = (void *)k;
-  val.p = (void *)v;
-
-  node = rb_tree_put(map, key, val);
+  rb_node_t *node = rb_tree_put(map, rb_ptr(k), rb_ptr(v));
 
   if (node != NULL)
-    node->value.p = (void *)v;
+    node->val.ptr = (void *)v;
 }
 
 static void
 map_del(rb_map_t *map, const char *k) {
-  rb_node_t *node;
-  rb_val_t key;
-
-  key.p = (void *)k;
-
-  node = rb_tree_del(map, key);
-
-  if (node != NULL)
-    rb_node_destroy(node);
+  rb_tree_del(map, rb_ptr(k), NULL);
 }
 
 static void
@@ -2761,8 +2747,8 @@ check_get(ldb_t *db, const ldb_snapshot_t *db_snap,
   rb_iter_first(&it);
 
   while (rb_iter_valid(&it)) {
-    const char *k = rb_iter_key(&it).p;
-    const char *v = rb_iter_value(&it).p;
+    const char *k = rb_key_ptr(&it);
+    const char *v = rb_val_ptr(&it);
     ldb_slice_t key = ldb_string(k);
     ldb_slice_t val;
 
@@ -2791,16 +2777,16 @@ iter_equal(ldb_iter_t *iter, rb_iter_t *it) {
   v1 = ldb_iter_value(iter);
 
   k2 = rb_iter_key(it);
-  v2 = rb_iter_value(it);
+  v2 = rb_iter_val(it);
 
-  if (k1.size != strlen(k2.p))
+  if (k1.size != strlen(k2.ptr))
     return 0;
 
-  if (v1.size != strlen(v2.p))
+  if (v1.size != strlen(v2.ptr))
     return 0;
 
-  return memcmp(k1.data, k2.p, k1.size) == 0 &&
-         memcmp(v1.data, v2.p, v1.size) == 0;
+  return memcmp(k1.data, k2.ptr, k1.size) == 0 &&
+         memcmp(v1.data, v2.ptr, v1.size) == 0;
 }
 
 static void
@@ -2833,7 +2819,7 @@ check_iter(ldb_t *db, const ldb_snapshot_t *db_snap,
     ASSERT(iter_equal(iter, &it));
 
     if ((++count % 10) == 0)
-      ldb_vector_push(&keys, rb_iter_key(&it).p);
+      ldb_vector_push(&keys, rb_key_ptr(&it));
 
     ldb_iter_next(iter);
     rb_iter_next(&it);
@@ -2843,12 +2829,9 @@ check_iter(ldb_t *db, const ldb_snapshot_t *db_snap,
 
   for (i = 0; i < keys.length; i++) {
     ldb_slice_t key = ldb_string(keys.items[i]);
-    rb_val_t k;
-
-    k.p = key.data;
 
     ldb_iter_seek(iter, &key);
-    rb_iter_seek(&it, k);
+    rb_iter_seek(&it, rb_ptr(key.data));
 
     ASSERT(iter_equal(iter, &it));
   }

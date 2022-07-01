@@ -912,12 +912,12 @@ by_smallest_key(const ldb_comparator_t *cmp,
 
 static int
 file_set_compare(rb_val_t x, rb_val_t y, void *arg) {
-  return by_smallest_key(arg, x.p, y.p);
+  return by_smallest_key(arg, x.ptr, y.ptr);
 }
 
 static void
 file_set_destruct(rb_node_t *node) {
-  ldb_filemeta_unref(node->key.p);
+  ldb_filemeta_unref(node->key.ptr);
 }
 
 /* Initialize a builder with the files from *base and other info from *vset. */
@@ -956,7 +956,7 @@ builder_clear(builder_t *b) {
 static void
 builder_apply(builder_t *b, const ldb_edit_t *edit) {
   ldb_versions_t *v = b->vset;
-  void *item;
+  rb_iter_t it;
   size_t i;
 
   /* Update compaction pointers. */
@@ -967,16 +967,11 @@ builder_apply(builder_t *b, const ldb_edit_t *edit) {
   }
 
   /* Delete files. */
-  rb_set_iterate(&edit->deleted_files, item) {
-    const file_entry_t *entry = item;
+  rb_iter_each(&it, &edit->deleted_files) {
+    const file_entry_t *entry = rb_key_ptr(&it);
     level_state_t *state = &b->levels[entry->level];
 
-#ifndef NDEBUG
-    if (!rb_set64_put(&state->deleted_files, entry->number))
-      assert(0 && "duplicate file number in deleted_files");
-#else
     rb_set64_put(&state->deleted_files, entry->number);
-#endif
   }
 
   /* Add new files. */
@@ -1050,12 +1045,12 @@ builder_save_to(builder_t *b, ldb_version_t *v) {
     const ldb_vector_t *base_files = &b->base->files[level];
     const rb_set_t *added_files = &b->levels[level].added_files;
     size_t i = 0;
-    void *item;
+    rb_iter_t it;
 
     ldb_vector_grow(&v->files[level], base_files->length + added_files->size);
 
-    rb_set_iterate(added_files, item) {
-      ldb_filemeta_t *added_file = item;
+    rb_iter_each(&it, added_files) {
+      ldb_filemeta_t *added_file = rb_key_ptr(&it);
 
       /* Add all smaller files listed in b->base. */
       /* This code assumes the base files are sorted. */

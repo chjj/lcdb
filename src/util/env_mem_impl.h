@@ -61,8 +61,6 @@ struct ldb_filelock_s {
  */
 
 static ldb_mutex_t file_mutex = LDB_MUTEX_INITIALIZER;
-static rb_map_t file_map_;
-static rb_set_t file_set;
 
 /*
  * Errors
@@ -335,24 +333,17 @@ ldb_fstate_append(ldb_fstate_t *state, const ldb_slice_t *data) {
 }
 
 /*
- * Environment
+ * File Map & Set
  */
 
 static int
 by_string(rb_val_t x, rb_val_t y, void *arg) {
   (void)arg;
-  return strcmp(x.p, y.p);
+  return strcmp(x.ptr, y.ptr);
 }
 
-static rb_map_t *
-ensure_map(void) {
-  if (file_map_.root == NULL)
-    rb_map_init(&file_map_, by_string, NULL);
-
-  return &file_map_;
-}
-
-#define file_map (*ensure_map())
+static rb_map_t file_map = RB_MAP_INIT(by_string);
+static rb_set_t file_set = RB_SET_INIT(by_string);
 
 /*
  * Filesystem
@@ -394,7 +385,7 @@ int
 ldb_get_children(const char *path, char ***out) {
   size_t plen = strlen(path);
   ldb_vector_t names;
-  void *key;
+  rb_iter_t it;
 
 #ifdef _WIN32
   while (plen > 0 && (path[plen - 1] == '/' || path[plen - 1] == '\\')
@@ -409,8 +400,8 @@ ldb_get_children(const char *path, char ***out) {
 
   ldb_mutex_lock(&file_mutex);
 
-  rb_map_keys(&file_map, key) {
-    const char *name = key;
+  rb_iter_each(&it, &file_map) {
+    const char *name = rb_key_ptr(&it);
     size_t nlen = strlen(name);
 
 #ifdef _WIN32
@@ -444,11 +435,10 @@ ldb_free_children(char **list, int len) {
 
 static int
 ldb_delete_file(const char *filename) {
-  rb_node_t *node = rb_map_del(&file_map, filename);
+  rb_entry_t entry;
 
-  if (node != NULL) {
-    ldb_fstate_unref(node->value.p);
-    rb_node_destroy(node);
+  if (rb_map_del(&file_map, filename, &entry)) {
+    ldb_fstate_unref(entry.val);
     return 1;
   }
 
@@ -504,25 +494,25 @@ ldb_file_size(const char *filename, uint64_t *size) {
 
 int
 ldb_rename_file(const char *from, const char *to) {
-  rb_node_t *node;
+  int rc = LDB_ENOENT;
+  rb_entry_t entry;
 
   ldb_mutex_lock(&file_mutex);
 
-  node = rb_map_del(&file_map, from);
-
-  if (node != NULL) {
-    ldb_fstate_t *state = node->value.p;
+  if (rb_map_del(&file_map, from, &entry)) {
+    ldb_fstate_t *state = entry.val;
 
     ldb_fstate_rename(state, to);
-
     ldb_delete_file(to);
+
     rb_map_put(&file_map, state->path, state);
-    rb_node_destroy(node);
+
+    rc = LDB_OK;
   }
 
   ldb_mutex_unlock(&file_mutex);
 
-  return node ? LDB_OK : LDB_ENOENT;
+  return rc;
 }
 
 int
@@ -557,9 +547,6 @@ ldb_link_file(const char *from, const char *to) {
 int
 ldb_lock_file(const char *filename, ldb_filelock_t **lock) {
   ldb_mutex_lock(&file_mutex);
-
-  if (file_set.root == NULL)
-    rb_set_init(&file_set, by_string, NULL);
 
   if (rb_set_has(&file_set, filename)) {
     ldb_mutex_unlock(&file_mutex);
