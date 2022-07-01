@@ -149,13 +149,24 @@ test_simple(const char *path) {
 
   /* Print stats. */
   if (ldb_property(db, "leveldb.stats", &prop)) {
-    puts(prop);
+    printf("%s\n", prop);
     ldb_free(prop);
   }
 
   /* Print sstables. */
   if (ldb_property(db, "leveldb.sstables", &prop)) {
-    puts(prop);
+    printf("%s\n", prop);
+    ldb_free(prop);
+  }
+
+  /* Print memusage. */
+  if (ldb_property(db, "leveldb.approximate-memory-usage", &prop)) {
+    unsigned long usage;
+
+    ASSERT(sscanf(prop, "%lu", &usage) == 1);
+
+    printf("Memory Usage: %.2f MB\n", (double)usage / 1024 / 1024);
+
     ldb_free(prop);
   }
 
