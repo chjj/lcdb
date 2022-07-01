@@ -10,10 +10,11 @@
  * See LICENSE for more information.
  */
 
+#include <stddef.h>
 #include <stdint.h>
-#include <stdlib.h>
 
 #include "buffer.h"
+#include "env.h"
 #include "random.h"
 #include "slice.h"
 #include "testutil.h"
@@ -24,7 +25,12 @@
 
 uint32_t
 ldb_random_seed(void) {
-  return ((rand() & 0x7fff) << 16) | (rand() & 0xffff);
+  static ldb_rand_t rnd = {0};
+
+  if (rnd.seed == 0)
+    ldb_rand_init(&rnd, ldb_now_usec());
+
+  return ldb_rand_next(&rnd);
 }
 
 ldb_slice_t *
