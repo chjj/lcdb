@@ -2541,7 +2541,7 @@ ldb_compare(const ldb_t *db, const ldb_slice_t *x, const ldb_slice_t *y) {
 
 int
 ldb_copy(const char *from, const char *to, const ldb_dbopt_t *options) {
-  char lockname[LDB_PATH_MAX];
+  char path[LDB_PATH_MAX];
   ldb_filelock_t *lock;
   int rc;
 
@@ -2553,10 +2553,16 @@ ldb_copy(const char *from, const char *to, const ldb_dbopt_t *options) {
   if (strlen(to) + 1 > LDB_PATH_MAX - 35)
     return LDB_INVALID;
 
-  if (!ldb_lock_filename(lockname, sizeof(lockname), from))
+  if (!ldb_current_filename(path, sizeof(path), from))
     return LDB_INVALID;
 
-  rc = ldb_lock_file(lockname, &lock);
+  if (!ldb_file_exists(path))
+    return LDB_ENOENT;
+
+  if (!ldb_lock_filename(path, sizeof(path), from))
+    return LDB_INVALID;
+
+  rc = ldb_lock_file(path, &lock);
 
   if (rc == LDB_OK) {
     rc = ldb_backup_inner(from, to, NULL);
@@ -2592,7 +2598,12 @@ ldb_destroy(const char *dbname, const ldb_dbopt_t *options) {
 
   if (len < 0) {
     /* Ignore error in case directory does not exist. */
-    return LDB_OK;
+    rc = ldb_system_error();
+
+    if (rc == LDB_ENOENT)
+      return LDB_OK;
+
+    return rc;
   }
 
   rc = ldb_lock_file(lockname, &lock);

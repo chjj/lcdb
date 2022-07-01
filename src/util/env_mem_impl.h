@@ -438,7 +438,8 @@ ldb_free_children(char **list, int len) {
   for (i = 0; i < len; i++)
     ldb_free(list[i]);
 
-  ldb_free(list);
+  if (list != NULL)
+    ldb_free(list);
 }
 
 static int

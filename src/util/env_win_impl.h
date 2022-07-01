@@ -161,7 +161,7 @@ LDBSetFilePointerEx(HANDLE file,
   pos.LowPart = SetFilePointer(file, pos.LowPart, &pos.HighPart, method);
 
   if (pos.LowPart == (DWORD)-1) { /* INVALID_SET_FILE_POINTER */
-    if (GetLastError() != NO_ERROR)
+    if (GetLastError() != ERROR_SUCCESS)
       return FALSE;
   }
 
@@ -179,7 +179,7 @@ LDBGetFileSizeEx(HANDLE file, LARGE_INTEGER *size) {
   size->HighPart = HighPart;
 
   if (size->LowPart == (DWORD)-1) { /* INVALID_FILE_SIZE */
-    if (GetLastError() != NO_ERROR)
+    if (GetLastError() != ERROR_SUCCESS)
       return FALSE;
   }
 
@@ -402,8 +402,11 @@ tls_buffer_get(size_t size) {
 
 static int
 ldb_convert_error(DWORD code) {
-  if (LDB_IS_STATUS(code) || code > INT_MAX)
+  if (code == ERROR_SUCCESS || code > INT_MAX)
     return LDB_IOERR;
+
+  if (code == ERROR_PATH_NOT_FOUND)
+    return ERROR_FILE_NOT_FOUND;
 
   return code;
 }
@@ -737,8 +740,10 @@ ldb_get_children_ansi(const char *path, char ***out) {
   void *ptr;
   size_t j;
 
-  if (len + 4 > sizeof(buf))
+  if (len + 4 > sizeof(buf)) {
+    SetLastError(ERROR_BUFFER_OVERFLOW);
     goto fail;
+  }
 
   attrs = GetFileAttributesA(path);
 
@@ -1248,7 +1253,7 @@ ldb_rfile_skip(ldb_rfile_t *file, uint64_t offset) {
   LARGE_INTEGER dist;
 
   if (offset > _I64_MAX)
-    return ldb_convert_error(ERROR_INVALID_PARAMETER);
+    return ERROR_INVALID_PARAMETER;
 
   dist.QuadPart = offset;
 
@@ -1268,10 +1273,10 @@ ldb_rfile_pread0(ldb_rfile_t *file,
 
   if (file->mapped) {
     if (offset + count < count)
-      return ldb_convert_error(ERROR_INVALID_PARAMETER);
+      return ERROR_INVALID_PARAMETER;
 
     if (offset + count > file->length)
-      return ldb_convert_error(ERROR_INVALID_PARAMETER);
+      return ERROR_INVALID_PARAMETER;
 
     ldb_slice_set(result, file->base + offset, count);
 
@@ -1283,7 +1288,7 @@ ldb_rfile_pread0(ldb_rfile_t *file,
     LARGE_INTEGER dist;
 
     if (offset > _I64_MAX)
-      return ldb_convert_error(ERROR_INVALID_PARAMETER);
+      return ERROR_INVALID_PARAMETER;
 
     dist.QuadPart = offset;
 
@@ -1577,7 +1582,8 @@ ldb_appendfile_create0(const char *filename, ldb_wfile_t **file) {
 
   if (SetFilePointer(handle, 0, NULL, FILE_END) == (DWORD)-1) {
     DWORD code = GetLastError();
-    if (code != NO_ERROR) {
+
+    if (code != ERROR_SUCCESS) {
       CloseHandle(handle);
       return ldb_convert_error(code);
     }

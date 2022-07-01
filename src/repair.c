@@ -477,7 +477,7 @@ repair_table(ldb_repair_t *rep, const char *src, ldb_tabinfo_t *t) {
     }
   }
 
-  if (rc != LDB_OK)
+  if (rc != LDB_OK || counter == 0)
     ldb_remove_file(copy);
 
   if (t != NULL)

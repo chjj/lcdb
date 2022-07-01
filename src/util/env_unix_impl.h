@@ -212,17 +212,14 @@ by_fileid(rb_val_t x, rb_val_t y, void *arg) {
  * Errors
  */
 
-static int
-ldb_convert_error(int code) {
-  if (LDB_IS_STATUS(code))
+int
+ldb_system_error(void) {
+  int code = errno;
+
+  if (code == 0)
     return LDB_IOERR;
 
   return code;
-}
-
-int
-ldb_system_error(void) {
-  return ldb_convert_error(errno);
 }
 
 /* Thread-safety of strerror(3):
@@ -1079,7 +1076,7 @@ ldb_rfile_read(ldb_rfile_t *file,
 int
 ldb_rfile_skip(ldb_rfile_t *file, uint64_t offset) {
   if (offset > LDB_OFFSET_MAX)
-    return ldb_convert_error(EINVAL);
+    return EINVAL;
 
   if (lseek(file->fd, offset, SEEK_CUR) < 0)
     return ldb_system_error();
@@ -1099,10 +1096,10 @@ ldb_rfile_pread0(ldb_rfile_t *file,
 
   if (file->mapped) {
     if (offset + count < count)
-      return ldb_convert_error(EINVAL);
+      return EINVAL;
 
     if (offset + count > file->length)
-      return ldb_convert_error(EINVAL);
+      return EINVAL;
 
     ldb_slice_set(result, file->base + offset, count);
 
@@ -1110,7 +1107,7 @@ ldb_rfile_pread0(ldb_rfile_t *file,
   }
 
   if (offset > LDB_OFFSET_MAX)
-    return ldb_convert_error(EINVAL);
+    return EINVAL;
 
   if (file->fd == -1) {
     fd = ldb_open(file->filename, O_RDONLY, 0);
