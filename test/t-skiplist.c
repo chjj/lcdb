@@ -196,19 +196,19 @@ test_skip_insert_and_lookup(void) {
     rb_iter_seek(&it, val);
 
     ASSERT(skipiter_valid(&iter));
-    ASSERT(rb_key_ui(&it) == skipiter_key(&iter));
+    ASSERT(rb_iter_key(&it).ui == skipiter_key(&iter));
 
     skipiter_first(&iter);
     rb_iter_first(&it);
 
     ASSERT(skipiter_valid(&iter));
-    ASSERT(rb_key_ui(&it) == skipiter_key(&iter));
+    ASSERT(rb_iter_key(&it).ui == skipiter_key(&iter));
 
     skipiter_last(&iter);
     rb_iter_last(&it);
 
     ASSERT(skipiter_valid(&iter));
-    ASSERT(rb_key_ui(&it) == skipiter_key(&iter));
+    ASSERT(rb_iter_key(&it).ui == skipiter_key(&iter));
   }
 
   /* Forward iteration test. */
@@ -231,7 +231,7 @@ test_skip_insert_and_lookup(void) {
       if (!rb_iter_valid(&it))
         break;
 
-      ASSERT(rb_key_ui(&it) == skipiter_key(&iter));
+      ASSERT(rb_iter_key(&it).ui == skipiter_key(&iter));
 
       skipiter_next(&iter);
       rb_iter_next(&it);
@@ -251,7 +251,7 @@ test_skip_insert_and_lookup(void) {
     /* Compare against model iterator. */
     while (rb_iter_valid(&it)) {
       ASSERT(skipiter_valid(&iter));
-      ASSERT(rb_key_ui(&it) == skipiter_key(&iter));
+      ASSERT(rb_iter_key(&it).ui == skipiter_key(&iter));
 
       skipiter_prev(&iter);
       rb_iter_prev(&it);

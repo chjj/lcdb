@@ -189,8 +189,8 @@ test_tree_api(void) {
 
   for (rb_iter_first(&it); rb_iter_valid(&it); rb_iter_next(&it)) {
     ASSERT(i < COUNT);
-    ASSERT(strcmp(rb_key_ptr(&it), sorted[i].key) == 0);
-    ASSERT(rb_val_ui(&it) == sorted[i].val);
+    ASSERT(strcmp(rb_iter_key(&it).ptr, sorted[i].key) == 0);
+    ASSERT(rb_iter_val(&it).ui == sorted[i].val);
     i++;
   }
 
@@ -202,8 +202,8 @@ test_tree_api(void) {
 
   for (rb_iter_last(&it); rb_iter_valid(&it); rb_iter_prev(&it)) {
     ASSERT(i >= 0);
-    ASSERT(strcmp(rb_key_ptr(&it), sorted[i].key) == 0);
-    ASSERT(rb_val_ui(&it) == sorted[i].val);
+    ASSERT(strcmp(rb_iter_key(&it).ptr, sorted[i].key) == 0);
+    ASSERT(rb_iter_val(&it).ui == sorted[i].val);
     i--;
   }
 
@@ -217,8 +217,8 @@ test_tree_api(void) {
        rb_iter_valid(&it);
        rb_iter_next(&it)) {
     ASSERT(i < COUNT);
-    ASSERT(strcmp(rb_key_ptr(&it), sorted[i].key) == 0);
-    ASSERT(rb_val_ui(&it) == sorted[i].val);
+    ASSERT(strcmp(rb_iter_key(&it).ptr, sorted[i].key) == 0);
+    ASSERT(rb_iter_val(&it).ui == sorted[i].val);
     i++;
   }
 
@@ -245,10 +245,10 @@ test_tree_api(void) {
   /* Verify deletion. */
   i = 0;
 
-  rb_iter_each(&it, &tree) {
+  rb_tree_each(&tree, it) {
     ASSERT(i < HALF);
-    ASSERT(strcmp(rb_key_ptr(&it), sorted[i].key) == 0);
-    ASSERT(rb_val_ui(&it) == sorted[i].val);
+    ASSERT(strcmp(rb_key_ptr(it), sorted[i].key) == 0);
+    ASSERT(rb_val_ui(it) == sorted[i].val);
     i++;
   }
 
@@ -260,10 +260,10 @@ test_tree_api(void) {
   /* Verify snapshot. */
   i = 0;
 
-  rb_iter_each(&it, &copy) {
+  rb_tree_each(&copy, it) {
     ASSERT(i < HALF);
-    ASSERT(strcmp(rb_key_ptr(&it), sorted[i].key) == 0);
-    ASSERT(rb_val_ui(&it) == sorted[i].val);
+    ASSERT(strcmp(rb_key_ptr(it), sorted[i].key) == 0);
+    ASSERT(rb_val_ui(it) == sorted[i].val);
     i++;
   }
 
@@ -355,10 +355,10 @@ test_map_api(void) {
   /* Sequential read. */
   i = 0;
 
-  rb_iter_each(&it, &map) {
+  rb_map_each(&map, it) {
     ASSERT(i < COUNT);
-    ASSERT(strcmp(rb_key_ptr(&it), sorted[i].key) == 0);
-    ASSERT(strcmp(rb_val_ptr(&it), sorted[i].ptr) == 0);
+    ASSERT(strcmp(rb_key_ptr(it), sorted[i].key) == 0);
+    ASSERT(strcmp(rb_val_ptr(it), sorted[i].ptr) == 0);
     i++;
   }
 
@@ -386,10 +386,10 @@ test_map_api(void) {
   /* Verify deletion. */
   i = 0;
 
-  rb_iter_each(&it, &map) {
+  rb_map_each(&map, it) {
     ASSERT(i < HALF);
-    ASSERT(strcmp(rb_key_ptr(&it), sorted[i].key) == 0);
-    ASSERT(strcmp(rb_val_ptr(&it), sorted[i].ptr) == 0);
+    ASSERT(strcmp(rb_key_ptr(it), sorted[i].key) == 0);
+    ASSERT(strcmp(rb_val_ptr(it), sorted[i].ptr) == 0);
     i++;
   }
 
@@ -401,10 +401,10 @@ test_map_api(void) {
   /* Verify snapshot. */
   i = 0;
 
-  rb_iter_each(&it, &copy) {
+  rb_map_each(&copy, it) {
     ASSERT(i < HALF);
-    ASSERT(strcmp(rb_key_ptr(&it), sorted[i].key) == 0);
-    ASSERT(strcmp(rb_val_ptr(&it), sorted[i].ptr) == 0);
+    ASSERT(strcmp(rb_key_ptr(it), sorted[i].key) == 0);
+    ASSERT(strcmp(rb_val_ptr(it), sorted[i].ptr) == 0);
     i++;
   }
 
@@ -484,9 +484,9 @@ test_set_api(void) {
   /* Sequential read. */
   i = 0;
 
-  rb_iter_each(&it, &set) {
+  rb_set_each(&set, it) {
     ASSERT(i < COUNT);
-    ASSERT(strcmp(rb_key_ptr(&it), sorted[i]) == 0);
+    ASSERT(strcmp(rb_key_ptr(it), sorted[i]) == 0);
     i++;
   }
 
@@ -512,9 +512,9 @@ test_set_api(void) {
   /* Verify deletion. */
   i = 0;
 
-  rb_iter_each(&it, &set) {
+  rb_set_each(&set, it) {
     ASSERT(i < HALF);
-    ASSERT(strcmp(rb_key_ptr(&it), sorted[i]) == 0);
+    ASSERT(strcmp(rb_key_ptr(it), sorted[i]) == 0);
     i++;
   }
 
@@ -526,9 +526,9 @@ test_set_api(void) {
   /* Verify snapshot. */
   i = 0;
 
-  rb_iter_each(&it, &copy) {
+  rb_set_each(&copy, it) {
     ASSERT(i < HALF);
-    ASSERT(strcmp(rb_key_ptr(&it), sorted[i]) == 0);
+    ASSERT(strcmp(rb_key_ptr(it), sorted[i]) == 0);
     i++;
   }
 
@@ -602,9 +602,9 @@ test_set64_api(void) {
   /* Sequential read. */
   i = 0;
 
-  rb_iter_each(&it, &set) {
+  rb_set64_each(&set, it) {
     ASSERT(i < COUNT);
-    ASSERT(rb_key_ui(&it) == sorted[i]);
+    ASSERT(rb_key_ui(it) == sorted[i]);
     i++;
   }
 
@@ -624,9 +624,9 @@ test_set64_api(void) {
   /* Verify deletion. */
   i = 0;
 
-  rb_iter_each(&it, &set) {
+  rb_set64_each(&set, it) {
     ASSERT(i < HALF);
-    ASSERT(rb_key_ui(&it) == sorted[i]);
+    ASSERT(rb_key_ui(it) == sorted[i]);
     i++;
   }
 
@@ -638,9 +638,9 @@ test_set64_api(void) {
   /* Verify snapshot. */
   i = 0;
 
-  rb_iter_each(&it, &copy) {
+  rb_set64_each(&copy, it) {
     ASSERT(i < HALF);
-    ASSERT(rb_key_ui(&it) == sorted[i]);
+    ASSERT(rb_key_ui(it) == sorted[i]);
     i++;
   }
 

@@ -2748,8 +2748,8 @@ check_get(ldb_t *db, const ldb_snapshot_t *db_snap,
   rb_iter_first(&it);
 
   while (rb_iter_valid(&it)) {
-    const char *k = rb_key_ptr(&it);
-    const char *v = rb_val_ptr(&it);
+    const char *k = rb_iter_key(&it).ptr;
+    const char *v = rb_iter_val(&it).ptr;
     ldb_slice_t key = ldb_string(k);
     ldb_slice_t val;
 
@@ -2820,7 +2820,7 @@ check_iter(ldb_t *db, const ldb_snapshot_t *db_snap,
     ASSERT(iter_equal(iter, &it));
 
     if ((++count % 10) == 0)
-      ldb_vector_push(&keys, rb_key_ptr(&it));
+      ldb_vector_push(&keys, rb_iter_key(&it).ptr);
 
     ldb_iter_next(iter);
     rb_iter_next(&it);

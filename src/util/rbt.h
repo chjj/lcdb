@@ -17,8 +17,8 @@
 
 typedef union rb_val_s {
   void *ptr;
-  int64_t si;
   uint64_t ui;
+  int64_t si;
 } rb_val_t;
 
 typedef enum rb_color {
@@ -159,6 +159,8 @@ rb_tree_del(rb_tree_t *tree, rb_val_t key, rb_node_t *result);
 rb_iter_t
 rb_tree_iterator(const rb_tree_t *tree);
 
+#define rb_tree_each(tree, it) rb_iter_each(&(it), tree)
+
 /*
  * Iterator
  */
@@ -184,8 +186,8 @@ rb_iter_prev(rb_iter_t *iter);
 void
 rb_iter_next(rb_iter_t *iter);
 
-#define rb_iter_key(iter) (iter)->node->key
-#define rb_iter_val(iter) (iter)->node->val
+#define rb_iter_key(iter) ((iter)->node->key)
+#define rb_iter_val(iter) ((iter)->node->val)
 
 void
 rb_iter_start(rb_iter_t *iter, const rb_tree_t *tree);
@@ -195,13 +197,13 @@ rb_iter_start(rb_iter_t *iter, const rb_tree_t *tree);
        rb_iter_valid(iter);       \
        rb_iter_next(iter))
 
-#define rb_key_ptr(iter) rb_iter_key(iter).ptr
-#define rb_key_ui(iter) rb_iter_key(iter).ui
-#define rb_key_si(iter) rb_iter_key(iter).si
+#define rb_key_ptr(it) ((it).node->key.ptr)
+#define rb_key_ui(it) ((it).node->key.ui)
+#define rb_key_si(it) ((it).node->key.si)
 
-#define rb_val_ptr(iter) rb_iter_val(iter).ptr
-#define rb_val_ui(iter) rb_iter_val(iter).ui
-#define rb_val_si(iter) rb_iter_val(iter).si
+#define rb_val_ptr(it) ((it).node->val.ptr)
+#define rb_val_ui(it) ((it).node->val.ui)
+#define rb_val_si(it) ((it).node->val.si)
 
 /*
  * Map
@@ -225,6 +227,7 @@ int
 rb_map_del(rb_tree_t *tree, const void *key, rb_entry_t *result);
 
 #define rb_map_iterator rb_tree_iterator
+#define rb_map_each rb_tree_each
 
 /*
  * Set
@@ -245,6 +248,7 @@ void *
 rb_set_del(rb_tree_t *tree, const void *item);
 
 #define rb_set_iterator rb_tree_iterator
+#define rb_set_each rb_tree_each
 
 /*
  * Set64
@@ -271,5 +275,6 @@ int
 rb_set64_del(rb_tree_t *tree, uint64_t item);
 
 #define rb_set64_iterator rb_tree_iterator
+#define rb_set64_each rb_tree_each
 
 #endif /* LDB_RBT_H */

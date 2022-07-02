@@ -345,8 +345,8 @@ ldb_edit_export(ldb_buffer_t *dst, const ldb_edit_t *edit) {
     ldb_ikey_export(dst, key);
   }
 
-  rb_iter_each(&it, &edit->deleted_files) {
-    const file_entry_t *entry = rb_key_ptr(&it);
+  rb_set_each(&edit->deleted_files, it) {
+    const file_entry_t *entry = rb_key_ptr(it);
 
     ldb_buffer_varint32(dst, TAG_DELETED_FILE);
     ldb_buffer_varint32(dst, entry->level);
@@ -543,8 +543,8 @@ ldb_edit_debug(ldb_buffer_t *z, const ldb_edit_t *edit) {
     ldb_ikey_debug(z, &entry->key);
   }
 
-  rb_iter_each(&it, &edit->deleted_files) {
-    const file_entry_t *entry = rb_key_ptr(&it);
+  rb_set_each(&edit->deleted_files, it) {
+    const file_entry_t *entry = rb_key_ptr(it);
 
     ldb_buffer_string(z, "\n  RemoveFile: ");
     ldb_buffer_number(z, entry->level);

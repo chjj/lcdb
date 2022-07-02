@@ -301,8 +301,8 @@ ctor_finish(ctor_t *c, const ldb_dbopt_t *options, ldb_vector_t *keys) {
 
   ASSERT(keys->length == 0);
 
-  rb_iter_each(&it, &c->data)
-    ldb_vector_push(keys, rb_key_ptr(&it));
+  rb_map_each(&c->data, it)
+    ldb_vector_push(keys, rb_key_ptr(it));
 
   rc = c->table->finish(c->ptr, options, &c->data);
 
@@ -355,9 +355,9 @@ blockctor_finish(blockctor_t *c,
 
   ldb_blockgen_init(&bb, options);
 
-  rb_iter_each(&it, data) {
-    ldb_slice_t *key = rb_key_ptr(&it);
-    ldb_slice_t *val = rb_val_ptr(&it);
+  rb_map_each(data, it) {
+    ldb_slice_t *key = rb_key_ptr(it);
+    ldb_slice_t *val = rb_val_ptr(it);
 
     ldb_blockgen_add(&bb, key, val);
   }
@@ -450,9 +450,9 @@ tablector_finish(tablector_t *c,
 
   tb = ldb_tablegen_create(options, sink);
 
-  rb_iter_each(&it, data) {
-    ldb_slice_t *key = rb_key_ptr(&it);
-    ldb_slice_t *val = rb_val_ptr(&it);
+  rb_map_each(data, it) {
+    ldb_slice_t *key = rb_key_ptr(it);
+    ldb_slice_t *val = rb_val_ptr(it);
 
     ldb_tablegen_add(tb, key, val);
 
@@ -647,9 +647,9 @@ memctor_finish(memctor_t *c,
 
   ldb_memtable_ref(c->mt);
 
-  rb_iter_each(&it, data) {
-    ldb_slice_t *key = rb_key_ptr(&it);
-    ldb_slice_t *val = rb_val_ptr(&it);
+  rb_map_each(data, it) {
+    ldb_slice_t *key = rb_key_ptr(it);
+    ldb_slice_t *val = rb_val_ptr(it);
 
     ldb_memtable_add(c->mt, seq, LDB_TYPE_VALUE, key, val);
 
@@ -741,9 +741,9 @@ dbctor_finish(dbctor_t *c,
 
   dbctor_newdb(c);
 
-  rb_iter_each(&it, data) {
-    ldb_slice_t *key = rb_key_ptr(&it);
-    ldb_slice_t *val = rb_val_ptr(&it);
+  rb_map_each(data, it) {
+    ldb_slice_t *key = rb_key_ptr(it);
+    ldb_slice_t *val = rb_val_ptr(it);
     ldb_batch_t batch;
 
     ldb_batch_init(&batch);

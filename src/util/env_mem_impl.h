@@ -400,8 +400,8 @@ ldb_get_children(const char *path, char ***out) {
 
   ldb_mutex_lock(&file_mutex);
 
-  rb_iter_each(&it, &file_map) {
-    const char *name = rb_key_ptr(&it);
+  rb_map_each(&file_map, it) {
+    const char *name = rb_key_ptr(it);
     size_t nlen = strlen(name);
 
 #ifdef _WIN32

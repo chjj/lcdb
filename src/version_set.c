@@ -967,8 +967,8 @@ builder_apply(builder_t *b, const ldb_edit_t *edit) {
   }
 
   /* Delete files. */
-  rb_iter_each(&it, &edit->deleted_files) {
-    const file_entry_t *entry = rb_key_ptr(&it);
+  rb_set_each(&edit->deleted_files, it) {
+    const file_entry_t *entry = rb_key_ptr(it);
     level_state_t *state = &b->levels[entry->level];
 
     rb_set64_put(&state->deleted_files, entry->number);
@@ -1049,8 +1049,8 @@ builder_save_to(builder_t *b, ldb_version_t *v) {
 
     ldb_vector_grow(&v->files[level], base_files->length + added_files->size);
 
-    rb_iter_each(&it, added_files) {
-      ldb_filemeta_t *added_file = rb_key_ptr(&it);
+    rb_set_each(added_files, it) {
+      ldb_filemeta_t *added_file = rb_key_ptr(it);
 
       /* Add all smaller files listed in b->base. */
       /* This code assumes the base files are sorted. */
