@@ -187,7 +187,7 @@ test_tree_api(void) {
   it = rb_tree_iterator(&tree);
   i = 0;
 
-  for (rb_iter_first(&it); rb_iter_valid(&it); rb_iter_next(&it)) {
+  rb_iter_each(&it) {
     ASSERT(i < COUNT);
     ASSERT(strcmp(rb_iter_key(&it).ptr, sorted[i].key) == 0);
     ASSERT(rb_iter_val(&it).ui == sorted[i].val);
@@ -200,7 +200,7 @@ test_tree_api(void) {
   it = rb_tree_iterator(&tree);
   i = COUNT - 1;
 
-  for (rb_iter_last(&it); rb_iter_valid(&it); rb_iter_prev(&it)) {
+  rb_iter_backwards(&it) {
     ASSERT(i >= 0);
     ASSERT(strcmp(rb_iter_key(&it).ptr, sorted[i].key) == 0);
     ASSERT(rb_iter_val(&it).ui == sorted[i].val);

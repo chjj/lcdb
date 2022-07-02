@@ -159,7 +159,10 @@ rb_tree_del(rb_tree_t *tree, rb_val_t key, rb_node_t *result);
 rb_iter_t
 rb_tree_iterator(const rb_tree_t *tree);
 
-#define rb_tree_each(tree, it) rb_iter_each(&(it), tree)
+#define rb_tree_each(tree, it)     \
+  for (rb_iter_start(&(it), tree); \
+       rb_iter_valid(&(it));       \
+       rb_iter_next(&(it)))
 
 /*
  * Iterator
@@ -192,10 +195,15 @@ rb_iter_next(rb_iter_t *iter);
 void
 rb_iter_start(rb_iter_t *iter, const rb_tree_t *tree);
 
-#define rb_iter_each(iter, tree)  \
-  for (rb_iter_start(iter, tree); \
-       rb_iter_valid(iter);       \
+#define rb_iter_each(iter)  \
+  for (rb_iter_first(iter); \
+       rb_iter_valid(iter); \
        rb_iter_next(iter))
+
+#define rb_iter_backwards(iter) \
+  for (rb_iter_last(iter);      \
+       rb_iter_valid(iter);     \
+       rb_iter_prev(iter))
 
 #define rb_key_ptr(it) ((it).node->key.ptr)
 #define rb_key_ui(it) ((it).node->key.ui)
