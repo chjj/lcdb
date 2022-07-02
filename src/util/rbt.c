@@ -194,6 +194,7 @@ void
 rb_tree_clear(rb_tree_t *tree, rb_clear_f *clear) {
   rb_node_clear(ROOT(tree), clear);
   tree->root = NIL;
+  tree->size = 0;
 }
 
 void

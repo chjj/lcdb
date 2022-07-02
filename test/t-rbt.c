@@ -106,7 +106,7 @@ random_string(ldb_rand_t *rnd, size_t len) {
  */
 
 static void
-test_tree_api(void) {
+test_tree_api(int insert_sorted) {
   struct item_s *items, *sorted;
   rb_tree_t tree, copy;
   ldb_rand_t rnd;
@@ -147,6 +147,21 @@ test_tree_api(void) {
   /* Sort data. */
   memcpy(sorted, items, COUNT * ITEM_SIZE);
   qsort(sorted, COUNT, ITEM_SIZE, item_qsort);
+
+  /* Insert pre-sorted data to trigger rebalancing. */
+  if (insert_sorted) {
+    rb_tree_clear(&tree, NULL);
+
+    for (i = 0; i < COUNT; i++) {
+      rb_node_t *node;
+
+      ASSERT(rb_tree_put(&tree, rb_ptr(sorted[i].key), &node));
+
+      node->val = rb_ui(sorted[i].val);
+    }
+
+    ASSERT(tree.size == COUNT);
+  }
 
   /* Insert duplicates. */
   for (i = 0; i < COUNT; i++) {
@@ -283,7 +298,7 @@ test_tree_api(void) {
  */
 
 static void
-test_map_api(void) {
+test_map_api(int insert_sorted) {
   struct item_s *items, *sorted;
   rb_map_t map, copy;
   ldb_rand_t rnd;
@@ -322,6 +337,16 @@ test_map_api(void) {
   /* Sort data. */
   memcpy(sorted, items, COUNT * ITEM_SIZE);
   qsort(sorted, COUNT, ITEM_SIZE, item_qsort);
+
+  /* Insert pre-sorted data to trigger rebalancing. */
+  if (insert_sorted) {
+    rb_map_clear(&map, NULL);
+
+    for (i = 0; i < COUNT; i++)
+      ASSERT(rb_map_put(&map, sorted[i].key, sorted[i].ptr));
+
+    ASSERT(map.size == COUNT);
+  }
 
   /* Insert duplicates. */
   for (i = 0; i < COUNT; i++)
@@ -424,7 +449,7 @@ test_map_api(void) {
  */
 
 static void
-test_set_api(void) {
+test_set_api(int insert_sorted) {
   char **items, **sorted;
   rb_set_t set, copy;
   ldb_rand_t rnd;
@@ -457,6 +482,16 @@ test_set_api(void) {
   /* Sort data. */
   memcpy(sorted, items, COUNT * sizeof(char *));
   qsort(sorted, COUNT, sizeof(char *), string_qsort);
+
+  /* Insert pre-sorted data to trigger rebalancing. */
+  if (insert_sorted) {
+    rb_set_clear(&set, NULL);
+
+    for (i = 0; i < COUNT; i++)
+      ASSERT(rb_set_put(&set, sorted[i]));
+
+    ASSERT(set.size == COUNT);
+  }
 
   /* Insert duplicates. */
   for (i = 0; i < COUNT; i++)
@@ -548,7 +583,7 @@ test_set_api(void) {
  */
 
 static void
-test_set64_api(void) {
+test_set64_api(int insert_sorted) {
   uint64_t *items, *sorted;
   rb_set64_t set, copy;
   ldb_rand_t rnd;
@@ -578,6 +613,16 @@ test_set64_api(void) {
   /* Sort data. */
   memcpy(sorted, items, COUNT * sizeof(uint64_t));
   qsort(sorted, COUNT, sizeof(uint64_t), integer_qsort);
+
+  /* Insert pre-sorted data to trigger rebalancing. */
+  if (insert_sorted) {
+    rb_set64_clear(&set);
+
+    for (i = 0; i < COUNT; i++)
+      ASSERT(rb_set64_put(&set, sorted[i]));
+
+    ASSERT(set.size == COUNT);
+  }
 
   /* Insert duplicates. */
   for (i = 0; i < COUNT; i++)
@@ -673,10 +718,14 @@ test_static_api(void) {
 
 int
 main(void) {
-  test_tree_api();
-  test_map_api();
-  test_set_api();
-  test_set64_api();
+  test_tree_api(0);
+  test_tree_api(1);
+  test_map_api(0);
+  test_map_api(1);
+  test_set_api(0);
+  test_set_api(1);
+  test_set64_api(0);
+  test_set64_api(1);
   test_static_api();
   return 0;
 }
