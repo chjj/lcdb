@@ -150,8 +150,8 @@ rb_tree_copy(rb_tree_t *z, const rb_tree_t *x, rb_copy_f *copy);
 rb_node_t *
 rb_tree_get(const rb_tree_t *tree, rb_val_t key);
 
-rb_node_t *
-rb_tree_put(rb_tree_t *tree, rb_val_t key, rb_val_t val);
+int
+rb_tree_put(rb_tree_t *tree, rb_val_t key, rb_node_t **result);
 
 int
 rb_tree_del(rb_tree_t *tree, rb_val_t key, rb_node_t *result);

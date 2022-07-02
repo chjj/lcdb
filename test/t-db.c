@@ -2705,10 +2705,11 @@ map_compare(rb_val_t x, rb_val_t y, void *arg) {
 
 static void
 map_put(rb_map_t *map, const char *k, const char *v) {
-  rb_node_t *node = rb_tree_put(map, rb_ptr(k), rb_ptr(v));
+  rb_node_t *node;
 
-  if (node != NULL)
-    node->val.ptr = (void *)v;
+  rb_tree_put(map, rb_ptr(k), &node);
+
+  node->val = rb_ptr(v);
 }
 
 static void

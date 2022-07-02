@@ -127,11 +127,14 @@ test_tree_api(void) {
     char *key = random_string(&rnd, len);
     uint32_t val = ldb_rand_next(&rnd);
     struct item_s *item;
+    rb_node_t *node;
 
-    if (rb_tree_put(&tree, rb_ptr(key), rb_ui(val)) != NULL) {
+    if (!rb_tree_put(&tree, rb_ptr(key), &node)) {
       ldb_free(key);
       continue;
     }
+
+    node->val = rb_ui(val);
 
     item = &items[total++];
     item->key = key;
@@ -147,10 +150,9 @@ test_tree_api(void) {
 
   /* Insert duplicates. */
   for (i = 0; i < COUNT; i++) {
-    rb_node_t *node = rb_tree_put(&tree, rb_ptr(items[i].key),
-                                         rb_ui(items[i].val));
+    rb_node_t *node;
 
-    ASSERT(node != NULL);
+    ASSERT(!rb_tree_put(&tree, rb_ptr(items[i].key), &node));
     ASSERT(strcmp(node->key.ptr, items[i].key) == 0);
     ASSERT(node->val.ui == items[i].val);
   }

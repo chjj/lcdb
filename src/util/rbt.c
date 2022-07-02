@@ -34,18 +34,19 @@ static rb_node_t *NIL = &sentinel;
  */
 
 static rb_node_t *
-rb_node_create(rb_val_t key, rb_val_t val) {
+rb_node_create(rb_val_t key) {
   rb_node_t *node = malloc(sizeof(rb_node_t));
 
   if (node == NULL)
     abort(); /* LCOV_EXCL_LINE */
 
   node->key = key;
-  node->val = val;
   node->color = RED;
   node->parent = NIL;
   node->left = NIL;
   node->right = NIL;
+
+  memset(&node->val, 0, sizeof(node->val));
 
   return node;
 }
@@ -403,13 +404,13 @@ rb_tree_remove_node(rb_tree_t *tree, rb_node_t *z) {
 
 rb_node_t *
 rb_tree_get(const rb_tree_t *tree, rb_val_t key) {
-  const rb_node_t *current = ROOT(tree);
+  rb_node_t *current = ROOT(tree);
 
   while (current != NIL) {
     int cmp = tree->compare(key, current->key, tree->arg);
 
     if (cmp == 0)
-      return (rb_node_t *)current;
+      return current;
 
     if (cmp < 0)
       current = current->left;
@@ -420,8 +421,8 @@ rb_tree_get(const rb_tree_t *tree, rb_val_t key) {
   return NULL;
 }
 
-rb_node_t *
-rb_tree_put(rb_tree_t *tree, rb_val_t key, rb_val_t val) {
+int
+rb_tree_put(rb_tree_t *tree, rb_val_t key, rb_node_t **result) {
   rb_node_t *current = ROOT(tree);
   rb_node_t *parent = NULL;
   rb_node_t *node;
@@ -431,8 +432,9 @@ rb_tree_put(rb_tree_t *tree, rb_val_t key, rb_val_t val) {
     int cmp = tree->compare(key, current->key, tree->arg);
 
     if (cmp == 0) {
-      /* Conflict. Return the node. */
-      return current;
+      if (result != NULL)
+        *result = current;
+      return 0;
     }
 
     parent = current;
@@ -448,12 +450,15 @@ rb_tree_put(rb_tree_t *tree, rb_val_t key, rb_val_t val) {
 
   tree->size += 1;
 
-  node = rb_node_create(key, val);
+  node = rb_node_create(key);
+
+  if (result != NULL)
+    *result = node;
 
   if (parent == NULL) {
     tree->root = node;
     rb_tree_insert_fixup(tree, node);
-    return NULL;
+    return 1;
   }
 
   node->parent = parent;
@@ -465,7 +470,7 @@ rb_tree_put(rb_tree_t *tree, rb_val_t key, rb_val_t val) {
 
   rb_tree_insert_fixup(tree, node);
 
-  return NULL;
+  return 1;
 }
 
 int
@@ -591,7 +596,14 @@ rb_map_has(const rb_tree_t *tree, const void *key) {
 
 int
 rb_map_put(rb_tree_t *tree, const void *key, const void *val) {
-  return rb_tree_put(tree, rb_ptr(key), rb_ptr(val)) == NULL;
+  rb_node_t *node;
+
+  if (rb_tree_put(tree, rb_ptr(key), &node)) {
+    node->val = rb_ptr(val);
+    return 1;
+  }
+
+  return 0;
 }
 
 int
@@ -620,7 +632,7 @@ rb_set_has(const rb_tree_t *tree, const void *item) {
 
 int
 rb_set_put(rb_tree_t *tree, const void *item) {
-  return rb_tree_put(tree, rb_ptr(item), rb_ptr(NULL)) == NULL;
+  return rb_tree_put(tree, rb_ptr(item), NULL);
 }
 
 void *
@@ -644,7 +656,7 @@ rb_set64_has(const rb_tree_t *tree, uint64_t item) {
 
 int
 rb_set64_put(rb_tree_t *tree, uint64_t item) {
-  return rb_tree_put(tree, rb_ui(item), rb_ui(0)) == NULL;
+  return rb_tree_put(tree, rb_ui(item), NULL);
 }
 
 int
