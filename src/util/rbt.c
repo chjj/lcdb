@@ -448,27 +448,25 @@ rb_tree_put(rb_tree_t *tree, rb_val_t key, rb_node_t **result) {
     }
   }
 
-  tree->size += 1;
-
   node = rb_node_create(key);
-
-  if (result != NULL)
-    *result = node;
 
   if (parent == NULL) {
     tree->root = node;
-    rb_tree_insert_fixup(tree, node);
-    return 1;
+  } else {
+    node->parent = parent;
+
+    if (left)
+      parent->left = node;
+    else
+      parent->right = node;
   }
 
-  node->parent = parent;
-
-  if (left)
-    parent->left = node;
-  else
-    parent->right = node;
-
   rb_tree_insert_fixup(tree, node);
+
+  tree->size += 1;
+
+  if (result != NULL)
+    *result = node;
 
   return 1;
 }
