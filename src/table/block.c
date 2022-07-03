@@ -447,5 +447,5 @@ ldb_blockiter_create(const ldb_block_t *block,
                      block->restart_offset,
                      num_restarts);
 
-  return ldb_iter_create(iter, &ldb_blockiter_table);
+  return ldb_iter_create(iter, &ldb_blockiter_table, comparator);
 }

@@ -264,5 +264,5 @@ ldb_memiter_create(const ldb_memtable_t *mt) {
 
   ldb_memiter_init(iter, &mt->table);
 
-  return ldb_iter_create(iter, &ldb_memiter_table);
+  return ldb_iter_create(iter, &ldb_memiter_table, &mt->comparator);
 }

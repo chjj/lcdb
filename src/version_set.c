@@ -317,7 +317,7 @@ ldb_numiter_create(const ldb_comparator_t *icmp, const ldb_vector_t *flist) {
 
   ldb_numiter_init(iter, icmp, flist);
 
-  return ldb_iter_create(iter, &ldb_numiter_table);
+  return ldb_iter_create(iter, &ldb_numiter_table, &iter->icmp);
 }
 
 /*

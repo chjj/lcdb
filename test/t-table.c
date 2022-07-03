@@ -606,7 +606,7 @@ conviter_create(ldb_iter_t *it) {
 
   conviter_init(iter, it);
 
-  return ldb_iter_create(iter, &conviter_table);
+  return ldb_iter_create(iter, &conviter_table, it->cmp);
 }
 
 /*
