@@ -358,4 +358,16 @@ ldb_compaction_should_stop_before(ldb_compaction_t *c,
 void
 ldb_compaction_release_inputs(ldb_compaction_t *c);
 
+/*
+ * Files
+ */
+
+int
+ldb_files_get(const ldb_vector_t *files,
+              ldb_versions_t *vset,
+              const ldb_readopt_t *options,
+              const ldb_lkey_t *k,
+              ldb_buffer_t *value,
+              int *status);
+
 #endif /* LDB_VERSION_SET_H */

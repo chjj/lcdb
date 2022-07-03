@@ -2357,3 +2357,58 @@ ldb_compaction_release_inputs(ldb_compaction_t *c) {
     c->input_version = NULL;
   }
 }
+
+/*
+ * Files
+ */
+
+int
+ldb_files_get(const ldb_vector_t *files,
+              ldb_versions_t *vset,
+              const ldb_readopt_t *options,
+              const ldb_lkey_t *k,
+              ldb_buffer_t *value,
+              int *status) {
+  ldb_getstats_t stats;
+  ldb_version_t ver;
+  getstate_t state;
+
+  if (files->length == 0)
+    return 0;
+
+  ldb_version_init(&ver, vset);
+
+  ver.files[0].items = files->items;
+  ver.files[0].length = files->length;
+
+  stats.seek_file = NULL;
+  stats.seek_file_level = -1;
+
+  state.status = LDB_OK;
+  state.found = 0;
+  state.stats = &stats;
+  state.last_file_read = NULL;
+  state.last_file_read_level = -1;
+
+  state.options = options;
+  state.ikey = ldb_lkey_internal_key(k);
+  state.vset = vset;
+
+  state.saver.state = S_NOTFOUND;
+  state.saver.ucmp = vset->icmp.user_comparator;
+  state.saver.user_key = ldb_lkey_user_key(k);
+  state.saver.value = value;
+
+  ldb_version_for_each_overlapping(&ver,
+                                   &state.saver.user_key,
+                                   &state.ikey,
+                                   &state,
+                                   &getstate_match);
+
+  if (state.found) {
+    *status = state.status;
+    return 1;
+  }
+
+  return 0;
+}
