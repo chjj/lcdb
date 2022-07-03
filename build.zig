@@ -322,6 +322,7 @@ pub fn build(b: *std.build.Builder) void {
     "status",
     "strutil",
     "table",
+    "util",
     "version_edit",
     "version_set",
     "write_batch"

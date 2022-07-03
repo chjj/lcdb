@@ -557,6 +557,7 @@ if(LDB_TESTS)
             status
             strutil
             table
+            util
             version_edit
             version_set
             write_batch)
