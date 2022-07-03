@@ -247,6 +247,125 @@ test_backup(const char *path1, const char *path2) {
 }
 
 /*
+ * Transaction Test
+ */
+
+static void
+test_transaction(const char *path) {
+  ldb_dbopt_t opt = *ldb_dbopt_default;
+  char kbuf[64], vbuf[64];
+  ldb_txn_t *txn, *dummy;
+  ldb_slice_t last;
+  ldb_iter_t *it;
+  ldb_t *db;
+  int i;
+
+  opt.create_if_missing = 1;
+  opt.error_if_exists = 1;
+  opt.compression = LDB_NO_COMPRESSION;
+  opt.filter_policy = ldb_bloom_default;
+
+  ASSERT(ldb_open(path, &opt, &db) == LDB_OK);
+  ASSERT(ldb_txn_open(db, 0, &txn) == LDB_OK);
+  ASSERT(ldb_txn_open(db, 0, &dummy) == LDB_INVALID);
+
+  /* Write 1m values. */
+  for (i = 0; i < COUNT; i++) {
+    ldb_slice_t key = key_encode(i, kbuf);
+    ldb_slice_t val = val_encode(i, vbuf);
+
+    if (i == (COUNT / 2)) {
+      ASSERT(ldb_txn_commit(txn) == LDB_OK);
+      ASSERT(ldb_txn_open(db, 0, &txn) == LDB_OK);
+    }
+
+    ASSERT(ldb_txn_put(txn, &key, &val) == LDB_OK);
+  }
+
+  /* Read some values. */
+  for (i = 0; i < COUNT; i++) {
+    ldb_slice_t key = key_encode(i, kbuf);
+    ldb_slice_t val = val_encode(i, vbuf);
+    ldb_slice_t ret;
+
+    ASSERT(ldb_txn_get(txn, &key, &ret, NULL) == LDB_OK);
+    ASSERT(ldb_txn_compare(txn, &ret, &val) == 0);
+
+    ldb_free(ret.data);
+  }
+
+  /* Sequential read. */
+  last = ldb_slice(vbuf, 0);
+  it = ldb_txn_iterator(txn, NULL);
+  i = 0;
+
+  ldb_iter_each(it) {
+    ldb_slice_t key = ldb_iter_key(it);
+    ldb_slice_t val = ldb_iter_val(it);
+    ldb_slice_t exp = key_from_val(&val, kbuf);
+
+    ASSERT(ldb_txn_compare(txn, &key, &exp) == 0);
+    ASSERT(ldb_txn_compare(txn, &key, &last) > 0);
+
+    memcpy(last.data, key.data, key.size);
+
+    last.size = key.size;
+
+    i++;
+  }
+
+  ASSERT(ldb_iter_status(it) == LDB_OK);
+  ASSERT(i == COUNT);
+
+  ldb_iter_destroy(it);
+
+  /* Commit transaction. */
+  ASSERT(ldb_txn_commit(txn) == LDB_OK);
+
+  /* Read some values. */
+  for (i = 0; i < COUNT; i++) {
+    ldb_slice_t key = key_encode(i, kbuf);
+    ldb_slice_t val = val_encode(i, vbuf);
+    ldb_slice_t ret;
+
+    ASSERT(ldb_get(db, &key, &ret, NULL) == LDB_OK);
+    ASSERT(ldb_compare(db, &ret, &val) == 0);
+
+    ldb_free(ret.data);
+  }
+
+  /* Sequential read. */
+  last = ldb_slice(vbuf, 0);
+  it = ldb_iterator(db, NULL);
+  i = 0;
+
+  ldb_iter_each(it) {
+    ldb_slice_t key = ldb_iter_key(it);
+    ldb_slice_t val = ldb_iter_val(it);
+    ldb_slice_t exp = key_from_val(&val, kbuf);
+
+    ASSERT(ldb_compare(db, &key, &exp) == 0);
+    ASSERT(ldb_compare(db, &key, &last) > 0);
+
+    memcpy(last.data, key.data, key.size);
+
+    last.size = key.size;
+
+    i++;
+  }
+
+  ASSERT(ldb_iter_status(it) == LDB_OK);
+  ASSERT(i == COUNT);
+
+  ldb_iter_destroy(it);
+
+  /* Close database. */
+  ldb_close(db);
+
+  ASSERT(ldb_destroy(path, NULL) == LDB_OK);
+}
+
+/*
  * Main
  */
 
@@ -265,6 +384,8 @@ main(void) {
 
   ASSERT(ldb_destroy(path1, NULL) == LDB_OK);
   ASSERT(ldb_destroy(path2, NULL) == LDB_OK);
+
+  test_transaction(path1);
 
   return 0;
 }

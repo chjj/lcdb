@@ -73,6 +73,7 @@ typedef struct ldb_range_s ldb_range_t;
 typedef struct ldb_readopt_s ldb_readopt_t;
 typedef struct ldb_slice_s ldb_slice_t;
 typedef struct ldb_snapshot_s ldb_snapshot_t;
+typedef struct ldb_txn_s ldb_txn_t;
 typedef struct ldb_writeopt_s ldb_writeopt_t;
 
 struct ldb_slice_s {
@@ -507,6 +508,51 @@ ldb_string(const char *xp);
 
 const char *
 ldb_strerror(int code);
+
+/*
+ * Transaction
+ */
+
+#define LDB_RDWR 0
+#define LDB_RDONLY 1
+
+int
+ldb_txn_open(ldb_t *db, int flags, ldb_txn_t **txn);
+
+void
+ldb_txn_reset(ldb_txn_t *txn);
+
+int
+ldb_txn_get(ldb_txn_t *txn, const ldb_slice_t *key,
+                            ldb_slice_t *value,
+                            const ldb_readopt_t *options);
+
+int
+ldb_txn_has(ldb_txn_t *txn, const ldb_slice_t *key,
+                            const ldb_readopt_t *options);
+
+int
+ldb_txn_put(ldb_txn_t *txn, const ldb_slice_t *key, const ldb_slice_t *value);
+
+int
+ldb_txn_del(ldb_txn_t *txn, const ldb_slice_t *key);
+
+int
+ldb_txn_write(ldb_txn_t *txn, ldb_batch_t *batch);
+
+int
+ldb_txn_commit(ldb_txn_t *txn);
+
+void
+ldb_txn_abort(ldb_txn_t *txn);
+
+ldb_iter_t *
+ldb_txn_iterator(ldb_txn_t *txn, const ldb_readopt_t *options);
+
+int
+ldb_txn_compare(const ldb_txn_t *txn,
+                const ldb_slice_t *x,
+                const ldb_slice_t *y);
 
 #ifdef __cplusplus
 }
