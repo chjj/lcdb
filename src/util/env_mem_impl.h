@@ -25,9 +25,6 @@
 #  if !defined(FD_SETSIZE) && !defined(FD_SET)
 #    include <sys/select.h>
 #  endif
-#  ifdef LDB_PTHREAD
-#    include <pthread.h>
-#  endif
 #endif /* !_WIN32 */
 
 #include "buffer.h"
@@ -807,26 +804,6 @@ ldb_logger_open(const char *filename, ldb_logger_t **result) {
   (void)filename;
   *result = ldb_logger_create(NULL, NULL);
   return LDB_OK;
-}
-
-/*
- * Misc
- */
-
-unsigned long
-ldb_thread_id(void) {
-#if defined(_WIN32)
-  return GetCurrentThreadId();
-#elif defined(LDB_PTHREAD)
-  pthread_t thread = pthread_self();
-  unsigned long tid = 0;
-
-  memcpy(&tid, &thread, LDB_MIN(sizeof(tid), sizeof(thread)));
-
-  return tid;
-#else
-  return 0;
-#endif
 }
 
 /*

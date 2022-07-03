@@ -59,7 +59,6 @@
 #undef HAVE_FLOCK
 #undef HAVE_FDATASYNC
 #undef HAVE_PREAD
-#undef HAVE_GETTID
 
 #if !defined(__wasi__) && !defined(__EMSCRIPTEN__)
 #  define HAVE_FCNTL
@@ -89,15 +88,6 @@
 
 #ifdef LDB_HAVE_PREAD
 #  define HAVE_PREAD
-#endif
-
-#ifdef __linux__
-#  if !defined(__NEWLIB__) && !defined(__dietlibc__)
-#    include <sys/syscall.h>
-#    ifdef __NR_gettid
-#      define HAVE_GETTID
-#    endif
-#  endif
 #endif
 
 /*
@@ -1440,28 +1430,6 @@ ldb_logger_open(const char *filename, ldb_logger_t **result) {
   *result = ldb_logger_fopen(stream);
 
   return LDB_OK;
-}
-
-/*
- * Misc
- */
-
-unsigned long
-ldb_thread_id(void) {
-#if defined(HAVE_GETTID)
-  return syscall(__NR_gettid);
-#elif defined(LDB_PTHREAD)
-  pthread_t thread = pthread_self();
-  unsigned long tid = 0;
-
-  memcpy(&tid, &thread, LDB_MIN(sizeof(tid), sizeof(thread)));
-
-  return tid;
-#elif defined(__wasi__)
-  return 0;
-#else
-  return getpid();
-#endif
 }
 
 /*

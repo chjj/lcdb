@@ -14,9 +14,11 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "env.h"
 #include "internal.h"
+#include "port.h"
 
 /*
  * Types
@@ -63,12 +65,16 @@ ldb_date(char *zp, int64_t x) {
 
 static void
 stream_log(void *state, const char *fmt, va_list ap) {
+  ldb_tid_t thread = ldb_thread_self();
+  unsigned long tid = 0;
   FILE *stream = state;
   char date[64];
 
   ldb_date(date, ldb_now_usec());
 
-  fprintf(stream, "%s %lu ", date, ldb_thread_id());
+  memcpy(&tid, &thread, LDB_MIN(sizeof(tid), sizeof(thread)));
+
+  fprintf(stream, "%s %lu ", date, tid);
 
   vfprintf(stream, fmt, ap);
 

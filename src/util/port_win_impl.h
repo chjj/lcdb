@@ -194,3 +194,8 @@ ldb_thread_join(ldb_thread_t *thread) {
   if (!CloseHandle(thread->handle))
     abort(); /* LCOV_EXCL_LINE */
 }
+
+ldb_tid_t
+ldb_thread_self(void) {
+  return GetCurrentThreadId();
+}
