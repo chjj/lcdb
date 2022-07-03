@@ -1665,7 +1665,8 @@ cleanup_iter_state(void *arg1, void *arg2) {
 static ldb_iter_t *
 ldb_internal_iterator(ldb_t *db, const ldb_readopt_t *options,
                                  ldb_seqnum_t *latest_snapshot,
-                                 uint32_t *seed) {
+                                 uint32_t *seed,
+                                 ldb_vector_t *extra) {
   ldb_iter_t *internal_iter;
   ldb_version_t *current;
   ldb_istate_t *cleanup;
@@ -1676,6 +1677,10 @@ ldb_internal_iterator(ldb_t *db, const ldb_readopt_t *options,
   ldb_mutex_lock(&db->mutex);
 
   *latest_snapshot = db->versions->last_sequence;
+
+  /* Start with extra iterators. */
+  if (extra != NULL)
+    ldb_vector_swap(&list, extra);
 
   /* Collect together all needed child iterators. */
   ldb_vector_push(&list, ldb_memiter_create(db->mem));
@@ -2312,7 +2317,7 @@ ldb_iterator(ldb_t *db, const ldb_readopt_t *options) {
   if (options == NULL)
     options = ldb_iteropt_default;
 
-  iter = ldb_internal_iterator(db, options, &latest_snapshot, &seed);
+  iter = ldb_internal_iterator(db, options, &latest_snapshot, &seed, NULL);
 
   return ldb_dbiter_create(db, ucmp, iter,
                            (options->snapshot != NULL
@@ -2760,7 +2765,8 @@ ldb_test_internal_iterator(ldb_t *db) {
 
   return ldb_internal_iterator(db, ldb_readopt_default,
                                    &ignored,
-                                   &ignored_seed);
+                                   &ignored_seed,
+                                   NULL);
 }
 
 int64_t
