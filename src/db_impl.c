@@ -2124,12 +2124,10 @@ ldb_get(ldb_t *db, const ldb_slice_t *key,
   ldb_mutex_unlock(&db->mutex);
 
   if (value != NULL) {
-    if (rc == LDB_OK) {
-      if (value->alloc == 0)
-        ldb_buffer_grow(value, 1);
-    } else {
+    if (rc == LDB_OK)
+      ldb_buffer_grow(value, 1);
+    else
       ldb_buffer_clear(value);
-    }
   }
 
   return rc;

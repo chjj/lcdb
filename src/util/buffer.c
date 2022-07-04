@@ -39,6 +39,21 @@ ldb_buffer_reset(ldb_buffer_t *z) {
   z->size = 0;
 }
 
+void
+ldb_buffer_reinit(ldb_buffer_t *z, size_t zn) {
+  uint8_t *zp = NULL;
+
+  if (z->alloc > 0)
+    ldb_free(z->data);
+
+  if (zn > 0)
+    zp = (uint8_t *)ldb_malloc(zn);
+
+  z->data = zp;
+  z->size = 0;
+  z->alloc = zn;
+}
+
 uint8_t *
 ldb_buffer_grow(ldb_buffer_t *z, size_t zn) {
   if (zn > z->alloc) {
