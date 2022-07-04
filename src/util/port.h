@@ -104,12 +104,6 @@ typedef unsigned long ldb_tid_t;
 
 #endif /* !LDB_PTHREAD */
 
-typedef struct ldb_rwlock_s {
-  int readers, waiters, writing;
-  ldb_mutex_t mutex;
-  ldb_cond_t cond;
-} ldb_rwlock_t;
-
 /*
  * Mutex
  */
@@ -170,27 +164,5 @@ ldb_tid_t ldb_thread_self(void);
 #  define ldb_thread_self() 0
 #  define ldb_thread_equal(x, y) ((x) == (y))
 #endif
-
-/*
- * RW Lock
- */
-
-void
-ldb_rwlock_init(ldb_rwlock_t *lock);
-
-void
-ldb_rwlock_destroy(ldb_rwlock_t *lock);
-
-void
-ldb_rwlock_rdlock(ldb_rwlock_t *lock);
-
-void
-ldb_rwlock_rdunlock(ldb_rwlock_t *lock);
-
-void
-ldb_rwlock_wrlock(ldb_rwlock_t *lock);
-
-void
-ldb_rwlock_wrunlock(ldb_rwlock_t *lock);
 
 #endif /* LDB_PORT_H */

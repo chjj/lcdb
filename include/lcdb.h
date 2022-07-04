@@ -519,9 +519,6 @@ ldb_strerror(int code);
 int
 ldb_txn_open(ldb_t *db, int flags, ldb_txn_t **txn);
 
-void
-ldb_txn_reset(ldb_txn_t *txn);
-
 int
 ldb_txn_get(ldb_txn_t *txn, const ldb_slice_t *key,
                             ldb_slice_t *value,
