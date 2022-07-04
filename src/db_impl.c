@@ -3086,6 +3086,13 @@ ldb_txn_get(ldb_txn_t *txn, const ldb_slice_t *key,
 
   ldb_mutex_unlock(&txn->mutex);
 
+  if (value != NULL) {
+    if (rc == LDB_OK)
+      ldb_buffer_grow(value, 1);
+    else
+      ldb_buffer_clear(value);
+  }
+
   return rc;
 }
 
