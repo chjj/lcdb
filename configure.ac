@@ -344,12 +344,18 @@ AS_IF([test x"$has_pread" = x'yes'], [
 # Libraries
 #
 
+has_bdb=no
 has_kcdb=no
 has_leveldb=no
 has_lmdb=no
 has_sqlite3=no
 
 AS_IF([test x"$enable_bench $enable_extra" = x'yes yes'], [
+  # Check for Berkeley DB.
+  AC_CHECK_HEADER([db.h], [
+    AC_CHECK_LIB([db], [db_env_create], [has_bdb=yes])
+  ])
+
   # Check for Kyoto Cabinet.
   AC_CHECK_HEADER([kclangc.h], [
     AC_CHECK_LIB([kyotocabinet], [kcdbopen], [has_kcdb=yes])
@@ -395,6 +401,7 @@ AM_CONDITIONAL([ENABLE_FUZZER], [test x"$enable_fuzzer" = x'yes'])
 AM_CONDITIONAL([ENABLE_LWDB], [test x"$enable_lwdb" = x'yes'])
 AM_CONDITIONAL([ENABLE_SHARED], [test x"$enable_shared" = x'yes'])
 AM_CONDITIONAL([ENABLE_TESTS], [test x"$enable_tests" = x'yes'])
+AM_CONDITIONAL([HAVE_BDB], [test x"$has_bdb" = x'yes'])
 AM_CONDITIONAL([HAVE_KCDB], [test x"$has_kcdb" = x'yes'])
 AM_CONDITIONAL([HAVE_LEVELDB], [test x"$has_leveldb" = x'yes'])
 AM_CONDITIONAL([HAVE_LMDB], [test x"$has_lmdb" = x'yes'])

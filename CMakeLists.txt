@@ -443,6 +443,14 @@ if(LDB_BENCH AND LDB_EXTRA)
   include(CheckIncludeFile)
   include(CheckLibraryExists)
 
+  # Check for Berkeley DB.
+  check_include_file(db.h LDB_HAVE_BDB_H)
+  check_library_exists(db db_env_create "" LDB_HAVE_BDB_A)
+
+  if(LDB_HAVE_BDB_H AND LDB_HAVE_BDB_A)
+    build_benchmark(lcdb_bench_bdb db_bench_bdb db)
+  endif()
+
   # Check for Kyoto Cabinet.
   check_include_file(kclangc.h LDB_HAVE_KCDB_H)
   check_library_exists(kyotocabinet kcdbopen "" LDB_HAVE_KCDB_A)

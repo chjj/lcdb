@@ -192,6 +192,14 @@ db_bench_LDADD = liblcdb.la
 noinst_PROGRAMS += db_bench
 endif
 
+if HAVE_BDB
+db_bench_bdb_SOURCES = bench/db_bench_bdb.c $(bench_sources)
+db_bench_bdb_CFLAGS = -I$(top_srcdir)/src
+db_bench_bdb_LDFLAGS = -static
+db_bench_bdb_LDADD = liblcdb.la -ldb
+noinst_PROGRAMS += db_bench_bdb
+endif
+
 if HAVE_KCDB
 db_bench_tree_db_SOURCES = bench/db_bench_tree_db.c $(bench_sources)
 db_bench_tree_db_CFLAGS = -I$(top_srcdir)/src
