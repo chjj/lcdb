@@ -166,9 +166,6 @@ ldb_record_read_sample(ldb_t *db, const ldb_slice_t *key);
 LDB_EXTERN int
 ldb_txn_open(ldb_t *db, int flags, ldb_txn_t **txn);
 
-LDB_EXTERN void
-ldb_txn_reset(ldb_txn_t *txn);
-
 void
 ldb_txn_add_files(ldb_txn_t *txn, struct rb_tree_s *live);
 

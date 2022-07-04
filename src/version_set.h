@@ -149,6 +149,10 @@ ldb_version_create(ldb_versions_t *vset);
 void
 ldb_version_destroy(ldb_version_t *ver);
 
+/* Shallow clone of L0 files only. */
+ldb_version_t *
+ldb_version_clone0(ldb_version_t *ver);
+
 /* Append to *iters a sequence of iterators that will
    yield the contents of this Version when merged together. */
 /* REQUIRES: This version has been saved (see vset_save_to) */
@@ -166,6 +170,16 @@ ldb_version_get(ldb_version_t *ver,
                 const ldb_lkey_t *k,
                 ldb_buffer_t *value,
                 ldb_getstats_t *stats);
+
+/* Lookup the value for key in L0 files only. If found, store
+   it in *val and return 1. Else return 0, and set *status. */
+/* REQUIRES: lock is not held */
+int
+ldb_version_get0(ldb_version_t *ver,
+                 const ldb_readopt_t *options,
+                 const ldb_lkey_t *k,
+                 ldb_buffer_t *value,
+                 int *status);
 
 /* Adds "stats" into the current state. Returns true if a new
    compaction may need to be triggered, false otherwise. */
@@ -187,6 +201,10 @@ ldb_version_ref(ldb_version_t *ver);
 
 void
 ldb_version_unref(ldb_version_t *ver);
+
+/* Clears L0 file vector only. Does not attempt to free file metadata. */
+void
+ldb_version_unref0(ldb_version_t *ver);
 
 /* Returns true iff some file in the specified level overlaps
    some part of [*smallest_user_key,*largest_user_key].
@@ -357,17 +375,5 @@ ldb_compaction_should_stop_before(ldb_compaction_t *c,
    is successful. */
 void
 ldb_compaction_release_inputs(ldb_compaction_t *c);
-
-/*
- * Files
- */
-
-int
-ldb_files_get(const ldb_vector_t *files,
-              ldb_versions_t *vset,
-              const ldb_readopt_t *options,
-              const ldb_lkey_t *k,
-              ldb_buffer_t *value,
-              int *status);
 
 #endif /* LDB_VERSION_SET_H */

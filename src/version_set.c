@@ -531,6 +531,14 @@ ldb_version_destroy(ldb_version_t *ver) {
   ldb_free(ver);
 }
 
+ldb_version_t *
+ldb_version_clone0(ldb_version_t *ver) {
+  ldb_version_t *v = ldb_version_create(ver->vset);
+  ldb_vector_grow(&v->files[0], ver->files[0].length + 1);
+  ldb_vector_copy(&v->files[0], &ver->files[0]);
+  return v;
+}
+
 void
 ldb_version_add_iterators(ldb_version_t *ver,
                           const ldb_readopt_t *options,
@@ -671,6 +679,50 @@ ldb_version_get(ldb_version_t *ver,
 }
 
 int
+ldb_version_get0(ldb_version_t *ver,
+                 const ldb_readopt_t *options,
+                 const ldb_lkey_t *k,
+                 ldb_buffer_t *value,
+                 int *status) {
+  ldb_getstats_t stats;
+  getstate_t state;
+
+  if (ver->files[0].length == 0)
+    return 0;
+
+  stats.seek_file = NULL;
+  stats.seek_file_level = -1;
+
+  state.status = LDB_OK;
+  state.found = 0;
+  state.stats = &stats;
+  state.last_file_read = NULL;
+  state.last_file_read_level = -1;
+
+  state.options = options;
+  state.ikey = ldb_lkey_internal_key(k);
+  state.vset = ver->vset;
+
+  state.saver.state = S_NOTFOUND;
+  state.saver.ucmp = ver->vset->icmp.user_comparator;
+  state.saver.user_key = ldb_lkey_user_key(k);
+  state.saver.value = value;
+
+  ldb_version_for_each_overlapping(ver,
+                                   &state.saver.user_key,
+                                   &state.ikey,
+                                   &state,
+                                   &getstate_match);
+
+  if (state.found) {
+    *status = state.status;
+    return 1;
+  }
+
+  return 0;
+}
+
+int
 ldb_version_update_stats(ldb_version_t *ver, const ldb_getstats_t *stats) {
   ldb_filemeta_t *f = stats->seek_file;
 
@@ -731,6 +783,19 @@ ldb_version_unref(ldb_version_t *ver) {
 
   if (ver->refs == 0)
     ldb_version_destroy(ver);
+}
+
+void
+ldb_version_unref0(ldb_version_t *ver) {
+  assert(ver != &ver->vset->dummy_versions);
+  assert(ver->refs >= 1);
+
+  --ver->refs;
+
+  if (ver->refs == 0) {
+    ldb_vector_clear(&ver->files[0]);
+    ldb_free(ver);
+  }
 }
 
 int
@@ -2356,59 +2421,4 @@ ldb_compaction_release_inputs(ldb_compaction_t *c) {
     ldb_version_unref(c->input_version);
     c->input_version = NULL;
   }
-}
-
-/*
- * Files
- */
-
-int
-ldb_files_get(const ldb_vector_t *files,
-              ldb_versions_t *vset,
-              const ldb_readopt_t *options,
-              const ldb_lkey_t *k,
-              ldb_buffer_t *value,
-              int *status) {
-  ldb_getstats_t stats;
-  ldb_version_t ver;
-  getstate_t state;
-
-  if (files->length == 0)
-    return 0;
-
-  ldb_version_init(&ver, vset);
-
-  ver.files[0].items = files->items;
-  ver.files[0].length = files->length;
-
-  stats.seek_file = NULL;
-  stats.seek_file_level = -1;
-
-  state.status = LDB_OK;
-  state.found = 0;
-  state.stats = &stats;
-  state.last_file_read = NULL;
-  state.last_file_read_level = -1;
-
-  state.options = options;
-  state.ikey = ldb_lkey_internal_key(k);
-  state.vset = vset;
-
-  state.saver.state = S_NOTFOUND;
-  state.saver.ucmp = vset->icmp.user_comparator;
-  state.saver.user_key = ldb_lkey_user_key(k);
-  state.saver.value = value;
-
-  ldb_version_for_each_overlapping(&ver,
-                                   &state.saver.user_key,
-                                   &state.ikey,
-                                   &state,
-                                   &getstate_match);
-
-  if (state.found) {
-    *status = state.status;
-    return 1;
-  }
-
-  return 0;
 }
