@@ -3035,8 +3035,11 @@ int
 ldb_txn_get(ldb_txn_t *txn, const ldb_slice_t *key,
                             ldb_slice_t *value,
                             const ldb_readopt_t *options) {
-  ldb_memtable_t *mem;
-  ldb_version_t *ver;
+  ldb_memtable_t *exm, *mem, *imm;
+  ldb_version_t *ver, *cur;
+  int have_stat_update = 0;
+  ldb_getstats_t stats;
+  ldb_t *db = txn->db;
   ldb_seqnum_t seq;
   ldb_lkey_t lkey;
   int rc = LDB_OK;
@@ -3050,40 +3053,67 @@ ldb_txn_get(ldb_txn_t *txn, const ldb_slice_t *key,
   if (txn->snapshot != NULL) {
     ldb_readopt_t opt = *options;
     opt.snapshot = txn->snapshot;
-    return ldb_get(txn->db, key, value, &opt);
+    return ldb_get(db, key, value, &opt);
   }
 
   if (value != NULL)
     ldb_buffer_init(value);
 
   ldb_mutex_lock(&txn->mutex);
+  ldb_mutex_lock(&db->mutex);
 
   seq = txn->sequence;
-  mem = txn->mem;
+  exm = txn->mem;
   ver = txn->ver;
+  mem = db->mem;
+  imm = db->imm;
+  cur = db->versions->current;
 
-  ldb_memtable_ref(mem);
+  ldb_memtable_ref(exm);
   ldb_version_ref(ver);
+  ldb_memtable_ref(mem);
 
+  if (imm != NULL)
+    ldb_memtable_ref(imm);
+
+  ldb_version_ref(cur);
+
+  ldb_mutex_unlock(&db->mutex);
   ldb_mutex_unlock(&txn->mutex);
 
   ldb_lkey_init(&lkey, key, seq);
 
-  if (ldb_memtable_get(mem, &lkey, value, &rc)) {
+  if (ldb_memtable_get(exm, &lkey, value, &rc)) {
     /* Done. */
   } else if (ldb_version_get0(ver, options, &lkey, value, &rc)) {
     /* Done. */
+  } else if (ldb_memtable_get(mem, &lkey, value, &rc)) {
+    /* Done. */
+  } else if (imm != NULL && ldb_memtable_get(imm, &lkey, value, &rc)) {
+    /* Done. */
   } else {
-    rc = ldb_get(txn->db, key, value, options);
+    rc = ldb_version_get(cur, options, &lkey, value, &stats);
+    have_stat_update = 1;
   }
 
   ldb_lkey_clear(&lkey);
 
   ldb_mutex_lock(&txn->mutex);
+  ldb_mutex_lock(&db->mutex);
 
-  ldb_memtable_unref(mem);
+  if (have_stat_update && ldb_version_update_stats(cur, &stats))
+    ldb_maybe_schedule_compaction(db);
+
+  ldb_memtable_unref(exm);
   ldb_version_unref0(ver);
+  ldb_memtable_unref(mem);
 
+  if (imm != NULL)
+    ldb_memtable_unref(imm);
+
+  ldb_version_unref(cur);
+
+  ldb_mutex_unlock(&db->mutex);
   ldb_mutex_unlock(&txn->mutex);
 
   if (value != NULL) {
