@@ -3188,7 +3188,7 @@ ldb_txn_commit(ldb_txn_t *txn) {
     ldb_maybe_schedule_compaction(db);
 
     if (rc == LDB_OK)
-      rc = ldb_wait_compaction(db);
+      ldb_wait_compaction(db);
   }
 
   db->txn = NULL;
