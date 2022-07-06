@@ -2964,16 +2964,13 @@ ldb_txn_add_files(ldb_txn_t *txn, rb_set64_t *live) {
 
 static int
 ldb_wait_compaction(ldb_t *db) {
-  int total = ldb_versions_files(db->versions, 0);
+  const int limit = LDB_L0_STOP_WRITES_TRIGGER;
+  ldb_versions_t *v = db->versions;
 
   ldb_mutex_assert_held(&db->mutex);
 
-  if (total >= LDB_L0_STOP_WRITES_TRIGGER) {
-    ldb_maybe_schedule_compaction(db);
-
-    while (db->background_compaction_scheduled)
-      ldb_cond_wait(&db->background_work_finished_signal, &db->mutex);
-  }
+  while (ldb_versions_files(v, 0) >= limit && db->bg_error == LDB_OK)
+    ldb_cond_wait(&db->background_work_finished_signal, &db->mutex);
 
   return db->bg_error;
 }
@@ -2987,16 +2984,14 @@ ldb_txn_flush(ldb_txn_t *txn, ldb_mutex_t *mu) {
     ldb_mutex_lock(mu);
 
   if (!txn->rotated) {
-    if (ldb_memtable_usage(db->mem) > 0 || db->imm != NULL) {
+    if (ldb_memtable_usage(db->mem) > 0)
       rc = ldb_make_room_for_write(db, 1);
 
-      if (rc == LDB_OK) {
-        while (db->imm != NULL && db->bg_error == LDB_OK)
-          ldb_cond_wait(&db->background_work_finished_signal, &db->mutex);
+    if (rc == LDB_OK) {
+      while (db->imm != NULL && db->bg_error == LDB_OK)
+        ldb_cond_wait(&db->background_work_finished_signal, &db->mutex);
 
-        if (db->imm != NULL)
-          rc = db->bg_error;
-      }
+      rc = db->bg_error;
     }
 
     if (rc == LDB_OK) {
@@ -3185,10 +3180,12 @@ ldb_txn_commit(ldb_txn_t *txn) {
 
     rc = ldb_versions_apply(db->versions, &txn->edit, &db->mutex);
 
-    ldb_maybe_schedule_compaction(db);
-
-    if (rc == LDB_OK)
+    if (rc == LDB_OK) {
+      ldb_maybe_schedule_compaction(db);
       ldb_wait_compaction(db);
+    } else {
+      ldb_record_background_error(db, rc);
+    }
   }
 
   db->txn = NULL;
