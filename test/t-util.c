@@ -18,7 +18,7 @@
  */
 
 static int
-array_compare(int64_t x, int64_t y) {
+array_compare(uint64_t x, uint64_t y) {
   return LDB_CMP(x, y);
 }
 

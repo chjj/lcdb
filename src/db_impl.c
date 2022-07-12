@@ -958,7 +958,7 @@ ldb_recover_log_file(ldb_t *db, uint64_t log_number,
 }
 
 static int
-compare_ascending(int64_t x, int64_t y) {
+compare_ascending(uint64_t x, uint64_t y) {
   return LDB_CMP(x, y);
 }
 

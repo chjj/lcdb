@@ -31,7 +31,7 @@ typedef struct ldb_range_s {
 } ldb_range_t;
 
 typedef struct ldb_array_s {
-  int64_t *items;
+  uint64_t *items;
   size_t length;
   size_t alloc;
 } ldb_array_t;
