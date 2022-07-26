@@ -21,6 +21,7 @@ EXTRA_DIST = cmake/           \
              autogen.sh       \
              CHANGELOG.md     \
              CMakeLists.txt   \
+             Makefile.msvc    \
              lcdb-cmake.pc.in
 
 #
@@ -34,6 +35,7 @@ SUBDIRS = . test
 #
 
 include_HEADERS = include/lcdb.h include/lcdb_c.h
+noinst_HEADERS = compat/stdint.h
 
 #
 # Sources

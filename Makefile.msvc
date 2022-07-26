@@ -1,0 +1,279 @@
+# Makefile.msvc - msvc nmakefile for lcdb
+# Copyright (c) 2022, Christopher Jeffrey (MIT License).
+# https://github.com/chjj/lcdb
+
+VERSION = 0.0
+
+#
+# Options
+#
+
+CC = cl.exe
+LD = link.exe
+AR = lib.exe
+ARFLAGS =
+
+#
+# Headers
+#
+
+HEADERS = bench\histogram.h              \
+          src\util\arena.h               \
+          src\util\array.h               \
+          src\util\atomic.h              \
+          src\util\bloom.h               \
+          src\util\buffer.h              \
+          src\util\cache.h               \
+          src\util\coding.h              \
+          src\util\comparator.h          \
+          src\util\crc32c.h              \
+          src\util\env.h                 \
+          src\util\env_mem_impl.h        \
+          src\util\env_unix_impl.h       \
+          src\util\env_win_impl.h        \
+          src\util\extern.h              \
+          src\util\hash.h                \
+          src\util\internal.h            \
+          src\util\options.h             \
+          src\util\port.h                \
+          src\util\port_none_impl.h      \
+          src\util\port_unix_impl.h      \
+          src\util\port_win_impl.h       \
+          src\util\random.h              \
+          src\util\rbt.h                 \
+          src\util\slice.h               \
+          src\util\snappy.h              \
+          src\util\status.h              \
+          src\util\strutil.h             \
+          src\util\testutil.h            \
+          src\util\thread_pool.h         \
+          src\util\types.h               \
+          src\util\vector.h              \
+          src\table\block.h              \
+          src\table\block_builder.h      \
+          src\table\filter_block.h       \
+          src\table\format.h             \
+          src\table\iterator.h           \
+          src\table\iterator_wrapper.h   \
+          src\table\merger.h             \
+          src\table\table.h              \
+          src\table\table_builder.h      \
+          src\table\two_level_iterator.h \
+          src\builder.h                  \
+          src\db_impl.h                  \
+          src\db_iter.h                  \
+          src\dbformat.h                 \
+          src\dumpfile.h                 \
+          src\filename.h                 \
+          src\log_format.h               \
+          src\log_reader.h               \
+          src\log_writer.h               \
+          src\memtable.h                 \
+          src\skiplist.h                 \
+          src\snapshot.h                 \
+          src\table_cache.h              \
+          src\version_edit.h             \
+          src\version_set.h              \
+          src\write_batch.h              \
+          test\data\snappy_data.h        \
+          test\tests.h
+
+#
+# Sources
+#
+
+LIB_SOURCES = src\util\arena.c               \
+              src\util\array.c               \
+              src\util\atomic.c              \
+              src\util\bloom.c               \
+              src\util\buffer.c              \
+              src\util\cache.c               \
+              src\util\comparator.c          \
+              src\util\crc32c.c              \
+              src\util\env.c                 \
+              src\util\hash.c                \
+              src\util\internal.c            \
+              src\util\logger.c              \
+              src\util\options.c             \
+              src\util\port.c                \
+              src\util\random.c              \
+              src\util\rbt.c                 \
+              src\util\slice.c               \
+              src\util\snappy.c              \
+              src\util\status.c              \
+              src\util\strutil.c             \
+              src\util\thread_pool.c         \
+              src\util\vector.c              \
+              src\table\block.c              \
+              src\table\block_builder.c      \
+              src\table\filter_block.c       \
+              src\table\format.c             \
+              src\table\iterator.c           \
+              src\table\merger.c             \
+              src\table\table.c              \
+              src\table\table_builder.c      \
+              src\table\two_level_iterator.c \
+              src\builder.c                  \
+              src\c.c                        \
+              src\db_impl.c                  \
+              src\db_iter.c                  \
+              src\dbformat.c                 \
+              src\dumpfile.c                 \
+              src\filename.c                 \
+              src\log_reader.c               \
+              src\log_writer.c               \
+              src\memtable.c                 \
+              src\repair.c                   \
+              src\skiplist.c                 \
+              src\table_cache.c              \
+              src\version_edit.c             \
+              src\version_set.c              \
+              src\write_batch.c
+
+DBUTIL_SOURCES = src\dbutil.c
+
+TESTUTIL_SOURCES = src\util\testutil.c
+
+BENCH_SOURCES = bench\db_bench.c bench\histogram.c
+
+TEST_SOURCES = test\t-arena.c        \
+               test\t-autocompact.c  \
+               test\t-bloom.c        \
+               test\t-c.c            \
+               test\t-cache.c        \
+               test\t-coding.c       \
+               test\t-corruption.c   \
+               test\t-crc32c.c       \
+               test\t-db.c           \
+               test\t-dbformat.c     \
+               test\t-env.c          \
+               test\t-filename.c     \
+               test\t-filter_block.c \
+               test\t-hash.c         \
+               test\t-issue178.c     \
+               test\t-issue200.c     \
+               test\t-issue320.c     \
+               test\t-log.c          \
+               test\t-rbt.c          \
+               test\t-recovery.c     \
+               test\t-simple.c       \
+               test\t-skiplist.c     \
+               test\t-snappy.c       \
+               test\t-status.c       \
+               test\t-strutil.c      \
+               test\t-table.c        \
+               test\t-util.c         \
+               test\t-version_edit.c \
+               test\t-version_set.c  \
+               test\t-write_batch.c
+
+#
+# Objects
+#
+
+OBJECTS = $(LIB_SOURCES:.c=.obj)      \
+          $(DBUTIL_SOURCES:.c=.obj)   \
+          $(TESTUTIL_SOURCES:.c=.obj) \
+          $(BENCH_SOURCES:.c=.obj)    \
+          $(TEST_SOURCES:.c=.obj)
+
+TESTS = $(TEST_SOURCES:.c=.exe)
+
+#
+# Flags
+#
+
+!if "$(LEGACY)" == "1"
+CFLAGS2 = /nologo      \
+          /I.\include  \
+          /I.\src      \
+          /I.\compat   \
+          /W3          \
+          /MD          \
+          /O2          \
+          /Ob2         \
+          /DLDB_EXPORT \
+          $(CFLAGS)
+!else
+CFLAGS2 = /nologo      \
+          /I.\include  \
+          /I.\src      \
+          /W3          \
+          /wd4146      \
+          /wd4244      \
+          /wd4267      \
+          /wd4334      \
+          /wd4996      \
+          /MD          \
+          /O2          \
+          /Ob2         \
+          /DLDB_EXPORT \
+          $(CFLAGS)
+!endif
+
+ARFLAGS2 = /NOLOGO $(ARFLAGS)
+LDARGS = /NOLOGO /INCREMENTAL:NO
+DLLFLAGS = $(LDARGS) /VERSION:$(VERSION) $(LDFLAGS)
+EXEFLAGS = $(LDARGS) /SUBSYSTEM:CONSOLE $(LDFLAGS)
+LIBS2 = kernel32.lib $(LIBS)
+
+#
+# Default Rule
+#
+
+all: liblcdb.lib lcdb.dll lcdbutil.exe db_bench.exe $(TESTS)
+
+#
+# Inference Rules
+#
+
+.c.obj:
+	$(CC) /Fo$@ $(CFLAGS2) /c $<
+
+.obj.exe:
+	$(LD) /OUT:$@ $(EXEFLAGS) $< testutil.lib lcdb.lib $(LIBS2)
+
+#
+# Rules
+#
+
+$(OBJECTS): $(HEADERS)
+
+liblcdb.lib: $(LIB_OBJECTS)
+	$(AR) /OUT:$@ $(ARFLAGS2) $(LIB_OBJECTS)
+
+lcdb.dll: $(LIB_OBJECTS)
+	$(LD) /OUT:$@ /DLL $(DLLFLAGS) $(LIB_OBJECTS) $(LIBS2)
+
+testutil.lib: $(TESTUTIL_OBJECTS)
+	$(AR) /OUT:$@ $(ARFLAGS2) $(TESTUTIL_OBJECTS)
+
+lcdbutil.exe: lcdb.dll $(DBUTIL_OBJECTS)
+	$(LD) /OUT:$@ $(EXEFLAGS) $(DBUTIL_OBJECTS) lcdb.lib $(LIBS2)
+
+db_bench.exe: lcdb.dll testutil.lib $(BENCH_OBJECTS)
+	$(LD) /OUT:$@ $(EXEFLAGS) $(BENCH_OBJECTS) testutil.lib lcdb.lib $(LIBS2)
+
+$(TESTS): lcdb.dll testutil.lib $(TEST_OBJECTS)
+
+bench: db_bench.exe
+	$**
+
+check: $(TESTS)
+	!$**
+
+test: check
+
+clean:
+	-del bench\*.obj
+	-del src\table\*.obj
+	-del src\util\*.obj
+	-del src\*.obj
+	-del test\*.obj
+	-del liblcdb.lib
+	-del lcdb.dll
+	-del lcdb.lib
+	-del testutil.lib
+	-del lcdbutil.exe
+	-del db_bench.exe
+	-del test\*.exe

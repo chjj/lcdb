@@ -337,6 +337,12 @@ endif()
 
 list(APPEND ldb_includes ${PROJECT_SOURCE_DIR}/include)
 
+check_symbol_exists(INT8_MIN "stdint.h" LDB_HAVE_STDINT)
+
+if(NOT LDB_HAVE_STDINT)
+  list(APPEND ldb_includes ${PROJECT_SOURCE_DIR}/compat)
+endif()
+
 #
 # Subproject
 #

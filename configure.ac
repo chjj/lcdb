@@ -320,6 +320,10 @@ AS_IF([test x"$has_arm_crc" = x'yes'], [
   CFLAGS="$CFLAGS -march=armv8-a+crc"
 ])
 
+AX_CHECK_DEFINE([stdint.h], [INT8_MIN], [], [
+  CFLAGS="$CFLAGS -Icompat"
+])
+
 #
 # Defines
 #
