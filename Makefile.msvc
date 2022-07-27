@@ -197,19 +197,20 @@ INCOPT = /I.\compat
 !endif
 
 # Note: /wd args are ignored by older versions.
-CFLAGS2 = /nologo      \
-          /I.\include  \
-          /I.\src      \
-          $(INCOPT)    \
-          /W3          \
-          /wd4146      \
-          /wd4244      \
-          /wd4267      \
-          /wd4334      \
-          /wd4996      \
-          /MD          \
-          /O2          \
-          /Ob2         \
+CFLAGS2 = /nologo     \
+          /I.\include \
+          /I.\src     \
+          $(INCOPT)   \
+          /W3         \
+          /wd4146     \
+          /wd4244     \
+          /wd4267     \
+          /wd4334     \
+          /wd4996     \
+          /MD         \
+          /O2         \
+          /Ob2        \
+          /DNDEBUG    \
           $(CFLAGS)
 
 ARFLAGS2 = /NOLOGO $(ARFLAGS)
