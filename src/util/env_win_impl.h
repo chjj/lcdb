@@ -334,12 +334,12 @@ static int
 ldb_limiter_acquire(ldb_limiter_t *lim) {
   int old;
 
-  old = ldb_atomic_fetch_add(&lim->acquires_allowed, -1);
+  old = ldb_atomic_fetch_sub(&lim->acquires_allowed, 1, ldb_order_relaxed);
 
   if (old > 0)
     return 1;
 
-  old = ldb_atomic_fetch_add(&lim->acquires_allowed, 1);
+  old = ldb_atomic_fetch_add(&lim->acquires_allowed, 1, ldb_order_relaxed);
 
   assert(old < lim->max_acquires);
 
@@ -350,7 +350,7 @@ ldb_limiter_acquire(ldb_limiter_t *lim) {
 
 static void
 ldb_limiter_release(ldb_limiter_t *lim) {
-  int old = ldb_atomic_fetch_add(&lim->acquires_allowed, 1);
+  int old = ldb_atomic_fetch_add(&lim->acquires_allowed, 1, ldb_order_relaxed);
 
   assert(old < lim->max_acquires);
 
