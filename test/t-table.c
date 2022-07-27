@@ -470,7 +470,7 @@ tablector_finish(tablector_t *c,
   ldb_tablegen_destroy(tb);
 
   /* Open the table. */
-  ASSERT(ldb_seqfile_create(c->path, &c->source) == LDB_OK);
+  ASSERT(ldb_randfile_create(c->path, &c->source, options->use_mmap) == LDB_OK);
 
   table_options.comparator = options->comparator;
 
