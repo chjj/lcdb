@@ -17,6 +17,7 @@ dist_license_DATA = LICENSE
 pkgconfig_DATA = lcdb.pc
 
 EXTRA_DIST = cmake/           \
+             etc/             \
              scripts/         \
              autogen.sh       \
              CHANGELOG.md     \
