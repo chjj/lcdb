@@ -625,8 +625,8 @@ test_dump_file_counts(test_t *t, const char *label) {
 
   fprintf(stderr, "---\n%s:\n", label);
 
-  fprintf(stderr, "maxoverlap: %.0f\n",
-    (double)ldb_test_max_next_level_overlapping_bytes(t->db));
+  fprintf(stderr, "maxoverlap: %ld\n",
+    (long)ldb_test_max_next_level_overlapping_bytes(t->db));
 
   for (level = 0; level < LDB_NUM_LEVELS; level++) {
     int num = test_files_at_level(t, level);
@@ -1549,8 +1549,9 @@ check_range(uint64_t val, uint64_t low, uint64_t high) {
   int result = (val >= low) && (val <= high);
 
   if (!result) {
-    fprintf(stderr, "Value %.0f is not in range [%.0f, %.0f]\n",
-                    (double)val, (double)low, (double)high);
+    fprintf(stderr, "Value %lu is not in range [%lu, %lu]\n",
+                    (unsigned long)val, (unsigned long)low,
+                                        (unsigned long)high);
   }
 
   return result;

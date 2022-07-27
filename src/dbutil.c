@@ -136,7 +136,7 @@ print_usage(void) {
     "   dump files...         -- dump contents of specified files\n"
     "   repair name [options] -- repair database\n"
     "   copy source dest      -- copy database\n"
-    "   destroy name...       -- destroy database\n");
+    "   destroy names...      -- destroy database\n");
 }
 
 /*

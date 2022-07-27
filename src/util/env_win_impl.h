@@ -18,6 +18,7 @@
 #include <string.h>
 #include <windows.h>
 
+#include "atomic.h"
 #include "buffer.h"
 #include "env.h"
 #include "internal.h"
@@ -31,6 +32,10 @@
 
 #ifdef __GNUC__
 #  pragma GCC diagnostic ignored "-Wcast-function-type"
+#endif
+
+#ifndef INVALID_FILE_ATTRIBUTES
+#  define INVALID_FILE_ATTRIBUTES ((DWORD)-1)
 #endif
 
 /*
@@ -50,7 +55,7 @@ typedef struct ldb_wide_s {
 } ldb_wide_t;
 
 typedef struct ldb_limiter_s {
-  volatile long acquires_allowed;
+  ldb_atomic(int) acquires_allowed;
   int max_acquires;
 } ldb_limiter_t;
 
@@ -134,17 +139,17 @@ ldb_wide_export(char *zp, size_t zn, const ldb_wide_t *x) {
 
 static int
 LDBIsWindowsNT(void) {
-  static volatile long state = 0;
+  static ldb_atomic(int) state = 0;
   static DWORD version = 0;
   long value;
 
-  while ((value = InterlockedCompareExchange(&state, 1, 0)) == 1)
+  while ((value = ldb_atomic_compare_exchange(&state, 0, 1)) == 1)
     Sleep(0);
 
   if (value == 0) {
     version = GetVersion();
 
-    if (InterlockedExchange(&state, 2) != 1)
+    if (ldb_atomic_exchange(&state, 2) != 1)
       abort(); /* LCOV_EXCL_LINE */
   } else {
     assert(value == 2);
@@ -292,11 +297,11 @@ LDBGetTempPathW(ldb_wide_t *result) {
 static BOOL
 LDBCreateHardLinkW(LPCWSTR to, LPCWSTR from, LPSECURITY_ATTRIBUTES attr) {
   typedef BOOL (WINAPI *P)(LPCWSTR, LPCWSTR, LPSECURITY_ATTRIBUTES);
-  static volatile long state = 0;
+  static ldb_atomic(int) state = 0;
   static P HardLinkW = NULL;
   long value;
 
-  while ((value = InterlockedCompareExchange(&state, 1, 0)) == 1)
+  while ((value = ldb_atomic_compare_exchange(&state, 0, 1)) == 1)
     Sleep(0);
 
   if (value == 0) {
@@ -307,7 +312,7 @@ LDBCreateHardLinkW(LPCWSTR to, LPCWSTR from, LPSECURITY_ATTRIBUTES attr) {
 
     HardLinkW = (P)GetProcAddress(h, "CreateHardLinkW");
 
-    if (InterlockedExchange(&state, 2) != 1)
+    if (ldb_atomic_exchange(&state, 2) != 1)
       abort(); /* LCOV_EXCL_LINE */
   } else {
     assert(value == 2);
@@ -329,12 +334,12 @@ static int
 ldb_limiter_acquire(ldb_limiter_t *lim) {
   int old;
 
-  old = InterlockedExchangeAdd(&lim->acquires_allowed, -1);
+  old = ldb_atomic_fetch_add(&lim->acquires_allowed, -1);
 
   if (old > 0)
     return 1;
 
-  old = InterlockedExchangeAdd(&lim->acquires_allowed, 1);
+  old = ldb_atomic_fetch_add(&lim->acquires_allowed, 1);
 
   assert(old < lim->max_acquires);
 
@@ -345,7 +350,7 @@ ldb_limiter_acquire(ldb_limiter_t *lim) {
 
 static void
 ldb_limiter_release(ldb_limiter_t *lim) {
-  int old = InterlockedExchangeAdd(&lim->acquires_allowed, 1);
+  int old = ldb_atomic_fetch_add(&lim->acquires_allowed, 1);
 
   assert(old < lim->max_acquires);
 
@@ -358,11 +363,11 @@ ldb_limiter_release(ldb_limiter_t *lim) {
 
 static DWORD
 tls_index_get(void) {
-  static volatile long state = 0;
+  static ldb_atomic(int) state = 0;
   static DWORD tls_index = 0;
   long value;
 
-  while ((value = InterlockedCompareExchange(&state, 1, 0)) == 1)
+  while ((value = ldb_atomic_compare_exchange(&state, 0, 1)) == 1)
     Sleep(0);
 
   if (value == 0) {
@@ -371,7 +376,7 @@ tls_index_get(void) {
     if (tls_index == TLS_OUT_OF_INDEXES)
       abort(); /* LCOV_EXCL_LINE */
 
-    if (InterlockedExchange(&state, 2) != 1)
+    if (ldb_atomic_exchange(&state, 2) != 1)
       abort(); /* LCOV_EXCL_LINE */
   } else {
     assert(value == 2);

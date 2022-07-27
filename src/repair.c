@@ -678,7 +678,7 @@ repair_run(ldb_repair_t *rep) {
   }
 
   if (rc == LDB_OK) {
-    uint64_t bytes = 0;
+    int64_t bytes = 0;
     size_t i;
 
     for (i = 0; i < rep->tables.length; i++) {

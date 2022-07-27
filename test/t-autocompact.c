@@ -89,7 +89,7 @@ actest_val(size_t len) {
   return ldb_slice(val, len);
 }
 
-static uint64_t
+static int64_t
 actest_size(actest_t *t, int start, int limit) {
   char buf1[100];
   char buf2[100];

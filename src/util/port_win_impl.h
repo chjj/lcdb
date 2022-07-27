@@ -14,6 +14,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <windows.h>
+
+#include "atomic.h"
 #include "internal.h"
 #include "port.h"
 
@@ -35,13 +37,13 @@ ldb_mutex_tryinit(ldb_mutex_t *mtx) {
   /* Logic from libsodium/core.c */
   long state;
 
-  while ((state = InterlockedCompareExchange(&mtx->state, 1, 0)) == 1)
+  while ((state = ldb_atomic_compare_exchange(&mtx->state, 0, 1)) == 1)
     Sleep(0);
 
   if (state == 0) {
     InitializeCriticalSection(&mtx->handle);
 
-    if (InterlockedExchange(&mtx->state, 2) != 1)
+    if (ldb_atomic_exchange(&mtx->state, 2) != 1)
       abort(); /* LCOV_EXCL_LINE */
   } else {
     assert(state == 2);

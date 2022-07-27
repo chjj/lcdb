@@ -178,12 +178,27 @@ struct ldb_s {
  * Globals
  */
 
+#ifdef _WIN32
+LDB_EXTERN const ldb_bloom_t *ldb_bloom_import(void);
+LDB_EXTERN const ldb_comparator_t *ldb_comparator_import(void);
+LDB_EXTERN const ldb_dbopt_t *ldb_dbopt_import(void);
+LDB_EXTERN const ldb_readopt_t *ldb_readopt_import(void);
+LDB_EXTERN const ldb_writeopt_t *ldb_writeopt_import(void);
+LDB_EXTERN const ldb_readopt_t *ldb_iteropt_import(void);
+#define ldb_bloom_default (ldb_bloom_import())
+#define ldb_bytewise_comparator (ldb_comparator_import())
+#define ldb_dbopt_default (ldb_dbopt_import())
+#define ldb_readopt_default (ldb_readopt_import())
+#define ldb_writeopt_default (ldb_writeopt_import())
+#define ldb_iteropt_default (ldb_iteropt_import())
+#else
 LDB_EXTERN extern const ldb_bloom_t *ldb_bloom_default;
 LDB_EXTERN extern const ldb_comparator_t *ldb_bytewise_comparator;
 LDB_EXTERN extern const ldb_dbopt_t *ldb_dbopt_default;
 LDB_EXTERN extern const ldb_readopt_t *ldb_readopt_default;
 LDB_EXTERN extern const ldb_writeopt_t *ldb_writeopt_default;
 LDB_EXTERN extern const ldb_readopt_t *ldb_iteropt_default;
+#endif
 
 /*
  * Functions
@@ -671,7 +686,11 @@ ldb_batch_append(ldb_batch_t *dst, const ldb_batch_t *src) {
 
 static const ldb_bloom_t bloom_default = {NULL};
 
+#ifdef _WIN32
+const ldb_bloom_t *ldb_bloom_import(void) { return &bloom_default; }
+#else
 const ldb_bloom_t *ldb_bloom_default = &bloom_default;
+#endif
 
 ldb_bloom_t *
 ldb_bloom_create(int bits_per_key) {
@@ -714,7 +733,12 @@ static const ldb_comparator_t bytewise_comparator = {
   /* .state = */ NULL
 };
 
+#ifdef _WIN32
+const ldb_comparator_t *
+ldb_comparator_import(void) { return &bytewise_comparator; }
+#else
 const ldb_comparator_t *ldb_bytewise_comparator = &bytewise_comparator;
+#endif
 
 /*
  * Database
@@ -1403,10 +1427,17 @@ static const ldb_readopt_t iter_options = {
   /* .snapshot = */ NULL
 };
 
+#ifdef _WIN32
+const ldb_dbopt_t *ldb_dbopt_import(void) { return &db_options; }
+const ldb_readopt_t *ldb_readopt_import(void) { return &read_options; }
+const ldb_writeopt_t *ldb_writeopt_import(void) { return &write_options; }
+const ldb_readopt_t *ldb_iteropt_import(void) { return &iter_options; }
+#else
 const ldb_dbopt_t *ldb_dbopt_default = &db_options;
 const ldb_readopt_t *ldb_readopt_default = &read_options;
 const ldb_writeopt_t *ldb_writeopt_default = &write_options;
 const ldb_readopt_t *ldb_iteropt_default = &iter_options;
+#endif
 
 /*
  * Slice

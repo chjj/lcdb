@@ -1221,7 +1221,7 @@ ldb_versions_finalize(ldb_versions_t *vset, ldb_version_t *v) {
       score = v->files[level].length / (double)(LDB_L0_COMPACTION_TRIGGER);
     } else {
       /* Compute the ratio of current size to size limit. */
-      uint64_t level_bytes = total_file_size(&v->files[level]);
+      int64_t level_bytes = total_file_size(&v->files[level]);
 
       score = (double)level_bytes / max_bytes_for_level(vset->options, level);
     }

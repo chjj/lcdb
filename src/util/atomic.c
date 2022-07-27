@@ -11,38 +11,90 @@
 #include <windows.h>
 
 long
+ldb_atomic__exchange(volatile long *object, long desired) {
+#ifdef _M_IX86
+  long result = 0;
+
+  __asm {
+    mov ecx, object
+    mov eax, desired
+    lock xchg [ecx], eax
+    mov result, eax
+  }
+
+  return result;
+#else
+  /* Windows 95 and above. */
+  return InterlockedExchange(object, desired);
+#endif
+}
+
+long
+ldb_atomic__compare_exchange(volatile long *object,
+                             long expected,
+                             long desired) {
+#ifdef _M_IX86
+  long result = 0;
+
+  __asm {
+    mov ecx, object
+    mov eax, expected
+    mov edx, desired
+    lock cmpxchg [ecx], edx
+    mov result, eax
+  }
+
+  return result;
+#else
+  /* Windows 98 and above. */
+  return InterlockedCompareExchange(object, desired, expected);
+#endif
+}
+
+long
 ldb_atomic__fetch_add(volatile long *object, long operand) {
+#ifdef _M_IX86
+  long result = 0;
+
+  __asm {
+    mov ecx, object
+    mov eax, operand
+    lock xadd [ecx], eax
+    mov result, eax
+  }
+
+  return result;
+#else
   /* Windows 98 and above. */
   return InterlockedExchangeAdd(object, operand);
+#endif
 }
 
 long
 ldb_atomic__load(volatile long *object) {
-#ifdef MemoryBarrier
+#if defined(MemoryBarrier) && !defined(_M_IX86)
   /* Modern MSVC. */
   MemoryBarrier();
   return *object;
 #else
-  /* Windows 98 and above. */
-  return InterlockedCompareExchange(object, 0, 0);
+  return ldb_atomic__compare_exchange(object, 0, 0);
 #endif
 }
 
 void
 ldb_atomic__store(volatile long *object, long desired) {
-#ifdef MemoryBarrier
+#if defined(MemoryBarrier) && !defined(_M_IX86)
   /* Modern MSVC. */
   *object = desired;
   MemoryBarrier();
 #else
-  /* Windows 95 and above. */
-  (void)InterlockedExchange(object, desired);
+  (void)ldb_atomic__exchange(object, desired);
 #endif
 }
 
 void *
 ldb_atomic__load_ptr(void *volatile *object) {
-#if defined(MemoryBarrier)
+#if defined(MemoryBarrier) && !defined(_M_IX86)
   /* Modern MSVC. */
   MemoryBarrier();
   return *object;
@@ -50,14 +102,13 @@ ldb_atomic__load_ptr(void *volatile *object) {
   /* Windows XP and above. */
   return InterlockedCompareExchangePointer(object, NULL, NULL);
 #else
-  /* Windows 98 and above. */
-  return InterlockedCompareExchange((volatile long *)object, 0, 0);
+  return (void *)ldb_atomic__compare_exchange((volatile long *)object, 0, 0);
 #endif
 }
 
 void
 ldb_atomic__store_ptr(void *volatile *object, void *desired) {
-#if defined(MemoryBarrier)
+#if defined(MemoryBarrier) && !defined(_M_IX86)
   /* Modern MSVC. */
   *object = desired;
   MemoryBarrier();
@@ -65,8 +116,7 @@ ldb_atomic__store_ptr(void *volatile *object, void *desired) {
   /* Windows XP and above. */
   (void)InterlockedExchangePointer(object, desired);
 #else
-  /* Windows 95 and above. */
-  (void)InterlockedExchange((volatile long *)object, (long)desired);
+  (void)ldb_atomic__exchange((volatile long *)object, (long)desired);
 #endif
 }
 
@@ -85,6 +135,27 @@ ldb_atomic__empty(void) {
 #include "port.h"
 
 static ldb_mutex_t ldb_atomic_lock = LDB_MUTEX_INITIALIZER;
+
+long
+ldb_atomic__exchange(long *object, long desired) {
+  long result;
+  ldb_mutex_lock(&ldb_atomic_lock);
+  result = *object;
+  *object = desired;
+  ldb_mutex_unlock(&ldb_atomic_lock);
+  return result;
+}
+
+long
+ldb_atomic__compare_exchange(long *object, long expected, long desired) {
+  long result;
+  ldb_mutex_lock(&ldb_atomic_lock);
+  result = *object;
+  if (*object == expected)
+    *object = desired;
+  ldb_mutex_unlock(&ldb_atomic_lock);
+  return result;
+}
 
 long
 ldb_atomic__fetch_add(long *object, long operand) {

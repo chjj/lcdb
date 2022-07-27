@@ -132,6 +132,8 @@
 
 #if defined(LDB_GNUC_ATOMICS)
 
+#define ldb_atomic_exchange __sync_lock_test_and_set
+#define ldb_atomic_compare_exchange __sync_val_compare_and_swap
 #define ldb_atomic_fetch_add __atomic_fetch_add
 #define ldb_atomic_fetch_sub __atomic_fetch_sub
 #define ldb_atomic_load __atomic_load_n
@@ -140,6 +142,9 @@
 #define ldb_atomic_store_ptr __atomic_store_n
 
 #elif defined(LDB_SYNC_ATOMICS)
+
+#define ldb_atomic_exchange __sync_lock_test_and_set
+#define ldb_atomic_compare_exchange __sync_val_compare_and_swap
 
 #define ldb_atomic_fetch_add(object, operand, order) \
   __sync_fetch_and_add(object, operand)
@@ -160,41 +165,44 @@
 
 #elif defined(LDB_SUN_ATOMICS)
 
-static inline long
-ldb_atomic__load(volatile long *object) {
+static inline void
+ldb_rw_barrier(void) {
   __machine_rw_barrier();
-  return *object;
 }
 
-static inline void *
-ldb_atomic__load_ptr(void *volatile *object) {
-  __machine_rw_barrier();
-  return *object;
-}
+#define ldb_atomic_exchange(object, desired) \
+  ((long)atomic_swap_ulong((volatile unsigned long *)(object), desired))
 
-#define ldb_atomic_add_long_nv(object, operand) \
-  ((long)atomic_add_long_nv((volatile unsigned long *)(object), operand))
+#define ldb_atomic_compare_exchange(object, expected, desired) \
+  ((long)atomic_cas_ulong((volatile unsigned long *)(object),  \
+                          expected, desired))
 
 #define ldb_atomic_fetch_add(object, operand, order) \
-  (ldb_atomic_add_long_nv(object, operand) - (long)(operand))
+  ((long)atomic_add_long_nv((volatile unsigned long *)(object), operand) - \
+   (long)(operand))
 
 #define ldb_atomic_fetch_sub(object, operand, order) \
-  ldb_atomic_fetch_add(object, -((long)(operand)))
+  ldb_atomic_fetch_add(object, -(long)(operand))
 
-#define ldb_atomic_load(object, order) \
-  ldb_atomic__load((volatile long *)(object))
+#define ldb_atomic_load(object, order) (ldb_rw_barrier(), *(object))
 
 #define ldb_atomic_store(object, desired, order) do { \
   *(object) = (desired);                              \
-  __machine_rw_barrier();                             \
+  ldb_rw_barrier();                                   \
 } while (0)
 
-#define ldb_atomic_load_ptr(object, order) \
-  ldb_atomic__load_ptr((void *volatile *)(object))
-
+#define ldb_atomic_load_ptr ldb_atomic_load
 #define ldb_atomic_store_ptr ldb_atomic_store
 
 #elif defined(LDB_MSVC_ATOMICS)
+
+long
+ldb_atomic__exchange(volatile long *object, long desired);
+
+long
+ldb_atomic__compare_exchange(volatile long *object,
+                             long expected,
+                             long desired);
 
 long
 ldb_atomic__fetch_add(volatile long *object, long operand);
@@ -211,11 +219,14 @@ ldb_atomic__load_ptr(void *volatile *object);
 void
 ldb_atomic__store_ptr(void *volatile *object, void *desired);
 
+#define ldb_atomic_exchange ldb_atomic__exchange
+#define ldb_atomic_compare_exchange ldb_atomic__compare_exchange
+
 #define ldb_atomic_fetch_add(object, operand, order) \
   ldb_atomic__fetch_add(object, operand)
 
 #define ldb_atomic_fetch_sub(object, operand, order) \
-  ldb_atomic__fetch_add(object, -((long)(operand)))
+  ldb_atomic__fetch_add(object, -(long)(operand))
 
 #define ldb_atomic_load(object, order) \
   ldb_atomic__load((volatile long *)(object))
@@ -232,6 +243,12 @@ ldb_atomic__store_ptr(void *volatile *object, void *desired);
 #else /* !LDB_MSVC_ATOMICS */
 
 long
+ldb_atomic__exchange(long *object, long desired);
+
+long
+ldb_atomic__compare_exchange(long *object, long expected, long desired);
+
+long
 ldb_atomic__fetch_add(long *object, long operand);
 
 long
@@ -246,11 +263,14 @@ ldb_atomic__load_ptr(void **object);
 void
 ldb_atomic__store_ptr(void **object, void *desired);
 
+#define ldb_atomic_exchange ldb_atomic__exchange
+#define ldb_atomic_compare_exchange ldb_atomic__compare_exchange
+
 #define ldb_atomic_fetch_add(object, operand, order) \
   ldb_atomic__fetch_add(object, operand)
 
 #define ldb_atomic_fetch_sub(object, operand, order) \
-  ldb_atomic__fetch_add(object, -((long)(operand)))
+  ldb_atomic__fetch_add(object, -(long)(operand))
 
 #define ldb_atomic_load(object, order) \
   ldb_atomic__load((long *)(object))

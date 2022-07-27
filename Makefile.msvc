@@ -171,11 +171,19 @@ TEST_SOURCES = test\t-arena.c        \
 # Objects
 #
 
-OBJECTS = $(LIB_SOURCES:.c=.obj)      \
-          $(DBUTIL_SOURCES:.c=.obj)   \
-          $(TESTUTIL_SOURCES:.c=.obj) \
-          $(BENCH_SOURCES:.c=.obj)    \
-          $(TEST_SOURCES:.c=.obj)
+LIB_OBJECTS = $(LIB_SOURCES:.c=.obj)
+LIB_OBJECTS_DLL = $(LIB_SOURCES:.c=.o)
+DBUTIL_OBJECTS = $(DBUTIL_SOURCES:.c=.obj)
+TESTUTIL_OBJECTS = $(TESTUTIL_SOURCES:.c=.obj)
+BENCH_OBJECTS = $(BENCH_SOURCES:.c=.obj)
+TEST_OBJECTS = $(TEST_SOURCES:.c=.obj)
+
+OBJECTS = $(LIB_OBJECTS)      \
+          $(LIB_OBJECTS_DLL)  \
+          $(DBUTIL_OBJECTS)   \
+          $(TESTUTIL_OBJECTS) \
+          $(BENCH_OBJECTS)    \
+          $(TEST_OBJECTS)
 
 TESTS = $(TEST_SOURCES:.c=.exe)
 
@@ -202,7 +210,6 @@ CFLAGS2 = /nologo      \
           /MD          \
           /O2          \
           /Ob2         \
-          /DLDB_EXPORT \
           $(CFLAGS)
 
 ARFLAGS2 = /NOLOGO $(ARFLAGS)
@@ -221,11 +228,14 @@ all: liblcdb.lib lcdb.dll lcdbutil.exe db_bench.exe $(TESTS)
 # Inference Rules
 #
 
+.c.o:
+	$(CC) /Fo$@ $(CFLAGS2) /DLDB_EXPORT /c $<
+
 .c.obj:
 	$(CC) /Fo$@ $(CFLAGS2) /c $<
 
 .obj.exe:
-	$(LD) /OUT:$@ $(EXEFLAGS) $< testutil.lib lcdb.lib $(LIBS2)
+	$(LD) /OUT:$@ $(EXEFLAGS) $< testutil.lib liblcdb.lib $(LIBS2)
 
 #
 # Rules
@@ -236,8 +246,8 @@ $(OBJECTS): $(HEADERS)
 liblcdb.lib: $(LIB_OBJECTS)
 	$(AR) /OUT:$@ $(ARFLAGS2) $(LIB_OBJECTS)
 
-lcdb.dll: $(LIB_OBJECTS)
-	$(LD) /OUT:$@ /DLL $(DLLFLAGS) $(LIB_OBJECTS) $(LIBS2)
+lcdb.dll: $(LIB_OBJECTS_DLL)
+	$(LD) /OUT:$@ /DLL $(DLLFLAGS) $(LIB_OBJECTS_DLL) $(LIBS2)
 
 testutil.lib: $(TESTUTIL_OBJECTS)
 	$(AR) /OUT:$@ $(ARFLAGS2) $(TESTUTIL_OBJECTS)
@@ -245,10 +255,10 @@ testutil.lib: $(TESTUTIL_OBJECTS)
 lcdbutil.exe: lcdb.dll $(DBUTIL_OBJECTS)
 	$(LD) /OUT:$@ $(EXEFLAGS) $(DBUTIL_OBJECTS) lcdb.lib $(LIBS2)
 
-db_bench.exe: lcdb.dll testutil.lib $(BENCH_OBJECTS)
-	$(LD) /OUT:$@ $(EXEFLAGS) $(BENCH_OBJECTS) testutil.lib lcdb.lib $(LIBS2)
+db_bench.exe: liblcdb.lib testutil.lib $(BENCH_OBJECTS)
+	$(LD) /OUT:$@ $(EXEFLAGS) $(BENCH_OBJECTS) testutil.lib liblcdb.lib $(LIBS2)
 
-$(TESTS): lcdb.dll testutil.lib $(TEST_OBJECTS)
+$(TESTS): liblcdb.lib testutil.lib $(TEST_OBJECTS)
 
 bench: db_bench.exe
 	$**
@@ -260,6 +270,9 @@ test: check
 
 clean:
 	-del bench\*.obj
+	-del src\table\*.o
+	-del src\util\*.o
+	-del src\*.o
 	-del src\table\*.obj
 	-del src\util\*.obj
 	-del src\*.obj
