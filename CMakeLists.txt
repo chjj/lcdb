@@ -102,32 +102,13 @@ if(LDB_GLIBC)
   set(CMAKE_C_STANDARD 90)
   set(CMAKE_C_EXTENSIONS OFF)
   set(CMAKE_C_STANDARD_REQUIRED OFF)
+  list(APPEND ldb_defines _GNU_SOURCE)
 endif()
 
 set(CMAKE_C_VISIBILITY_PRESET hidden)
 
 if(APPLE)
   set(CMAKE_OSX_DEPLOYMENT_TARGET 10.7)
-endif()
-
-#
-# Feature Test Macros
-#
-
-if(WIN32)
-  list(APPEND ldb_defines _WIN32_WINNT=0x501)
-endif()
-
-if(LDB_GLIBC)
-  list(APPEND ldb_defines _GNU_SOURCE)
-endif()
-
-if(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
-  list(APPEND ldb_defines _TS_ERRNO)
-endif()
-
-if(CMAKE_SYSTEM_NAME STREQUAL "AIX")
-  list(APPEND ldb_defines _THREAD_SAFE_ERRNO)
 endif()
 
 #
