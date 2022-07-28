@@ -46,7 +46,11 @@ rb_node_create(rb_val_t key) {
   node->left = NIL;
   node->right = NIL;
 
+#ifdef __chibicc__
+  node->val.ui = 0;
+#else
   memset(&node->val, 0, sizeof(node->val));
+#endif
 
   return node;
 }
@@ -99,6 +103,15 @@ rb_node_snapshot(rb_node_t *parent, rb_node_t *node, rb_copy_f *copy) {
 
 static rb_node_t *
 rb_node_swap(rb_node_t *x, rb_node_t *y) {
+#ifdef __chibicc__
+  uint64_t x_key = x->key.ui;
+  uint64_t x_val = x->val.ui;
+
+  x->key.ui = y->key.ui;
+  x->val.ui = y->val.ui;
+  y->key.ui = x_key;
+  y->val.ui = x_val;
+#else
   rb_val_t x_key = x->key;
   rb_val_t x_val = x->val;
 
@@ -106,6 +119,7 @@ rb_node_swap(rb_node_t *x, rb_node_t *y) {
   x->val = y->val;
   y->key = x_key;
   y->val = x_val;
+#endif
 
   return y;
 }
@@ -483,8 +497,13 @@ rb_tree_del(rb_tree_t *tree, rb_val_t key, rb_node_t *result) {
       current = rb_tree_remove_node(tree, current);
 
       if (result != NULL) {
+#ifdef __chibicc__
+        result->key.ui = current->key.ui;
+        result->val.ui = current->val.ui;
+#else
         result->key = current->key;
         result->val = current->val;
+#endif
       }
 
       rb_node_destroy(current);
