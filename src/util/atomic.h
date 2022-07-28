@@ -32,7 +32,17 @@
 #  endif
 #elif defined(__CC_ARM)
 /* Unknown. */
-#elif defined(__TINYC__) || defined(__PCC__) || defined(__NWCC__)
+#elif defined(__TINYC__)
+#  if (__TINYC__ + 0) > 927
+#    define LDB_TINYC_ATOMICS
+#  elif defined(__i386__) || defined(__x86_64__)
+#    define LDB_ASM_ATOMICS
+#  endif
+#elif defined(__PCC__)
+#  if defined(__i386__) || defined(__x86_64__)
+#    define LDB_ASM_ATOMICS
+#  endif
+#elif defined(__NWCC__)
 /* Nothing. */
 #elif LDB_GNUC_PREREQ(4, 7)
 #  define LDB_GNUC_ATOMICS
@@ -60,13 +70,18 @@
 #    include <mbarrier.h>
 #    define LDB_SUN_ATOMICS
 #  endif
+#elif defined(__chibicc__)
+#  define LDB_CHIBICC_ATOMICS
 #elif defined(_WIN32)
 #  define LDB_MSVC_ATOMICS
 #endif
 
-#if (defined(LDB_GNUC_ATOMICS)  \
-  || defined(LDB_SYNC_ATOMICS)  \
-  || defined(LDB_SUN_ATOMICS)   \
+#if (defined(LDB_GNUC_ATOMICS)    \
+  || defined(LDB_SYNC_ATOMICS)    \
+  || defined(LDB_SUN_ATOMICS)     \
+  || defined(LDB_ASM_ATOMICS)     \
+  || defined(LDB_TINYC_ATOMICS)   \
+  || defined(LDB_CHIBICC_ATOMICS) \
   || defined(LDB_MSVC_ATOMICS))
 #  define LDB_HAVE_ATOMICS
 #endif
@@ -81,6 +96,12 @@
 #elif defined(LDB_SUN_ATOMICS) || defined(LDB_MSVC_ATOMICS)
 #  define ldb_atomic(type) volatile long
 #  define ldb_atomic_ptr(type) void *volatile
+#elif defined(LDB_ASM_ATOMICS)
+#  define ldb_atomic(type) volatile long
+#  define ldb_atomic_ptr(type) void *volatile
+#elif defined(LDB_TINYC_ATOMICS) || defined(LDB_CHIBICC_ATOMICS)
+#  define ldb_atomic(type) _Atomic(long)
+#  define ldb_atomic_ptr(type) _Atomic(type *)
 #else
 #  define ldb_atomic(type) long
 #  define ldb_atomic_ptr(type) void *
@@ -195,6 +216,135 @@ ldb_rw_barrier(void) {
   ldb_rw_barrier();                                   \
 } while (0)
 
+#define ldb_atomic_load_ptr ldb_atomic_load
+#define ldb_atomic_store_ptr ldb_atomic_store
+
+#elif defined(LDB_ASM_ATOMICS)
+
+static void
+ldb_atomic_fence(void) {
+#if defined(__x86_64__)
+  __asm__ __volatile__ ("lock orq $0, (%%rsp)\n" ::: "memory", "cc");
+#else
+  __asm__ __volatile__ ("lock orl $0, (%%esp)\n" ::: "memory", "cc");
+#endif
+}
+
+static long
+ldb_atomic_exchange(volatile long *object, long desired) {
+  long result;
+
+  __asm__ __volatile__ (
+    "lock xchg %1, %0\n"
+    : "+m" (*object), "=a" (result)
+    : "a" (desired)
+  );
+
+  return result;
+}
+
+static long
+ldb_atomic_compare_exchange(volatile long *object,
+                            long expected,
+                            long desired) {
+  long result;
+
+  __asm__ __volatile__ (
+    "lock cmpxchg %3, %0\n"
+    : "+m" (*object), "=a" (result)
+    : "a" (expected), "d" (desired)
+    : "cc"
+  );
+
+  return result;
+}
+
+static long
+ldb_atomic_fetch_add(volatile long *object, long operand, int order) {
+  long result;
+
+  __asm__ __volatile__ (
+    "lock xadd %1, %0\n"
+    : "+m" (*object), "=a" (result)
+    : "a" (operand)
+    : "cc"
+  );
+
+  return result;
+}
+
+static long
+ldb_atomic_fetch_sub(volatile long *object, long operand, int order) {
+  return ldb_atomic_fetch_add(object, -operand, order);
+}
+
+static long
+ldb_atomic_load(const volatile long *object, int order) {
+  return ldb_atomic_compare_exchange((volatile long *)object, 0, 0);
+}
+
+static void
+ldb_atomic_store(volatile long *object, long desired, int order) {
+  (void)ldb_atomic_exchange(object, desired);
+}
+
+static void *
+ldb_atomic_load_ptr(const void *volatile *object, int order) {
+  return (void *)ldb_atomic_compare_exchange((volatile long *)object, 0, 0);
+}
+
+static void
+ldb_atomic_store_ptr(void *volatile *object, void *desired, int order) {
+  (void)ldb_atomic_exchange((volatile long *)object, (long)desired);
+}
+
+#elif defined(LDB_TINYC_ATOMICS)
+
+#define ldb_atomic_fence() do {   \
+  _Atomic(int) _obj = 0;          \
+  __atomic_exchange(&_obj, 1, 5); \
+} while (0)
+
+#define ldb_atomic_exchange(object, desired) \
+  __atomic_exchange(object, desired, 5)
+
+#define ldb_atomic_compare_exchange(object, expected, desired) ({ \
+  long _exp = (expected);                                         \
+  __atomic_compare_exchange(object, &_exp, desired, 0, 5, 5);     \
+  _exp;                                                           \
+})
+
+#define ldb_atomic_fetch_add __atomic_fetch_add
+#define ldb_atomic_fetch_sub __atomic_fetch_sub
+#define ldb_atomic_load __atomic_load
+#define ldb_atomic_store __atomic_store
+#define ldb_atomic_load_ptr  __atomic_load
+#define ldb_atomic_store_ptr __atomic_store
+
+#elif defined(LDB_CHIBICC_ATOMICS)
+
+#define ldb_atomic_fence() do {                \
+  _Atomic(int) _obj = 0;                       \
+  int _exp = 0;                                \
+  __builtin_compare_and_swap(&_obj, &_exp, 1); \
+} while (0)
+
+#define ldb_atomic_exchange __builtin_atomic_exchange
+
+#define ldb_atomic_compare_exchange(object, expected, desired) ({ \
+  long _exp = (expected);                                         \
+  __builtin_compare_and_swap(object, _&exp, desired);             \
+  _exp;                                                           \
+})
+
+#define ldb_atomic_fetch_add(object, operand, order) \
+  (((*(object)) += (long)(operand)) - (long)(operand))
+
+#define ldb_atomic_fetch_sub(object, operand, order) \
+  (((*(object)) -= (long)(operand)) + (long)(operand))
+
+#define ldb_atomic_load(object, order) (*(object))
+#define ldb_atomic_store(object, desired, order) (*(object) = (desired))
 #define ldb_atomic_load_ptr ldb_atomic_load
 #define ldb_atomic_store_ptr ldb_atomic_store
 
