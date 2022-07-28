@@ -10,17 +10,6 @@
 
 #include <windows.h>
 
-void
-ldb_atomic__fence(void) {
-#if defined(MemoryBarrier) && !defined(_M_IX86)
-  /* Modern MSVC. */
-  MemoryBarrier();
-#else
-  volatile long x = 0;
-  ldb_atomic__exchange(&x, 1);
-#endif
-}
-
 long
 ldb_atomic__exchange(volatile long *object, long desired) {
 #if defined(_M_IX86) && defined(_MSC_VER)
@@ -146,12 +135,6 @@ ldb_atomic__empty(void) {
 #include "port.h"
 
 static ldb_mutex_t ldb_atomic_lock = LDB_MUTEX_INITIALIZER;
-
-void
-ldb_atomic__fence(void) {
-  ldb_mutex_lock(&ldb_atomic_lock);
-  ldb_mutex_unlock(&ldb_atomic_lock);
-}
 
 long
 ldb_atomic__exchange(long *object, long desired) {

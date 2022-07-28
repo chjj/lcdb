@@ -153,7 +153,6 @@
 
 #if defined(LDB_GNUC_ATOMICS)
 
-#define ldb_atomic_fence() __atomic_thread_fence(__ATOMIC_SEQ_CST)
 #define ldb_atomic_exchange __sync_lock_test_and_set
 #define ldb_atomic_compare_exchange __sync_val_compare_and_swap
 #define ldb_atomic_fetch_add __atomic_fetch_add
@@ -165,7 +164,6 @@
 
 #elif defined(LDB_SYNC_ATOMICS)
 
-#define ldb_atomic_fence __sync_synchronize
 #define ldb_atomic_exchange __sync_lock_test_and_set
 #define ldb_atomic_compare_exchange __sync_val_compare_and_swap
 
@@ -193,8 +191,6 @@ ldb_rw_barrier(void) {
   __machine_rw_barrier();
 }
 
-#define ldb_atomic_fence ldb_rw_barrier
-
 #define ldb_atomic_exchange(object, desired) \
   ((long)atomic_swap_ulong((volatile unsigned long *)(object), desired))
 
@@ -220,15 +216,6 @@ ldb_rw_barrier(void) {
 #define ldb_atomic_store_ptr ldb_atomic_store
 
 #elif defined(LDB_ASM_ATOMICS)
-
-static void
-ldb_atomic_fence(void) {
-#if defined(__x86_64__)
-  __asm__ __volatile__ ("lock orq $0, (%%rsp)\n" ::: "memory", "cc");
-#else
-  __asm__ __volatile__ ("lock orl $0, (%%esp)\n" ::: "memory", "cc");
-#endif
-}
 
 static long
 ldb_atomic_exchange(volatile long *object, long desired) {
@@ -300,11 +287,6 @@ ldb_atomic_store_ptr(void *volatile *object, void *desired, int order) {
 
 #elif defined(LDB_TINYC_ATOMICS)
 
-#define ldb_atomic_fence() do {   \
-  _Atomic(int) _obj = 0;          \
-  __atomic_exchange(&_obj, 1, 5); \
-} while (0)
-
 #define ldb_atomic_exchange(object, desired) \
   __atomic_exchange(object, desired, 5)
 
@@ -322,12 +304,6 @@ ldb_atomic_store_ptr(void *volatile *object, void *desired, int order) {
 #define ldb_atomic_store_ptr __atomic_store
 
 #elif defined(LDB_CHIBICC_ATOMICS)
-
-#define ldb_atomic_fence() do {                \
-  _Atomic(int) _obj = 0;                       \
-  int _exp = 0;                                \
-  __builtin_compare_and_swap(&_obj, &_exp, 1); \
-} while (0)
 
 #define ldb_atomic_exchange __builtin_atomic_exchange
 
@@ -349,9 +325,6 @@ ldb_atomic_store_ptr(void *volatile *object, void *desired, int order) {
 #define ldb_atomic_store_ptr ldb_atomic_store
 
 #elif defined(LDB_MSVC_ATOMICS)
-
-void
-ldb_atomic__fence(void);
 
 long
 ldb_atomic__exchange(volatile long *object, long desired);
@@ -376,7 +349,6 @@ ldb_atomic__load_ptr(void *volatile *object);
 void
 ldb_atomic__store_ptr(void *volatile *object, void *desired);
 
-#define ldb_atomic_fence ldb_atomic__fence
 #define ldb_atomic_exchange ldb_atomic__exchange
 #define ldb_atomic_compare_exchange ldb_atomic__compare_exchange
 
@@ -400,9 +372,6 @@ ldb_atomic__store_ptr(void *volatile *object, void *desired);
 
 #else /* !LDB_MSVC_ATOMICS */
 
-void
-ldb_atomic__fence(void);
-
 long
 ldb_atomic__exchange(long *object, long desired);
 
@@ -424,7 +393,6 @@ ldb_atomic__load_ptr(void **object);
 void
 ldb_atomic__store_ptr(void **object, void *desired);
 
-#define ldb_atomic_fence ldb_atomic__fence
 #define ldb_atomic_exchange ldb_atomic__exchange
 #define ldb_atomic_compare_exchange ldb_atomic__compare_exchange
 
