@@ -55,7 +55,7 @@ handle_repair_command(char **argv, int argc) {
     int n;
 
     if (sscanf(argv[i], "--block_size=%d%c", &n, &junk) == 1) {
-      if (n >= 1024)
+      if (n >= 1024 && (n & (n - 1)) == 0)
         options.block_size = n;
       else
         rc = LDB_INVALID;
@@ -70,7 +70,7 @@ handle_repair_command(char **argv, int argc) {
       else
         rc = LDB_INVALID;
     } else if (sscanf(argv[i], "--bloom_bits=%d%c", &n, &junk) == 1) {
-      if (n >= 1 && n <= 10000) {
+      if (n >= 0) {
         ldb_bloom_init(&policy, n);
         options.filter_policy = &policy;
       } else {
