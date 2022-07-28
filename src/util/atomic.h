@@ -227,45 +227,37 @@ ldb_rw_barrier(void) {
 
 static long
 ldb_atomic_exchange(volatile long *object, long desired) {
-  long result;
-
   __asm__ __volatile__ (
-    "lock xchg %1, %0\n"
-    : "+m" (*object), "=a" (result)
-    : "a" (desired)
+    "xchg %1, %0\n"
+    : "+m" (*object),
+      "+a" (desired)
   );
-
-  return result;
+  return desired;
 }
 
 static long
 ldb_atomic_compare_exchange(volatile long *object,
                             long expected,
                             long desired) {
-  long result;
-
   __asm__ __volatile__ (
-    "lock cmpxchg %3, %0\n"
-    : "+m" (*object), "=a" (result)
-    : "a" (expected), "d" (desired)
+    "lock cmpxchg %2, %0\n"
+    : "+m" (*object),
+      "+a" (expected)
+    : "d" (desired)
     : "cc"
   );
-
-  return result;
+  return expected;
 }
 
 static long
 ldb_atomic__fetch_add(volatile long *object, long operand) {
-  long result;
-
   __asm__ __volatile__ (
     "lock xadd %1, %0\n"
-    : "+m" (*object), "=a" (result)
-    : "a" (operand)
-    : "cc"
+    : "+m" (*object),
+      "+a" (operand)
+    :: "cc"
   );
-
-  return result;
+  return operand;
 }
 
 #define ldb_atomic_fetch_add(object, operand, order) \
