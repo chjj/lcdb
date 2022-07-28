@@ -33,7 +33,7 @@
 #elif defined(__CC_ARM)
 /* Unknown. */
 #elif defined(__TINYC__)
-#  if (__TINYC__ + 0) > 927
+#  if (__TINYC__ + 0) > 927 /* 0.9.27 */
 #    define LDB_TINYC_ATOMICS
 #  elif defined(__i386__) || defined(__x86_64__)
 #    define LDB_ASM_ATOMICS
@@ -153,8 +153,16 @@
 
 #if defined(LDB_GNUC_ATOMICS)
 
-#define ldb_atomic_exchange __sync_lock_test_and_set
-#define ldb_atomic_compare_exchange __sync_val_compare_and_swap
+#define ldb_atomic_exchange(object, desired) \
+  __atomic_exchange_n(object, desired, 5)
+
+#define ldb_atomic_compare_exchange(object, expected, desired)  \
+__extension__ ({                                                \
+  __typeof__((void)0, *(object)) _exp = (expected);             \
+  __atomic_compare_exchange_n(object, &_exp, desired, 0, 5, 5); \
+  _exp;                                                         \
+})
+
 #define ldb_atomic_fetch_add __atomic_fetch_add
 #define ldb_atomic_fetch_sub __atomic_fetch_sub
 #define ldb_atomic_load __atomic_load_n
@@ -247,7 +255,7 @@ ldb_atomic_compare_exchange(volatile long *object,
 }
 
 static long
-ldb_atomic_fetch_add(volatile long *object, long operand, int order) {
+ldb_atomic__fetch_add(volatile long *object, long operand) {
   long result;
 
   __asm__ __volatile__ (
@@ -260,30 +268,23 @@ ldb_atomic_fetch_add(volatile long *object, long operand, int order) {
   return result;
 }
 
-static long
-ldb_atomic_fetch_sub(volatile long *object, long operand, int order) {
-  return ldb_atomic_fetch_add(object, -operand, order);
-}
+#define ldb_atomic_fetch_add(object, operand, order) \
+  ldb_atomic__fetch_add(object, operand)
 
-static long
-ldb_atomic_load(const volatile long *object, int order) {
-  return ldb_atomic_compare_exchange((volatile long *)object, 0, 0);
-}
+#define ldb_atomic_fetch_sub(object, operand, order) \
+  ldb_atomic__fetch_add(object, -(long)(operand))
 
-static void
-ldb_atomic_store(volatile long *object, long desired, int order) {
-  (void)ldb_atomic_exchange(object, desired);
-}
+#define ldb_atomic_load(object, order) \
+  ldb_atomic_compare_exchange((volatile long *)(object), 0, 0)
 
-static void *
-ldb_atomic_load_ptr(const void *volatile *object, int order) {
-  return (void *)ldb_atomic_compare_exchange((volatile long *)object, 0, 0);
-}
+#define ldb_atomic_store(object, desired, order) \
+  ((void)ldb_atomic_exchange(object, desired))
 
-static void
-ldb_atomic_store_ptr(void *volatile *object, void *desired, int order) {
-  (void)ldb_atomic_exchange((volatile long *)object, (long)desired);
-}
+#define ldb_atomic_load_ptr(object, order) \
+  ((void *)ldb_atomic_compare_exchange((volatile long *)(object), 0, 0))
+
+#define ldb_atomic_store_ptr(object, desired, order) \
+  ((void)ldb_atomic_exchange((volatile long *)(object), (long)(desired)))
 
 #elif defined(LDB_TINYC_ATOMICS)
 
@@ -309,7 +310,7 @@ ldb_atomic_store_ptr(void *volatile *object, void *desired, int order) {
 
 #define ldb_atomic_compare_exchange(object, expected, desired) ({ \
   long _exp = (expected);                                         \
-  __builtin_compare_and_swap(object, _&exp, desired);             \
+  __builtin_compare_and_swap(object, &_exp, desired);             \
   _exp;                                                           \
 })
 
