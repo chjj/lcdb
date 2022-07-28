@@ -13,16 +13,11 @@
 long
 ldb_atomic__exchange(volatile long *object, long desired) {
 #if defined(_M_IX86) && defined(_MSC_VER)
-  long result = 0;
-
   __asm {
     mov ecx, object
     mov eax, desired
-    lock xchg [ecx], eax
-    mov result, eax
+    xchg [ecx], eax
   }
-
-  return result;
 #else
   /* Windows 95 and above. */
   return InterlockedExchange(object, desired);
@@ -34,17 +29,12 @@ ldb_atomic__compare_exchange(volatile long *object,
                              long expected,
                              long desired) {
 #if defined(_M_IX86) && defined(_MSC_VER)
-  long result = 0;
-
   __asm {
     mov ecx, object
     mov eax, expected
     mov edx, desired
     lock cmpxchg [ecx], edx
-    mov result, eax
   }
-
-  return result;
 #else
   /* Windows 98 and above. */
   return InterlockedCompareExchange(object, desired, expected);
@@ -54,16 +44,11 @@ ldb_atomic__compare_exchange(volatile long *object,
 long
 ldb_atomic__fetch_add(volatile long *object, long operand) {
 #if defined(_M_IX86) && defined(_MSC_VER)
-  long result = 0;
-
   __asm {
     mov ecx, object
     mov eax, operand
     lock xadd [ecx], eax
-    mov result, eax
   }
-
-  return result;
 #else
   /* Windows 98 and above. */
   return InterlockedExchangeAdd(object, operand);
