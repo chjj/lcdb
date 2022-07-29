@@ -48,7 +48,7 @@ test_atomics(void) {
 
     ASSERT(ldb_atomic_exchange(&x, 3) == 0);
     ASSERT(ldb_atomic_exchange(&x, 101) == 3);
-    ASSERT(ldb_atomic_load(&x, ldb_order_acquire) == 101);
+    ASSERT(ldb_atomic_load(&x, ldb_order_seq_cst) == 101);
   }
 
   /* Compare+Exchange */
@@ -56,11 +56,11 @@ test_atomics(void) {
     ldb_atomic(int) x = 0;
 
     ASSERT(ldb_atomic_compare_exchange(&x, 1, 3) == 0);
-    ASSERT(ldb_atomic_load(&x, ldb_order_acquire) == 0);
+    ASSERT(ldb_atomic_load(&x, ldb_order_seq_cst) == 0);
     ASSERT(ldb_atomic_compare_exchange(&x, 0, 3) == 0);
-    ASSERT(ldb_atomic_load(&x, ldb_order_acquire) == 3);
+    ASSERT(ldb_atomic_load(&x, ldb_order_seq_cst) == 3);
     ASSERT(ldb_atomic_compare_exchange(&x, 3, 100) == 3);
-    ASSERT(ldb_atomic_load(&x, ldb_order_acquire) == 100);
+    ASSERT(ldb_atomic_load(&x, ldb_order_seq_cst) == 100);
   }
 
   /* Add/Subtract */
@@ -69,20 +69,20 @@ test_atomics(void) {
 
     ASSERT(ldb_atomic_fetch_add(&x, 1, ldb_order_seq_cst) == 0);
     ASSERT(ldb_atomic_fetch_add(&x, 1, ldb_order_seq_cst) == 1);
-    ASSERT(ldb_atomic_load(&x, ldb_order_acquire) == 2);
+    ASSERT(ldb_atomic_load(&x, ldb_order_seq_cst) == 2);
     ASSERT(ldb_atomic_fetch_sub(&x, 1, ldb_order_seq_cst) == 2);
     ASSERT(ldb_atomic_fetch_sub(&x, 1, ldb_order_seq_cst) == 1);
-    ASSERT(ldb_atomic_load(&x, ldb_order_acquire) == 0);
+    ASSERT(ldb_atomic_load(&x, ldb_order_seq_cst) == 0);
   }
 
   /* Load/Store */
   {
     ldb_atomic(int) x = 0;
 
-    ldb_atomic_store(&x, 1, ldb_order_release);
-    ASSERT(ldb_atomic_load(&x, ldb_order_acquire) == 1);
-    ldb_atomic_store(&x, 100, ldb_order_release);
-    ASSERT(ldb_atomic_load(&x, ldb_order_acquire) == 100);
+    ldb_atomic_store(&x, 1, ldb_order_seq_cst);
+    ASSERT(ldb_atomic_load(&x, ldb_order_seq_cst) == 1);
+    ldb_atomic_store(&x, 100, ldb_order_seq_cst);
+    ASSERT(ldb_atomic_load(&x, ldb_order_seq_cst) == 100);
   }
 
   /* Load/Store (pointer) */
@@ -90,10 +90,10 @@ test_atomics(void) {
     ldb_atomic_ptr(int) x = NULL;
     int y = 0, z = 0;
 
-    ldb_atomic_store_ptr(&x, &y, ldb_order_release);
-    ASSERT(ldb_atomic_load_ptr(&x, ldb_order_acquire) == (void *)&y);
-    ldb_atomic_store_ptr(&x, &z, ldb_order_release);
-    ASSERT(ldb_atomic_load_ptr(&x, ldb_order_acquire) == (void *)&z);
+    ldb_atomic_store_ptr(&x, &y, ldb_order_seq_cst);
+    ASSERT(ldb_atomic_load_ptr(&x, ldb_order_seq_cst) == (void *)&y);
+    ldb_atomic_store_ptr(&x, &z, ldb_order_seq_cst);
+    ASSERT(ldb_atomic_load_ptr(&x, ldb_order_seq_cst) == (void *)&z);
   }
 }
 
