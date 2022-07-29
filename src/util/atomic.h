@@ -114,9 +114,6 @@ typedef long ldb_word_t;
 #  include <stdint.h>
 #  define ldb_atomic(type) _Atomic(intptr_t)
 #  define ldb_atomic_ptr(type) _Atomic(type *)
-#elif defined(LDB_CHIBICC_ATOMICS)
-#  define ldb_atomic(type) _Atomic(long)
-#  define ldb_atomic_ptr(type) _Atomic(type *)
 #elif defined(LDB_GNUC_ATOMICS) || defined(LDB_SYNC_ATOMICS)
 #  define ldb_atomic(type) volatile type
 #  define ldb_atomic_ptr(type) type *volatile
@@ -125,6 +122,9 @@ typedef long ldb_word_t;
    || defined(LDB_MSVC_ATOMICS)
 #  define ldb_atomic(type) volatile ldb_word_t
 #  define ldb_atomic_ptr(type) void *volatile
+#elif defined(LDB_CHIBICC_ATOMICS)
+#  define ldb_atomic(type) _Atomic(long)
+#  define ldb_atomic_ptr(type) _Atomic(type *)
 #elif defined(LDB_SUN_ATOMICS)
 #  define ldb_atomic(type) volatile long
 #  define ldb_atomic_ptr(type) void *volatile
