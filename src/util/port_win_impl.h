@@ -78,14 +78,13 @@ ldb_mutex_unlock(ldb_mutex_t *mtx) {
 void
 ldb_cond_init(ldb_cond_t *cond) {
   cond->waiters = 0;
-
-  InitializeCriticalSection(&cond->lock);
-
   cond->signal = CreateEventA(NULL, FALSE, FALSE, NULL);
   cond->broadcast = CreateEventA(NULL, TRUE, FALSE, NULL);
 
-  if (!cond->signal || !cond->broadcast)
+  if (cond->signal == NULL || cond->broadcast == NULL)
     abort(); /* LCOV_EXCL_LINE */
+
+  InitializeCriticalSection(&cond->lock);
 }
 
 void
