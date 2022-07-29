@@ -497,7 +497,7 @@ ldb_atomic__load(volatile ldb_word_t *object) {
 }
 
 #define ldb_atomic_load(object, order) \
-  ldb_atomic__load((volatile long *)(object))
+  ldb_atomic__load((volatile ldb_word_t *)(object))
 
 static void *
 ldb_atomic__load_ptr(void *volatile *object) {
