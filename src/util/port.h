@@ -44,8 +44,10 @@ typedef struct LDB_RTL_CRITICAL_SECTION {
 
 #if defined(_WIN32)
 
+#include "atomic.h"
+
 typedef struct ldb_mutex_s {
-  volatile long state;
+  ldb_atomic(int) state;
   LDB_CRITICAL_SECTION handle;
 } ldb_mutex_t;
 

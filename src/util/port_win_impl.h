@@ -34,8 +34,7 @@ typedef struct ldb_args_s {
 
 static void
 ldb_mutex_tryinit(ldb_mutex_t *mtx) {
-  /* Logic from libsodium/core.c */
-  long state;
+  int state;
 
   while ((state = ldb_atomic_compare_exchange(&mtx->state, 0, 1)) == 1)
     Sleep(0);

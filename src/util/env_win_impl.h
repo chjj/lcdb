@@ -141,7 +141,7 @@ static int
 LDBIsWindowsNT(void) {
   static ldb_atomic(int) state = 0;
   static DWORD version = 0;
-  long value;
+  int value;
 
   while ((value = ldb_atomic_compare_exchange(&state, 0, 1)) == 1)
     Sleep(0);
@@ -299,7 +299,7 @@ LDBCreateHardLinkW(LPCWSTR to, LPCWSTR from, LPSECURITY_ATTRIBUTES attr) {
   typedef BOOL (WINAPI *P)(LPCWSTR, LPCWSTR, LPSECURITY_ATTRIBUTES);
   static ldb_atomic(int) state = 0;
   static P HardLinkW = NULL;
-  long value;
+  int value;
 
   while ((value = ldb_atomic_compare_exchange(&state, 0, 1)) == 1)
     Sleep(0);
@@ -365,7 +365,7 @@ static DWORD
 tls_index_get(void) {
   static ldb_atomic(int) state = 0;
   static DWORD tls_index = 0;
-  long value;
+  int value;
 
   while ((value = ldb_atomic_compare_exchange(&state, 0, 1)) == 1)
     Sleep(0);
