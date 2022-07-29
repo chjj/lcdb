@@ -6,13 +6,55 @@
 
 #include "atomic.h"
 
+/*
+ * Builtins
+ */
+
 #if defined(LDB_MSVC_ATOMICS)
+
+/*
+ * MSVC Atomics
+ */
 
 #include <windows.h>
 
+/*
+ * Compat
+ */
+
+#undef USE_INLINE_ASM
+#undef HAVE_VOLATILE_MS
+
+/* With regards to the USE_INLINE_ASM check: we want to
+ * make sure we're not targeting Windows 95. Unfortunately,
+ * some nerds[1] figured out how to get VS 2008 working
+ * for Windows 95.
+ *
+ * This means we have to check for VS 2010 to be absolutely
+ * sure we're not targeting Windows 95.
+ *
+ * [1] https://msfn.org/board/topic/112283-visual-studio-2008-and-windows-9x/
+ */
+#if defined(_MSC_VER) && !defined(__clang__)        \
+                      && !defined(__INTEL_COMPILER) \
+                      && !defined(__ICL)
+#  if defined(_M_IX86) && _MSC_VER < 1600 /* VS 2010 */
+#    define USE_INLINE_ASM
+#  endif
+#  if (defined(_M_IX86) || defined(_M_X64)) && _MSC_VER >= 1400 /* VS 2005 */
+#    define HAVE_VOLATILE_MS /* Assume /volatile:ms. */
+#  elif defined(_M_IX86) && _MSC_VER < 1300 /* VS 2002 */
+#    define HAVE_VOLATILE_MS /* Seems to work in practice. */
+#  endif
+#endif
+
+/*
+ * Backend
+ */
+
 long
 ldb_atomic__exchange(volatile long *object, long desired) {
-#if defined(_M_IX86) && defined(_MSC_VER)
+#ifdef USE_INLINE_ASM
   __asm {
     mov ecx, object
     mov eax, desired
@@ -28,7 +70,7 @@ long
 ldb_atomic__compare_exchange(volatile long *object,
                              long expected,
                              long desired) {
-#if defined(_M_IX86) && defined(_MSC_VER)
+#ifdef USE_INLINE_ASM
   __asm {
     mov ecx, object
     mov eax, expected
@@ -43,7 +85,7 @@ ldb_atomic__compare_exchange(volatile long *object,
 
 long
 ldb_atomic__fetch_add(volatile long *object, long operand) {
-#if defined(_M_IX86) && defined(_MSC_VER)
+#ifdef USE_INLINE_ASM
   __asm {
     mov ecx, object
     mov eax, operand
@@ -57,9 +99,7 @@ ldb_atomic__fetch_add(volatile long *object, long operand) {
 
 long
 ldb_atomic__load(volatile long *object) {
-#if defined(MemoryBarrier) && !defined(_M_IX86)
-  /* Modern MSVC. */
-  MemoryBarrier();
+#ifdef HAVE_VOLATILE_MS
   return *object;
 #else
   return ldb_atomic__compare_exchange(object, 0, 0);
@@ -68,10 +108,8 @@ ldb_atomic__load(volatile long *object) {
 
 void
 ldb_atomic__store(volatile long *object, long desired) {
-#if defined(MemoryBarrier) && !defined(_M_IX86)
-  /* Modern MSVC. */
+#ifdef HAVE_VOLATILE_MS
   *object = desired;
-  MemoryBarrier();
 #else
   (void)ldb_atomic__exchange(object, desired);
 #endif
@@ -79,9 +117,7 @@ ldb_atomic__store(volatile long *object, long desired) {
 
 void *
 ldb_atomic__load_ptr(void *volatile *object) {
-#if defined(MemoryBarrier) && !defined(_M_IX86)
-  /* Modern MSVC. */
-  MemoryBarrier();
+#if defined(HAVE_VOLATILE_MS)
   return *object;
 #elif defined(_WIN64)
   /* Windows XP and above. */
@@ -93,10 +129,8 @@ ldb_atomic__load_ptr(void *volatile *object) {
 
 void
 ldb_atomic__store_ptr(void *volatile *object, void *desired) {
-#if defined(MemoryBarrier) && !defined(_M_IX86)
-  /* Modern MSVC. */
+#if defined(HAVE_VOLATILE_MS)
   *object = desired;
-  MemoryBarrier();
 #elif defined(_WIN64)
   /* Windows XP and above. */
   (void)InterlockedExchangePointer(object, desired);
@@ -107,19 +141,35 @@ ldb_atomic__store_ptr(void *volatile *object, void *desired) {
 
 #elif defined(LDB_HAVE_ATOMICS)
 
-int
-ldb_atomic__empty(void);
+/*
+ * Non-Empty (avoids empty translation unit)
+ */
 
 int
-ldb_atomic__empty(void) {
+ldb_atomic__nonempty(void);
+
+int
+ldb_atomic__nonempty(void) {
   return 0;
 }
 
 #else /* !LDB_HAVE_ATOMICS */
 
+/*
+ * Mutex Fallback
+ */
+
 #include "port.h"
 
+/*
+ * Globals
+ */
+
 static ldb_mutex_t ldb_atomic_lock = LDB_MUTEX_INITIALIZER;
+
+/*
+ * Backend
+ */
 
 long
 ldb_atomic__exchange(long *object, long desired) {
