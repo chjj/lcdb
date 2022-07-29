@@ -102,21 +102,31 @@
  * Types
  */
 
-#if defined(LDB_STD_ATOMICS)     \
- || defined(LDB_TINYC_ATOMICS)   \
- || defined(LDB_CHIBICC_ATOMICS)
+#if defined(_WIN64)
+typedef signed __int64 ldb_word_t;
+#elif defined(LDB_AIX_ATOMICS) && !defined(_ARCH_PPC64)
+typedef int ldb_word_t;
+#else
+typedef long ldb_word_t;
+#endif
+
+#if defined(LDB_STD_ATOMICS) || defined(LDB_TINYC_ATOMICS)
+#  include <stdint.h>
+#  define ldb_atomic(type) _Atomic(intptr_t)
+#  define ldb_atomic_ptr(type) _Atomic(type *)
+#elif defined(LDB_CHIBICC_ATOMICS)
 #  define ldb_atomic(type) _Atomic(long)
 #  define ldb_atomic_ptr(type) _Atomic(type *)
 #elif defined(LDB_GNUC_ATOMICS) || defined(LDB_SYNC_ATOMICS)
 #  define ldb_atomic(type) volatile type
 #  define ldb_atomic_ptr(type) type *volatile
 #elif defined(LDB_ASM_ATOMICS)  \
-   || defined(LDB_SUN_ATOMICS)  \
+   || defined(LDB_AIX_ATOMICS)  \
    || defined(LDB_MSVC_ATOMICS)
-#  define ldb_atomic(type) volatile long
+#  define ldb_atomic(type) volatile ldb_word_t
 #  define ldb_atomic_ptr(type) void *volatile
-#elif defined(LDB_AIX_ATOMICS)
-#  define ldb_atomic(type) volatile int
+#elif defined(LDB_SUN_ATOMICS)
+#  define ldb_atomic(type) volatile long
 #  define ldb_atomic_ptr(type) void *volatile
 #else
 #  define ldb_atomic(type) long
@@ -160,7 +170,8 @@
 #else
 #  define ldb_atomic_init(object, desired) \
     ldb_atomic_store(object, desired, ldb_order_relaxed)
-#  define ldb_atomic_init_ptr ldb_atomic_init
+#  define ldb_atomic_init_ptr(object, desired) \
+    ldb_atomic_store_ptr(object, desired, ldb_order_relaxed)
 #endif
 
 /*
@@ -181,10 +192,10 @@
 #define ldb_atomic_load_ptr atomic_load_explicit
 #define ldb_atomic_exchange atomic_exchange
 
-LDB_STATIC long
-ldb_atomic_compare_exchange(_Atomic(long) *object,
-                            long expected,
-                            long desired) {
+LDB_STATIC intptr_t
+ldb_atomic_compare_exchange(_Atomic(intptr_t) *object,
+                            intptr_t expected,
+                            intptr_t desired) {
   atomic_compare_exchange_strong(object, &expected, desired);
   return expected;
 }
@@ -279,9 +290,9 @@ __extension__ ({                                                \
 
 #define ldb_atomic_store_ptr ldb_atomic_store
 
-LDB_STATIC long
-ldb_atomic__load(volatile long *object) {
-  long result;
+LDB_STATIC ldb_word_t
+ldb_atomic__load(volatile ldb_word_t *object) {
+  ldb_word_t result;
   ldb_compiler_barrier();
   result = *object;
   ldb_compiler_barrier();
@@ -289,7 +300,7 @@ ldb_atomic__load(volatile long *object) {
 }
 
 #define ldb_atomic_load(object, order) \
-  ldb_atomic__load((volatile long *)(object))
+  ldb_atomic__load((volatile ldb_word_t *)(object))
 
 LDB_STATIC void *
 ldb_atomic__load_ptr(void *volatile *object) {
@@ -303,8 +314,8 @@ ldb_atomic__load_ptr(void *volatile *object) {
 #define ldb_atomic_load_ptr(object, order) \
   ldb_atomic__load_ptr((void *volatile *)(object))
 
-LDB_STATIC long
-ldb_atomic_exchange(volatile long *object, long desired) {
+LDB_STATIC ldb_word_t
+ldb_atomic_exchange(volatile ldb_word_t *object, ldb_word_t desired) {
   __asm__ __volatile__ (
     "xchg %1, %0\n"
     : "+m" (*object),
@@ -313,10 +324,10 @@ ldb_atomic_exchange(volatile long *object, long desired) {
   return desired;
 }
 
-LDB_STATIC long
-ldb_atomic_compare_exchange(volatile long *object,
-                            long expected,
-                            long desired) {
+LDB_STATIC ldb_word_t
+ldb_atomic_compare_exchange(volatile ldb_word_t *object,
+                            ldb_word_t expected,
+                            ldb_word_t desired) {
   __asm__ __volatile__ (
     "lock cmpxchg %2, %0\n"
     : "+m" (*object),
@@ -327,8 +338,8 @@ ldb_atomic_compare_exchange(volatile long *object,
   return expected;
 }
 
-LDB_STATIC long
-ldb_atomic__fetch_add(volatile long *object, long operand) {
+LDB_STATIC ldb_word_t
+ldb_atomic__fetch_add(volatile ldb_word_t *object, ldb_word_t operand) {
   __asm__ __volatile__ (
     "lock xadd %1, %0\n"
     : "+m" (*object),
@@ -342,7 +353,7 @@ ldb_atomic__fetch_add(volatile long *object, long operand) {
   ldb_atomic__fetch_add(object, operand)
 
 #define ldb_atomic_fetch_sub(object, operand, order) \
-  ldb_atomic__fetch_add(object, -(long)(operand))
+  ldb_atomic__fetch_add(object, -(ldb_word_t)(operand))
 
 #elif defined(LDB_TINYC_ATOMICS)
 
@@ -359,7 +370,7 @@ ldb_atomic__fetch_add(volatile long *object, long operand) {
   __atomic_exchange(object, desired, 5)
 
 #define ldb_atomic_compare_exchange(object, expected, desired) ({ \
-  long _exp = (expected);                                         \
+  intptr_t _exp = (expected);                                     \
   __atomic_compare_exchange(object, &_exp, desired, 0, 5, 5);     \
   _exp;                                                           \
 })
@@ -460,6 +471,14 @@ ldb_atomic__load_ptr(void *volatile *object) {
  * AIX Atomics
  */
 
+#ifdef _ARCH_PPC64
+#  define ldb_load_word __ldarx
+#  define ldb_store_word __stdcx
+#else
+#  define ldb_load_word __lwarx
+#  define ldb_store_word __stwcx
+#endif
+
 #define ldb_atomic_store(object, desired, order) do { \
   __lwsync();                                         \
   *(object) = (desired);                              \
@@ -468,9 +487,9 @@ ldb_atomic__load_ptr(void *volatile *object) {
 
 #define ldb_atomic_store_ptr ldb_atomic_store
 
-static int
-ldb_atomic__load(volatile int *object) {
-  int result;
+static ldb_word_t
+ldb_atomic__load(volatile ldb_word_t *object) {
+  ldb_word_t result;
   __fence();
   result = *object;
   __isync();
@@ -492,37 +511,37 @@ ldb_atomic__load_ptr(void *volatile *object) {
 #define ldb_atomic_load_ptr(object, order) \
   ldb_atomic__load_ptr((void *volatile *)(object))
 
-static int
-ldb_atomic_exchange(volatile int *object, int desired) {
-  int old;
+static ldb_word_t
+ldb_atomic_exchange(volatile ldb_word_t *object, ldb_word_t desired) {
+  ldb_word_t old;
   __sync();
   do {
-    old = __lwarx(object)
-  } while (__stwcx(object, desired) == 0);
+    old = ldb_load_word(object)
+  } while (ldb_store_word(object, desired) == 0);
   __isync();
   return old;
 }
 
-static int
-ldb_atomic_compare_exchange(volatile int *object,
-                            int expected,
-                            int desired) {
-  int old;
+static ldb_word_t
+ldb_atomic_compare_exchange(volatile ldb_word_t *object,
+                            ldb_word_t expected,
+                            ldb_word_t desired) {
+  ldb_word_t old;
   __sync();
   do {
-    old = __lwarx(object);
-  } while (__stwcx(object, old == expected ? desired : old) == 0);
+    old = ldb_load_word(object);
+  } while (ldb_store_word(object, old == expected ? desired : old) == 0);
   __isync();
   return old;
 }
 
-static int
-ldb_atomic__fetch_add(volatile int *object, int operand) {
-  int old;
+static ldb_word_t
+ldb_atomic__fetch_add(volatile ldb_word_t *object, ldb_word_t operand) {
+  ldb_word_t old;
   __sync();
   do {
-    old = __lwarx(object);
-  } while (__stwcx(object, old + operand) == 0);
+    old = ldb_load_word(object);
+  } while (ldb_store_word(object, old + operand) == 0);
   __isync();
   return old;
 }
@@ -531,7 +550,10 @@ ldb_atomic__fetch_add(volatile int *object, int operand) {
   ldb_atomic__fetch_add(object, operand)
 
 #define ldb_atomic_fetch_sub(object, operand, order) \
-  ldb_atomic__fetch_add(object, -(int)(operand))
+  ldb_atomic__fetch_add(object, -(ldb_word_t)(operand))
+
+#undef ldb_load_word
+#undef ldb_store_word
 
 #elif defined(LDB_MSVC_ATOMICS)
 
@@ -540,27 +562,27 @@ ldb_atomic__fetch_add(volatile int *object, int operand) {
  */
 
 void
-ldb_atomic__store(volatile long *object, long desired);
+ldb_atomic__store(volatile ldb_word_t *object, ldb_word_t desired);
 
 void
 ldb_atomic__store_ptr(void *volatile *object, void *desired);
 
-long
-ldb_atomic__load(volatile long *object);
+ldb_word_t
+ldb_atomic__load(volatile ldb_word_t *object);
 
 void *
 ldb_atomic__load_ptr(void *volatile *object);
 
-long
-ldb_atomic__exchange(volatile long *object, long desired);
+ldb_word_t
+ldb_atomic__exchange(volatile ldb_word_t *object, ldb_word_t desired);
 
-long
-ldb_atomic__compare_exchange(volatile long *object,
-                             long expected,
-                             long desired);
+ldb_word_t
+ldb_atomic__compare_exchange(volatile ldb_word_t *object,
+                             ldb_word_t expected,
+                             ldb_word_t desired);
 
-long
-ldb_atomic__fetch_add(volatile long *object, long operand);
+ldb_word_t
+ldb_atomic__fetch_add(volatile ldb_word_t *object, ldb_word_t operand);
 
 #define ldb_atomic_store(object, desired, order) \
   ldb_atomic__store(object, desired)
@@ -569,7 +591,7 @@ ldb_atomic__fetch_add(volatile long *object, long operand);
   ldb_atomic__store_ptr((void *volatile *)(object), (void *)(desired))
 
 #define ldb_atomic_load(object, order) \
-  ldb_atomic__load((volatile long *)(object))
+  ldb_atomic__load((volatile ldb_word_t *)(object))
 
 #define ldb_atomic_load_ptr(object, order) \
   ldb_atomic__load_ptr((void *volatile *)(object))
@@ -581,7 +603,7 @@ ldb_atomic__fetch_add(volatile long *object, long operand);
   ldb_atomic__fetch_add(object, operand)
 
 #define ldb_atomic_fetch_sub(object, operand, order) \
-  ldb_atomic__fetch_add(object, -(long)(operand))
+  ldb_atomic__fetch_add(object, -(ldb_word_t)(operand))
 
 #else /* !LDB_MSVC_ATOMICS */
 

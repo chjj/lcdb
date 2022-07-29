@@ -49,11 +49,41 @@
 #endif
 
 /*
+ * 64-bit Functions
+ */
+
+#ifdef _WIN64
+
+#define LDBInterlockedExchange64(object, desired)                         \
+  ((signed __int64)InterlockedExchangePointer((void *volatile *)(object), \
+                                              (void *)(desired)))
+
+#define LDBInterlockedCompareExchange64(object, desired, expected)        \
+  ((signed __int64)InterlockedExchangePointer((void *volatile *)(object), \
+                                              (void *)(desired),          \
+                                              (void *)(expected)))
+
+static signed __int64
+LDBInterlockedExchangeAdd64(volatile signed __int64 *object,
+                            signed __int64 operand) {
+  signed __int64 cur = ldb_atomic__load(object);
+  signed __int64 old, val;
+  do {
+    old = cur;
+    val = old + operand;
+    cur = LDBInterlockedCompareExchange64(object, val, old);
+  } while (cur != old);
+  return old;
+}
+
+#endif /* _WIN64 */
+
+/*
  * Backend
  */
 
 void
-ldb_atomic__store(volatile long *object, long desired) {
+ldb_atomic__store(volatile ldb_word_t *object, ldb_word_t desired) {
 #ifdef HAVE_VOLATILE_MS
   *object = desired;
 #else
@@ -73,8 +103,8 @@ ldb_atomic__store_ptr(void *volatile *object, void *desired) {
 #endif
 }
 
-long
-ldb_atomic__load(volatile long *object) {
+ldb_word_t
+ldb_atomic__load(volatile ldb_word_t *object) {
 #ifdef HAVE_VOLATILE_MS
   return *object;
 #else
@@ -94,24 +124,26 @@ ldb_atomic__load_ptr(void *volatile *object) {
 #endif
 }
 
-long
-ldb_atomic__exchange(volatile long *object, long desired) {
+ldb_word_t
+ldb_atomic__exchange(volatile ldb_word_t *object, ldb_word_t desired) {
 #ifdef USE_INLINE_ASM
   __asm {
     mov ecx, object
     mov eax, desired
     xchg [ecx], eax
   }
+#elif defined(_WIN64)
+  return LDBInterlockedExchange64(object, desired);
 #else
   /* Windows 95 and above. */
   return InterlockedExchange(object, desired);
 #endif
 }
 
-long
-ldb_atomic__compare_exchange(volatile long *object,
-                             long expected,
-                             long desired) {
+ldb_word_t
+ldb_atomic__compare_exchange(volatile ldb_word_t *object,
+                             ldb_word_t expected,
+                             ldb_word_t desired) {
 #ifdef USE_INLINE_ASM
   __asm {
     mov ecx, object
@@ -119,20 +151,24 @@ ldb_atomic__compare_exchange(volatile long *object,
     mov edx, desired
     lock cmpxchg [ecx], edx
   }
+#elif defined(_WIN64)
+  return LDBInterlockedCompareExchange64(object, desired, expected);
 #else
   /* Windows 98 and above. */
   return InterlockedCompareExchange(object, desired, expected);
 #endif
 }
 
-long
-ldb_atomic__fetch_add(volatile long *object, long operand) {
+ldb_word_t
+ldb_atomic__fetch_add(volatile ldb_word_t *object, ldb_word_t operand) {
 #ifdef USE_INLINE_ASM
   __asm {
     mov ecx, object
     mov eax, operand
     lock xadd [ecx], eax
   }
+#elif defined(_WIN64)
+  return LDBInterlockedExchangeAdd64(object, operand);
 #else
   /* Windows 98 and above. */
   return InterlockedExchangeAdd(object, operand);
