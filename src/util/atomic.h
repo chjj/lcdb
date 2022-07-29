@@ -74,6 +74,8 @@
 #  if defined(__SUNPRO_C) && __SUNPRO_C >= 0x5110 /* 12.2 */
 #    define LDB_SUN_ATOMICS
 #  endif
+#elif defined(_AIX) && defined(__IBMC__) && __IBMC__ >= 800
+#  define LDB_AIX_ATOMICS
 #elif defined(__chibicc__)
 #  define LDB_CHIBICC_ATOMICS
 #endif
@@ -81,6 +83,7 @@
 #if (defined(LDB_GNUC_ATOMICS)     \
   || defined(LDB_SYNC_ATOMICS)     \
   || defined(LDB_SUN_ATOMICS)      \
+  || defined(LDB_AIX_ATOMICS)      \
   || defined(LDB_ASM_ATOMICS)      \
   || defined(LDB_TINYC_ATOMICS)    \
   || defined(LDB_CHIBICC_ATOMICS))
@@ -88,17 +91,28 @@
 #elif defined(_WIN32)
 #  define LDB_MSVC_ATOMICS
 #  define LDB_HAVE_ATOMICS
+#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+#  if !defined(__cplusplus) && !defined(__STDC_NO_ATOMICS__)
+#    define LDB_STD_ATOMICS
+#    define LDB_HAVE_ATOMICS
+#  endif
 #endif
 
 /*
  * Backend Selection
  */
 
-#if defined(LDB_GNUC_ATOMICS) || defined(LDB_SYNC_ATOMICS)
+#if defined(LDB_STD_ATOMICS)
+#  define ldb_atomic(type) _Atomic(long)
+#  define ldb_atomic_ptr(type) _Atomic(type *)
+#elif defined(LDB_GNUC_ATOMICS) || defined(LDB_SYNC_ATOMICS)
 #  define ldb_atomic(type) volatile type
 #  define ldb_atomic_ptr(type) type *volatile
 #elif defined(LDB_SUN_ATOMICS) || defined(LDB_MSVC_ATOMICS)
 #  define ldb_atomic(type) volatile long
+#  define ldb_atomic_ptr(type) void *volatile
+#elif defined(LDB_AIX_ATOMICS)
+#  define ldb_atomic(type) volatile int
 #  define ldb_atomic_ptr(type) void *volatile
 #elif defined(LDB_ASM_ATOMICS)
 #  define ldb_atomic(type) volatile long
@@ -115,47 +129,72 @@
  * Memory Order
  */
 
-#if defined(__ATOMIC_RELAXED)
+#if defined(LDB_STD_ATOMICS)
+#  define ldb_order_relaxed memory_order_relaxed
+#  define ldb_order_consume memory_order_consume
+#  define ldb_order_acquire memory_order_acquire
+#  define ldb_order_release memory_order_release
+#  define ldb_order_acq_rel memory_order_acq_rel
+#  define ldb_order_seq_cst memory_order_seq_cst
+#elif defined(__ATOMIC_RELAXED)
 #  define ldb_order_relaxed __ATOMIC_RELAXED
-#else
-#  define ldb_order_relaxed 0
-#endif
-
-#if defined(__ATOMIC_CONSUME)
 #  define ldb_order_consume __ATOMIC_CONSUME
-#else
-#  define ldb_order_consume 1
-#endif
-
-#if defined(__ATOMIC_ACQUIRE)
 #  define ldb_order_acquire __ATOMIC_ACQUIRE
-#else
-#  define ldb_order_acquire 2
-#endif
-
-#if defined(__ATOMIC_RELEASE)
 #  define ldb_order_release __ATOMIC_RELEASE
-#else
-#  define ldb_order_release 3
-#endif
-
-#if defined(__ATOMIC_ACQ_REL)
 #  define ldb_order_acq_rel __ATOMIC_ACQ_REL
-#else
-#  define ldb_order_acq_rel 4
-#endif
-
-#if defined(__ATOMIC_SEQ_CST)
 #  define ldb_order_seq_cst __ATOMIC_SEQ_CST
 #else
+#  define ldb_order_relaxed 0
+#  define ldb_order_consume 1
+#  define ldb_order_acquire 2
+#  define ldb_order_release 3
+#  define ldb_order_acq_rel 4
 #  define ldb_order_seq_cst 5
+#endif
+
+/*
+ * Initialization
+ */
+
+#ifdef LDB_STD_ATOMICS
+#  define ldb_atomic_init atomic_init
+#  define ldb_atomic_init_ptr atomic_init
+#else
+#  define ldb_atomic_init(object, desired) \
+    ldb_atomic_store(object, desired, ldb_order_relaxed)
+#  define ldb_atomic_init_ptr ldb_atomic_init
 #endif
 
 /*
  * Builtins
  */
 
-#if defined(LDB_GNUC_ATOMICS)
+#if defined(LDB_STD_ATOMICS)
+
+/*
+ * Standard Atomics
+ */
+
+#include <stdatomic.h>
+
+#define ldb_atomic_exchange atomic_exchange
+
+LDB_STATIC long
+ldb_atomic_compare_exchange(_Atomic(long) *object,
+                            long expected,
+                            long desired) {
+  atomic_compare_exchange_strong(object, &expected, desired);
+  return expected;
+}
+
+#define ldb_atomic_fetch_add atomic_fetch_add_explicit
+#define ldb_atomic_fetch_sub atomic_fetch_sub_explicit
+#define ldb_atomic_load atomic_load_explicit
+#define ldb_atomic_store atomic_store_explicit
+#define ldb_atomic_load_ptr atomic_load_explicit
+#define ldb_atomic_store_ptr atomic_store_explicit
+
+#elif defined(LDB_GNUC_ATOMICS)
 
 /*
  * GNU Atomics
@@ -280,6 +319,76 @@ ldb_atomic__load_ptr(void *volatile *object) {
 
 #define ldb_atomic_load_ptr(object, order) \
   ldb_atomic__load_ptr((void *volatile *)(object))
+
+#define ldb_atomic_store_ptr ldb_atomic_store
+
+#elif defined(LDB_AIX_ATOMICS)
+
+/*
+ * AIX Atomics
+ */
+
+static int
+ldb_atomic_exchange(volatile int *object, int desired) {
+  int old;
+  __sync();
+  do {
+    old = __lwarx(object)
+  } while (__stwcx(object, desired) == 0);
+  __isync();
+  return old;
+}
+
+static int
+ldb_atomic_compare_exchange(volatile int *object,
+                            int expected,
+                            int desired) {
+  int old;
+  __sync();
+  do {
+    old = __lwarx(object);
+  } while (__stwcx(object, old == expected ? desired : old) == 0);
+  __isync();
+  return old;
+}
+
+static int
+ldb_atomic_fetch_add(volatile int *object, int operand, int order) {
+  int old;
+  __sync();
+  do {
+    old = __lwarx(object);
+  } while (__stwcx(object, old + operand) == 0);
+  __isync();
+  return old;
+}
+
+#define ldb_atomic_fetch_sub(object, operand, order) \
+  ldb_atomic_fetch_add(object, -(int)(operand))
+
+static int
+ldb_atomic_load(const volatile int *object, int order) {
+  int result;
+  __fence();
+  result = *object;
+  __isync();
+  return result;
+}
+
+#define ldb_atomic_store(object, desired, order) do { \
+  __lwsync();                                         \
+  *(object) = (desired);                              \
+  __fence();                                          \
+} while (0)
+
+static void *
+ldb_atomic_load_ptr(const void *volatile *object, int order) {
+  void *result;
+  __fence();
+  result = *object;
+  __isync();
+  return result;
+}
 
 #define ldb_atomic_store_ptr ldb_atomic_store
 
