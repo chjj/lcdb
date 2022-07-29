@@ -123,7 +123,8 @@ ldb_skiplist_init(ldb_skiplist_t *list,
   list->comparator = cmp;
   list->arena = arena;
   list->head = ldb_skipnode_create(list, NULL, LDB_MAX_HEIGHT);
-  list->max_height = 1;
+
+  ldb_atomic_init(&list->max_height, 1);
 
   ldb_rand_init(&list->rnd, 0xdeadbeef);
 

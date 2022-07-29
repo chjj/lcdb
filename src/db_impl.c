@@ -478,13 +478,15 @@ ldb_create(const char *dbname, const ldb_dbopt_t *options) {
 
   ldb_mutex_init(&db->mutex);
 
-  db->shutting_down = 0;
+  ldb_atomic_init(&db->shutting_down, 0);
 
   ldb_cond_init(&db->background_work_finished_signal);
 
   db->mem = NULL;
   db->imm = NULL;
-  db->has_imm = 0;
+
+  ldb_atomic_init(&db->has_imm, 0);
+
   db->logfile = NULL;
   db->logfile_number = 0;
   db->log = NULL;

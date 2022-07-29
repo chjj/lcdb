@@ -552,7 +552,7 @@ bench_init(bench_t *bench) {
   bench->write_options = *ldb_writeopt_default;
   bench->reads = FLAGS_reads < 0 ? FLAGS_num : FLAGS_reads;
   bench->heap_counter = 0;
-  bench->count_state.count = 0;
+  ldb_atomic_init(&bench->count_state.count, 0);
   count_comparator_init(&bench->count_comparator, &bench->count_state);
   bench->total_thread_count = 0;
 

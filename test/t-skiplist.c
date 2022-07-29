@@ -520,7 +520,9 @@ tstate_init(tstate_t *t, int seed) {
   ctest_init(&t->test);
 
   t->seed = seed;
-  t->quit_flag = 0;
+
+  ldb_atomic_init(&t->quit_flag, 0);
+
   t->state = STATE_STARTING;
 
   ldb_mutex_init(&t->mu);

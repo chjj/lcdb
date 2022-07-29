@@ -44,7 +44,9 @@ static void
 test_atomics(void) {
   /* Exchange */
   {
-    ldb_atomic(int) x = 0;
+    ldb_atomic(int) x;
+
+    ldb_atomic_init(&x, 0);
 
     ASSERT(ldb_atomic_exchange(&x, 3) == 0);
     ASSERT(ldb_atomic_exchange(&x, 101) == 3);
@@ -53,7 +55,9 @@ test_atomics(void) {
 
   /* Compare+Exchange */
   {
-    ldb_atomic(int) x = 0;
+    ldb_atomic(int) x;
+
+    ldb_atomic_init(&x, 0);
 
     ASSERT(ldb_atomic_compare_exchange(&x, 1, 3) == 0);
     ASSERT(ldb_atomic_load(&x, ldb_order_seq_cst) == 0);
@@ -65,7 +69,9 @@ test_atomics(void) {
 
   /* Add/Subtract */
   {
-    ldb_atomic(int) x = 0;
+    ldb_atomic(int) x;
+
+    ldb_atomic_init(&x, 0);
 
     ASSERT(ldb_atomic_fetch_add(&x, 1, ldb_order_seq_cst) == 0);
     ASSERT(ldb_atomic_fetch_add(&x, 1, ldb_order_seq_cst) == 1);
@@ -77,7 +83,7 @@ test_atomics(void) {
 
   /* Load/Store */
   {
-    ldb_atomic(int) x = 0;
+    ldb_atomic(int) x;
 
     ldb_atomic_store(&x, 1, ldb_order_seq_cst);
     ASSERT(ldb_atomic_load(&x, ldb_order_seq_cst) == 1);
@@ -87,7 +93,7 @@ test_atomics(void) {
 
   /* Load/Store (pointer) */
   {
-    ldb_atomic_ptr(int) x = NULL;
+    ldb_atomic_ptr(int) x;
     int y = 0, z = 0;
 
     ldb_atomic_store_ptr(&x, &y, ldb_order_seq_cst);

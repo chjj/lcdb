@@ -148,7 +148,8 @@ static void
 ldb_limiter_init(ldb_limiter_t *lim, int max_acquires) {
   assert(max_acquires >= 0);
 
-  lim->acquires_allowed = max_acquires;
+  ldb_atomic_init(&lim->acquires_allowed, max_acquires);
+
   lim->max_acquires = max_acquires;
 }
 

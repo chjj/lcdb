@@ -51,7 +51,7 @@ ldb_mutex_tryinit(ldb_mutex_t *mtx) {
 
 void
 ldb_mutex_init(ldb_mutex_t *mtx) {
-  mtx->state = 2;
+  ldb_atomic_init(&mtx->state, 2);
   InitializeCriticalSection(&mtx->handle);
 }
 
