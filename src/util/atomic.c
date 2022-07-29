@@ -52,6 +52,48 @@
  * Backend
  */
 
+void
+ldb_atomic__store(volatile long *object, long desired) {
+#ifdef HAVE_VOLATILE_MS
+  *object = desired;
+#else
+  (void)ldb_atomic__exchange(object, desired);
+#endif
+}
+
+void
+ldb_atomic__store_ptr(void *volatile *object, void *desired) {
+#if defined(HAVE_VOLATILE_MS)
+  *object = desired;
+#elif defined(_WIN64)
+  /* Windows XP and above. */
+  (void)InterlockedExchangePointer(object, desired);
+#else
+  (void)ldb_atomic__exchange((volatile long *)object, (long)desired);
+#endif
+}
+
+long
+ldb_atomic__load(volatile long *object) {
+#ifdef HAVE_VOLATILE_MS
+  return *object;
+#else
+  return ldb_atomic__compare_exchange(object, 0, 0);
+#endif
+}
+
+void *
+ldb_atomic__load_ptr(void *volatile *object) {
+#if defined(HAVE_VOLATILE_MS)
+  return *object;
+#elif defined(_WIN64)
+  /* Windows XP and above. */
+  return InterlockedCompareExchangePointer(object, NULL, NULL);
+#else
+  return (void *)ldb_atomic__compare_exchange((volatile long *)object, 0, 0);
+#endif
+}
+
 long
 ldb_atomic__exchange(volatile long *object, long desired) {
 #ifdef USE_INLINE_ASM
@@ -97,48 +139,6 @@ ldb_atomic__fetch_add(volatile long *object, long operand) {
 #endif
 }
 
-long
-ldb_atomic__load(volatile long *object) {
-#ifdef HAVE_VOLATILE_MS
-  return *object;
-#else
-  return ldb_atomic__compare_exchange(object, 0, 0);
-#endif
-}
-
-void
-ldb_atomic__store(volatile long *object, long desired) {
-#ifdef HAVE_VOLATILE_MS
-  *object = desired;
-#else
-  (void)ldb_atomic__exchange(object, desired);
-#endif
-}
-
-void *
-ldb_atomic__load_ptr(void *volatile *object) {
-#if defined(HAVE_VOLATILE_MS)
-  return *object;
-#elif defined(_WIN64)
-  /* Windows XP and above. */
-  return InterlockedCompareExchangePointer(object, NULL, NULL);
-#else
-  return (void *)ldb_atomic__compare_exchange((volatile long *)object, 0, 0);
-#endif
-}
-
-void
-ldb_atomic__store_ptr(void *volatile *object, void *desired) {
-#if defined(HAVE_VOLATILE_MS)
-  *object = desired;
-#elif defined(_WIN64)
-  /* Windows XP and above. */
-  (void)InterlockedExchangePointer(object, desired);
-#else
-  (void)ldb_atomic__exchange((volatile long *)object, (long)desired);
-#endif
-}
-
 #elif defined(LDB_HAVE_ATOMICS)
 
 /*
@@ -171,6 +171,38 @@ static ldb_mutex_t ldb_atomic_lock = LDB_MUTEX_INITIALIZER;
  * Backend
  */
 
+void
+ldb_atomic__store(long *object, long desired) {
+  ldb_mutex_lock(&ldb_atomic_lock);
+  *object = desired;
+  ldb_mutex_unlock(&ldb_atomic_lock);
+}
+
+void
+ldb_atomic__store_ptr(void **object, void *desired) {
+  ldb_mutex_lock(&ldb_atomic_lock);
+  *object = desired;
+  ldb_mutex_unlock(&ldb_atomic_lock);
+}
+
+long
+ldb_atomic__load(long *object) {
+  long result;
+  ldb_mutex_lock(&ldb_atomic_lock);
+  result = *object;
+  ldb_mutex_unlock(&ldb_atomic_lock);
+  return result;
+}
+
+void *
+ldb_atomic__load_ptr(void **object) {
+  void *result;
+  ldb_mutex_lock(&ldb_atomic_lock);
+  result = *object;
+  ldb_mutex_unlock(&ldb_atomic_lock);
+  return result;
+}
+
 long
 ldb_atomic__exchange(long *object, long desired) {
   long result;
@@ -200,38 +232,6 @@ ldb_atomic__fetch_add(long *object, long operand) {
   *object += operand;
   ldb_mutex_unlock(&ldb_atomic_lock);
   return result;
-}
-
-long
-ldb_atomic__load(long *object) {
-  long result;
-  ldb_mutex_lock(&ldb_atomic_lock);
-  result = *object;
-  ldb_mutex_unlock(&ldb_atomic_lock);
-  return result;
-}
-
-void
-ldb_atomic__store(long *object, long desired) {
-  ldb_mutex_lock(&ldb_atomic_lock);
-  *object = desired;
-  ldb_mutex_unlock(&ldb_atomic_lock);
-}
-
-void *
-ldb_atomic__load_ptr(void **object) {
-  void *result;
-  ldb_mutex_lock(&ldb_atomic_lock);
-  result = *object;
-  ldb_mutex_unlock(&ldb_atomic_lock);
-  return result;
-}
-
-void
-ldb_atomic__store_ptr(void **object, void *desired) {
-  ldb_mutex_lock(&ldb_atomic_lock);
-  *object = desired;
-  ldb_mutex_unlock(&ldb_atomic_lock);
 }
 
 #endif /* !LDB_HAVE_ATOMICS */
