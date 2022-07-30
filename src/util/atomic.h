@@ -70,14 +70,16 @@
 #  if defined(__i386__) || defined(__x86_64__)
 #    define LDB_ASM_ATOMICS
 #  endif
+#elif defined(__chibicc__)
+#  define LDB_CHIBICC_ATOMICS
 #elif defined(__sun) && defined(__SVR4)
 #  if defined(__SUNPRO_C) && __SUNPRO_C >= 0x5110 /* 12.2 */
 #    define LDB_SUN_ATOMICS
 #  endif
-#elif defined(_AIX) && defined(__IBMC__) && __IBMC__ >= 800
-#  define LDB_AIX_ATOMICS
-#elif defined(__chibicc__)
-#  define LDB_CHIBICC_ATOMICS
+#elif defined(_AIX)
+#  if defined(__IBMC__) && __IBMC__ >= 800 /* 8.0 */
+#    define LDB_AIX_ATOMICS
+#  endif
 #endif
 
 #if (defined(LDB_GNUC_ATOMICS)    \
@@ -92,7 +94,7 @@
 #  define LDB_MSVC_ATOMICS
 #  define LDB_HAVE_ATOMICS
 #elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
-#  if !defined(__cplusplus) && !defined(__STDC_NO_ATOMICS__)
+#  ifndef __STDC_NO_ATOMICS__
 #    define LDB_STD_ATOMICS
 #    define LDB_HAVE_ATOMICS
 #  endif
@@ -401,10 +403,10 @@ ldb_atomic__fetch_add(volatile ldb_word_t *object, ldb_word_t operand) {
 })
 
 #define ldb_atomic_fetch_add(object, operand, order) \
-  (((*(object)) += (long)(operand)) - (long)(operand))
+  ((*(object) += (long)(operand)) - (long)(operand))
 
 #define ldb_atomic_fetch_sub(object, operand, order) \
-  (((*(object)) -= (long)(operand)) + (long)(operand))
+  ((*(object) -= (long)(operand)) + (long)(operand))
 
 #elif defined(LDB_SUN_ATOMICS)
 

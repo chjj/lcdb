@@ -46,9 +46,9 @@
 #endif
 
 #if defined(LDB_HAVE_INTRIN) && defined(_M_ARM)
-#  if _MSC_FULL_VER < 170040825
+#  if _MSC_FULL_VER < 170040825 /* 17.00.40825.01 */
 #    pragma intrinsic(__emit)
-#    define __dmb(x) do { __emit(0xF3BF); __emit(0x8F5F); } while (0)
+#    define __dmb(x) __emit(0xf3bf); __emit(0x8f5f)
 #  else
 #    pragma intrinsic(__dmb)
 #  endif
