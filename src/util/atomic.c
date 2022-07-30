@@ -47,6 +47,7 @@
 
 #if defined(LDB_HAVE_INTRIN) && defined(_M_ARM)
 #  if _MSC_FULL_VER < 170040825
+#    pragma intrinsic(__emit)
 #    define __dmb(x) do { __emit(0xF3BF); __emit(0x8F5F); } while (0)
 #  else
 #    pragma intrinsic(__dmb)
