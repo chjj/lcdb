@@ -147,16 +147,16 @@ ldb_atomic__load_ptr(void *volatile *object) {
 
 ldb_word_t
 ldb_atomic__exchange(volatile ldb_word_t *object, ldb_word_t desired) {
-#if defined(USE_INLINE_ASM)
+#if defined(USE_INTRIN) && defined(_WIN64)
+  return _InterlockedExchange64(object, desired);
+#elif defined(USE_INTRIN)
+  return _InterlockedExchange(object, desired);
+#elif defined(USE_INLINE_ASM)
   __asm {
     mov ecx, object
     mov eax, desired
     xchg [ecx], eax
   }
-#elif defined(USE_INTRIN) && defined(_WIN64)
-  return _InterlockedExchange64(object, desired);
-#elif defined(USE_INTRIN)
-  return _InterlockedExchange(object, desired);
 #else
   /* Windows 95 and above. */
   return InterlockedExchange(object, desired);
@@ -167,17 +167,17 @@ ldb_word_t
 ldb_atomic__compare_exchange(volatile ldb_word_t *object,
                              ldb_word_t expected,
                              ldb_word_t desired) {
-#if defined(USE_INLINE_ASM)
+#if defined(USE_INTRIN) && defined(_WIN64)
+  return _InterlockedCompareExchange64(object, desired, expected);
+#elif defined(USE_INTRIN)
+  return _InterlockedCompareExchange(object, desired, expected);
+#elif defined(USE_INLINE_ASM)
   __asm {
     mov ecx, object
     mov eax, expected
     mov edx, desired
     lock cmpxchg [ecx], edx
   }
-#elif defined(USE_INTRIN) && defined(_WIN64)
-  return _InterlockedCompareExchange64(object, desired, expected);
-#elif defined(USE_INTRIN)
-  return _InterlockedCompareExchange(object, desired, expected);
 #else
   /* Windows 98 and above. */
   return InterlockedCompareExchange(object, desired, expected);
@@ -186,16 +186,16 @@ ldb_atomic__compare_exchange(volatile ldb_word_t *object,
 
 ldb_word_t
 ldb_atomic__fetch_add(volatile ldb_word_t *object, ldb_word_t operand) {
-#if defined(USE_INLINE_ASM)
+#if defined(USE_INTRIN) && defined(_WIN64)
+  return _InterlockedExchangeAdd64(object, operand);
+#elif defined(USE_INTRIN)
+  return _InterlockedExchangeAdd(object, operand);
+#elif defined(USE_INLINE_ASM)
   __asm {
     mov ecx, object
     mov eax, operand
     lock xadd [ecx], eax
   }
-#elif defined(USE_INTRIN) && defined(_WIN64)
-  return _InterlockedExchangeAdd64(object, operand);
-#elif defined(USE_INTRIN)
-  return _InterlockedExchangeAdd(object, operand);
 #else
   /* Windows 98 and above. */
   return InterlockedExchangeAdd(object, operand);
