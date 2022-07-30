@@ -46,8 +46,28 @@
 #endif
 
 #if defined(LDB_HAVE_INTRIN) && defined(_M_ARM)
-#  if _MSC_FULL_VER < 170040825 && !defined(__dmb)
+#  if _MSC_FULL_VER < 170040825
 #    define __dmb(x) do { __emit(0xF3BF); __emit(0x8F5F); } while (0)
+#  else
+#    pragma intrinsic(__dmb)
+#  endif
+#endif
+
+#ifdef LDB_HAVE_INTRIN
+#  pragma intrinsic(_ReadWriteBarrier)
+#  pragma intrinsic(_InterlockedExchange)
+#  pragma intrinsic(_InterlockedCompareExchange)
+#  pragma intrinsic(_InterlockedExchangeAdd)
+#  ifdef _WIN64
+#    pragma intrinsic(_InterlockedExchange64)
+#    pragma intrinsic(_InterlockedExchangePointer)
+#    pragma intrinsic(_InterlockedCompareExchange64)
+#    pragma intrinsic(_InterlockedCompareExchangePointer)
+#    pragma intrinsic(_InterlockedExchangeAdd64)
+#  endif
+#  ifdef _M_ARM64
+#    pragma intrinsic(__stlr64)
+#    pragma intrinsic(__ldar64)
 #  endif
 #endif
 
