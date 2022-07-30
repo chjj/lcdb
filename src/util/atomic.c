@@ -16,7 +16,11 @@
  * MSVC Atomics
  */
 
-#include <windows.h>
+#ifdef LDB_INTRIN64
+#  include <intrin.h>
+#else
+#  include <windows.h>
+#endif
 
 /*
  * Compat
@@ -25,56 +29,16 @@
 #undef USE_INLINE_ASM
 #undef HAVE_VOLATILE_MS
 
-/* With regards to the USE_INLINE_ASM check: we want to
- * make sure we're not targeting Windows 95. Unfortunately,
- * some nerds[1] figured out how to get VS 2008 working
- * for Windows 95.
- *
- * This means we have to check for VS 2010 to be absolutely
- * sure we're not targeting Windows 95.
- *
- * [1] https://msfn.org/board/topic/112283-visual-studio-2008-and-windows-9x/
- */
 #if defined(_MSC_VER) && !defined(__clang__)        \
                       && !defined(__INTEL_COMPILER) \
                       && !defined(__ICL)
-#  if defined(_M_IX86) && _MSC_VER < 1600 /* VS 2010 */
+#  if defined(_M_IX86) && _MSC_VER < 1400 /* VS 2005 */
 #    define USE_INLINE_ASM
 #  endif
 #  if (defined(_M_IX86) || defined(_M_X64)) && _MSC_VER >= 1400 /* VS 2005 */
 #    define HAVE_VOLATILE_MS /* Assume /volatile:ms. */
 #  endif
 #endif
-
-/*
- * 64-bit Functions
- */
-
-#ifdef _WIN64
-
-#define LDBInterlockedExchange64(obj, desired)                         \
-  ((signed __int64)InterlockedExchangePointer((void *volatile *)(obj), \
-                                              (void *)(desired)))
-
-#define LDBInterlockedCompareExchange64(obj, desired, expected)               \
-  ((signed __int64)InterlockedCompareExchangePointer((void *volatile *)(obj), \
-                                                     (void *)(desired),       \
-                                                     (void *)(expected)))
-
-static __inline signed __int64
-LDBInterlockedExchangeAdd64(volatile signed __int64 *object,
-                            signed __int64 operand) {
-  signed __int64 cur = ldb_atomic__load(object);
-  signed __int64 old, val;
-  do {
-    old = cur;
-    val = old + operand;
-    cur = LDBInterlockedCompareExchange64(object, val, old);
-  } while (cur != old);
-  return old;
-}
-
-#endif /* _WIN64 */
 
 /*
  * Backend
@@ -90,8 +54,8 @@ ldb_atomic__store(volatile ldb_word_t *object, ldb_word_t desired) {
     mov eax, desired
     mov [ecx], eax
   }
-#elif defined(_WIN64)
-  (void)LDBInterlockedExchange64(object, desired);
+#elif defined(LDB_INTRIN64)
+  (void)_InterlockedExchange64(object, desired);
 #else
   /* Windows 95 and above. */
   (void)InterlockedExchange(object, desired);
@@ -108,9 +72,8 @@ ldb_atomic__store_ptr(void *volatile *object, void *desired) {
     mov eax, desired
     mov [ecx], eax
   }
-#elif defined(_WIN64)
-  /* Windows XP and above. */
-  (void)InterlockedExchangePointer(object, desired);
+#elif defined(LDB_INTRIN64)
+  (void)_InterlockedExchangePointer(object, desired);
 #else
   /* Windows 95 and above. */
   (void)InterlockedExchange((volatile long *)object, (long)desired);
@@ -126,8 +89,8 @@ ldb_atomic__load(volatile ldb_word_t *object) {
     mov ecx, object
     mov eax, [ecx]
   }
-#elif defined(_WIN64)
-  return LDBInterlockedCompareExchange64(object, 0, 0);
+#elif defined(LDB_INTRIN64)
+  return _InterlockedCompareExchange64(object, 0, 0);
 #else
   /* Windows 98 and above. */
   return InterlockedCompareExchange(object, 0, 0);
@@ -143,9 +106,8 @@ ldb_atomic__load_ptr(void *volatile *object) {
     mov ecx, object
     mov eax, [ecx]
   }
-#elif defined(_WIN64)
-  /* Windows XP and above. */
-  return InterlockedCompareExchangePointer(object, NULL, NULL);
+#elif defined(LDB_INTRIN64)
+  return _InterlockedCompareExchangePointer(object, NULL, NULL);
 #else
   /* Windows 98 and above. */
   return (void *)InterlockedCompareExchange((volatile long *)object, 0, 0);
@@ -160,8 +122,8 @@ ldb_atomic__exchange(volatile ldb_word_t *object, ldb_word_t desired) {
     mov eax, desired
     xchg [ecx], eax
   }
-#elif defined(_WIN64)
-  return LDBInterlockedExchange64(object, desired);
+#elif defined(LDB_INTRIN64)
+  return _InterlockedExchange64(object, desired);
 #else
   /* Windows 95 and above. */
   return InterlockedExchange(object, desired);
@@ -179,8 +141,8 @@ ldb_atomic__compare_exchange(volatile ldb_word_t *object,
     mov edx, desired
     lock cmpxchg [ecx], edx
   }
-#elif defined(_WIN64)
-  return LDBInterlockedCompareExchange64(object, desired, expected);
+#elif defined(LDB_INTRIN64)
+  return _InterlockedCompareExchange64(object, desired, expected);
 #else
   /* Windows 98 and above. */
   return InterlockedCompareExchange(object, desired, expected);
@@ -195,8 +157,8 @@ ldb_atomic__fetch_add(volatile ldb_word_t *object, ldb_word_t operand) {
     mov eax, operand
     lock xadd [ecx], eax
   }
-#elif defined(_WIN64)
-  return LDBInterlockedExchangeAdd64(object, operand);
+#elif defined(LDB_INTRIN64)
+  return _InterlockedExchangeAdd64(object, operand);
 #else
   /* Windows 98 and above. */
   return InterlockedExchangeAdd(object, operand);

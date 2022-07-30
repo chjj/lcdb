@@ -102,8 +102,11 @@
  * Types
  */
 
-#if defined(_WIN64)
+#if defined(_WIN64) && !defined(LDB_MSVC_ATOMICS)
 typedef signed __int64 ldb_word_t;
+#elif defined(_WIN64) && defined(_MSC_VER) && _MSC_VER >= 1400 /* VS 2005 */
+typedef signed __int64 ldb_word_t;
+#  define LDB_INTRIN64
 #elif defined(LDB_AIX_ATOMICS) && !defined(_ARCH_PPC64)
 typedef int ldb_word_t;
 #else
