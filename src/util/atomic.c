@@ -45,6 +45,12 @@
 #  endif
 #endif
 
+#if defined(LDB_HAVE_INTRIN) && defined(_M_ARM)
+#  if _MSC_FULL_VER < 170040825 && !defined(__dmb)
+#    define __dmb(x) do { __emit(0xF3BF); __emit(0x8F5F); } while (0)
+#  endif
+#endif
+
 /*
  * Backend
  */
@@ -61,6 +67,12 @@ ldb_atomic__store(volatile ldb_word_t *object, ldb_word_t desired) {
     mov eax, desired
     mov [ecx], eax
   }
+#elif defined(USE_INTRIN) && defined(_M_ARM64)
+  __stlr64((volatile unsigned __int64 *)object, desired);
+#elif defined(USE_INTRIN) && defined(_M_ARM)
+  __dmb(11); /* _ARM_BARRIER_ISH */
+  *object = desired;
+  _ReadWriteBarrier();
 #elif defined(USE_INTRIN) && defined(_WIN64)
   (void)_InterlockedExchange64(object, desired);
 #elif defined(USE_INTRIN)
@@ -83,6 +95,12 @@ ldb_atomic__store_ptr(void *volatile *object, void *desired) {
     mov eax, desired
     mov [ecx], eax
   }
+#elif defined(USE_INTRIN) && defined(_M_ARM64)
+  __stlr64((volatile unsigned __int64 *)object, (unsigned __int64)desired);
+#elif defined(USE_INTRIN) && defined(_M_ARM)
+  __dmb(11); /* _ARM_BARRIER_ISH */
+  *object = desired;
+  _ReadWriteBarrier();
 #elif defined(USE_INTRIN) && defined(_WIN64)
   (void)_InterlockedExchangePointer(object, desired);
 #elif defined(USE_INTRIN)
@@ -109,6 +127,14 @@ ldb_atomic__load(volatile ldb_word_t *object) {
     mov ecx, object
     mov eax, [ecx]
   }
+#elif defined(USE_INTRIN) && defined(_M_ARM64)
+  return (signed __int64)__ldar64((volatile unsigned __int64 *)object);
+#elif defined(USE_INTRIN) && defined(_M_ARM)
+  ldb_word_t result;
+  _ReadWriteBarrier();
+  result = *object;
+  __dmb(11); /* _ARM_BARRIER_ISH */
+  return result;
 #elif defined(USE_INTRIN) && defined(_WIN64)
   return _InterlockedCompareExchange64(object, 0, 0);
 #elif defined(USE_INTRIN)
@@ -132,6 +158,14 @@ ldb_atomic__load_ptr(void *volatile *object) {
     mov ecx, object
     mov eax, [ecx]
   }
+#elif defined(USE_INTRIN) && defined(_M_ARM64)
+  return (void *)__ldar64((volatile unsigned __int64 *)object);
+#elif defined(USE_INTRIN) && defined(_M_ARM)
+  void *result;
+  _ReadWriteBarrier();
+  result = *object;
+  __dmb(11); /* _ARM_BARRIER_ISH */
+  return result;
 #elif defined(USE_INTRIN) && defined(_WIN64)
   return _InterlockedCompareExchangePointer(object, NULL, NULL);
 #elif defined(USE_INTRIN)
