@@ -80,6 +80,8 @@
 #  if defined(__IBMC__) && __IBMC__ >= 800 /* 8.0 */
 #    define LDB_AIX_ATOMICS
 #  endif
+#elif defined(__HP_cc) && defined(__ia64)
+#  define LDB_HPUX_ATOMICS
 #endif
 
 #if (defined(LDB_GNUC_ATOMICS)    \
@@ -88,7 +90,8 @@
   || defined(LDB_TINYC_ATOMICS)   \
   || defined(LDB_CHIBICC_ATOMICS) \
   || defined(LDB_SUN_ATOMICS)     \
-  || defined(LDB_AIX_ATOMICS))
+  || defined(LDB_AIX_ATOMICS)     \
+  || defined(LDB_HPUX_ATOMICS))
 #  define LDB_HAVE_ATOMICS
 #elif defined(_WIN32)
 #  define LDB_MSVC_ATOMICS
@@ -131,7 +134,7 @@ typedef long ldb_word_t;
 #elif defined(LDB_CHIBICC_ATOMICS)
 #  define ldb_atomic(type) _Atomic(long)
 #  define ldb_atomic_ptr(type) _Atomic(type *)
-#elif defined(LDB_SUN_ATOMICS)
+#elif defined(LDB_SUN_ATOMICS) || defined(LDB_HPUX_ATOMICS)
 #  define ldb_atomic(type) volatile long
 #  define ldb_atomic_ptr(type) void *volatile
 #else
@@ -560,6 +563,93 @@ ldb_atomic__fetch_add(volatile ldb_word_t *object, ldb_word_t operand) {
 
 #undef ldb_load_word
 #undef ldb_store_word
+
+#elif defined(LDB_HPUX_ATOMICS)
+
+/*
+ * HP-UX Atomics
+ */
+
+#include <limits.h>
+#include <machine/sys/inline.h>
+
+#if ULONG_MAX >> 31 >> 31 >> 1 == 1
+#  define LDB_FASZ_W _FASZ_D
+#  define LDB_SZ_W _SZ_D
+#else
+#  define LDB_FASZ_W _FASZ_W
+#  define LDB_SZ_W _SZ_W
+#endif
+
+#define ldb_compiler_barrier() _Asm_fence(_UP_MEM_FENCE | _DOWN_MEM_FENCE)
+#define ldb_hardware_fence _Asm_mf
+
+#define ldb_atomic_store(object, desired, order) do { \
+  ldb_hardware_fence();                               \
+  *(object) = (desired);                              \
+  ldb_compiler_barrier();                             \
+} while (0)
+
+#define ldb_atomic_store_ptr ldb_atomic_store
+
+static long
+ldb_atomic__load(volatile long *object) {
+  long result;
+  ldb_compiler_barrier();
+  result = *object;
+  ldb_hardware_fence();
+  return result;
+}
+
+#define ldb_atomic_load(object, order) \
+  ldb_atomic__load((volatile long *)(object))
+
+static void *
+ldb_atomic__load_ptr(void *volatile *object) {
+  void *result;
+  ldb_compiler_barrier();
+  result = *object;
+  ldb_hardware_fence();
+  return result;
+}
+
+#define ldb_atomic_load_ptr(object, order) \
+  ldb_atomic__load_ptr((void *volatile *)(object))
+
+#define ldb_exchange(object, desired) (            \
+  _Asm_mf(),                                       \
+  (long)_Asm_xchg(LDB_SZ_W,                        \
+                  object,                          \
+                  (unsigned long)(desired),        \
+                  _LDHINT_NONE,                    \
+                  _UP_MEM_FENCE | _DOWN_MEM_FENCE) \
+)
+
+#define ldb_atomic_compare_exchange(object, expected, desired) ( \
+  _Asm_mov_to_ar(_AREG_CCV,                                      \
+                 (unsigned long)(expected),                      \
+                 _UP_MEM_FENCE | _DOWN_MEM_FENCE),               \
+  _Asm_mf(),                                                     \
+  (long)_Asm_cmpxchg(LDB_SZ_W,                                   \
+                     _SEM_REL,                                   \
+                     object,                                     \
+                     (unsigned long)(desired),                   \
+                     _LDHINT_NONE,                               \
+                     _UP_MEM_FENCE | _DOWN_MEM_FENCE)            \
+)
+
+#define ldb_atomic_fetch_add(object, operand, order) ( \
+  _Asm_mf(),                                           \
+  (long)_Asm_fetchadd(LDB_FASZ_W,                      \
+                      _SEM_REL,                        \
+                      object,                          \
+                      (int)(operand),                  \
+                      _LDHINT_NONE,                    \
+                      _UP_MEM_FENCE | _DOWN_MEM_FENCE) \
+)
+
+#define ldb_atomic_fetch_sub(object, operand, order) \
+  ldb_atomic_fetch_add(object, -(int)(operand), order)
 
 #elif defined(LDB_MSVC_ATOMICS)
 
