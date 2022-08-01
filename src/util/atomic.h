@@ -36,7 +36,9 @@
 #    define LDB_SYNC_ATOMICS
 #  endif
 #elif defined(__CC_ARM)
-/* Unknown. */
+#  if defined(__GNUC__) && __ARMCC_VERSION >= 410000 /* 4.1 */
+#    define LDB_ARMCC_ATOMICS
+#  endif
 #elif defined(__TINYC__)
 #  if (__TINYC__ + 0) > 927 /* 0.9.27 */
 #    define LDB_TINYC_ATOMICS
@@ -98,6 +100,7 @@
   || defined(LDB_ASM_ATOMICS)     \
   || defined(LDB_TINYC_ATOMICS)   \
   || defined(LDB_CHIBICC_ATOMICS) \
+  || defined(LDB_ARMCC_ATOMICS)   \
   || defined(LDB_SUN_ATOMICS)     \
   || defined(LDB_AIX_ATOMICS)     \
   || defined(LDB_HPUX_ATOMICS))
@@ -143,6 +146,10 @@ typedef long ldb_word_t;
 #elif defined(LDB_CHIBICC_ATOMICS)
 #  define ldb_atomic(type) _Atomic(long)
 #  define ldb_atomic_ptr(type) _Atomic(type *)
+#elif defined(LDB_ARMCC_ATOMICS)
+#  include <stdint.h>
+#  define ldb_atomic(type) volatile intptr_t
+#  define ldb_atomic_ptr(type) void *volatile
 #elif defined(LDB_SUN_ATOMICS) || defined(LDB_HPUX_ATOMICS)
 #  define ldb_atomic(type) volatile long
 #  define ldb_atomic_ptr(type) void *volatile
@@ -425,6 +432,43 @@ ldb_atomic__fetch_add(volatile ldb_word_t *object, ldb_word_t operand) {
 
 #define ldb_atomic_fetch_sub(object, operand, order) \
   ((*(object) -= (long)(operand)) + (long)(operand))
+
+#elif defined(LDB_ARMCC_ATOMICS)
+
+/*
+ * ARMCC Atomics
+ * https://developer.arm.com/documentation/dui0491/c/Compiler-specific-Features/GNU-builtin-functions
+ */
+
+#define ldb_atomic_store(object, desired, order) do { \
+  __sync_synchronize();                               \
+  *(object) = (desired);                              \
+  __schedule_barrier();                               \
+} while (0)
+
+#define ldb_atomic_store_ptr ldb_atomic_store
+
+#define ldb_atomic__load(type, object) ({ \
+  type _result;                           \
+  __schedule_barrier();                   \
+  _result = *(object);                    \
+  __sync_synchronize();                   \
+  _result;                                \
+})
+
+#define ldb_atomic_load(object, order) ldb_atomic__load(intptr_t, object)
+#define ldb_atomic_load_ptr(object, order) ldb_atomic__load(void *, object)
+
+#define ldb_atomic_exchange(object, desired) \
+   (__sync_synchronize(), __sync_lock_test_and_set(object, desired))
+
+#define ldb_atomic_compare_exchange __sync_val_compare_and_swap
+
+#define ldb_atomic_fetch_add(object, operand, order) \
+  __sync_fetch_and_add(object, operand)
+
+#define ldb_atomic_fetch_sub(object, operand, order) \
+  __sync_fetch_and_sub(object, operand)
 
 #elif defined(LDB_SUN_ATOMICS)
 
