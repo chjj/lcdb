@@ -79,16 +79,16 @@
 #  endif
 #elif defined(__chibicc__)
 #  define LDB_CHIBICC_ATOMICS
-#elif defined(__SUNPRO_C) && __SUNPRO_C >= 0x5110 /* 12.2 */
-#  if defined(__sun) && defined(__SVR4)
+#elif defined(__sun) && defined(__SVR4)
+#  if defined(__SUNPRO_C) && __SUNPRO_C >= 0x5110 /* 12.2 */
 #    define LDB_SUN_ATOMICS
 #  endif
-#elif defined(__IBMC__) && __IBMC__ >= 800 /* 8.0 */
-#  if defined(_AIX) && defined(__PPC__)
+#elif defined(_AIX) && defined(__PPC__)
+#  if defined(__IBMC__) && __IBMC__ >= 800 /* 8.0 */
 #    define LDB_AIX_ATOMICS
 #  endif
-#elif defined(__HP_cc) && __HP_cc >= 55000 /* A.05.50 */
-#  if defined(__hpux) && defined(__ia64)
+#elif defined(__hpux) && defined(__ia64)
+#  if defined(__HP_cc) && __HP_cc >= 55000 /* A.05.50 */
 #    define LDB_HPUX_ATOMICS
 #  endif
 #endif
