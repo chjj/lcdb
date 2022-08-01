@@ -2,6 +2,9 @@
  * atomic.h - atomics for lcdb
  * Copyright (c) 2022, Christopher Jeffrey (MIT License).
  * https://github.com/chjj/lcdb
+ *
+ * Resources:
+ *   https://www.cl.cam.ac.uk/~pes20/cpp/cpp0xmappings.html
  */
 
 #ifndef LDB_ATOMICS_H
@@ -17,7 +20,7 @@
 
 #if defined(__clang__)
 #  ifdef __has_extension
-#    if __has_extension(c_atomic)
+#    if __has_extension(c_atomic) /* 3.1 */
 #      define LDB_GNUC_ATOMICS
 #    endif
 #  endif
@@ -50,7 +53,11 @@
 #  define LDB_GNUC_ATOMICS
 #elif LDB_GNUC_PREREQ(4, 6) && defined(__arm__)
 #  define LDB_SYNC_ATOMICS
-#elif LDB_GNUC_PREREQ(4, 5) && defined(__BFIN__)
+#elif LDB_GNUC_PREREQ(4, 5) && (defined(__BFIN__) \
+                             || defined(__RX__)   \
+                             || defined(__vax__))
+#  define LDB_SYNC_ATOMICS
+#elif LDB_GNUC_PREREQ(4, 4) && defined(__hppa__)
 #  define LDB_SYNC_ATOMICS
 #elif LDB_GNUC_PREREQ(4, 3) && (defined(__mips__) || defined(__xtensa__))
 #  define LDB_SYNC_ATOMICS
@@ -72,16 +79,18 @@
 #  endif
 #elif defined(__chibicc__)
 #  define LDB_CHIBICC_ATOMICS
-#elif defined(__sun) && defined(__SVR4)
-#  if defined(__SUNPRO_C) && __SUNPRO_C >= 0x5110 /* 12.2 */
+#elif defined(__SUNPRO_C) && __SUNPRO_C >= 0x5110 /* 12.2 */
+#  if defined(__sun) && defined(__SVR4)
 #    define LDB_SUN_ATOMICS
 #  endif
-#elif defined(_AIX)
-#  if defined(__IBMC__) && __IBMC__ >= 800 /* 8.0 */
+#elif defined(__IBMC__) && __IBMC__ >= 800 /* 8.0 */
+#  if defined(_AIX) && defined(__PPC__)
 #    define LDB_AIX_ATOMICS
 #  endif
-#elif defined(__HP_cc) && defined(__ia64)
-#  define LDB_HPUX_ATOMICS
+#elif defined(__HP_cc) && __HP_cc >= 55000 /* A.05.50 */
+#  if defined(__hpux) && defined(__ia64)
+#    define LDB_HPUX_ATOMICS
+#  endif
 #endif
 
 #if (defined(LDB_GNUC_ATOMICS)    \
@@ -113,7 +122,7 @@
 
 #if defined(_WIN64) && (defined(LDB_HAVE_INTRIN) || !defined(LDB_MSVC_ATOMICS))
 typedef signed __int64 ldb_word_t;
-#elif defined(LDB_AIX_ATOMICS) && !defined(_ARCH_PPC64)
+#elif defined(LDB_AIX_ATOMICS) && !defined(__64BIT__)
 typedef int ldb_word_t;
 #else
 typedef long ldb_word_t;
@@ -191,6 +200,7 @@ typedef long ldb_word_t;
 
 /*
  * Standard Atomics
+ * https://en.cppreference.com/w/c/atomic
  */
 
 #include <stdatomic.h>
@@ -216,6 +226,7 @@ ldb_atomic_compare_exchange(_Atomic(intptr_t) *object,
 
 /*
  * GNU Atomics
+ * https://gcc.gnu.org/onlinedocs/gcc/_005f_005fatomic-Builtins.html
  */
 
 #define ldb_atomic_store __atomic_store_n
@@ -240,6 +251,7 @@ __extension__ ({                                                \
 
 /*
  * Sync Atomics
+ * https://gcc.gnu.org/onlinedocs/gcc/_005f_005fsync-Builtins.html
  */
 
 #define ldb_compiler_barrier() __asm__ __volatile__ ("" ::: "memory")
@@ -287,6 +299,7 @@ __extension__ ({                                                \
 
 /*
  * ASM Atomics
+ * https://gcc.gnu.org/onlinedocs/gcc/Extended-Asm.html
  */
 
 #define ldb_compiler_barrier() __asm__ __volatile__ ("" ::: "memory")
@@ -368,6 +381,7 @@ ldb_atomic__fetch_add(volatile ldb_word_t *object, ldb_word_t operand) {
 
 /*
  * Tiny Atomics
+ * https://github.com/TinyCC/tinycc/blob/48df89e/include/stdatomic.h
  */
 
 #define ldb_atomic_store __atomic_store
@@ -391,6 +405,7 @@ ldb_atomic__fetch_add(volatile ldb_word_t *object, ldb_word_t operand) {
 
 /*
  * Chibi Atomics
+ * https://github.com/rui314/chibicc/blob/0a5d08c/include/stdatomic.h
  */
 
 #define ldb_atomic_load(object, order) (*(object))
@@ -415,6 +430,8 @@ ldb_atomic__fetch_add(volatile ldb_word_t *object, ldb_word_t operand) {
 
 /*
  * Sun Atomics
+ * https://docs.oracle.com/cd/E88353_01/html/E37855/atomic-ops-9f.html
+ * https://docs.oracle.com/cd/E60778_01/html/E60745/gjzmf.html
  */
 
 #include <atomic.h>
@@ -478,9 +495,10 @@ ldb_atomic__load_ptr(void *volatile *object) {
 
 /*
  * AIX Atomics
+ * https://www.ibm.com/docs/en/xl-c-aix/13.1.3?topic=functions-synchronization-atomic-built-in
  */
 
-#ifdef _ARCH_PPC64
+#ifdef __64BIT__
 #  define ldb_load_word __ldarx
 #  define ldb_store_word __stdcx
 #else
@@ -568,36 +586,52 @@ ldb_atomic__fetch_add(volatile ldb_word_t *object, ldb_word_t operand) {
 
 /*
  * HP-UX Atomics
+ *
+ * References:
+ *
+ *   [ASM] Inline assembly for Itanium-based HP-UX
+ *     Hewlett-Packard Company
+ *     https://web.archive.org/web/20061212162944/
+ *     http://h21007.www2.hp.com/dspp/files/unprotected/Itanium/inline_assem_ERS.pdf
+ *
+ *   [SPIN] Implementing Spinlocks on the Intel Itanium Architecture and PA-RISC
+ *     T. Ekqvist, D. Graves
+ *     https://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.129.5445
+ *
+ *   [HPC] HP C/aC++ for Integrity Servers Software
+ *     Hewlett Packard Enterprise Development LP
+ *     https://support.hpe.com/hpesc/public/docDisplay?docId=emr_na-c02888785-2
  */
 
 #include <limits.h>
 #include <machine/sys/inline.h>
 
 #if ULONG_MAX >> 31 >> 31 >> 1 == 1
-#  define LDB_FASZ_W _FASZ_D
 #  define LDB_SZ_W _SZ_D
 #else
-#  define LDB_FASZ_W _FASZ_W
 #  define LDB_SZ_W _SZ_W
 #endif
 
-#define ldb_compiler_barrier() _Asm_fence(_UP_MEM_FENCE | _DOWN_MEM_FENCE)
-#define ldb_hardware_fence _Asm_mf
+#define LDB_ASM_FENCE ((_Asm_fence)(_UP_MEM_FENCE | _DOWN_MEM_FENCE))
 
-#define ldb_atomic_store(object, desired, order) do { \
-  ldb_hardware_fence();                               \
-  *(object) = (desired);                              \
-  ldb_compiler_barrier();                             \
-} while (0)
+/* GCC generates st.rel and ld.acq instructions.
+ *
+ * HP C A.06.15 adds _Asm_st and _Asm_ld, but I'm
+ * unable to find any documentation on them aside
+ * from some very brief mentions. See [HPC].
+ *
+ * [SPIN] uses _Asm_st_volatile, but who knows
+ * what the _Asm_ld_volatile parameters look like.
+ */
+#define ldb_atomic_store(object, desired, order) \
+  (_Asm_mf(), (*(object) = (desired)))
 
 #define ldb_atomic_store_ptr ldb_atomic_store
 
 static long
 ldb_atomic__load(volatile long *object) {
-  long result;
-  ldb_compiler_barrier();
-  result = *object;
-  ldb_hardware_fence();
+  long result = *object;
+  _Asm_mf();
   return result;
 }
 
@@ -606,50 +640,59 @@ ldb_atomic__load(volatile long *object) {
 
 static void *
 ldb_atomic__load_ptr(void *volatile *object) {
-  void *result;
-  ldb_compiler_barrier();
-  result = *object;
-  ldb_hardware_fence();
+  void *result = *object;
+  _Asm_mf();
   return result;
 }
 
 #define ldb_atomic_load_ptr(object, order) \
   ldb_atomic__load_ptr((void *volatile *)(object))
 
-#define ldb_exchange(object, desired) (            \
-  _Asm_mf(),                                       \
-  (long)_Asm_xchg(LDB_SZ_W,                        \
-                  object,                          \
-                  (unsigned long)(desired),        \
-                  _LDHINT_NONE,                    \
-                  _UP_MEM_FENCE | _DOWN_MEM_FENCE) \
+#define ldb_exchange(object, desired) (         \
+  _Asm_mf(), /* xchg uses acquire semantics. */ \
+  (long)_Asm_xchg(LDB_SZ_W,                     \
+                  (void *)(object),             \
+                  (unsigned long)(desired),     \
+                  _LDHINT_NONE,                 \
+                  LDB_ASM_FENCE)                \
 )
 
+/* We want to mimic GCC, which generates:
+ *
+ *   mov ar.ccv, cmpxchg.rel, mf
+ *
+ * To have it as an expression, we can generate:
+ *
+ *   mov ar.ccv, mf, cmpxchg.acq
+ */
 #define ldb_atomic_compare_exchange(object, expected, desired) ( \
   _Asm_mov_to_ar(_AREG_CCV,                                      \
                  (unsigned long)(expected),                      \
-                 _UP_MEM_FENCE | _DOWN_MEM_FENCE),               \
+                 LDB_ASM_FENCE),                                 \
   _Asm_mf(),                                                     \
   (long)_Asm_cmpxchg(LDB_SZ_W,                                   \
-                     _SEM_REL,                                   \
-                     object,                                     \
+                     _SEM_ACQ,                                   \
+                     (void *)(object),                           \
                      (unsigned long)(desired),                   \
                      _LDHINT_NONE,                               \
-                     _UP_MEM_FENCE | _DOWN_MEM_FENCE)            \
+                     LDB_ASM_FENCE)                              \
 )
 
-#define ldb_atomic_fetch_add(object, operand, order) ( \
-  _Asm_mf(),                                           \
-  (long)_Asm_fetchadd(LDB_FASZ_W,                      \
-                      _SEM_REL,                        \
-                      object,                          \
-                      (int)(operand),                  \
-                      _LDHINT_NONE,                    \
-                      _UP_MEM_FENCE | _DOWN_MEM_FENCE) \
-)
+/* _Asm_fetchadd exists, but only allows immediates. See [ASM]. */
+static long
+ldb_atomic_fetch_add(volatile long *object, long operand, int order) {
+  long cur = ldb_atomic__load(object);
+  long old, val;
+  do {
+    old = cur;
+    val = old + operand;
+    cur = ldb_atomic_compare_exchange(object, old, val);
+  } while (cur != old);
+  return old;
+}
 
 #define ldb_atomic_fetch_sub(object, operand, order) \
-  ldb_atomic_fetch_add(object, -(int)(operand), order)
+  ldb_atomic_fetch_add(object, -(long)(operand), order)
 
 #elif defined(LDB_MSVC_ATOMICS)
 

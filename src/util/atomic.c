@@ -14,6 +14,12 @@
 
 /*
  * MSVC Atomics
+ *
+ * Resources:
+ *   https://docs.microsoft.com/en-us/windows/win32/api/winnt
+ *   https://docs.microsoft.com/en-us/cpp/intrinsics/intrinsics-available-on-all-architectures
+ *   https://docs.microsoft.com/en-us/cpp/intrinsics/arm-intrinsics
+ *   https://docs.microsoft.com/en-us/cpp/intrinsics/arm64-intrinsics
  */
 
 #ifdef LDB_HAVE_INTRIN
