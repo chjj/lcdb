@@ -65,12 +65,14 @@
 #  define LDB_SYNC_ATOMICS
 #elif LDB_GNUC_PREREQ(4, 2) && (defined(__sh__) || defined(__sparc__))
 #  define LDB_SYNC_ATOMICS
-#elif LDB_GNUC_PREREQ(4, 1) && (defined(__alpha__)  \
-                             || defined(__i386__)   \
-                             || defined(__x86_64__) \
-                             || defined(__amd64__)  \
-                             || defined(_IBMR2)     \
-                             || defined(__s390__)   \
+#elif LDB_GNUC_PREREQ(4, 1) && (defined(__alpha__)   \
+                             || defined(__i386__)    \
+                             || defined(__x86_64__)  \
+                             || defined(__amd64__)   \
+                             || defined(__powerpc__) \
+                             || defined(__PPC__)     \
+                             || defined(_IBMR2)      \
+                             || defined(__s390__)    \
                              || defined(__s390x__))
 #  define LDB_SYNC_ATOMICS
 #elif LDB_GNUC_PREREQ(3, 0) && defined(__ia64__)
