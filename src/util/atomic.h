@@ -587,7 +587,7 @@ ldb_atomic_exchange(volatile ldb_word_t *object, ldb_word_t desired) {
   ldb_word_t old;
   __sync();
   do {
-    old = ldb_load_word(object)
+    old = ldb_load_word(object);
   } while (ldb_store_word(object, desired) == 0);
   __isync();
   return old;
