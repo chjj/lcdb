@@ -69,8 +69,8 @@
                              || defined(__i386__)    \
                              || defined(__x86_64__)  \
                              || defined(__powerpc__) \
-                             || defined(_IBMR2)      \
-                             || defined(__s390__))
+                             || defined(__s390__)    \
+                             || defined(_IBMR2))
 #  define LDB_SYNC_ATOMICS
 #elif LDB_GNUC_PREREQ(3, 0) && defined(__ia64__)
 #  define LDB_SYNC_ATOMICS
