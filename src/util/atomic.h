@@ -68,7 +68,6 @@
 #elif LDB_GNUC_PREREQ(4, 1) && (defined(__alpha__)   \
                              || defined(__i386__)    \
                              || defined(__x86_64__)  \
-                             || defined(__amd64__)   \
                              || defined(__powerpc__) \
                              || defined(__PPC__)     \
                              || defined(_IBMR2)      \
@@ -529,7 +528,7 @@ ldb_atomic__load_ptr(void *volatile *object) {
   ((long)atomic_cas_ulong((volatile unsigned long *)(object),  \
                           expected, desired))
 
-#define ldb_atomic_fetch_add(object, operand, order) \
+#define ldb_atomic_fetch_add(object, operand, order)                       \
   ((long)atomic_add_long_nv((volatile unsigned long *)(object), operand) - \
    (long)(operand))
 
