@@ -306,7 +306,6 @@ __extension__ ({                                                \
 
 /*
  * ASM Atomics
- * https://gcc.gnu.org/onlinedocs/gcc/Extended-Asm.html
  */
 
 #define ldb_compiler_barrier() __asm__ __volatile__ ("" ::: "memory")
@@ -394,7 +393,7 @@ ldb_atomic__fetch_add(volatile ldb_word_t *object, ldb_word_t operand) {
 #define ldb_atomic_store __atomic_store
 #define ldb_atomic_store_ptr __atomic_store
 #define ldb_atomic_load __atomic_load
-#define ldb_atomic_load_ptr  __atomic_load
+#define ldb_atomic_load_ptr __atomic_load
 
 #define ldb_atomic_exchange(object, desired) \
   __atomic_exchange(object, desired, 5)
