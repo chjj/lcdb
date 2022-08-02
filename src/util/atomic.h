@@ -656,6 +656,9 @@ ldb_atomic__fetch_add(volatile ldb_word_t *object, ldb_word_t operand) {
 
 #define LDB_ASM_FENCE ((_Asm_fence)(_UP_MEM_FENCE | _DOWN_MEM_FENCE))
 
+#define ldb_compiler_barrier() _Asm_sched_fence(LDB_ASM_FENCE)
+#define ldb_hardware_fence _Asm_mf
+
 /* GCC generates st.rel and ld.acq instructions.
  *
  * HP C A.06.15 adds _Asm_st and _Asm_ld, but I'm
@@ -665,15 +668,20 @@ ldb_atomic__fetch_add(volatile ldb_word_t *object, ldb_word_t operand) {
  * [SPIN] uses _Asm_st_volatile, but who knows
  * what the _Asm_ld_volatile parameters look like.
  */
-#define ldb_atomic_store(object, desired, order) \
-  (_Asm_mf(), (*(object) = (desired)))
+#define ldb_atomic_store(object, desired, order) do { \
+  ldb_hardware_fence();                               \
+  *(object) = (desired);                              \
+  ldb_compiler_barrier();                             \
+} while (0)
 
 #define ldb_atomic_store_ptr ldb_atomic_store
 
 static long
 ldb_atomic__load(volatile long *object) {
-  long result = *object;
-  _Asm_mf();
+  long result;
+  ldb_compiler_barrier();
+  result = *object;
+  ldb_hardware_fence();
   return result;
 }
 
@@ -682,8 +690,10 @@ ldb_atomic__load(volatile long *object) {
 
 static void *
 ldb_atomic__load_ptr(void *volatile *object) {
-  void *result = *object;
-  _Asm_mf();
+  void *result;
+  ldb_compiler_barrier();
+  result = *object;
+  ldb_hardware_fence();
   return result;
 }
 
