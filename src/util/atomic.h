@@ -474,12 +474,12 @@ ldb_atomic__fetch_add(volatile ldb_word_t *object, ldb_word_t operand) {
 
 /*
  * Sun Atomics
- * https://docs.oracle.com/cd/E88353_01/html/E37855/atomic-ops-9f.html
- * https://docs.oracle.com/cd/E60778_01/html/E60745/gjzmf.html
+ * https://docs.oracle.com/cd/E19253-01/816-5180/atomic-ops-9f/index.html
+ * https://docs.oracle.com/cd/E18659_01/html/821-1384/gjzmf.html
  */
 
-#include <atomic.h>
-#include <mbarrier.h>
+#include <sys/atomic.h> /* Solaris 10 (SunOS 5.10) */
+#include <mbarrier.h> /* Sun Studio 12.2 */
 
 #define ldb_compiler_barrier __compiler_barrier
 
