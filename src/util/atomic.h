@@ -32,7 +32,7 @@
 #elif defined(__INTEL_COMPILER) || defined(__ICC)
 #  if __INTEL_COMPILER >= 1300 /* 13.0 */
 #    define LDB_GNUC_ATOMICS
-#  elif __INTEL_COMPILER >= 1100 /* 11.0 */
+#  elif __INTEL_COMPILER >= 1110 /* 11.1 */
 #    define LDB_SYNC_ATOMICS
 #  endif
 #elif defined(__CC_ARM)
@@ -51,34 +51,29 @@
 #  endif
 #elif defined(__NWCC__)
 /* Nothing. */
-#elif LDB_GNUC_PREREQ(4, 7)
-#  define LDB_GNUC_ATOMICS
-#elif LDB_GNUC_PREREQ(4, 6) && defined(__arm__)
-#  define LDB_SYNC_ATOMICS
-#elif LDB_GNUC_PREREQ(4, 5) && (defined(__BFIN__) \
-                             || defined(__RX__)   \
-                             || defined(__vax__))
-#  define LDB_SYNC_ATOMICS
-#elif LDB_GNUC_PREREQ(4, 4) && (defined(__arm__) || defined(__hppa__))
-#  ifdef __linux__
+#elif defined(__GNUC__)
+#  if defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_4) /* 4.3 */
+#    if __SIZEOF_SIZE_T__ < 8 || defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_8)
+#      if LDB_GNUC_PREREQ(4, 7)
+#        define LDB_GNUC_ATOMICS
+#      else
+#        define LDB_SYNC_ATOMICS
+#      endif
+#    endif
+#  elif LDB_GNUC_PREREQ(4, 2) && defined(__sparc_v9__)
+#    define LDB_SYNC_ATOMICS
+#  elif LDB_GNUC_PREREQ(4, 1) && (defined(__alpha__)   \
+                               || defined(__x86_64__)  \
+                               || defined(__powerpc__) \
+                               || defined(__s390__))
+#    define LDB_SYNC_ATOMICS
+#  elif LDB_GNUC_PREREQ(3, 0) && defined(__ia64__)
 #    define LDB_SYNC_ATOMICS
 #  endif
-#elif LDB_GNUC_PREREQ(4, 3) && (defined(__mips__) || defined(__xtensa__))
-#  define LDB_SYNC_ATOMICS
-#elif LDB_GNUC_PREREQ(4, 2) && (defined(__sh__) || defined(__sparc__))
-#  define LDB_SYNC_ATOMICS
-#elif LDB_GNUC_PREREQ(4, 1) && (defined(__alpha__)   \
-                             || defined(__i386__)    \
-                             || defined(__x86_64__)  \
-                             || defined(__powerpc__) \
-                             || defined(__s390__)    \
-                             || defined(_IBMR2))
-#  define LDB_SYNC_ATOMICS
-#elif LDB_GNUC_PREREQ(3, 0) && defined(__ia64__)
-#  define LDB_SYNC_ATOMICS
-#elif LDB_GNUC_PREREQ(3, 0)
-#  if defined(__i386__) || defined(__x86_64__)
-#    define LDB_ASM_ATOMICS
+#  if !defined(LDB_GNUC_ATOMICS) && !defined(LDB_SYNC_ATOMICS)
+#    if LDB_GNUC_PREREQ(2, 8) && (defined(__i386__) || defined(__x86_64__))
+#      define LDB_ASM_ATOMICS
+#    endif
 #  endif
 #elif defined(__chibicc__)
 #  define LDB_CHIBICC_ATOMICS
