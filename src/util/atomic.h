@@ -59,8 +59,10 @@
                              || defined(__RX__)   \
                              || defined(__vax__))
 #  define LDB_SYNC_ATOMICS
-#elif LDB_GNUC_PREREQ(4, 4) && defined(__hppa__)
-#  define LDB_SYNC_ATOMICS
+#elif LDB_GNUC_PREREQ(4, 4) && (defined(__arm__) || defined(__hppa__))
+#  ifdef __linux__
+#    define LDB_SYNC_ATOMICS
+#  endif
 #elif LDB_GNUC_PREREQ(4, 3) && (defined(__mips__) || defined(__xtensa__))
 #  define LDB_SYNC_ATOMICS
 #elif LDB_GNUC_PREREQ(4, 2) && (defined(__sh__) || defined(__sparc__))
