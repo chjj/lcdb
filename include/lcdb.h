@@ -51,6 +51,9 @@ typedef unsigned long long ldb_uint64_t;
 #define LDB_INVALID    30004
 #define LDB_IOERR      30005
 
+#define LDB_RDWR 0
+#define LDB_RDONLY 1
+
 enum ldb_compression {
   LDB_NO_COMPRESSION = 0,
   LDB_SNAPPY_COMPRESSION = 1
@@ -512,9 +515,6 @@ ldb_strerror(int code);
 /*
  * Transaction
  */
-
-#define LDB_RDWR 0
-#define LDB_RDONLY 1
 
 int
 ldb_txn_open(ldb_t *db, int flags, ldb_txn_t **txn);
