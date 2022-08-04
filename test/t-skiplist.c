@@ -121,12 +121,14 @@ skipiter_seek(skipiter_t *iter, uint64_t target) {
 static void
 test_skip_empty(void) {
   ldb_arena_t arena;
+  ldb_mutex_t mutex;
   skiplist_t list;
   skipiter_t iter;
 
   ldb_arena_init(&arena);
+  ldb_mutex_init(&mutex);
 
-  skiplist_init(&list, &integer_comparator, &arena);
+  skiplist_init(&list, &integer_comparator, &arena, &mutex);
 
   ASSERT(!skiplist_contains(&list, 10));
 
@@ -146,6 +148,7 @@ test_skip_empty(void) {
 
   ASSERT(!skipiter_valid(&iter));
 
+  ldb_mutex_destroy(&mutex);
   ldb_arena_clear(&arena);
 }
 
@@ -154,14 +157,16 @@ test_skip_insert_and_lookup(void) {
   const int N = 2000;
   const int R = 5000;
   ldb_arena_t arena;
+  ldb_mutex_t mutex;
   skiplist_t list;
   rb_set64_t keys;
   ldb_rand_t rnd;
   int i, j;
 
   ldb_arena_init(&arena);
+  ldb_mutex_init(&mutex);
 
-  skiplist_init(&list, &integer_comparator, &arena);
+  skiplist_init(&list, &integer_comparator, &arena, &mutex);
 
   rb_set64_init(&keys);
   ldb_rand_init(&rnd, 1000);
@@ -260,6 +265,7 @@ test_skip_insert_and_lookup(void) {
     ASSERT(!skipiter_valid(&iter));
   }
 
+  ldb_mutex_destroy(&mutex);
   ldb_arena_clear(&arena);
   rb_set64_clear(&keys);
 }
@@ -379,6 +385,7 @@ typedef struct ctest_s {
   /* Current state of the test. */
   cstate_t current;
 
+  ldb_mutex_t mutex;
   ldb_arena_t arena;
 
   /* SkipList is not protected by mu. We just use a single writer
@@ -389,12 +396,14 @@ typedef struct ctest_s {
 static void
 ctest_init(ctest_t *t) {
   cstate_init(&t->current);
+  ldb_mutex_init(&t->mutex);
   ldb_arena_init(&t->arena);
-  skiplist_init(&t->list, &integer_comparator, &t->arena);
+  skiplist_init(&t->list, &integer_comparator, &t->arena, &t->mutex);
 }
 
 static void
 ctest_clear(ctest_t *t) {
+  ldb_mutex_destroy(&t->mutex);
   ldb_arena_clear(&t->arena);
 }
 
