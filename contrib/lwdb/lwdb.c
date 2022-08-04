@@ -18,6 +18,17 @@
 #include <string.h>
 #include <leveldb/c.h>
 
+#ifdef _WIN32
+#  include <windows.h>
+#else
+#  ifndef LWDB_LATEST
+#    include <sys/types.h>
+#    include <sys/stat.h>
+#    include <unistd.h>
+#  endif
+#  include <pthread.h>
+#endif
+
 /*
  * Options
  */
@@ -56,6 +67,9 @@
 #define LDB_IOERR      30005
 #define LDB_MAXERR     30005
 
+#define LDB_RDWR 0
+#define LDB_RDONLY 1
+
 enum ldb_compression {
   LDB_NO_COMPRESSION = 0,
   LDB_SNAPPY_COMPRESSION = 1
@@ -78,6 +92,7 @@ typedef struct ldb_range_s ldb_range_t;
 typedef struct ldb_readopt_s ldb_readopt_t;
 typedef struct ldb_slice_s ldb_slice_t;
 typedef leveldb_snapshot_t ldb_snapshot_t;
+typedef struct ldb_txn_s ldb_txn_t;
 typedef struct ldb_writeopt_s ldb_writeopt_t;
 
 struct ldb_slice_s {
@@ -387,6 +402,42 @@ ldb_string(const char *xp);
 /* Status */
 LDB_EXTERN const char *
 ldb_strerror(int code);
+
+/* Transaction */
+LDB_EXTERN int
+ldb_txn_open(ldb_t *db, int flags, ldb_txn_t **txn);
+
+LDB_EXTERN int
+ldb_txn_get(ldb_txn_t *txn, const ldb_slice_t *key,
+                            ldb_slice_t *value,
+                            const ldb_readopt_t *options);
+
+LDB_EXTERN int
+ldb_txn_has(ldb_txn_t *txn, const ldb_slice_t *key,
+                            const ldb_readopt_t *options);
+
+LDB_EXTERN int
+ldb_txn_put(ldb_txn_t *txn, const ldb_slice_t *key, const ldb_slice_t *value);
+
+LDB_EXTERN int
+ldb_txn_del(ldb_txn_t *txn, const ldb_slice_t *key);
+
+LDB_EXTERN int
+ldb_txn_write(ldb_txn_t *txn, ldb_batch_t *batch);
+
+LDB_EXTERN int
+ldb_txn_commit(ldb_txn_t *txn);
+
+LDB_EXTERN void
+ldb_txn_abort(ldb_txn_t *txn);
+
+LDB_EXTERN ldb_iter_t *
+ldb_txn_iterator(ldb_txn_t *txn, const ldb_readopt_t *options);
+
+LDB_EXTERN int
+ldb_txn_compare(const ldb_txn_t *txn,
+                const ldb_slice_t *x,
+                const ldb_slice_t *y);
 
 /*
  * Helpers
@@ -1124,16 +1175,6 @@ ldb_destroy(const char *dbname, const ldb_dbopt_t *options) {
  * Filesystem
  */
 
-#ifndef LWDB_LATEST
-#  ifdef _WIN32
-#    include <windows.h>
-#  else
-#    include <sys/types.h>
-#    include <sys/stat.h>
-#    include <unistd.h>
-#  endif
-#endif
-
 int
 ldb_test_directory(char *result, size_t size) {
 #if defined(LWDB_LATEST)
@@ -1483,4 +1524,455 @@ ldb_strerror(int code) {
     return ldb_errmsg[code - LDB_MINERR];
 
   return "Unknown error";
+}
+
+/*
+ * Entry
+ */
+
+typedef struct entry_s {
+  enum {
+    LDB_TYPE_DELETION = 0,
+    LDB_TYPE_VALUE = 1
+  } type;
+  ldb_slice_t key;
+  ldb_slice_t val;
+  uint8_t data[1];
+} entry_t;
+
+static entry_t *
+entry_create(const ldb_slice_t *key, const ldb_slice_t *val) {
+  size_t size = key->size + (val != NULL ? val->size : 0);
+  entry_t *entry = safe_malloc(sizeof(entry_t) - 1 + size);
+
+  entry->type = LDB_TYPE_DELETION;
+
+  entry->key.data = entry->data;
+  entry->key.size = key->size;
+  entry->key.dummy = 0;
+
+  entry->val.data = NULL;
+  entry->val.size = 0;
+  entry->val.dummy = 0;
+
+  if (key->size > 0)
+    memcpy(entry->key.data, key->data, key->size);
+
+  if (val != NULL) {
+    entry->type = LDB_TYPE_VALUE;
+
+    entry->val.data = entry->data + key->size;
+    entry->val.size = val->size;
+
+    if (val->size > 0)
+      memcpy(entry->val.data, val->data, val->size);
+  }
+
+  return entry;
+}
+
+/*
+ * Map
+ */
+
+typedef struct map_s {
+  const ldb_comparator_t *cmp;
+  entry_t **data;
+  size_t buckets;
+  size_t entries;
+} map_t;
+
+static void
+map_init_n(map_t *map, const ldb_comparator_t *cmp, size_t n) {
+  size_t i;
+
+  map->cmp = cmp;
+  map->data = safe_malloc(n * sizeof(entry_t *));
+  map->buckets = n;
+  map->entries = 0;
+
+  for (i = 0; i < n; i++)
+    map->data[i] = NULL;
+}
+
+static void
+map_init(map_t *map, const ldb_comparator_t *cmp) {
+  map_init_n(map, cmp, 64);
+}
+
+static void
+map_clear(map_t *map) {
+  free(map->data);
+}
+
+static uint32_t
+map_hash(const ldb_slice_t *key) {
+  static const uint32_t seed = 0xbc9f1d34;
+  static const uint32_t m = 0xc6a4a793;
+  static const uint32_t r = 24;
+  const uint8_t *data = key->data;
+  size_t size = key->size;
+  uint32_t h = seed ^ (size * m);
+  uint32_t w;
+
+  while (size >= 4) {
+    w = ((uint32_t)data[3] << 24) |
+        ((uint32_t)data[2] << 16) |
+        ((uint32_t)data[1] <<  8) |
+        ((uint32_t)data[0] <<  0);
+
+    h += w;
+    h *= m;
+    h ^= (h >> 16);
+
+    data += 4;
+    size -= 4;
+  }
+
+  switch (size) {
+    case 3:
+      h += ((uint32_t)data[2] << 16);
+    case 2:
+      h += ((uint32_t)data[1] << 8);
+    case 1:
+      h += data[0];
+      h *= m;
+      h ^= (h >> r);
+      break;
+  }
+
+  return h;
+}
+
+static int
+map_equal(map_t *map, const ldb_slice_t *x, const ldb_slice_t *y) {
+  return map->cmp->compare(map->cmp, x, y) == 0;
+}
+
+static entry_t **
+map_lookup(map_t *map, const ldb_slice_t *key, int rehash) {
+  size_t index = map_hash(key) & (map->buckets - 1);
+  entry_t *entry;
+
+  for (;;) {
+    if (index >= map->buckets)
+      index = 0;
+
+    entry = map->data[index];
+
+    if (entry == NULL)
+      return &map->data[index];
+
+    if (!rehash && map_equal(map, &entry->key, key))
+      return &map->data[index];
+
+    index++;
+  }
+}
+
+static void
+map_rehash(map_t *map) {
+  map_t tmp;
+  size_t i;
+
+  map_init_n(&tmp, map->cmp, map->buckets * 2);
+
+  for (i = 0; i < map->buckets; i++) {
+    entry_t *entry = map->data[i];
+
+    if (entry != NULL)
+      *map_lookup(&tmp, &entry->key, 1) = entry;
+  }
+
+  free(map->data);
+
+  map->data = tmp.data;
+  map->buckets = tmp.buckets;
+}
+
+static entry_t *
+map_get(map_t *map, const ldb_slice_t *key) {
+  return *map_lookup(map, key, 0);
+}
+
+static entry_t *
+map_put(map_t *map, entry_t *entry) {
+  entry_t **bucket;
+  entry_t *result;
+
+  if (map->buckets > (SIZE_MAX / 3))
+    abort(); /* LCOV_EXCL_STOP */
+
+  if (map->entries >= ((map->buckets * 3) / 4))
+    map_rehash(map);
+
+  bucket = map_lookup(map, &entry->key, 0);
+  result = *bucket;
+  *bucket = entry;
+
+  if (result == NULL)
+    map->entries++;
+
+  return result;
+}
+
+/*
+ * Transaction
+ */
+
+#ifdef _WIN32
+#  define ldb_mutex_t CRITICAL_SECTION
+#  define ldb_mutex_init InitializeCriticalSection
+#  define ldb_mutex_destroy DeleteCriticalSection
+#  define ldb_mutex_lock EnterCriticalSection
+#  define ldb_mutex_unlock LeaveCriticalSection
+#else
+#  define ldb_mutex_t pthread_mutex_t
+#  define ldb_mutex_init(x) pthread_mutex_init(x, NULL)
+#  define ldb_mutex_destroy pthread_mutex_destroy
+#  define ldb_mutex_lock pthread_mutex_lock
+#  define ldb_mutex_unlock pthread_mutex_unlock
+#endif
+
+struct ldb_txn_s {
+  ldb_t *db;
+  const ldb_comparator_t *comparator;
+  const ldb_snapshot_t *snapshot;
+  ldb_mutex_t mutex;
+  map_t map;
+};
+
+static ldb_txn_t *
+ldb_txn_create(ldb_t *db, const ldb_snapshot_t *snapshot) {
+  ldb_txn_t *txn = safe_malloc(sizeof(ldb_txn_t));
+
+  txn->db = db;
+  txn->comparator = &db->ucmp;
+  txn->snapshot = snapshot;
+
+  if (snapshot == NULL) {
+    ldb_mutex_init(&txn->mutex);
+    map_init(&txn->map, &db->ucmp);
+  }
+
+  return txn;
+}
+
+static void
+ldb_txn_destroy(ldb_txn_t *txn) {
+  size_t i;
+
+  if (txn->snapshot != NULL) {
+    ldb_release(txn->db, txn->snapshot);
+  } else {
+    for (i = 0; i < txn->map.buckets; i++)
+      safe_free(txn->map.data[i]);
+
+    map_clear(&txn->map);
+    ldb_mutex_destroy(&txn->mutex);
+  }
+
+  ldb_free(txn);
+}
+
+int
+ldb_txn_open(ldb_t *db, int flags, ldb_txn_t **txn) {
+  const ldb_snapshot_t *snapshot = NULL;
+
+  if (flags & LDB_RDONLY)
+    snapshot = ldb_snapshot(db);
+
+  *txn = ldb_txn_create(db, snapshot);
+
+  return LDB_OK;
+}
+
+int
+ldb_txn_get(ldb_txn_t *txn, const ldb_slice_t *key,
+                            ldb_slice_t *value,
+                            const ldb_readopt_t *options) {
+  const entry_t *entry = NULL;
+  ldb_readopt_t opts;
+
+  if (options == NULL)
+    options = ldb_readopt_default;
+
+  if (options->snapshot != NULL)
+    return LDB_INVALID;
+
+  if (txn->snapshot == NULL) {
+    ldb_mutex_lock(&txn->mutex);
+
+    entry = map_get(&txn->map, key);
+
+    ldb_mutex_unlock(&txn->mutex);
+  }
+
+  if (entry != NULL) {
+    if (value != NULL) {
+      value->data = NULL;
+      value->size = 0;
+      value->dummy = 0;
+    }
+
+    if (entry->type == LDB_TYPE_DELETION)
+      return LDB_NOTFOUND;
+
+    if (value != NULL) {
+      if (entry->val.size == 0) {
+        value->data = safe_malloc(1);
+        value->size = 0;
+      } else {
+        value->data = safe_malloc(entry->val.size);
+        value->size = entry->val.size;
+
+        memcpy(value->data, entry->val.data, entry->val.size);
+      }
+    }
+
+    return LDB_OK;
+  }
+
+  opts = *options;
+  opts.snapshot = txn->snapshot;
+
+  return ldb_get(txn->db, key, value, &opts);
+}
+
+int
+ldb_txn_has(ldb_txn_t *txn, const ldb_slice_t *key,
+                            const ldb_readopt_t *options) {
+  return ldb_txn_get(txn, key, NULL, options);
+}
+
+static void
+ldb_txn_insert(ldb_txn_t *txn,
+               const ldb_slice_t *key,
+               const ldb_slice_t *value) {
+  entry_t *entry = entry_create(key, value);
+
+  safe_free(map_put(&txn->map, entry));
+}
+
+int
+ldb_txn_put(ldb_txn_t *txn, const ldb_slice_t *key, const ldb_slice_t *value) {
+  assert(value != NULL);
+
+  if (txn->snapshot != NULL)
+    return LDB_INVALID;
+
+  ldb_mutex_lock(&txn->mutex);
+
+  ldb_txn_insert(txn, key, value);
+
+  ldb_mutex_unlock(&txn->mutex);
+
+  return LDB_OK;
+}
+
+int
+ldb_txn_del(ldb_txn_t *txn, const ldb_slice_t *key) {
+  if (txn->snapshot != NULL)
+    return LDB_INVALID;
+
+  ldb_mutex_lock(&txn->mutex);
+
+  ldb_txn_insert(txn, key, NULL);
+
+  ldb_mutex_unlock(&txn->mutex);
+
+  return LDB_OK;
+}
+
+static void
+txn_put(ldb_handler_t *handler, const ldb_slice_t *key,
+                                const ldb_slice_t *value) {
+  ldb_txn_insert(handler->state, key, value);
+}
+
+static void
+txn_del(ldb_handler_t *handler, const ldb_slice_t *key) {
+  ldb_txn_insert(handler->state, key, NULL);
+}
+
+int
+ldb_txn_write(ldb_txn_t *txn, ldb_batch_t *batch) {
+  ldb_handler_t handler;
+  int rc;
+
+  if (txn->snapshot != NULL)
+    return LDB_INVALID;
+
+  ldb_mutex_lock(&txn->mutex);
+
+  handler.state = txn;
+  handler.number = 0;
+  handler.put = txn_put;
+  handler.del = txn_del;
+
+  rc = ldb_batch_iterate(batch, &handler);
+
+  ldb_mutex_unlock(&txn->mutex);
+
+  return rc;
+}
+
+static void
+ldb_txn_export(ldb_batch_t *batch, ldb_txn_t *txn) {
+  size_t i;
+
+  ldb_batch_init(batch);
+
+  for (i = 0; i < txn->map.buckets; i++) {
+    const entry_t *entry = txn->map.data[i];
+
+    if (entry == NULL)
+      continue;
+
+    if (entry->type == LDB_TYPE_VALUE)
+      ldb_batch_put(batch, &entry->key, &entry->val);
+    else
+      ldb_batch_del(batch, &entry->key);
+  }
+}
+
+int
+ldb_txn_commit(ldb_txn_t *txn) {
+  static const ldb_writeopt_t options = {1};
+  ldb_t *db = txn->db;
+  ldb_batch_t batch;
+  int rc;
+
+  if (txn->snapshot != NULL) {
+    ldb_txn_destroy(txn);
+    return LDB_OK;
+  }
+
+  ldb_txn_export(&batch, txn);
+  ldb_txn_destroy(txn);
+
+  rc = ldb_write(db, &batch, &options);
+
+  ldb_batch_clear(&batch);
+
+  return rc;
+}
+
+void
+ldb_txn_abort(ldb_txn_t *txn) {
+  ldb_txn_destroy(txn);
+}
+
+ldb_iter_t *
+ldb_txn_iterator(ldb_txn_t *txn, const ldb_readopt_t *options) {
+  (void)txn;
+  (void)options;
+  return NULL;
+}
+
+int
+ldb_txn_compare(const ldb_txn_t *txn,
+                const ldb_slice_t *x,
+                const ldb_slice_t *y) {
+  return txn->comparator->compare(txn->comparator, x, y);
 }
