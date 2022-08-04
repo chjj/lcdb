@@ -18,7 +18,9 @@
  * Backend Selection
  */
 
-#if defined(__clang__)
+#if !defined(_WIN32) && !defined(LDB_PTHREAD)
+/* Skip. We're single-threaded. */
+#elif defined(__clang__)
 #  ifdef __has_extension
 #    if __has_extension(c_atomic) /* 3.1 */
 #      define LDB_GNUC_ATOMICS
@@ -105,7 +107,7 @@
 #  define LDB_MSVC_ATOMICS
 #  define LDB_HAVE_ATOMICS
 #elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
-#  ifndef __STDC_NO_ATOMICS__
+#  if !defined(__STDC_NO_ATOMICS__) && defined(LDB_PTHREAD)
 #    define LDB_STD_ATOMICS
 #    define LDB_HAVE_ATOMICS
 #  endif
@@ -794,7 +796,7 @@ ldb_atomic__fetch_add(volatile ldb_word_t *object, ldb_word_t operand);
 #define ldb_atomic_fetch_sub(object, operand, order) \
   ldb_atomic__fetch_add(object, -(ldb_word_t)(operand))
 
-#else /* !LDB_MSVC_ATOMICS */
+#elif defined(LDB_PTHREAD)
 
 /*
  * Mutex Fallback
@@ -842,6 +844,45 @@ ldb_atomic__fetch_add(long *object, long operand);
 #define ldb_atomic_fetch_sub(object, operand, order) \
   ldb_atomic__fetch_add(object, -(long)(operand))
 
-#endif /* !LDB_MSVC_ATOMICS */
+#else /* !LDB_PTHREAD */
+
+/*
+ * Single-Threaded Fallback
+ */
+
+#define ldb_atomic_store(object, desired, order) (*(object) = (desired))
+#define ldb_atomic_store_ptr ldb_atomic_store
+#define ldb_atomic_load(object, order) (*(object))
+#define ldb_atomic_load_ptr ldb_atomic_load
+
+LDB_STATIC long
+ldb_atomic_exchange(long *object, long desired) {
+  long result = *object;
+  *object = desired;
+  return result;
+}
+
+LDB_STATIC long
+ldb_atomic_compare_exchange(long *object, long expected, long desired) {
+  long result = *object;
+  if (*object == expected)
+    *object = desired;
+  return result;
+}
+
+LDB_STATIC long
+ldb_atomic__fetch_add(long *object, long operand) {
+  long result = *object;
+  *object += operand;
+  return result;
+}
+
+#define ldb_atomic_fetch_add(object, operand, order) \
+  ldb_atomic__fetch_add(object, operand)
+
+#define ldb_atomic_fetch_sub(object, operand, order) \
+  ldb_atomic__fetch_add(object, -(long)(operand))
+
+#endif /* !LDB_PTHREAD */
 
 #endif /* LDB_ATOMICS_H */

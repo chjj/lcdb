@@ -263,7 +263,88 @@ ldb_atomic__fetch_add(volatile ldb_word_t *object, ldb_word_t operand) {
 #endif
 }
 
-#elif defined(LDB_HAVE_ATOMICS)
+#elif !defined(LDB_HAVE_ATOMICS) && defined(LDB_PTHREAD)
+
+/*
+ * Mutex Fallback
+ */
+
+#include <pthread.h>
+
+/*
+ * Globals
+ */
+
+static pthread_mutex_t ldb_atomic_lock = PTHREAD_MUTEX_INITIALIZER;
+
+/*
+ * Backend
+ */
+
+void
+ldb_atomic__store(long *object, long desired) {
+  pthread_mutex_lock(&ldb_atomic_lock);
+  *object = desired;
+  pthread_mutex_unlock(&ldb_atomic_lock);
+}
+
+void
+ldb_atomic__store_ptr(void **object, void *desired) {
+  pthread_mutex_lock(&ldb_atomic_lock);
+  *object = desired;
+  pthread_mutex_unlock(&ldb_atomic_lock);
+}
+
+long
+ldb_atomic__load(long *object) {
+  long result;
+  pthread_mutex_lock(&ldb_atomic_lock);
+  result = *object;
+  pthread_mutex_unlock(&ldb_atomic_lock);
+  return result;
+}
+
+void *
+ldb_atomic__load_ptr(void **object) {
+  void *result;
+  pthread_mutex_lock(&ldb_atomic_lock);
+  result = *object;
+  pthread_mutex_unlock(&ldb_atomic_lock);
+  return result;
+}
+
+long
+ldb_atomic__exchange(long *object, long desired) {
+  long result;
+  pthread_mutex_lock(&ldb_atomic_lock);
+  result = *object;
+  *object = desired;
+  pthread_mutex_unlock(&ldb_atomic_lock);
+  return result;
+}
+
+long
+ldb_atomic__compare_exchange(long *object, long expected, long desired) {
+  long result;
+  pthread_mutex_lock(&ldb_atomic_lock);
+  result = *object;
+  if (*object == expected)
+    *object = desired;
+  pthread_mutex_unlock(&ldb_atomic_lock);
+  return result;
+}
+
+long
+ldb_atomic__fetch_add(long *object, long operand) {
+  long result;
+  pthread_mutex_lock(&ldb_atomic_lock);
+  result = *object;
+  *object += operand;
+  pthread_mutex_unlock(&ldb_atomic_lock);
+  return result;
+}
+
+#else /* LDB_HAVE_ATOMICS || !LDB_PTHREAD */
 
 /*
  * Non-Empty (avoids empty translation unit)
@@ -277,85 +358,4 @@ ldb_atomic__nonempty(void) {
   return 0;
 }
 
-#else /* !LDB_HAVE_ATOMICS */
-
-/*
- * Mutex Fallback
- */
-
-#include "port.h"
-
-/*
- * Globals
- */
-
-static ldb_mutex_t ldb_atomic_lock = LDB_MUTEX_INITIALIZER;
-
-/*
- * Backend
- */
-
-void
-ldb_atomic__store(long *object, long desired) {
-  ldb_mutex_lock(&ldb_atomic_lock);
-  *object = desired;
-  ldb_mutex_unlock(&ldb_atomic_lock);
-}
-
-void
-ldb_atomic__store_ptr(void **object, void *desired) {
-  ldb_mutex_lock(&ldb_atomic_lock);
-  *object = desired;
-  ldb_mutex_unlock(&ldb_atomic_lock);
-}
-
-long
-ldb_atomic__load(long *object) {
-  long result;
-  ldb_mutex_lock(&ldb_atomic_lock);
-  result = *object;
-  ldb_mutex_unlock(&ldb_atomic_lock);
-  return result;
-}
-
-void *
-ldb_atomic__load_ptr(void **object) {
-  void *result;
-  ldb_mutex_lock(&ldb_atomic_lock);
-  result = *object;
-  ldb_mutex_unlock(&ldb_atomic_lock);
-  return result;
-}
-
-long
-ldb_atomic__exchange(long *object, long desired) {
-  long result;
-  ldb_mutex_lock(&ldb_atomic_lock);
-  result = *object;
-  *object = desired;
-  ldb_mutex_unlock(&ldb_atomic_lock);
-  return result;
-}
-
-long
-ldb_atomic__compare_exchange(long *object, long expected, long desired) {
-  long result;
-  ldb_mutex_lock(&ldb_atomic_lock);
-  result = *object;
-  if (*object == expected)
-    *object = desired;
-  ldb_mutex_unlock(&ldb_atomic_lock);
-  return result;
-}
-
-long
-ldb_atomic__fetch_add(long *object, long operand) {
-  long result;
-  ldb_mutex_lock(&ldb_atomic_lock);
-  result = *object;
-  *object += operand;
-  ldb_mutex_unlock(&ldb_atomic_lock);
-  return result;
-}
-
-#endif /* !LDB_HAVE_ATOMICS */
+#endif /* LDB_HAVE_ATOMICS || !LDB_PTHREAD */
