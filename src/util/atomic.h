@@ -26,11 +26,6 @@
 #      define LDB_GNUC_ATOMICS
 #    endif
 #  endif
-#  ifndef LDB_GNUC_ATOMICS
-#    if __clang_major__ >= 3
-#      define LDB_SYNC_ATOMICS
-#    endif
-#  endif
 #elif defined(__INTEL_COMPILER) || defined(__ICC)
 #  if __INTEL_COMPILER >= 1300 /* 13.0 */
 #    define LDB_GNUC_ATOMICS
