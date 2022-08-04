@@ -344,6 +344,7 @@ ldb_atomic_exchange(volatile ldb_word_t *object, ldb_word_t desired) {
     "xchg %1, %0\n"
     : "+m" (*object),
       "+a" (desired)
+    :: "memory"
   );
   return desired;
 }
@@ -353,11 +354,11 @@ ldb_atomic_compare_exchange(volatile ldb_word_t *object,
                             ldb_word_t expected,
                             ldb_word_t desired) {
   __asm__ __volatile__ (
-    "lock cmpxchg %2, %0\n"
+    "lock; cmpxchg %2, %0\n"
     : "+m" (*object),
       "+a" (expected)
     : "d" (desired)
-    : "cc"
+    : "cc", "memory"
   );
   return expected;
 }
@@ -365,10 +366,10 @@ ldb_atomic_compare_exchange(volatile ldb_word_t *object,
 LDB_STATIC ldb_word_t
 ldb_atomic__fetch_add(volatile ldb_word_t *object, ldb_word_t operand) {
   __asm__ __volatile__ (
-    "lock xadd %1, %0\n"
+    "lock; xadd %1, %0\n"
     : "+m" (*object),
       "+a" (operand)
-    :: "cc"
+    :: "cc", "memory"
   );
   return operand;
 }
