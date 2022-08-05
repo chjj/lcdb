@@ -10,6 +10,8 @@
  * See LICENSE for more information.
  */
 
+#define _GNU_SOURCE
+
 #include <assert.h>
 #include <stdarg.h>
 #include <stdint.h>
@@ -27,6 +29,56 @@
 #    include <unistd.h>
 #  endif
 #  include <pthread.h>
+#endif
+
+/*
+ * Threads
+ */
+
+#ifdef _WIN32
+#  define ldb_mutex_t CRITICAL_SECTION
+#  define ldb_mutex_init InitializeCriticalSection
+#  define ldb_mutex_destroy DeleteCriticalSection
+#  define ldb_mutex_lock EnterCriticalSection
+#  define ldb_mutex_unlock LeaveCriticalSection
+#  define ldb_cond_t CONDITION_VARIABLE
+#  define ldb_cond_init InitializeConditionVariable
+#  define ldb_cond_destroy(cond) ((void)(cond))
+#  define ldb_cond_signal WakeConditionVariable
+#  define ldb_cond_broadcast WakeAllConditionVariable
+#  define ldb_cond_wait(cond, mtx) SleepConditionVariableCS(cond, mtx, INFINITE)
+#  define ldb_rwlock_t SRWLOCK
+#  define ldb_rwlock_init InitializeSRWLock
+#  define ldb_rwlock_destroy(lock) ((void)(lock))
+#  define ldb_rwlock_rdlock AcquireSRWLockShared
+#  define ldb_rwlock_rdunlock ReleaseSRWLockShared
+#  define ldb_rwlock_wrlock AcquireSRWLockExclusive
+#  define ldb_rwlock_wrunlock ReleaseSRWLockExclusive
+#  define ldb_tid_t DWORD
+#  define ldb_thread_self GetCurrentThreadId
+#  define ldb_thread_equal(x, y) ((x) == (y))
+#else
+#  define ldb_mutex_t pthread_mutex_t
+#  define ldb_mutex_init(x) pthread_mutex_init(x, NULL)
+#  define ldb_mutex_destroy pthread_mutex_destroy
+#  define ldb_mutex_lock pthread_mutex_lock
+#  define ldb_mutex_unlock pthread_mutex_unlock
+#  define ldb_cond_t pthread_cond_t
+#  define ldb_cond_init(x) pthread_cond_init(x, NULL)
+#  define ldb_cond_destroy pthread_cond_destroy
+#  define ldb_cond_signal pthread_cond_signal
+#  define ldb_cond_broadcast pthread_cond_broadcast
+#  define ldb_cond_wait pthread_cond_wait
+#  define ldb_rwlock_t pthread_rwlock_t
+#  define ldb_rwlock_init(lock) pthread_rwlock_init(lock, NULL)
+#  define ldb_rwlock_destroy pthread_rwlock_destroy
+#  define ldb_rwlock_rdlock pthread_rwlock_rdlock
+#  define ldb_rwlock_rdunlock pthread_rwlock_unlock
+#  define ldb_rwlock_wrlock pthread_rwlock_wrlock
+#  define ldb_rwlock_wrunlock pthread_rwlock_unlock
+#  define ldb_tid_t pthread_t
+#  define ldb_thread_self pthread_self
+#  define ldb_thread_equal pthread_equal
 #endif
 
 /*
@@ -156,6 +208,7 @@ struct ldb_iter_s {
   leveldb_iterator_t *rep;
   leveldb_readoptions_t *options;
   const ldb_comparator_t *ucmp;
+  int status;
 };
 
 struct ldb_logger_s {
@@ -178,6 +231,8 @@ struct ldb_writeopt_s {
 };
 
 struct ldb_s {
+  ldb_mutex_t mutex;
+  ldb_cond_t writable_signal;
   ldb_comparator_t ucmp;
   ldb_dbopt_t dbopt;
   leveldb_comparator_t *cmp;
@@ -186,6 +241,9 @@ struct ldb_s {
   leveldb_readoptions_t *read_options;
   leveldb_writeoptions_t *write_options;
   leveldb_readoptions_t *iter_options;
+  unsigned int writers;
+  ldb_txn_t *txn;
+  ldb_tid_t tid;
   leveldb_t *level;
 };
 
@@ -808,6 +866,9 @@ ldb_open(const char *dbname, const ldb_dbopt_t *options, ldb_t **dbptr) {
 
   db = safe_malloc(sizeof(ldb_t));
 
+  ldb_mutex_init(&db->mutex);
+  ldb_cond_init(&db->writable_signal);
+
   if (options->comparator != NULL)
     db->ucmp = *options->comparator;
   else
@@ -821,6 +882,8 @@ ldb_open(const char *dbname, const ldb_dbopt_t *options, ldb_t **dbptr) {
   db->read_options = convert_readopt(ldb_readopt_default);
   db->write_options = convert_writeopt(ldb_writeopt_default);
   db->iter_options = convert_readopt(ldb_iteropt_default);
+  db->writers = 0;
+  db->txn = NULL;
   db->level = leveldb_open(db->options, dbname, &err);
 
   rc = handle_error(err);
@@ -848,6 +911,9 @@ ldb_close(ldb_t *db) {
   leveldb_readoptions_destroy(db->read_options);
   leveldb_writeoptions_destroy(db->write_options);
   leveldb_readoptions_destroy(db->iter_options);
+
+  ldb_cond_destroy(&db->writable_signal);
+  ldb_mutex_destroy(&db->mutex);
 
   safe_free(db);
 }
@@ -935,8 +1001,9 @@ ldb_del(ldb_t *db, const ldb_slice_t *key, const ldb_writeopt_t *options) {
   return handle_error(err);
 }
 
-int
-ldb_write(ldb_t *db, ldb_batch_t *updates, const ldb_writeopt_t *options) {
+static int
+ldb_write_inner(ldb_t *db, ldb_batch_t *updates,
+                           const ldb_writeopt_t *options) {
   leveldb_writeoptions_t *opt = db->write_options;
   char *err = NULL;
 
@@ -952,6 +1019,46 @@ ldb_write(ldb_t *db, ldb_batch_t *updates, const ldb_writeopt_t *options) {
     leveldb_writeoptions_destroy(opt);
 
   return handle_error(err);
+}
+
+static int
+ldb_wait_for_writable(ldb_t *db) {
+  if (db->txn != NULL) {
+    if (ldb_thread_equal(ldb_thread_self(), db->tid))
+      return 0;
+
+    while (db->txn != NULL)
+      ldb_cond_wait(&db->writable_signal, &db->mutex);
+  }
+
+  return 1;
+}
+
+int
+ldb_write(ldb_t *db, ldb_batch_t *updates, const ldb_writeopt_t *options) {
+  int rc;
+
+  ldb_mutex_lock(&db->mutex);
+
+  if (!ldb_wait_for_writable(db)) {
+    ldb_mutex_unlock(&db->mutex);
+    return LDB_INVALID;
+  }
+
+  ++db->writers;
+
+  ldb_mutex_unlock(&db->mutex);
+
+  rc = ldb_write_inner(db, updates, options);
+
+  ldb_mutex_lock(&db->mutex);
+
+  if (--db->writers == 0)
+    ldb_cond_signal(&db->writable_signal);
+
+  ldb_mutex_unlock(&db->mutex);
+
+  return rc;
 }
 
 const ldb_snapshot_t *
@@ -1295,13 +1402,27 @@ ldb_iterator(ldb_t *db, const ldb_readopt_t *options) {
 
   iter->rep = leveldb_create_iterator(db->level, opt);
   iter->ucmp = &db->ucmp;
+  iter->status = LDB_OK;
+
+  return iter;
+}
+
+static ldb_iter_t *
+ldb_emptyiter_create(ldb_t *db, int status) {
+  ldb_iter_t *iter = safe_malloc(sizeof(ldb_iter_t));
+
+  iter->options = NULL;
+  iter->rep = NULL;
+  iter->ucmp = &db->ucmp;
+  iter->status = status;
 
   return iter;
 }
 
 void
 ldb_iter_destroy(ldb_iter_t *iter) {
-  leveldb_iter_destroy(iter->rep);
+  if (iter->rep != NULL)
+    leveldb_iter_destroy(iter->rep);
 
   if (iter->options != NULL)
     leveldb_readoptions_destroy(iter->options);
@@ -1311,53 +1432,80 @@ ldb_iter_destroy(ldb_iter_t *iter) {
 
 int
 ldb_iter_valid(const ldb_iter_t *iter) {
+  if (iter->rep == NULL)
+    return 0;
+
   return leveldb_iter_valid(iter->rep);
 }
 
 void
 ldb_iter_first(ldb_iter_t *iter) {
-  leveldb_iter_seek_to_first(iter->rep);
+  if (iter->rep != NULL)
+    leveldb_iter_seek_to_first(iter->rep);
 }
 
 void
 ldb_iter_last(ldb_iter_t *iter) {
-  leveldb_iter_seek_to_last(iter->rep);
+  if (iter->rep != NULL)
+    leveldb_iter_seek_to_last(iter->rep);
 }
 
 void
 ldb_iter_seek(ldb_iter_t *iter, const ldb_slice_t *target) {
-  leveldb_iter_seek(iter->rep, target->data, target->size);
+  if (iter->rep != NULL)
+    leveldb_iter_seek(iter->rep, target->data, target->size);
 }
 
 void
 ldb_iter_next(ldb_iter_t *iter) {
-  leveldb_iter_next(iter->rep);
+  if (iter->rep != NULL)
+    leveldb_iter_next(iter->rep);
 }
 
 void
 ldb_iter_prev(ldb_iter_t *iter) {
-  leveldb_iter_prev(iter->rep);
+  if (iter->rep != NULL)
+    leveldb_iter_prev(iter->rep);
 }
 
 ldb_slice_t
 ldb_iter_key(const ldb_iter_t *iter) {
   ldb_slice_t key;
-  key.data = (void *)leveldb_iter_key(iter->rep, &key.size);
+
+  if (iter->rep != NULL) {
+    key.data = (void *)leveldb_iter_key(iter->rep, &key.size);
+  } else {
+    key.data = NULL;
+    key.size = 0;
+  }
+
   key.dummy = 0;
+
   return key;
 }
 
 ldb_slice_t
 ldb_iter_value(const ldb_iter_t *iter) {
   ldb_slice_t value;
-  value.data = (void *)leveldb_iter_value(iter->rep, &value.size);
+
+  if (iter->rep != NULL) {
+    value.data = (void *)leveldb_iter_value(iter->rep, &value.size);
+  } else {
+    value.data = NULL;
+    value.size = 0;
+  }
+
   value.dummy = 0;
+
   return value;
 }
 
 int
 ldb_iter_status(const ldb_iter_t *iter) {
   char *err = NULL;
+
+  if (iter->rep == NULL)
+    return iter->status;
 
   leveldb_iter_get_error(iter->rep, &err);
 
@@ -1579,6 +1727,7 @@ typedef struct map_s {
   const ldb_comparator_t *cmp;
   entry_t **data;
   size_t buckets;
+  size_t maximum;
   size_t entries;
 } map_t;
 
@@ -1586,9 +1735,16 @@ static void
 map_init_n(map_t *map, const ldb_comparator_t *cmp, size_t n) {
   size_t i;
 
+  if (n < 16)
+    n = 16;
+
+  if ((n & (n - 1)) != 0 || n > (SIZE_MAX / 3))
+    abort(); /* LCOV_EXCL_STOP */
+
   map->cmp = cmp;
   map->data = safe_malloc(n * sizeof(entry_t *));
   map->buckets = n;
+  map->maximum = (n * 3) / 4;
   map->entries = 0;
 
   for (i = 0; i < n; i++)
@@ -1688,6 +1844,7 @@ map_rehash(map_t *map) {
 
   map->data = tmp.data;
   map->buckets = tmp.buckets;
+  map->maximum = tmp.maximum;
 }
 
 static entry_t *
@@ -1697,13 +1854,9 @@ map_get(map_t *map, const ldb_slice_t *key) {
 
 static entry_t *
 map_put(map_t *map, entry_t *entry) {
-  entry_t **bucket;
-  entry_t *result;
+  entry_t **bucket, *result;
 
-  if (map->buckets > (SIZE_MAX / 3))
-    abort(); /* LCOV_EXCL_STOP */
-
-  if (map->entries >= ((map->buckets * 3) / 4))
+  if (map->entries >= map->maximum)
     map_rehash(map);
 
   bucket = map_lookup(map, &entry->key, 0);
@@ -1720,25 +1873,11 @@ map_put(map_t *map, entry_t *entry) {
  * Transaction
  */
 
-#ifdef _WIN32
-#  define ldb_mutex_t CRITICAL_SECTION
-#  define ldb_mutex_init InitializeCriticalSection
-#  define ldb_mutex_destroy DeleteCriticalSection
-#  define ldb_mutex_lock EnterCriticalSection
-#  define ldb_mutex_unlock LeaveCriticalSection
-#else
-#  define ldb_mutex_t pthread_mutex_t
-#  define ldb_mutex_init(x) pthread_mutex_init(x, NULL)
-#  define ldb_mutex_destroy pthread_mutex_destroy
-#  define ldb_mutex_lock pthread_mutex_lock
-#  define ldb_mutex_unlock pthread_mutex_unlock
-#endif
-
 struct ldb_txn_s {
   ldb_t *db;
   const ldb_comparator_t *comparator;
   const ldb_snapshot_t *snapshot;
-  ldb_mutex_t mutex;
+  ldb_rwlock_t lock;
   map_t map;
 };
 
@@ -1751,7 +1890,7 @@ ldb_txn_create(ldb_t *db, const ldb_snapshot_t *snapshot) {
   txn->snapshot = snapshot;
 
   if (snapshot == NULL) {
-    ldb_mutex_init(&txn->mutex);
+    ldb_rwlock_init(&txn->lock);
     map_init(&txn->map, &db->ucmp);
   }
 
@@ -1769,7 +1908,7 @@ ldb_txn_destroy(ldb_txn_t *txn) {
       safe_free(txn->map.data[i]);
 
     map_clear(&txn->map);
-    ldb_mutex_destroy(&txn->mutex);
+    ldb_rwlock_destroy(&txn->lock);
   }
 
   ldb_free(txn);
@@ -1777,14 +1916,36 @@ ldb_txn_destroy(ldb_txn_t *txn) {
 
 int
 ldb_txn_open(ldb_t *db, int flags, ldb_txn_t **txn) {
-  const ldb_snapshot_t *snapshot = NULL;
+  int rc = LDB_OK;
 
-  if (flags & LDB_RDONLY)
-    snapshot = ldb_snapshot(db);
+  if (flags & LDB_RDONLY) {
+    *txn = ldb_txn_create(db, ldb_snapshot(db));
+  } else {
+    ldb_tid_t tid = ldb_thread_self();
 
-  *txn = ldb_txn_create(db, snapshot);
+    ldb_mutex_lock(&db->mutex);
 
-  return LDB_OK;
+    if (db->txn != NULL) {
+      if (ldb_thread_equal(tid, db->tid))
+        rc = LDB_INVALID;
+    }
+
+    if (rc == LDB_OK) {
+      while (db->txn != NULL || db->writers > 0)
+        ldb_cond_wait(&db->writable_signal, &db->mutex);
+
+      *txn = ldb_txn_create(db, NULL);
+
+      db->txn = *txn;
+      db->tid = tid;
+    } else {
+      *txn = NULL;
+    }
+
+    ldb_mutex_unlock(&db->mutex);
+  }
+
+  return rc;
 }
 
 int
@@ -1801,11 +1962,11 @@ ldb_txn_get(ldb_txn_t *txn, const ldb_slice_t *key,
     return LDB_INVALID;
 
   if (txn->snapshot == NULL) {
-    ldb_mutex_lock(&txn->mutex);
+    ldb_rwlock_rdlock(&txn->lock);
 
     entry = map_get(&txn->map, key);
 
-    ldb_mutex_unlock(&txn->mutex);
+    ldb_rwlock_rdunlock(&txn->lock);
   }
 
   if (entry != NULL) {
@@ -1861,11 +2022,11 @@ ldb_txn_put(ldb_txn_t *txn, const ldb_slice_t *key, const ldb_slice_t *value) {
   if (txn->snapshot != NULL)
     return LDB_INVALID;
 
-  ldb_mutex_lock(&txn->mutex);
+  ldb_rwlock_wrlock(&txn->lock);
 
   ldb_txn_insert(txn, key, value);
 
-  ldb_mutex_unlock(&txn->mutex);
+  ldb_rwlock_wrunlock(&txn->lock);
 
   return LDB_OK;
 }
@@ -1875,11 +2036,11 @@ ldb_txn_del(ldb_txn_t *txn, const ldb_slice_t *key) {
   if (txn->snapshot != NULL)
     return LDB_INVALID;
 
-  ldb_mutex_lock(&txn->mutex);
+  ldb_rwlock_wrlock(&txn->lock);
 
   ldb_txn_insert(txn, key, NULL);
 
-  ldb_mutex_unlock(&txn->mutex);
+  ldb_rwlock_wrunlock(&txn->lock);
 
   return LDB_OK;
 }
@@ -1903,7 +2064,7 @@ ldb_txn_write(ldb_txn_t *txn, ldb_batch_t *batch) {
   if (txn->snapshot != NULL)
     return LDB_INVALID;
 
-  ldb_mutex_lock(&txn->mutex);
+  ldb_rwlock_wrlock(&txn->lock);
 
   handler.state = txn;
   handler.number = 0;
@@ -1912,7 +2073,7 @@ ldb_txn_write(ldb_txn_t *txn, ldb_batch_t *batch) {
 
   rc = ldb_batch_iterate(batch, &handler);
 
-  ldb_mutex_unlock(&txn->mutex);
+  ldb_rwlock_wrunlock(&txn->lock);
 
   return rc;
 }
@@ -1951,23 +2112,51 @@ ldb_txn_commit(ldb_txn_t *txn) {
   ldb_txn_export(&batch, txn);
   ldb_txn_destroy(txn);
 
-  rc = ldb_write(db, &batch, &options);
+  rc = ldb_write_inner(db, &batch, &options);
 
   ldb_batch_clear(&batch);
+
+  ldb_mutex_lock(&db->mutex);
+
+  db->txn = NULL;
+
+  ldb_cond_broadcast(&db->writable_signal);
+  ldb_mutex_unlock(&db->mutex);
 
   return rc;
 }
 
 void
 ldb_txn_abort(ldb_txn_t *txn) {
+  ldb_t *db = txn->db;
+
   ldb_txn_destroy(txn);
+
+  ldb_mutex_lock(&db->mutex);
+
+  db->txn = NULL;
+
+  ldb_cond_broadcast(&db->writable_signal);
+  ldb_mutex_unlock(&db->mutex);
 }
 
 ldb_iter_t *
 ldb_txn_iterator(ldb_txn_t *txn, const ldb_readopt_t *options) {
-  (void)txn;
-  (void)options;
-  return NULL;
+  ldb_readopt_t opts;
+
+  if (options == NULL)
+    options = ldb_iteropt_default;
+
+  if (options->snapshot != NULL)
+    return ldb_emptyiter_create(txn->db, LDB_INVALID);
+
+  if (txn->snapshot == NULL)
+    return ldb_emptyiter_create(txn->db, LDB_NOSUPPORT);
+
+  opts = *options;
+  opts.snapshot = txn->snapshot;
+
+  return ldb_iterator(txn->db, &opts);
 }
 
 int
