@@ -1894,6 +1894,48 @@ ldb_make_room_for_write(ldb_t *db, int force) {
 }
 
 static int
+ldb_write_inner(ldb_t *db, ldb_batch_t *batch, int should_sync) {
+  int rc = ldb_make_room_for_write(db, 0);
+
+  if (rc == LDB_OK) {
+    uint64_t last_sequence = db->versions->last_sequence;
+    ldb_slice_t contents;
+    int sync_error = 0;
+
+    ldb_batch_set_sequence(batch, last_sequence + 1);
+
+    last_sequence += ldb_batch_count(batch);
+
+    ldb_mutex_unlock(&db->mutex);
+
+    contents = ldb_batch_contents(batch);
+
+    rc = ldb_writer_add_record(db->log, &contents);
+
+    if (rc == LDB_OK && should_sync) {
+      rc = ldb_wfile_sync(db->logfile);
+
+      if (rc != LDB_OK)
+        sync_error = 1;
+    }
+
+    if (rc == LDB_OK)
+      rc = ldb_batch_insert_into(batch, db->mem);
+
+    ldb_mutex_lock(&db->mutex);
+
+    if (sync_error)
+      ldb_record_background_error(db, rc);
+
+    assert(last_sequence >= db->versions->last_sequence);
+
+    db->versions->last_sequence = last_sequence;
+  }
+
+  return rc;
+}
+
+static int
 ldb_backup_inner(const char *dbname, const char *bakname, rb_set64_t *live) {
   ldb_filelock_t *lock = NULL;
   char lockname[LDB_PATH_MAX];
@@ -2886,7 +2928,10 @@ ldb_txn_destroy(ldb_txn_t *txn) {
     ldb_release(db, txn->snapshot);
   } else {
     ldb_mutex_destroy(&txn->mutex);
-    ldb_memtable_unref(txn->mem);
+
+    if (txn->mem != NULL)
+      ldb_memtable_unref(txn->mem);
+
     ldb_version_unref0(txn->ver);
     ldb_edit_clear(&txn->edit);
   }
@@ -3160,6 +3205,7 @@ ldb_txn_write(ldb_txn_t *txn, ldb_batch_t *batch) {
 int
 ldb_txn_commit(ldb_txn_t *txn) {
   ldb_t *db = txn->db;
+  size_t usage;
   int rc;
 
   if (txn->snapshot != NULL) {
@@ -3170,21 +3216,41 @@ ldb_txn_commit(ldb_txn_t *txn) {
   ldb_mutex_lock(&txn->mutex);
   ldb_mutex_lock(&db->mutex);
 
+  usage = ldb_memtable_usage(txn->mem);
   rc = db->bg_error;
 
-  if (rc == LDB_OK && ldb_memtable_usage(txn->mem) > 0)
-    rc = ldb_txn_flush(txn, NULL);
+  if (txn->ver->files[0].length == 0 && usage > 0) {
+    ldb_batch_t batch;
 
-  if (rc == LDB_OK && txn->ver->files[0].length > 0) {
-    db->versions->last_sequence = txn->sequence;
+    ldb_batch_init(&batch);
 
-    rc = ldb_versions_apply(db->versions, &txn->edit, &db->mutex);
+    if (rc == LDB_OK)
+      rc = ldb_memtable_insert_into(txn->mem, &batch);
 
     if (rc == LDB_OK) {
-      ldb_maybe_schedule_compaction(db);
-      ldb_wait_compaction(db);
-    } else {
-      ldb_record_background_error(db, rc);
+      ldb_memtable_unref(txn->mem);
+
+      txn->mem = NULL;
+
+      rc = ldb_write_inner(db, &batch, 1);
+    }
+
+    ldb_batch_clear(&batch);
+  } else {
+    if (rc == LDB_OK && usage > 0)
+      rc = ldb_txn_flush(txn, NULL);
+
+    if (rc == LDB_OK && txn->ver->files[0].length > 0) {
+      db->versions->last_sequence = txn->sequence;
+
+      rc = ldb_versions_apply(db->versions, &txn->edit, &db->mutex);
+
+      if (rc == LDB_OK) {
+        ldb_maybe_schedule_compaction(db);
+        ldb_wait_compaction(db);
+      } else {
+        ldb_record_background_error(db, rc);
+      }
     }
   }
 

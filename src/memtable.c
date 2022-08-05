@@ -29,6 +29,7 @@
 #include "dbformat.h"
 #include "memtable.h"
 #include "skiplist.h"
+#include "write_batch.h"
 
 /*
  * MemTable
@@ -196,6 +197,41 @@ ldb_memtable_get(ldb_memtable_t *mt,
   }
 
   return 0;
+}
+
+int
+ldb_memtable_insert_into(ldb_memtable_t *mt, ldb_batch_t *batch) {
+  const ldb_comparator_t *cmp = mt->comparator.user_comparator;
+  ldb_iter_t *it = ldb_memiter_create(mt);
+  ldb_slice_t user_key;
+  int has_user_key = 0;
+  int rc = LDB_OK;
+
+  for (ldb_iter_first(it); ldb_iter_valid(it); ldb_iter_next(it)) {
+    ldb_slice_t key = ldb_iter_key(it);
+    ldb_slice_t val = ldb_iter_value(it);
+    ldb_pkey_t pkey;
+
+    if (!ldb_pkey_import(&pkey, &key)) {
+      rc = LDB_CORRUPTION;
+      break;
+    }
+
+    if (has_user_key && ldb_compare(cmp, &pkey.user_key, &user_key) == 0)
+      continue;
+
+    if (pkey.type == LDB_TYPE_VALUE)
+      ldb_batch_put(batch, &pkey.user_key, &val);
+    else
+      ldb_batch_del(batch, &pkey.user_key);
+
+    user_key = pkey.user_key;
+    has_user_key = 1;
+  }
+
+  ldb_iter_destroy(it);
+
+  return rc;
 }
 
 /*

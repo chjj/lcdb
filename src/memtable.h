@@ -20,6 +20,7 @@
  */
 
 struct ldb_comparator_s;
+struct ldb_batch_s;
 struct ldb_iter_s;
 struct ldb_lkey_s;
 
@@ -69,6 +70,10 @@ ldb_memtable_get(ldb_memtable_t *mt,
                  const struct ldb_lkey_s *key,
                  ldb_buffer_t *value,
                  int *status);
+
+/* Insert memtable entries into a write batch (deduplicates). */
+int
+ldb_memtable_insert_into(ldb_memtable_t *mt, struct ldb_batch_s *batch);
 
 /*
  * MemTable Iterator
