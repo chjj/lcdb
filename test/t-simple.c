@@ -381,13 +381,11 @@ main(void) {
   ASSERT(ldb_destroy(path1, NULL) == LDB_OK);
   ASSERT(ldb_destroy(path2, NULL) == LDB_OK);
 
-  /*
   test_simple(path1);
   test_backup(path1, path2);
 
   ASSERT(ldb_destroy(path1, NULL) == LDB_OK);
   ASSERT(ldb_destroy(path2, NULL) == LDB_OK);
-  */
 
   test_transaction(path1);
 

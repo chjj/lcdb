@@ -1937,58 +1937,66 @@ int
 ldb_txn_get(ldb_txn_t *txn, const ldb_slice_t *key,
                             ldb_slice_t *value,
                             const ldb_readopt_t *options) {
-  const entry_t *entry = NULL;
-  ldb_readopt_t opts;
+  const entry_t *entry;
 
-  if (options == NULL)
-    options = ldb_readopt_default;
-
-  if (options->snapshot != NULL)
+  if (options != NULL && options->snapshot != NULL)
     return LDB_INVALID;
 
-  if (txn->snapshot == NULL) {
-    ldb_mutex_lock(&txn->mutex);
+  if (txn->snapshot != NULL) {
+    ldb_readopt_t opts;
 
-    entry = map_get(&txn->map, key);
+    if (options == NULL)
+      opts = *ldb_readopt_default;
+    else
+      opts = *options;
 
-    ldb_mutex_unlock(&txn->mutex);
+    opts.snapshot = txn->snapshot;
+
+    return ldb_get(txn->db, key, value, &opts);
   }
 
+  ldb_mutex_lock(&txn->mutex);
+
+  entry = map_get(&txn->map, key);
+
+  ldb_mutex_unlock(&txn->mutex);
+
   if (entry != NULL) {
-    if (value != NULL) {
-      value->data = NULL;
-      value->size = 0;
-      value->dummy = 0;
-    }
+    value->data = NULL;
+    value->size = 0;
+    value->dummy = 0;
 
     if (entry->type == LDB_TYPE_DELETION)
       return LDB_NOTFOUND;
 
-    if (value != NULL) {
-      if (entry->val.size == 0) {
-        value->data = safe_malloc(1);
-        value->size = 0;
-      } else {
-        value->data = safe_malloc(entry->val.size);
-        value->size = entry->val.size;
+    if (entry->val.size == 0) {
+      value->data = safe_malloc(1);
+      value->size = 0;
+    } else {
+      value->data = safe_malloc(entry->val.size);
+      value->size = entry->val.size;
 
-        memcpy(value->data, entry->val.data, entry->val.size);
-      }
+      memcpy(value->data, entry->val.data, entry->val.size);
     }
 
     return LDB_OK;
   }
 
-  opts = *options;
-  opts.snapshot = txn->snapshot;
-
-  return ldb_get(txn->db, key, value, &opts);
+  return ldb_get(txn->db, key, value, options);
 }
 
 int
 ldb_txn_has(ldb_txn_t *txn, const ldb_slice_t *key,
                             const ldb_readopt_t *options) {
-  return ldb_txn_get(txn, key, NULL, options);
+  ldb_slice_t val;
+  int rc;
+
+  rc = ldb_txn_get(txn, key, &val, options);
+
+  if (rc == LDB_OK)
+    leveldb_free(val.data);
+
+  return rc;
 }
 
 static void
