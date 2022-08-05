@@ -10,15 +10,12 @@
  * See LICENSE for more information.
  */
 
-#define _GNU_SOURCE
-
 #include <assert.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <leveldb/c.h>
 
 #ifdef _WIN32
 #  include <windows.h>
@@ -31,8 +28,10 @@
 #  include <pthread.h>
 #endif
 
+#include <leveldb/c.h>
+
 /*
- * Threads
+ * Compat
  */
 
 #ifdef _WIN32
@@ -47,13 +46,6 @@
 #  define ldb_cond_signal WakeConditionVariable
 #  define ldb_cond_broadcast WakeAllConditionVariable
 #  define ldb_cond_wait(cond, mtx) SleepConditionVariableCS(cond, mtx, INFINITE)
-#  define ldb_rwlock_t SRWLOCK
-#  define ldb_rwlock_init InitializeSRWLock
-#  define ldb_rwlock_destroy(lock) ((void)(lock))
-#  define ldb_rwlock_rdlock AcquireSRWLockShared
-#  define ldb_rwlock_rdunlock ReleaseSRWLockShared
-#  define ldb_rwlock_wrlock AcquireSRWLockExclusive
-#  define ldb_rwlock_wrunlock ReleaseSRWLockExclusive
 #  define ldb_tid_t DWORD
 #  define ldb_thread_self GetCurrentThreadId
 #  define ldb_thread_equal(x, y) ((x) == (y))
@@ -69,13 +61,6 @@
 #  define ldb_cond_signal pthread_cond_signal
 #  define ldb_cond_broadcast pthread_cond_broadcast
 #  define ldb_cond_wait pthread_cond_wait
-#  define ldb_rwlock_t pthread_rwlock_t
-#  define ldb_rwlock_init(lock) pthread_rwlock_init(lock, NULL)
-#  define ldb_rwlock_destroy pthread_rwlock_destroy
-#  define ldb_rwlock_rdlock pthread_rwlock_rdlock
-#  define ldb_rwlock_rdunlock pthread_rwlock_unlock
-#  define ldb_rwlock_wrlock pthread_rwlock_wrlock
-#  define ldb_rwlock_wrunlock pthread_rwlock_unlock
 #  define ldb_tid_t pthread_t
 #  define ldb_thread_self pthread_self
 #  define ldb_thread_equal pthread_equal
@@ -1877,7 +1862,7 @@ struct ldb_txn_s {
   ldb_t *db;
   const ldb_comparator_t *comparator;
   const ldb_snapshot_t *snapshot;
-  ldb_rwlock_t lock;
+  ldb_mutex_t mutex;
   map_t map;
 };
 
@@ -1890,7 +1875,7 @@ ldb_txn_create(ldb_t *db, const ldb_snapshot_t *snapshot) {
   txn->snapshot = snapshot;
 
   if (snapshot == NULL) {
-    ldb_rwlock_init(&txn->lock);
+    ldb_mutex_init(&txn->mutex);
     map_init(&txn->map, &db->ucmp);
   }
 
@@ -1908,7 +1893,7 @@ ldb_txn_destroy(ldb_txn_t *txn) {
       safe_free(txn->map.data[i]);
 
     map_clear(&txn->map);
-    ldb_rwlock_destroy(&txn->lock);
+    ldb_mutex_destroy(&txn->mutex);
   }
 
   ldb_free(txn);
@@ -1962,11 +1947,11 @@ ldb_txn_get(ldb_txn_t *txn, const ldb_slice_t *key,
     return LDB_INVALID;
 
   if (txn->snapshot == NULL) {
-    ldb_rwlock_rdlock(&txn->lock);
+    ldb_mutex_lock(&txn->mutex);
 
     entry = map_get(&txn->map, key);
 
-    ldb_rwlock_rdunlock(&txn->lock);
+    ldb_mutex_unlock(&txn->mutex);
   }
 
   if (entry != NULL) {
@@ -2022,11 +2007,11 @@ ldb_txn_put(ldb_txn_t *txn, const ldb_slice_t *key, const ldb_slice_t *value) {
   if (txn->snapshot != NULL)
     return LDB_INVALID;
 
-  ldb_rwlock_wrlock(&txn->lock);
+  ldb_mutex_lock(&txn->mutex);
 
   ldb_txn_insert(txn, key, value);
 
-  ldb_rwlock_wrunlock(&txn->lock);
+  ldb_mutex_unlock(&txn->mutex);
 
   return LDB_OK;
 }
@@ -2036,11 +2021,11 @@ ldb_txn_del(ldb_txn_t *txn, const ldb_slice_t *key) {
   if (txn->snapshot != NULL)
     return LDB_INVALID;
 
-  ldb_rwlock_wrlock(&txn->lock);
+  ldb_mutex_lock(&txn->mutex);
 
   ldb_txn_insert(txn, key, NULL);
 
-  ldb_rwlock_wrunlock(&txn->lock);
+  ldb_mutex_unlock(&txn->mutex);
 
   return LDB_OK;
 }
@@ -2064,7 +2049,7 @@ ldb_txn_write(ldb_txn_t *txn, ldb_batch_t *batch) {
   if (txn->snapshot != NULL)
     return LDB_INVALID;
 
-  ldb_rwlock_wrlock(&txn->lock);
+  ldb_mutex_lock(&txn->mutex);
 
   handler.state = txn;
   handler.number = 0;
@@ -2073,7 +2058,7 @@ ldb_txn_write(ldb_txn_t *txn, ldb_batch_t *batch) {
 
   rc = ldb_batch_iterate(batch, &handler);
 
-  ldb_rwlock_wrunlock(&txn->lock);
+  ldb_mutex_unlock(&txn->mutex);
 
   return rc;
 }
