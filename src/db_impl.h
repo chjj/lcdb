@@ -188,7 +188,7 @@ LDB_EXTERN int
 ldb_txn_write(ldb_txn_t *txn, struct ldb_batch_s *batch);
 
 LDB_EXTERN int
-ldb_txn_commit(ldb_txn_t *txn);
+ldb_txn_commit(ldb_txn_t *txn, const ldb_writeopt_t *options);
 
 LDB_EXTERN void
 ldb_txn_abort(ldb_txn_t *txn);

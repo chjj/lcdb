@@ -1894,7 +1894,7 @@ ldb_make_room_for_write(ldb_t *db, int force) {
 }
 
 static int
-ldb_write_inner(ldb_t *db, ldb_batch_t *batch, int should_sync) {
+ldb_write_inner(ldb_t *db, ldb_batch_t *batch, const ldb_writeopt_t *options) {
   int rc = ldb_make_room_for_write(db, 0);
 
   if (rc == LDB_OK) {
@@ -1912,7 +1912,7 @@ ldb_write_inner(ldb_t *db, ldb_batch_t *batch, int should_sync) {
 
     rc = ldb_writer_add_record(db->log, &contents);
 
-    if (rc == LDB_OK && should_sync) {
+    if (rc == LDB_OK && options->sync) {
       rc = ldb_wfile_sync(db->logfile);
 
       if (rc != LDB_OK)
@@ -3203,10 +3203,13 @@ ldb_txn_write(ldb_txn_t *txn, ldb_batch_t *batch) {
 }
 
 int
-ldb_txn_commit(ldb_txn_t *txn) {
+ldb_txn_commit(ldb_txn_t *txn, const ldb_writeopt_t *options) {
   ldb_t *db = txn->db;
   size_t usage;
   int rc;
+
+  if (options == NULL)
+    options = ldb_writeopt_default;
 
   if (txn->snapshot != NULL) {
     ldb_txn_destroy(txn);
@@ -3232,7 +3235,7 @@ ldb_txn_commit(ldb_txn_t *txn) {
 
       txn->mem = NULL;
 
-      rc = ldb_write_inner(db, &batch, 1);
+      rc = ldb_write_inner(db, &batch, options);
     }
 
     ldb_batch_clear(&batch);

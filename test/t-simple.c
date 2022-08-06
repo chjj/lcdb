@@ -275,7 +275,7 @@ test_transaction(const char *path) {
     ldb_slice_t val = val_encode(i, vbuf);
 
     if (i == (COUNT / 2)) {
-      ASSERT(ldb_txn_commit(txn) == LDB_OK);
+      ASSERT(ldb_txn_commit(txn, NULL) == LDB_OK);
       ASSERT(ldb_txn_open(db, 0, &txn) == LDB_OK);
     }
 
@@ -322,7 +322,7 @@ test_transaction(const char *path) {
   ldb_iter_destroy(it);
 
   /* Commit transaction. */
-  ASSERT(ldb_txn_commit(txn) == LDB_OK);
+  ASSERT(ldb_txn_commit(txn, NULL) == LDB_OK);
 
   /* Read some values. */
   for (i = 0; i < COUNT; i++) {

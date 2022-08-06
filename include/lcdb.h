@@ -538,7 +538,7 @@ int
 ldb_txn_write(ldb_txn_t *txn, ldb_batch_t *batch);
 
 int
-ldb_txn_commit(ldb_txn_t *txn);
+ldb_txn_commit(ldb_txn_t *txn, const ldb_writeopt_t *options);
 
 void
 ldb_txn_abort(ldb_txn_t *txn);

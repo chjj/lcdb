@@ -469,7 +469,7 @@ LDB_EXTERN int
 ldb_txn_write(ldb_txn_t *txn, ldb_batch_t *batch);
 
 LDB_EXTERN int
-ldb_txn_commit(ldb_txn_t *txn);
+ldb_txn_commit(ldb_txn_t *txn, const ldb_writeopt_t *options);
 
 LDB_EXTERN void
 ldb_txn_abort(ldb_txn_t *txn);
@@ -1743,7 +1743,12 @@ map_init(map_t *map, const ldb_comparator_t *cmp) {
 
 static void
 map_clear(map_t *map) {
-  free(map->data);
+  safe_free(map->data);
+
+  map->data = NULL;
+  map->buckets = 0;
+  map->maximum = 0;
+  map->entries = 0;
 }
 
 static uint32_t
@@ -1825,7 +1830,7 @@ map_rehash(map_t *map) {
       *map_lookup(&tmp, &entry->key, 1) = entry;
   }
 
-  free(map->data);
+  safe_free(map->data);
 
   map->data = tmp.data;
   map->buckets = tmp.buckets;
@@ -1883,16 +1888,21 @@ ldb_txn_create(ldb_t *db, const ldb_snapshot_t *snapshot) {
 }
 
 static void
-ldb_txn_destroy(ldb_txn_t *txn) {
+ldb_txn_cleanup(ldb_txn_t *txn) {
   size_t i;
 
+  for (i = 0; i < txn->map.buckets; i++)
+    safe_free(txn->map.data[i]);
+
+  map_clear(&txn->map);
+}
+
+static void
+ldb_txn_destroy(ldb_txn_t *txn) {
   if (txn->snapshot != NULL) {
     ldb_release(txn->db, txn->snapshot);
   } else {
-    for (i = 0; i < txn->map.buckets; i++)
-      safe_free(txn->map.data[i]);
-
-    map_clear(&txn->map);
+    ldb_txn_cleanup(txn);
     ldb_mutex_destroy(&txn->mutex);
   }
 
@@ -2091,8 +2101,7 @@ ldb_txn_export(ldb_batch_t *batch, ldb_txn_t *txn) {
 }
 
 int
-ldb_txn_commit(ldb_txn_t *txn) {
-  static const ldb_writeopt_t options = {1};
+ldb_txn_commit(ldb_txn_t *txn, const ldb_writeopt_t *options) {
   ldb_t *db = txn->db;
   ldb_batch_t batch;
   int rc;
@@ -2102,19 +2111,23 @@ ldb_txn_commit(ldb_txn_t *txn) {
     return LDB_OK;
   }
 
-  ldb_txn_export(&batch, txn);
-  ldb_txn_destroy(txn);
+  ldb_mutex_lock(&txn->mutex);
+  ldb_mutex_lock(&db->mutex);
 
-  rc = ldb_write_inner(db, &batch, &options);
+  ldb_txn_export(&batch, txn);
+  ldb_txn_cleanup(txn);
+
+  rc = ldb_write_inner(db, &batch, options);
 
   ldb_batch_clear(&batch);
-
-  ldb_mutex_lock(&db->mutex);
 
   db->txn = NULL;
 
   ldb_cond_broadcast(&db->writable_signal);
   ldb_mutex_unlock(&db->mutex);
+  ldb_mutex_unlock(&txn->mutex);
+
+  ldb_txn_destroy(txn);
 
   return rc;
 }
@@ -2123,14 +2136,18 @@ void
 ldb_txn_abort(ldb_txn_t *txn) {
   ldb_t *db = txn->db;
 
-  ldb_txn_destroy(txn);
-
+  ldb_mutex_lock(&txn->mutex);
   ldb_mutex_lock(&db->mutex);
+
+  ldb_txn_cleanup(txn);
 
   db->txn = NULL;
 
   ldb_cond_broadcast(&db->writable_signal);
   ldb_mutex_unlock(&db->mutex);
+  ldb_mutex_unlock(&txn->mutex);
+
+  ldb_txn_destroy(txn);
 }
 
 ldb_iter_t *
