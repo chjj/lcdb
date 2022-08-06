@@ -20,6 +20,8 @@
 
 #if !defined(_WIN32) && !defined(LDB_PTHREAD)
 /* Skip. We're single-threaded. */
+#elif defined(LDB_HAVE_STDATOMIC)
+#  define LDB_STD_ATOMICS
 #elif defined(__clang__)
 #  ifdef __has_extension
 #    if __has_extension(c_atomic) /* 3.1 */
@@ -94,7 +96,8 @@
 #  endif
 #endif
 
-#if (defined(LDB_GNUC_ATOMICS)    \
+#if (defined(LDB_STD_ATOMICS)     \
+  || defined(LDB_GNUC_ATOMICS)    \
   || defined(LDB_SYNC_ATOMICS)    \
   || defined(LDB_ASM_ATOMICS)     \
   || defined(LDB_TINYC_ATOMICS)   \
@@ -107,11 +110,8 @@
 #elif defined(_WIN32)
 #  define LDB_MSVC_ATOMICS
 #  define LDB_HAVE_ATOMICS
-#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
-#  if !defined(__STDC_NO_ATOMICS__) && defined(LDB_PTHREAD)
-#    define LDB_STD_ATOMICS
-#    define LDB_HAVE_ATOMICS
-#  endif
+#elif defined(LDB_PTHREAD)
+#  define LDB_PTHREAD_ATOMICS
 #endif
 
 /*
@@ -803,7 +803,7 @@ ldb_atomic__fetch_add(volatile ldb_word_t *object, ldb_word_t operand);
 #define ldb_atomic_fetch_sub(object, operand, order) \
   ldb_atomic__fetch_add(object, -(ldb_word_t)(operand))
 
-#elif defined(LDB_PTHREAD)
+#elif defined(LDB_PTHREAD_ATOMICS)
 
 /*
  * Mutex Fallback
@@ -851,7 +851,7 @@ ldb_atomic__fetch_add(long *object, long operand);
 #define ldb_atomic_fetch_sub(object, operand, order) \
   ldb_atomic__fetch_add(object, -(long)(operand))
 
-#else /* !LDB_PTHREAD */
+#else /* !LDB_PTHREAD_ATOMICS */
 
 /*
  * Single-Threaded Fallback
@@ -890,6 +890,6 @@ ldb_atomic__fetch_add(long *object, long operand) {
 #define ldb_atomic_fetch_sub(object, operand, order) \
   ldb_atomic__fetch_add(object, -(long)(operand))
 
-#endif /* !LDB_PTHREAD */
+#endif /* !LDB_PTHREAD_ATOMICS */
 
 #endif /* LDB_ATOMICS_H */

@@ -263,7 +263,7 @@ ldb_atomic__fetch_add(volatile ldb_word_t *object, ldb_word_t operand) {
 #endif
 }
 
-#elif !defined(LDB_HAVE_ATOMICS) && defined(LDB_PTHREAD)
+#elif defined(LDB_PTHREAD_ATOMICS)
 
 /*
  * Mutex Fallback
@@ -344,7 +344,7 @@ ldb_atomic__fetch_add(long *object, long operand) {
   return result;
 }
 
-#else /* LDB_HAVE_ATOMICS || !LDB_PTHREAD */
+#else /* !LDB_PTHREAD_ATOMICS */
 
 /*
  * Non-Empty (avoids empty translation unit)
@@ -358,4 +358,4 @@ ldb_atomic__nonempty(void) {
   return 0;
 }
 
-#endif /* LDB_HAVE_ATOMICS || !LDB_PTHREAD */
+#endif /* !LDB_PTHREAD_ATOMICS */
