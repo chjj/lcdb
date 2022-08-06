@@ -31,6 +31,12 @@
 #    define LDB_GNUC_ATOMICS
 #  elif __INTEL_COMPILER >= 1110 /* 11.1 */
 #    define LDB_SYNC_ATOMICS
+#  elif __INTEL_COMPILER >= 800 /* 8.0 */
+#    if defined(__ia64__)
+#      define LDB_SYNC_ATOMICS
+#    elif defined(__i386__) || defined(__x86_64__)
+#      define LDB_ASM_ATOMICS
+#    endif
 #  endif
 #elif defined(__CC_ARM)
 #  if defined(__GNUC__) && __ARMCC_VERSION >= 410000 /* 4.1 */
@@ -239,7 +245,7 @@ ldb_atomic_compare_exchange(_Atomic(intptr_t) *object,
 
 #define ldb_atomic_compare_exchange(object, expected, desired)  \
 __extension__ ({                                                \
-  __typeof__((void)0, *(object)) _exp = (expected);             \
+  __typeof__(*(object) + 0) _exp = (expected);                  \
   __atomic_compare_exchange_n(object, &_exp, desired, 0, 5, 5); \
   _exp;                                                         \
 })
@@ -271,14 +277,20 @@ __extension__ ({                                                \
 #define ldb_atomic_store_ptr ldb_atomic_store
 
 #define ldb_atomic_load(object, order) __extension__ ({ \
-  __typeof__((void)0, *(object)) _result;               \
+  __typeof__(*(object) + 0) _result;                    \
   ldb_compiler_barrier();                               \
   _result = *(object);                                  \
   ldb_hardware_fence();                                 \
   _result;                                              \
 })
 
-#define ldb_atomic_load_ptr ldb_atomic_load
+#define ldb_atomic_load_ptr(object, order) __extension__ ({ \
+  __typeof__(**(object)) *_result;                          \
+  ldb_compiler_barrier();                                   \
+  _result = *(object);                                      \
+  ldb_hardware_fence();                                     \
+  _result;                                                  \
+})
 
 #if defined(__i386__) || defined(__x86_64__)
 #  define ldb_atomic_exchange __sync_lock_test_and_set

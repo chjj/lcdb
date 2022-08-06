@@ -42,10 +42,12 @@
 #      define HAVE_PREFETCH /* Clang 2.3 (Jun 2008) */
 #    endif
 #  elif defined(__INTEL_COMPILER) || defined(__ICC)
-#    if __INTEL_COMPILER >= 1110 /* ICC 11.1 (June 2009) */
+#    if __INTEL_COMPILER >= 800 /* ICC 8.0 (December 2003) */
 #      define HAVE_X64_ASM
-#      define HAVE_ATOMICS
 #      define HAVE_PREFETCH
+#    endif
+#    if __INTEL_COMPILER >= 1110 /* ICC 11.1 (June 2009) */
+#      define HAVE_ATOMICS
 #    endif
 #  elif defined(__TINYC__) || defined(__PCC__)
 #    define HAVE_X64_ASM
