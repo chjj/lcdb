@@ -202,14 +202,16 @@ ldb_memtable_get(ldb_memtable_t *mt,
 int
 ldb_memtable_insert_into(ldb_memtable_t *mt, ldb_batch_t *batch) {
   const ldb_comparator_t *cmp = mt->comparator.user_comparator;
-  ldb_iter_t *it = ldb_memiter_create(mt);
   ldb_slice_t user_key;
   int has_user_key = 0;
+  ldb_skipiter_t iter;
   int rc = LDB_OK;
 
-  for (ldb_iter_first(it); ldb_iter_valid(it); ldb_iter_next(it)) {
-    ldb_slice_t key = ldb_iter_key(it);
-    ldb_slice_t val = ldb_iter_value(it);
+  ldb_skipiter_init(&iter, &mt->table);
+  ldb_skipiter_first(&iter);
+
+  for (; ldb_skipiter_valid(&iter); ldb_skipiter_next(&iter)) {
+    ldb_slice_t key = ldb_slice_decode(ldb_skipiter_key(&iter));
     ldb_pkey_t pkey;
 
     if (!ldb_pkey_import(&pkey, &key)) {
@@ -220,16 +222,17 @@ ldb_memtable_insert_into(ldb_memtable_t *mt, ldb_batch_t *batch) {
     if (has_user_key && ldb_compare(cmp, &pkey.user_key, &user_key) == 0)
       continue;
 
-    if (pkey.type == LDB_TYPE_VALUE)
+    if (pkey.type == LDB_TYPE_VALUE) {
+      ldb_slice_t val = ldb_slice_decode(key.data + key.size);
+
       ldb_batch_put(batch, &pkey.user_key, &val);
-    else
+    } else {
       ldb_batch_del(batch, &pkey.user_key);
+    }
 
     user_key = pkey.user_key;
     has_user_key = 1;
   }
-
-  ldb_iter_destroy(it);
 
   return rc;
 }
