@@ -1895,16 +1895,20 @@ ldb_make_room_for_write(ldb_t *db, int force) {
 
 static int
 ldb_write_inner(ldb_t *db, ldb_batch_t *batch, const ldb_writeopt_t *options) {
-  int rc = ldb_make_room_for_write(db, 0);
+  uint64_t last_sequence = db->versions->last_sequence;
+  int rc;
 
-  if (rc == LDB_OK) {
-    uint64_t last_sequence = db->versions->last_sequence;
+  ldb_batch_set_sequence(batch, last_sequence + 1);
+
+  last_sequence += ldb_batch_count(batch);
+
+  /* Add to log and apply to memtable. We can release the lock
+     during this phase since &w is currently responsible for logging
+     and protects against concurrent loggers and concurrent writes
+     into db->mem. */
+  {
     ldb_slice_t contents;
     int sync_error = 0;
-
-    ldb_batch_set_sequence(batch, last_sequence + 1);
-
-    last_sequence += ldb_batch_count(batch);
 
     ldb_mutex_unlock(&db->mutex);
 
@@ -1924,13 +1928,17 @@ ldb_write_inner(ldb_t *db, ldb_batch_t *batch, const ldb_writeopt_t *options) {
 
     ldb_mutex_lock(&db->mutex);
 
-    if (sync_error)
+    if (sync_error) {
+      /* The state of the log file is indeterminate: the log record we
+         just added may or may not show up when the DB is re-opened.
+         So we force the DB into a mode where all future writes fail. */
       ldb_record_background_error(db, rc);
-
-    assert(last_sequence >= db->versions->last_sequence);
-
-    db->versions->last_sequence = last_sequence;
+    }
   }
+
+  assert(last_sequence >= db->versions->last_sequence);
+
+  db->versions->last_sequence = last_sequence;
 
   return rc;
 }
@@ -2248,7 +2256,6 @@ ldb_del(ldb_t *db, const ldb_slice_t *key, const ldb_writeopt_t *options) {
 int
 ldb_write(ldb_t *db, ldb_batch_t *updates, const ldb_writeopt_t *options) {
   ldb_waiter_t *last_writer;
-  uint64_t last_sequence;
   ldb_waiter_t w;
   int rc;
 
@@ -2281,56 +2288,15 @@ ldb_write(ldb_t *db, ldb_batch_t *updates, const ldb_writeopt_t *options) {
 
   /* May temporarily unlock and wait. */
   rc = ldb_make_room_for_write(db, updates == NULL);
-  last_sequence = db->versions->last_sequence;
   last_writer = &w;
 
   if (rc == LDB_OK && updates != NULL) { /* NULL batch is for compactions. */
     ldb_batch_t *write_batch = ldb_build_batch_group(db, &last_writer);
 
-    ldb_batch_set_sequence(write_batch, last_sequence + 1);
-
-    last_sequence += ldb_batch_count(write_batch);
-
-    /* Add to log and apply to memtable. We can release the lock
-       during this phase since &w is currently responsible for logging
-       and protects against concurrent loggers and concurrent writes
-       into db->mem. */
-    {
-      ldb_slice_t contents;
-      int sync_error = 0;
-
-      ldb_mutex_unlock(&db->mutex);
-
-      contents = ldb_batch_contents(write_batch);
-
-      rc = ldb_writer_add_record(db->log, &contents);
-
-      if (rc == LDB_OK && options->sync) {
-        rc = ldb_wfile_sync(db->logfile);
-
-        if (rc != LDB_OK)
-          sync_error = 1;
-      }
-
-      if (rc == LDB_OK)
-        rc = ldb_batch_insert_into(write_batch, db->mem);
-
-      ldb_mutex_lock(&db->mutex);
-
-      if (sync_error) {
-        /* The state of the log file is indeterminate: the log record we
-           just added may or may not show up when the DB is re-opened.
-           So we force the DB into a mode where all future writes fail. */
-        ldb_record_background_error(db, rc);
-      }
-    }
+    rc = ldb_write_inner(db, write_batch, options);
 
     if (write_batch == db->tmp_batch)
       ldb_batch_reset(db->tmp_batch);
-
-    assert(last_sequence >= db->versions->last_sequence);
-
-    db->versions->last_sequence = last_sequence;
   }
 
   for (;;) {
@@ -3230,13 +3196,14 @@ ldb_txn_commit(ldb_txn_t *txn, const ldb_writeopt_t *options) {
     if (rc == LDB_OK)
       rc = ldb_memtable_insert_into(txn->mem, &batch);
 
-    if (rc == LDB_OK) {
-      ldb_memtable_unref(txn->mem);
+    ldb_memtable_unref(txn->mem);
+    txn->mem = NULL;
 
-      txn->mem = NULL;
+    if (rc == LDB_OK)
+      rc = ldb_make_room_for_write(db, 0);
 
+    if (rc == LDB_OK)
       rc = ldb_write_inner(db, &batch, options);
-    }
 
     ldb_batch_clear(&batch);
   } else {
