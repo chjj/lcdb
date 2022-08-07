@@ -438,6 +438,8 @@ getstate_match(void *arg, int level, ldb_filemeta_t *f) {
       state->found = 1;
       return 0;
     case S_DELETED:
+      state->status = LDB_NOTFOUND;
+      state->found = 1;
       return 0;
     case S_CORRUPT:
       state->status = LDB_CORRUPTION; /* "corrupted key for [saver.user_key]" */
