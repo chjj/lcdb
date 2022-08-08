@@ -987,26 +987,6 @@ ldb_del(ldb_t *db, const ldb_slice_t *key, const ldb_writeopt_t *options) {
 }
 
 static int
-ldb_write_inner(ldb_t *db, ldb_batch_t *updates,
-                           const ldb_writeopt_t *options) {
-  leveldb_writeoptions_t *opt = db->write_options;
-  char *err = NULL;
-
-  if (updates == NULL)
-    return LDB_INVALID;
-
-  if (options != NULL)
-    opt = convert_writeopt(options);
-
-  leveldb_write(db->level, opt, updates->rep, &err);
-
-  if (options != NULL)
-    leveldb_writeoptions_destroy(opt);
-
-  return handle_error(err);
-}
-
-static int
 ldb_wait_for_writable(ldb_t *db) {
   if (db->txn != NULL) {
     if (ldb_thread_equal(ldb_thread_self(), db->tid))
@@ -1017,6 +997,25 @@ ldb_wait_for_writable(ldb_t *db) {
   }
 
   return 1;
+}
+
+static int
+ldb_write_inner(ldb_t *db, ldb_batch_t *batch, const ldb_writeopt_t *options) {
+  leveldb_writeoptions_t *opt = db->write_options;
+  char *err = NULL;
+
+  if (batch == NULL)
+    return LDB_INVALID;
+
+  if (options != NULL)
+    opt = convert_writeopt(options);
+
+  leveldb_write(db->level, opt, batch->rep, &err);
+
+  if (options != NULL)
+    leveldb_writeoptions_destroy(opt);
+
+  return handle_error(err);
 }
 
 int

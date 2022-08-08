@@ -1898,6 +1898,8 @@ ldb_write_inner(ldb_t *db, ldb_batch_t *batch, const ldb_writeopt_t *options) {
   uint64_t last_sequence = db->versions->last_sequence;
   int rc;
 
+  ldb_mutex_assert_held(&db->mutex);
+
   ldb_batch_set_sequence(batch, last_sequence + 1);
 
   last_sequence += ldb_batch_count(batch);
