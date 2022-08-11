@@ -380,7 +380,7 @@ ldb_reader_read_record(ldb_reader_t *lr,
         return 0;
       }
 
-      case LDB_BAD_RECORD:
+      case LDB_BAD_RECORD: {
         if (in_fragmented_record) {
           report_corruption(lr, scratch->size, "error in middle of record");
 
@@ -390,6 +390,7 @@ ldb_reader_read_record(ldb_reader_t *lr,
         }
 
         break;
+      }
 
       default: {
         char buf[40];
