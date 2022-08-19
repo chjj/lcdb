@@ -67,13 +67,6 @@
 #endif
 
 /*
- * Options
- */
-
-/* Define to assume latest leveldb version. */
-/* #undef LWDB_LATEST */
-
-/*
  * Macros
  */
 
@@ -1838,6 +1831,9 @@ map_rehash(map_t *map) {
 
 static entry_t *
 map_get(map_t *map, const ldb_slice_t *key) {
+  if (map->buckets == 0)
+    return NULL;
+
   return *map_lookup(map, key, 0);
 }
 
@@ -1905,7 +1901,7 @@ ldb_txn_destroy(ldb_txn_t *txn) {
     ldb_mutex_destroy(&txn->mutex);
   }
 
-  ldb_free(txn);
+  safe_free(txn);
 }
 
 int
@@ -1968,28 +1964,32 @@ ldb_txn_get(ldb_txn_t *txn, const ldb_slice_t *key,
 
   entry = map_get(&txn->map, key);
 
-  ldb_mutex_unlock(&txn->mutex);
-
   if (entry != NULL) {
-    value->data = NULL;
-    value->size = 0;
-    value->dummy = 0;
+    void *data = NULL;
+    size_t size = 0;
+    int rc = LDB_OK;
 
-    if (entry->type == LDB_TYPE_DELETION)
-      return LDB_NOTFOUND;
-
-    if (entry->val.size == 0) {
-      value->data = safe_malloc(1);
-      value->size = 0;
+    if (entry->type == LDB_TYPE_DELETION) {
+      rc = LDB_NOTFOUND;
+    } else if (entry->val.size == 0) {
+      data = safe_malloc(1);
     } else {
-      value->data = safe_malloc(entry->val.size);
-      value->size = entry->val.size;
+      data = safe_malloc(entry->val.size);
+      size = entry->val.size;
 
-      memcpy(value->data, entry->val.data, entry->val.size);
+      memcpy(data, entry->val.data, entry->val.size);
     }
 
-    return LDB_OK;
+    ldb_mutex_unlock(&txn->mutex);
+
+    value->data = data;
+    value->size = size;
+    value->dummy = 0;
+
+    return rc;
   }
+
+  ldb_mutex_unlock(&txn->mutex);
 
   return ldb_get(txn->db, key, value, options);
 }
@@ -2061,7 +2061,6 @@ txn_del(ldb_handler_t *handler, const ldb_slice_t *key) {
 int
 ldb_txn_write(ldb_txn_t *txn, ldb_batch_t *batch) {
   ldb_handler_t handler;
-  int rc;
 
   if (txn->snapshot != NULL)
     return LDB_INVALID;
@@ -2073,11 +2072,11 @@ ldb_txn_write(ldb_txn_t *txn, ldb_batch_t *batch) {
   handler.put = txn_put;
   handler.del = txn_del;
 
-  rc = ldb_batch_iterate(batch, &handler);
+  ldb_batch_iterate(batch, &handler);
 
   ldb_mutex_unlock(&txn->mutex);
 
-  return rc;
+  return LDB_OK;
 }
 
 static void
@@ -2135,6 +2134,11 @@ void
 ldb_txn_abort(ldb_txn_t *txn) {
   ldb_t *db = txn->db;
 
+  if (txn->snapshot != NULL) {
+    ldb_txn_destroy(txn);
+    return;
+  }
+
   ldb_mutex_lock(&txn->mutex);
   ldb_mutex_lock(&db->mutex);
 
@@ -2151,21 +2155,19 @@ ldb_txn_abort(ldb_txn_t *txn) {
 
 ldb_iter_t *
 ldb_txn_iterator(ldb_txn_t *txn, const ldb_readopt_t *options) {
-  ldb_readopt_t opts;
-
   if (options == NULL)
     options = ldb_iteropt_default;
 
   if (options->snapshot != NULL)
     return ldb_emptyiter_create(txn->db, LDB_INVALID);
 
-  if (txn->snapshot == NULL)
-    return ldb_emptyiter_create(txn->db, LDB_NOSUPPORT);
+  if (txn->snapshot != NULL) {
+    ldb_readopt_t opts = *options;
+    opts.snapshot = txn->snapshot;
+    return ldb_iterator(txn->db, &opts);
+  }
 
-  opts = *options;
-  opts.snapshot = txn->snapshot;
-
-  return ldb_iterator(txn->db, &opts);
+  return ldb_emptyiter_create(txn->db, LDB_NOSUPPORT);
 }
 
 int
