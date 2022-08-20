@@ -684,39 +684,60 @@ ldb_version_get0(ldb_version_t *ver,
                  const ldb_lkey_t *k,
                  ldb_buffer_t *value,
                  int *status) {
-  ldb_getstats_t stats;
-  getstate_t state;
+  const ldb_versions_t *vset = ver->vset;
+  const ldb_comparator_t *ucmp;
+  const ldb_slice_t *user_key;
+  ldb_slice_t ikey;
+  saver_t saver;
+  size_t i;
 
   if (ver->files[0].length == 0)
     return 0;
 
-  stats.seek_file = NULL;
-  stats.seek_file_level = -1;
+  ucmp = vset->icmp.user_comparator;
+  user_key = &saver.user_key;
+  ikey = ldb_lkey_internal_key(k);
 
-  state.status = LDB_OK;
-  state.found = 0;
-  state.stats = &stats;
-  state.last_file_read = NULL;
-  state.last_file_read_level = -1;
+  saver.state = S_NOTFOUND;
+  saver.ucmp = ucmp;
+  saver.user_key = ldb_lkey_user_key(k);
+  saver.value = value;
 
-  state.options = options;
-  state.ikey = ldb_lkey_internal_key(k);
-  state.vset = ver->vset;
+  /* Search level-0 in order from newest to oldest. */
+  for (i = ver->files[0].length - 1; i != (size_t)-1; i--) {
+    ldb_filemeta_t *f = ver->files[0].items[i];
+    ldb_slice_t small_key = ldb_ikey_user_key(&f->smallest);
+    ldb_slice_t large_key = ldb_ikey_user_key(&f->largest);
 
-  state.saver.state = S_NOTFOUND;
-  state.saver.ucmp = ver->vset->icmp.user_comparator;
-  state.saver.user_key = ldb_lkey_user_key(k);
-  state.saver.value = value;
+    if (ldb_compare(ucmp, user_key, &small_key) >= 0 &&
+        ldb_compare(ucmp, user_key, &large_key) <= 0) {
+      int rc = ldb_tables_get(vset->table_cache,
+                              options,
+                              f->number,
+                              f->file_size,
+                              &ikey,
+                              &saver,
+                              save_value);
 
-  ldb_version_for_each_overlapping(ver,
-                                   &state.saver.user_key,
-                                   &state.ikey,
-                                   &state,
-                                   &getstate_match);
+      if (rc != LDB_OK) {
+        *status = rc;
+        return 1;
+      }
 
-  if (state.found) {
-    *status = state.status;
-    return 1;
+      switch (saver.state) {
+        case S_NOTFOUND:
+          continue;
+        case S_FOUND:
+          *status = LDB_OK;
+          return 1;
+        case S_DELETED:
+          *status = LDB_NOTFOUND;
+          return 1;
+        case S_CORRUPT:
+          *status = LDB_CORRUPTION; /* "corrupted key for [saver.user_key]" */
+          return 1;
+      }
+    }
   }
 
   return 0;
