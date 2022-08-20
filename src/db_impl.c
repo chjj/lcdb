@@ -2851,7 +2851,7 @@ struct ldb_txn_s {
   ldb_mutex_t mutex;
   ldb_seqnum_t sequence;
   ldb_memtable_t *mem;
-  ldb_version_t *ver;
+  ldb_staging_t *sta;
   ldb_edit_t edit;
   int rotated;
 };
@@ -2868,18 +2868,18 @@ ldb_txn_create(ldb_t *db, const ldb_snapshot_t *snapshot) {
     txn->snapshot = snapshot;
     txn->sequence = snapshot->sequence;
     txn->mem = NULL;
-    txn->ver = NULL;
+    txn->sta = NULL;
   } else {
     ldb_mutex_assert_held(&db->mutex);
 
     txn->snapshot = NULL;
     txn->sequence = db->versions->last_sequence;
     txn->mem = ldb_memtable_create(txn->comparator);
-    txn->ver = ldb_version_create(db->versions);
+    txn->sta = ldb_staging_create(db->versions);
 
     ldb_mutex_init(&txn->mutex);
     ldb_memtable_ref(txn->mem);
-    ldb_version_ref(txn->ver);
+    ldb_staging_ref(txn->sta);
     ldb_edit_init(&txn->edit);
   }
 
@@ -2900,7 +2900,7 @@ ldb_txn_destroy(ldb_txn_t *txn) {
     if (txn->mem != NULL)
       ldb_memtable_unref(txn->mem);
 
-    ldb_version_unref0(txn->ver);
+    ldb_staging_unref(txn->sta);
     ldb_edit_clear(&txn->edit);
   }
 
@@ -2917,8 +2917,8 @@ ldb_txn_cleanup(ldb_txn_t *txn) {
 
   ldb_mutex_assert_held(&db->mutex);
 
-  for (i = txn->ver->files[0].length - 1; i != (size_t)-1; i--) {
-    ldb_filemeta_t *file = txn->ver->files[0].items[i];
+  for (i = txn->sta->files.length - 1; i != (size_t)-1; i--) {
+    ldb_filemeta_t *file = txn->sta->files.items[i];
 
     ldb_tables_evict(db->table_cache, file->number);
     ldb_versions_reuse_file_number(db->versions, file->number);
@@ -2968,8 +2968,8 @@ ldb_txn_add_files(ldb_txn_t *txn, rb_set64_t *live) {
 
   ldb_mutex_assert_held(&txn->db->mutex);
 
-  for (i = 0; i < txn->ver->files[0].length; i++) {
-    ldb_filemeta_t *file = txn->ver->files[0].items[i];
+  for (i = 0; i < txn->sta->files.length; i++) {
+    ldb_filemeta_t *file = txn->sta->files.items[i];
 
     rb_set64_put(live, file->number);
   }
@@ -3019,18 +3019,18 @@ ldb_txn_flush(ldb_txn_t *txn, ldb_mutex_t *mu) {
 
   if (rc == LDB_OK) {
     meta_entry_t *entry = ldb_vector_top(&txn->edit.new_files);
-    ldb_version_t *ver = ldb_version_clone0(txn->ver);
+    ldb_staging_t *sta = ldb_staging_clone(txn->sta);
 
     ldb_memtable_unref(txn->mem);
-    ldb_version_unref0(txn->ver);
+    ldb_staging_unref(txn->sta);
 
     txn->mem = ldb_memtable_create(txn->comparator);
-    txn->ver = ver;
+    txn->sta = sta;
 
     ldb_memtable_ref(txn->mem);
-    ldb_version_ref(txn->ver);
+    ldb_staging_ref(txn->sta);
 
-    ldb_vector_push(&txn->ver->files[0], &entry->meta);
+    ldb_staging_push(txn->sta, &entry->meta);
   }
 
   if (mu != NULL)
@@ -3044,7 +3044,7 @@ ldb_txn_get(ldb_txn_t *txn, const ldb_slice_t *key,
                             ldb_slice_t *value,
                             const ldb_readopt_t *options) {
   ldb_memtable_t *mem;
-  ldb_version_t *ver;
+  ldb_staging_t *sta;
   ldb_seqnum_t seq;
   ldb_lkey_t lkey;
   int rc = LDB_OK;
@@ -3068,10 +3068,10 @@ ldb_txn_get(ldb_txn_t *txn, const ldb_slice_t *key,
 
   seq = txn->sequence;
   mem = txn->mem;
-  ver = txn->ver;
+  sta = txn->sta;
 
   ldb_memtable_ref(mem);
-  ldb_version_ref(ver);
+  ldb_staging_ref(sta);
 
   ldb_mutex_unlock(&txn->mutex);
 
@@ -3079,7 +3079,7 @@ ldb_txn_get(ldb_txn_t *txn, const ldb_slice_t *key,
 
   if (ldb_memtable_get(mem, &lkey, value, &rc)) {
     /* Done. */
-  } else if (ldb_version_get0(ver, options, &lkey, value, &rc)) {
+  } else if (ldb_staging_get(sta, options, &lkey, value, &rc)) {
     /* Done. */
   } else {
     rc = ldb_get(txn->db, key, value, options);
@@ -3090,7 +3090,7 @@ ldb_txn_get(ldb_txn_t *txn, const ldb_slice_t *key,
   ldb_mutex_lock(&txn->mutex);
 
   ldb_memtable_unref(mem);
-  ldb_version_unref0(ver);
+  ldb_staging_unref(sta);
 
   ldb_mutex_unlock(&txn->mutex);
 
@@ -3190,7 +3190,7 @@ ldb_txn_commit(ldb_txn_t *txn, const ldb_writeopt_t *options) {
   usage = ldb_memtable_usage(txn->mem);
   rc = db->bg_error;
 
-  if (txn->ver->files[0].length == 0 && usage > 0) {
+  if (txn->sta->files.length == 0 && usage > 0) {
     ldb_batch_t batch;
 
     ldb_batch_init(&batch);
@@ -3212,7 +3212,7 @@ ldb_txn_commit(ldb_txn_t *txn, const ldb_writeopt_t *options) {
     if (rc == LDB_OK && usage > 0)
       rc = ldb_txn_flush(txn, NULL);
 
-    if (rc == LDB_OK && txn->ver->files[0].length > 0) {
+    if (rc == LDB_OK && txn->sta->files.length > 0) {
       db->versions->last_sequence = txn->sequence;
 
       rc = ldb_versions_apply(db->versions, &txn->edit, &db->mutex);
@@ -3272,14 +3272,12 @@ cleanup_txn_iter(void *arg1, void *arg2) {
 ldb_iter_t *
 ldb_txn_iterator(ldb_txn_t *txn, const ldb_readopt_t *options) {
   const ldb_comparator_t *ucmp = txn->comparator->user_comparator;
-  ldb_versions_t *vset = txn->db->versions;
   ldb_seqnum_t seq, ignore;
   ldb_t *db = txn->db;
   ldb_memtable_t *mem;
   ldb_vector_t list;
   ldb_iter_t *iter;
   uint32_t seed;
-  size_t i;
 
   if (options == NULL)
     options = ldb_iteropt_default;
@@ -3303,16 +3301,7 @@ ldb_txn_iterator(ldb_txn_t *txn, const ldb_readopt_t *options) {
   ldb_vector_push(&list, ldb_memiter_create(mem));
   ldb_memtable_ref(mem);
 
-  for (i = 0; i < txn->ver->files[0].length; i++) {
-    ldb_filemeta_t *item = txn->ver->files[0].items[i];
-    ldb_iter_t *it = ldb_tables_iterate(vset->table_cache,
-                                        options,
-                                        item->number,
-                                        item->file_size,
-                                        NULL);
-
-    ldb_vector_push(&list, it);
-  }
+  ldb_staging_add_iterators(txn->sta, options, &list);
 
   ldb_mutex_unlock(&txn->mutex);
 

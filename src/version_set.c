@@ -531,14 +531,6 @@ ldb_version_destroy(ldb_version_t *ver) {
   ldb_free(ver);
 }
 
-ldb_version_t *
-ldb_version_clone0(ldb_version_t *ver) {
-  ldb_version_t *v = ldb_version_create(ver->vset);
-  ldb_vector_grow(&v->files[0], ver->files[0].length + 1);
-  ldb_vector_copy(&v->files[0], &ver->files[0]);
-  return v;
-}
-
 void
 ldb_version_add_iterators(ldb_version_t *ver,
                           const ldb_readopt_t *options,
@@ -679,71 +671,6 @@ ldb_version_get(ldb_version_t *ver,
 }
 
 int
-ldb_version_get0(ldb_version_t *ver,
-                 const ldb_readopt_t *options,
-                 const ldb_lkey_t *k,
-                 ldb_buffer_t *value,
-                 int *status) {
-  const ldb_versions_t *vset = ver->vset;
-  const ldb_comparator_t *ucmp;
-  const ldb_slice_t *user_key;
-  ldb_slice_t ikey;
-  saver_t saver;
-  size_t i;
-
-  if (ver->files[0].length == 0)
-    return 0;
-
-  ucmp = vset->icmp.user_comparator;
-  user_key = &saver.user_key;
-  ikey = ldb_lkey_internal_key(k);
-
-  saver.state = S_NOTFOUND;
-  saver.ucmp = ucmp;
-  saver.user_key = ldb_lkey_user_key(k);
-  saver.value = value;
-
-  /* Search level-0 in order from newest to oldest. */
-  for (i = ver->files[0].length - 1; i != (size_t)-1; i--) {
-    ldb_filemeta_t *f = ver->files[0].items[i];
-    ldb_slice_t small_key = ldb_ikey_user_key(&f->smallest);
-    ldb_slice_t large_key = ldb_ikey_user_key(&f->largest);
-
-    if (ldb_compare(ucmp, user_key, &small_key) >= 0 &&
-        ldb_compare(ucmp, user_key, &large_key) <= 0) {
-      int rc = ldb_tables_get(vset->table_cache,
-                              options,
-                              f->number,
-                              f->file_size,
-                              &ikey,
-                              &saver,
-                              save_value);
-
-      if (rc != LDB_OK) {
-        *status = rc;
-        return 1;
-      }
-
-      switch (saver.state) {
-        case S_NOTFOUND:
-          continue;
-        case S_FOUND:
-          *status = LDB_OK;
-          return 1;
-        case S_DELETED:
-          *status = LDB_NOTFOUND;
-          return 1;
-        case S_CORRUPT:
-          *status = LDB_CORRUPTION; /* "corrupted key for [saver.user_key]" */
-          return 1;
-      }
-    }
-  }
-
-  return 0;
-}
-
-int
 ldb_version_update_stats(ldb_version_t *ver, const ldb_getstats_t *stats) {
   ldb_filemeta_t *f = stats->seek_file;
 
@@ -804,19 +731,6 @@ ldb_version_unref(ldb_version_t *ver) {
 
   if (ver->refs == 0)
     ldb_version_destroy(ver);
-}
-
-void
-ldb_version_unref0(ldb_version_t *ver) {
-  assert(ver != &ver->vset->dummy_versions);
-  assert(ver->refs >= 1);
-
-  --ver->refs;
-
-  if (ver->refs == 0) {
-    ldb_vector_clear(&ver->files[0]);
-    ldb_free(ver);
-  }
 }
 
 int
@@ -2442,4 +2356,132 @@ ldb_compaction_release_inputs(ldb_compaction_t *c) {
     ldb_version_unref(c->input_version);
     c->input_version = NULL;
   }
+}
+
+/*
+ * StagingArea
+ */
+
+ldb_staging_t *
+ldb_staging_create(ldb_versions_t *vset) {
+  ldb_staging_t *stage = ldb_malloc(sizeof(ldb_staging_t));
+  stage->vset = vset;
+  stage->refs = 0;
+  ldb_vector_init(&stage->files);
+  return stage;
+}
+
+void
+ldb_staging_destroy(ldb_staging_t *stage) {
+  ldb_vector_clear(&stage->files);
+  ldb_free(stage);
+}
+
+ldb_staging_t *
+ldb_staging_clone(ldb_staging_t *stage) {
+  ldb_staging_t *out = ldb_staging_create(stage->vset);
+  ldb_vector_grow(&out->files, stage->files.length + 1);
+  ldb_vector_copy(&out->files, &stage->files);
+  return out;
+}
+
+void
+ldb_staging_ref(ldb_staging_t *stage) {
+  ++stage->refs;
+}
+
+void
+ldb_staging_unref(ldb_staging_t *stage) {
+  if (--stage->refs == 0)
+    ldb_staging_destroy(stage);
+}
+
+void
+ldb_staging_push(ldb_staging_t *stage, const ldb_filemeta_t *file) {
+  ldb_vector_push(&stage->files, file);
+}
+
+void
+ldb_staging_add_iterators(ldb_staging_t *stage,
+                          const ldb_readopt_t *options,
+                          ldb_vector_t *iters) {
+  ldb_tables_t *table_cache = stage->vset->table_cache;
+  size_t i;
+
+  /* Merge all level zero files together since they may overlap. */
+  for (i = 0; i < stage->files.length; i++) {
+    ldb_filemeta_t *item = stage->files.items[i];
+    ldb_iter_t *iter = ldb_tables_iterate(table_cache,
+                                          options,
+                                          item->number,
+                                          item->file_size,
+                                          NULL);
+
+    ldb_vector_push(iters, iter);
+  }
+}
+
+int
+ldb_staging_get(ldb_staging_t *stage,
+                const ldb_readopt_t *options,
+                const ldb_lkey_t *k,
+                ldb_buffer_t *value,
+                int *status) {
+  const ldb_versions_t *vset = stage->vset;
+  const ldb_comparator_t *ucmp;
+  const ldb_slice_t *user_key;
+  ldb_slice_t ikey;
+  saver_t saver;
+  size_t i;
+
+  if (stage->files.length == 0)
+    return 0;
+
+  ucmp = vset->icmp.user_comparator;
+  user_key = &saver.user_key;
+  ikey = ldb_lkey_internal_key(k);
+
+  saver.state = S_NOTFOUND;
+  saver.ucmp = ucmp;
+  saver.user_key = ldb_lkey_user_key(k);
+  saver.value = value;
+
+  /* Search level-0 in order from newest to oldest. */
+  for (i = stage->files.length - 1; i != (size_t)-1; i--) {
+    ldb_filemeta_t *f = stage->files.items[i];
+    ldb_slice_t small_key = ldb_ikey_user_key(&f->smallest);
+    ldb_slice_t large_key = ldb_ikey_user_key(&f->largest);
+
+    if (ldb_compare(ucmp, user_key, &small_key) >= 0 &&
+        ldb_compare(ucmp, user_key, &large_key) <= 0) {
+      int rc = ldb_tables_get(vset->table_cache,
+                              options,
+                              f->number,
+                              f->file_size,
+                              &ikey,
+                              &saver,
+                              save_value);
+
+      if (rc != LDB_OK) {
+        *status = rc;
+        return 1;
+      }
+
+      switch (saver.state) {
+        case S_NOTFOUND:
+          continue; /* Keep searching in other files. */
+        case S_FOUND:
+          *status = LDB_OK;
+          return 1;
+        case S_DELETED:
+          *status = LDB_NOTFOUND;
+          return 1;
+        case S_CORRUPT:
+          *status = LDB_CORRUPTION; /* "corrupted key for [saver.user_key]" */
+          return 1;
+      }
+    }
+  }
+
+  return 0;
 }
