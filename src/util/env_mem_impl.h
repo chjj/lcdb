@@ -385,7 +385,7 @@ ldb_get_children(const char *path, char ***out) {
   rb_iter_t it;
 
 #ifdef _WIN32
-  while (plen > 0 && (path[plen - 1] == '/' || path[plen - 1] == '\\')
+  while (plen > 0 && (path[plen - 1] == '/' || path[plen - 1] == '\\'))
     plen -= 1;
 #else
   while (plen > 0 && path[plen - 1] == '/')
