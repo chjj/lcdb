@@ -180,6 +180,30 @@ ldb_iter_seek_lt(ldb_iter_t *iter, const ldb_slice_t *target) {
 }
 
 /*
+ * Empty Comparator
+ */
+
+static int
+empty_compare(const ldb_comparator_t *comparator,
+              const ldb_slice_t *x,
+              const ldb_slice_t *y) {
+  (void)comparator;
+  (void)x;
+  (void)y;
+  assert(0);
+  return -1;
+}
+
+static const ldb_comparator_t empty_comparator = {
+  /* .name = */ "leveldb.EmptyComparator",
+  /* .compare = */ empty_compare,
+  /* .shortest_separator = */ NULL,
+  /* .short_successor = */ NULL,
+  /* .user_comparator = */ NULL,
+  /* .state = */ NULL
+};
+
+/*
  * Empty Iterator
  */
 
@@ -253,5 +277,5 @@ ldb_emptyiter_create(int status) {
 
   iter->status = status;
 
-  return ldb_iter_create(iter, &ldb_emptyiter_table, NULL);
+  return ldb_iter_create(iter, &ldb_emptyiter_table, &empty_comparator);
 }
