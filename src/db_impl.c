@@ -1839,8 +1839,23 @@ ldb_make_room_for_write(ldb_t *db, int force) {
       if (db->log != NULL)
         ldb_writer_destroy(db->log);
 
-      if (db->logfile != NULL)
+      if (db->logfile != NULL) {
+        rc = ldb_wfile_close(db->logfile);
+
+        if (rc != LDB_OK) {
+          /* We may have lost some data written to the previous log file.
+           * Switch to the new log file anyway, but record as a background
+           * error so we do not attempt any more writes.
+           *
+           * We could perhaps attempt to save the memtable corresponding
+           * to log file and suppress the error if that works, but that
+           * would add more complexity in a critical code path.
+           */
+          ldb_record_background_error(db, rc);
+        }
+
         ldb_wfile_destroy(db->logfile);
+      }
 
       db->logfile = lfile;
       db->logfile_number = new_log_number;
