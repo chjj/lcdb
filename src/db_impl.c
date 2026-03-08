@@ -2752,6 +2752,11 @@ ldb_test_compact_range(ldb_t *db, int level,
     }
   }
 
+  /* Finish current background compaction in the case where
+     `background_work_finished_signal` was signalled due to an error. */
+  while (db->background_compaction_scheduled)
+    ldb_cond_wait(&db->background_work_finished_signal, &db->mutex);
+
   if (db->manual_compaction == &manual) {
     /* Cancel my manual compaction since we aborted early for some reason. */
     db->manual_compaction = NULL;
