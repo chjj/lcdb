@@ -627,7 +627,12 @@ static const uint32_t block2_skip_table[8][16] = {
  */
 static LDB_INLINE const void *
 round_up(const void *p, uintptr_t N) {
+#ifdef __FILC__
+  size_t M = (uintptr_t)p & (N - 1);
+  return (const char *)p + (M == 0 ? 0 : N - M);
+#else
   return (const void *)(((uintptr_t)p + (N - 1)) & ~(N - 1));
+#endif
 }
 
 /*
