@@ -63,16 +63,24 @@ ldb_date(char *zp, int64_t x) {
  * Default Logger
  */
 
+typedef struct log_state_s {
+  ldb_mutex_t lock;
+  FILE *stream;
+} log_state_t;
+
 static void
 stream_log(void *state, const char *fmt, va_list ap) {
+  log_state_t *ls = state;
   ldb_tid_t thread = ldb_thread_self();
   unsigned long tid = 0;
-  FILE *stream = state;
+  FILE *stream = ls->stream;
   char date[64];
 
   ldb_date(date, ldb_now_usec());
 
   memcpy(&tid, &thread, LDB_MIN(sizeof(tid), sizeof(thread)));
+
+  ldb_mutex_lock(&ls->lock);
 
   fprintf(stream, "%s %lu ", date, tid);
 
@@ -81,11 +89,22 @@ stream_log(void *state, const char *fmt, va_list ap) {
   fputc('\n', stream);
 
   fflush(stream);
+
+  ldb_mutex_unlock(&ls->lock);
 }
 
 static void
 stream_close(void *state) {
-  fclose(state);
+  log_state_t *ls = state;
+
+  ldb_mutex_lock(&ls->lock);
+
+  fclose(ls->stream);
+
+  ldb_mutex_unlock(&ls->lock);
+  ldb_mutex_destroy(&ls->lock);
+
+  ldb_free(state);
 }
 
 /*
@@ -128,10 +147,15 @@ ldb_log(ldb_logger_t *logger, const char *fmt, ...) {
 ldb_logger_t *
 ldb_logger_fopen(FILE *stream) {
   ldb_logger_t *logger = ldb_malloc(sizeof(ldb_logger_t));
+  log_state_t *state = ldb_malloc(sizeof(log_state_t));
 
   assert(stream != NULL);
 
-  logger->state = stream;
+  ldb_mutex_init(&state->lock);
+
+  state->stream = stream;
+
+  logger->state = state;
   logger->logv = stream_log;
   logger->destroy = stream_close;
 
