@@ -138,6 +138,9 @@ ldb_pkey_import(ldb_pkey_t *z, const ldb_slice_t *x);
 void
 ldb_pkey_debug(ldb_buffer_t *z, const ldb_pkey_t *x);
 
+char *
+ldb_pkey_string(char *zp, size_t zn, const ldb_pkey_t *key);
+
 /*
  * InternalKey
  */
@@ -165,6 +168,9 @@ ldb_ikey_export(ldb_ikey_t *z, const ldb_ikey_t *x);
 
 void
 ldb_ikey_debug(ldb_buffer_t *z, const ldb_ikey_t *x);
+
+char *
+ldb_ikey_string(char *zp, size_t zn, const ldb_ikey_t *key);
 
 /*
  * LookupKey

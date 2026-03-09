@@ -116,6 +116,24 @@ ldb_pkey_debug(ldb_buffer_t *z, const ldb_pkey_t *x) {
   ldb_buffer_number(z, x->type);
 }
 
+char *
+ldb_pkey_string(char *zp, size_t zn, const ldb_pkey_t *key) {
+  ldb_buffer_t tmp;
+
+  if (zn < 1 + key->user_key.size * 4 + 4 + 20 + 3 + 20 + 1) {
+    if (zn >= 11)
+      strcpy(zp, "(overflow)");
+    else if (zn >= 1)
+      zp[0] = '\0';
+  } else {
+    ldb_buffer_rwset(&tmp, (uint8_t *)zp, zn);
+    ldb_pkey_debug(&tmp, key);
+    ldb_buffer_push(&tmp, 0);
+  }
+
+  return zp;
+}
+
 /*
  * InternalKey
  */
@@ -164,6 +182,24 @@ ldb_ikey_debug(ldb_buffer_t *z, const ldb_ikey_t *x) {
 
   ldb_buffer_string(z, "(bad)");
   ldb_buffer_escape(z, x);
+}
+
+char *
+ldb_ikey_string(char *zp, size_t zn, const ldb_ikey_t *key) {
+  ldb_buffer_t tmp;
+
+  if (key->size < 8 || zn < 1 + (key->size - 8) * 4 + 4 + 20 + 3 + 20 + 1) {
+    if (zn >= 11)
+      strcpy(zp, "(overflow)");
+    else if (zn >= 1)
+      zp[0] = '\0';
+  } else {
+    ldb_buffer_rwset(&tmp, (uint8_t *)zp, zn);
+    ldb_ikey_debug(&tmp, key);
+    ldb_buffer_push(&tmp, 0);
+  }
+
+  return zp;
 }
 
 /*
