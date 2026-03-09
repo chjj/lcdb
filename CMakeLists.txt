@@ -9,7 +9,7 @@ set(LDB_ABI_VERSION 0:0:0)
 # Initialization
 #
 
-cmake_minimum_required(VERSION 3.4)
+cmake_minimum_required(VERSION 3.4...4.2)
 project(lcdb VERSION ${LDB_PKG_VERSION} LANGUAGES C)
 
 #
