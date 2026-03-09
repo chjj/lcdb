@@ -80,11 +80,9 @@ actest_key(int i, char *buf) {
 
 static ldb_slice_t
 actest_val(size_t len) {
-  uint8_t *val = ldb_malloc(len + 1);
+  uint8_t *val = ldb_malloc(len);
 
   memset(val, 'x', len);
-
-  val[len] = '\0';
 
   return ldb_slice(val, len);
 }
