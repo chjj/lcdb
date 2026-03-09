@@ -579,12 +579,14 @@ rb_iter_seek(rb_iter_t *iter, rb_val_t key) {
 
 void
 rb_iter_prev(rb_iter_t *iter) {
-  iter->node = rb_node_predecessor(iter->node);
+  if (iter->node != NIL)
+    iter->node = rb_node_predecessor(iter->node);
 }
 
 void
 rb_iter_next(rb_iter_t *iter) {
-  iter->node = rb_node_successor(iter->node);
+  if (iter->node != NIL)
+    iter->node = rb_node_successor(iter->node);
 }
 
 void
