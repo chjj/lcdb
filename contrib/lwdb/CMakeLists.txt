@@ -2,7 +2,7 @@
 # Copyright (c) 2022, Christopher Jeffrey (MIT License).
 # https://github.com/chjj/lcdb
 
-cmake_minimum_required(VERSION 3.4)
+cmake_minimum_required(VERSION 3.10)
 project(lcdb LANGUAGES C)
 
 add_library(lcdb STATIC lwdb.c)
