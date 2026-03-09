@@ -317,83 +317,91 @@ rb_tree_insert_fixup(rb_tree_t *tree, rb_node_t *x) {
 }
 
 static void
-rb_tree_remove_fixup(rb_tree_t *tree, rb_node_t *x) {
+rb_tree_remove_fixup(rb_tree_t *tree, rb_node_t *x, rb_node_t *xp) {
   while (x != tree->root && x->color == BLACK) {
-    if (x == x->parent->left) {
-      rb_node_t *w = x->parent->right;
+    if (x == xp->left) {
+      rb_node_t *w = xp->right;
 
       if (w->color == RED) {
         w->color = BLACK;
-        x->parent->color = RED;
-        rb_tree_rotl(tree, x->parent);
-        w = x->parent->right;
+        xp->color = RED;
+        rb_tree_rotl(tree, xp);
+        w = xp->right;
       }
 
       if (w->left->color == BLACK && w->right->color == BLACK) {
         w->color = RED;
-        x = x->parent;
+        x = xp;
+        xp = x->parent;
       } else {
         if (w->right->color == BLACK) {
           w->left->color = BLACK;
           w->color = RED;
           rb_tree_rotr(tree, w);
-          w = x->parent->right;
+          w = xp->right;
         }
 
-        w->color = x->parent->color;
-        x->parent->color = BLACK;
+        w->color = xp->color;
+        xp->color = BLACK;
         w->right->color = BLACK;
 
-        rb_tree_rotl(tree, x->parent);
+        rb_tree_rotl(tree, xp);
 
         x = tree->root;
+        xp = NIL;
       }
     } else {
-      rb_node_t *w = x->parent->left;
+      rb_node_t *w = xp->left;
 
       if (w->color == RED) {
         w->color = BLACK;
-        x->parent->color = RED;
-        rb_tree_rotr(tree, x->parent);
-        w = x->parent->left;
+        xp->color = RED;
+        rb_tree_rotr(tree, xp);
+        w = xp->left;
       }
 
       if (w->right->color == BLACK && w->left->color == BLACK) {
         w->color = RED;
-        x = x->parent;
+        x = xp;
+        xp = x->parent;
       } else {
         if (w->left->color == BLACK) {
           w->right->color = BLACK;
           w->color = RED;
           rb_tree_rotl(tree, w);
-          w = x->parent->left;
+          w = xp->left;
         }
 
-        w->color = x->parent->color;
-        x->parent->color = BLACK;
+        w->color = xp->color;
+        xp->color = BLACK;
         w->left->color = BLACK;
 
-        rb_tree_rotr(tree, x->parent);
+        rb_tree_rotr(tree, xp);
 
         x = tree->root;
+        xp = NIL;
       }
     }
   }
 
-  x->color = BLACK;
+  if (x != NIL)
+    x->color = BLACK;
 }
 
 static rb_node_t *
 rb_tree_remove_node(rb_tree_t *tree, rb_node_t *z) {
   rb_node_t *y = z;
-  rb_node_t *x;
+  rb_node_t *x, *xp;
 
   if (z->left != NIL && z->right != NIL)
     y = rb_node_successor(z);
 
   x = y->left == NIL ? y->right : y->left;
 
-  x->parent = y->parent;
+  xp = y->parent;
+
+  if (x != NIL)
+    x->parent = xp;
 
   if (y->parent == NIL) {
     tree->root = x;
@@ -410,7 +418,7 @@ rb_tree_remove_node(rb_tree_t *tree, rb_node_t *z) {
   }
 
   if (y->color == BLACK)
-    rb_tree_remove_fixup(tree, x);
+    rb_tree_remove_fixup(tree, x, xp);
 
   tree->size -= 1;
 
