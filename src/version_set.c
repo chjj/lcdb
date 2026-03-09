@@ -671,16 +671,56 @@ ldb_version_get(ldb_version_t *ver,
 }
 
 int
-ldb_version_update_stats(ldb_version_t *ver, const ldb_getstats_t *stats) {
+ldb_version_update_stats(ldb_version_t *ver, const ldb_getstats_t *stats, const char *origin, int matches) {
   ldb_filemeta_t *f = stats->seek_file;
 
   if (f != NULL) {
+    int old = f->allowed_seeks;
+    int pending = (ver->file_to_compact != NULL);
+
     f->allowed_seeks--;
 
+    if ((old > 5 && f->allowed_seeks <= 5) ||
+        (f->allowed_seeks <= 5 && f->allowed_seeks >= -8) ||
+        (old > 0 && f->allowed_seeks <= 0) ||
+        (f->allowed_seeks < -8 && ((-f->allowed_seeks) % 32) == 0)) {
+      ldb_log(ver->vset->options->info_log,
+              "seek-decr origin=%s file=%lu level=%d allowed=%d->%d matches=%d "
+              "pending=%d pending_file=%lu pending_level=%d",
+              origin,
+              f->number,
+              stats->seek_file_level,
+              old,
+              f->allowed_seeks,
+              matches,
+              pending,
+              pending ? ver->file_to_compact->number : 0,
+              pending ? ver->file_to_compact_level : -1);
+    }
+
     if (f->allowed_seeks <= 0 && ver->file_to_compact == NULL) {
+      ldb_log(ver->vset->options->info_log,
+              "seek-queue file=%lu level=%d allowed=%d",
+              f->number,
+              stats->seek_file_level,
+              f->allowed_seeks);
+
       ver->file_to_compact = f;
       ver->file_to_compact_level = stats->seek_file_level;
       return 1;
+    }
+
+    if (f->allowed_seeks <= 0 && ver->file_to_compact != NULL &&
+        (old > 0 || f->allowed_seeks >= -8 ||
+        ((-f->allowed_seeks) % 32) == 0)) {
+      ldb_log(ver->vset->options->info_log,
+              "seek-blocked file=%lu level=%d allowed=%d "
+              "pending_file=%lu pending_level=%d",
+              f->number,
+              stats->seek_file_level,
+              f->allowed_seeks,
+              ver->file_to_compact->number,
+              ver->file_to_compact_level);
     }
   }
 
@@ -711,7 +751,7 @@ ldb_version_record_read_sample(ldb_version_t *ver, const ldb_slice_t *ikey) {
      finding such files? */
   if (state.matches >= 2) {
     /* 1MB cost is about 1 seek (see comment in builder_apply). */
-    return ldb_version_update_stats(ver, &state.stats);
+    return ldb_version_update_stats(ver, &state.stats, "sample", state.matches);
   }
 
   return 0;
@@ -1927,6 +1967,7 @@ ldb_versions_setup_other_inputs(ldb_versions_t *vset, ldb_compaction_t *c) {
   ldb_slice_t smallest, largest;
   ldb_slice_t all_start, all_limit;
   const int level = c->level;
+  size_t gp_len_prev;
 
   add_boundary_inputs(&vset->icmp,
                       &vset->current->files[level],
@@ -2015,12 +2056,26 @@ ldb_versions_setup_other_inputs(ldb_versions_t *vset, ldb_compaction_t *c) {
     ldb_vector_clear(&expanded0);
   }
 
+  gp_len_prev = c->grandparents.length;
+
   /* Compute the set of grandparent files that overlap this compaction
      (parent == level+1; grandparent == level+2). */
   if (level + 2 < LDB_NUM_LEVELS) {
     ldb_version_get_overlapping_inputs(vset->current, level + 2,
                                        &all_start, &all_limit,
                                        &c->grandparents);
+  }
+
+  {
+    char start[1024], limit[1024];
+
+    ldb_log(vset->options->info_log,
+      "setup-inputs level=%d grandparents=%lu+%lu range [%s] -> [%s]",
+      level,
+      gp_len_prev,
+      c->grandparents.length - gp_len_prev,
+      ldb_ikey_string(start, sizeof(start), &all_start),
+      ldb_ikey_string(limit, sizeof(limit), &all_limit));
   }
 
   /* Update the place where we will do the next compaction for this level.
@@ -2095,6 +2150,13 @@ ldb_versions_pick_compaction(ldb_versions_t *vset) {
 
     assert(c->inputs[0].length > 0);
   }
+
+  ldb_log(vset->options->info_log,
+    "pick-compaction reason=%s level=%d score=%f file=%lu",
+    size_compaction ? "size" : "seek",
+    level,
+    vset->current->compaction_score,
+    ((ldb_filemeta_t *)ldb_vector_top(&c->inputs[0]))->number);
 
   ldb_versions_setup_other_inputs(vset, c);
 
@@ -2335,6 +2397,15 @@ ldb_compaction_should_stop_before(ldb_compaction_t *c,
 
     if (c->seen_key)
       c->overlapped_bytes += f->file_size;
+
+    ldb_log(vset->options->info_log,
+            "gparent-cross level=%d file=%lu size=%lu overlap=%ld index=%lu/%lu",
+            c->level,
+            (unsigned long)f->number,
+            (unsigned long)f->file_size,
+            (long)c->overlapped_bytes,
+            c->grandparent_index,
+            c->grandparents.length);
 
     c->grandparent_index++;
   }

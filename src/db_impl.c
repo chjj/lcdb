@@ -1353,6 +1353,13 @@ ldb_do_compaction_work(ldb_t *db, ldb_cstate_t *state) {
 
     if (ldb_compaction_should_stop_before(state->compaction, &key) &&
         state->builder != NULL) {
+      ldb_log(db->options.info_log,
+              "stop-before out=%lu entries=%lu bytes=%lu gpi=%lu",
+              (unsigned long)ldb_cstate_top(state)->number,
+              (unsigned long)ldb_tablegen_entries(state->builder),
+              (unsigned long)ldb_tablegen_size(state->builder),
+              (unsigned long)state->compaction->grandparent_index);
+
       rc = ldb_finish_compaction_output_file(db, state, input);
 
       if (rc != LDB_OK)
@@ -1417,6 +1424,12 @@ ldb_do_compaction_work(ldb_t *db, ldb_cstate_t *state) {
       /* Close output file if it is big enough. */
       if (ldb_tablegen_size(state->builder) >=
           state->compaction->max_output_file_size) {
+        ldb_log(db->options.info_log,
+                "limit-reached out=%lu entries=%lu bytes=%lu",
+                (unsigned long)ldb_cstate_top(state)->number,
+                (unsigned long)ldb_tablegen_entries(state->builder),
+                (unsigned long)ldb_tablegen_size(state->builder));
+
         rc = ldb_finish_compaction_output_file(db, state, input);
 
         if (rc != LDB_OK)
@@ -1430,8 +1443,15 @@ ldb_do_compaction_work(ldb_t *db, ldb_cstate_t *state) {
   if (rc == LDB_OK && ldb_atomic_load(&db->shutting_down, ldb_order_acquire))
     rc = LDB_IOERR; /* "Deleting DB during compaction" */
 
-  if (rc == LDB_OK && state->builder != NULL)
+  if (rc == LDB_OK && state->builder != NULL) {
+    ldb_log(db->options.info_log,
+            "premature-table out=%lu entries=%lu bytes=%lu",
+            (unsigned long)ldb_cstate_top(state)->number,
+            (unsigned long)ldb_tablegen_entries(state->builder),
+            (unsigned long)ldb_tablegen_size(state->builder));
+
     rc = ldb_finish_compaction_output_file(db, state, input);
+  }
 
   if (rc == LDB_OK)
     rc = ldb_iter_status(input);
@@ -2128,7 +2148,7 @@ ldb_get(ldb_t *db, const ldb_slice_t *key,
     ldb_mutex_lock(&db->mutex);
   }
 
-  if (have_stat_update && ldb_version_update_stats(current, &stats))
+  if (have_stat_update && ldb_version_update_stats(current, &stats, "get", 0))
     ldb_maybe_schedule_compaction(db);
 
   ldb_memtable_unref(mem);

@@ -171,7 +171,7 @@ ldb_version_get(ldb_version_t *ver,
    compaction may need to be triggered, false otherwise. */
 /* REQUIRES: lock is held */
 int
-ldb_version_update_stats(ldb_version_t *ver, const ldb_getstats_t *stats);
+ldb_version_update_stats(ldb_version_t *ver, const ldb_getstats_t *stats, const char *origin, int matches);
 
 /* Record a sample of bytes read at the specified internal key.
    Samples are taken approximately once every LDB_READ_BYTES_PERIOD
