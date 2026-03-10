@@ -922,10 +922,11 @@ void
 ldb_approximate_sizes(ldb_t *db, const ldb_range_t *range,
                                  size_t length,
                                  uint64_t *sizes) {
-  const char **start_keys = safe_malloc(length * sizeof(char *));
-  const char **limit_keys = safe_malloc(length * sizeof(char *));
-  size_t *start_lens = safe_malloc(length * sizeof(size_t));
-  size_t *limit_lens = safe_malloc(length * sizeof(size_t));
+  size_t alloc_len = length + (length == 0);
+  const char **start_keys = safe_malloc(alloc_len * sizeof(char *));
+  const char **limit_keys = safe_malloc(alloc_len * sizeof(char *));
+  size_t *start_lens = safe_malloc(alloc_len * sizeof(size_t));
+  size_t *limit_lens = safe_malloc(alloc_len * sizeof(size_t));
   size_t i;
 
   for (i = 0; i < length; i++) {

@@ -206,7 +206,8 @@ leveldb_approximate_sizes(leveldb_t *db, int num_ranges,
                           const char *const *range_limit_key,
                           const size_t *range_limit_key_len,
                           uint64_t *sizes) {
-  ldb_range_t *ranges = ldb_malloc(num_ranges * sizeof(ldb_range_t));
+  size_t alloc_len = num_ranges + (num_ranges == 0);
+  ldb_range_t *ranges = ldb_malloc(alloc_len * sizeof(ldb_range_t));
   int i;
 
   for (i = 0; i < num_ranges; i++) {
