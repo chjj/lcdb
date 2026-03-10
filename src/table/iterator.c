@@ -39,6 +39,8 @@ ldb_iter_init(ldb_iter_t *iter,
 
 static void
 ldb_iter_clear(ldb_iter_t *iter) {
+  iter->table->clear(iter->ptr);
+
   if (!ldb_cleanup_empty(&iter->cleanup_head)) {
     ldb_cleanup_t *node, *next;
 
@@ -50,8 +52,6 @@ ldb_iter_clear(ldb_iter_t *iter) {
       ldb_free(node);
     }
   }
-
-  iter->table->clear(iter->ptr);
 
   ldb_free(iter->ptr);
 }
