@@ -72,7 +72,7 @@ typedef struct ldb_comparator_s ldb_comparator_t;
 typedef struct ldb_dbopt_s ldb_dbopt_t;
 typedef struct ldb_handler_s ldb_handler_t;
 typedef struct ldb_iter_s ldb_iter_t;
-typedef struct ldb_logger_s ldb_logger_t;
+typedef leveldb_logger_t ldb_logger_t;
 typedef leveldb_cache_t ldb_lru_t;
 typedef struct ldb_range_s ldb_range_t;
 typedef struct ldb_readopt_s ldb_readopt_t;
@@ -141,10 +141,6 @@ struct ldb_iter_s {
   leveldb_iterator_t *rep;
   leveldb_readoptions_t *options;
   const ldb_comparator_t *ucmp;
-};
-
-struct ldb_logger_s {
-  leveldb_logger_t *rep;
 };
 
 struct ldb_range_s {
@@ -526,7 +522,7 @@ convert_dbopt(const ldb_dbopt_t *x,
   leveldb_options_set_paranoid_checks(z, x->paranoid_checks);
 
   if (x->info_log != NULL)
-    leveldb_options_set_info_log(z, x->info_log->rep);
+    leveldb_options_set_info_log(z, x->info_log);
 
   leveldb_options_set_write_buffer_size(z, x->write_buffer_size);
   leveldb_options_set_max_open_files(z, x->max_open_files);
@@ -1371,22 +1367,166 @@ ldb_iter_seek_lt(ldb_iter_t *iter, const ldb_slice_t *target) {
  * Logging
  */
 
+/* Windows has a different vtable ABI (except on MinGW) */
+#if defined(_WIN32) && !defined(__MINGW32__) && !defined(__MINGW64__)
+#  define LDB_MSVC_VTABLES
+#endif
+
+/* Windows x86 needs thiscall. No keyword on MSVC, so we use thunks. */
+#if defined(_WIN32) && (defined(__i386__) || defined(_M_IX86))
+#  if defined(__clang__)
+#    define LDB_THISCALL __thiscall
+#  elif defined(__GNUC__) /* Should catch MinGW */
+#    define LDB_THISCALL __attribute__((thiscall))
+#  else /* Every other windows compiler */
+#    define LDB_NEED_THUNKS
+#  endif
+#else
+#  define LDB_THISCALL
+#endif
+
+typedef struct logger_object_s logger_object_t;
+typedef struct logger_vtable_s logger_vtable_t;
+
+/* The struct as defined in leveldb/db/c.cc */
+struct leveldb_logger_t {
+  logger_object_t *rep;
+};
+
+/* Represents an instance of leveldb::Logger */
+struct logger_object_s {
+  const logger_vtable_t *vtable;
+  /* Our custom members */
+  void *state;
+  void (*real_logv)(void *, const char *, va_list);
+};
+
+#ifdef LDB_NEED_THUNKS
+
+struct logger_vtable_s {
+  void (*delete_)(void);
+  void (*logv)(void);
+};
+
+static void __cdecl
+logger_logv_helper(logger_object_t *self, const char *format, va_list ap) {
+  if (self->real_logv != NULL)
+    self->real_logv(self->state, format, ap);
+}
+
+__declspec(naked) static void
+logger_delete(void) {
+  __asm {
+    jmp abort
+  }
+}
+
+__declspec(naked) static void
+logger_logv(void) {
+  __asm {
+    mov eax, [esp + 4]   /* format */
+    mov edx, [esp + 8]   /* ap     */
+    push edx             /* ap     */
+    push eax             /* format */
+    push ecx             /* self   */
+    call logger_logv_helper
+    add esp, 12
+    ret 8
+  }
+}
+
+static const logger_vtable_t logger_vtable = {
+  logger_delete,
+  logger_logv
+};
+
+#else /* !LDB_NEED_THUNKS */
+
+/* leveldb::Logger has a vtable of:
+ *
+ *   [0] complete destructor: (*)(leveldb::Logger *)
+ *   [1] deleting destructor: (*)(leveldb::Logger *)
+ *   [2] Logv: (*)(leveldb::Logger *, const char *, va_list)
+ *
+ * The negative vtable entries (e.g. RTTI) are never used
+ * by leveldb and we do not need to include them.
+ *
+ * We abort on destruction or deletion as leveldb should
+ * not behave as if it has ownership of our logger.
+ *
+ * See: leveldb/include/leveldb/env.h
+ */
+struct logger_vtable_s {
+#ifdef LDB_MSVC_VTABLES
+  void LDB_THISCALL (*delete_)(logger_object_t *, int);
+#else
+  void LDB_THISCALL (*destruct)(logger_object_t *);
+  void LDB_THISCALL (*delete_)(logger_object_t *);
+#endif
+  void LDB_THISCALL (*logv)(logger_object_t *, const char *, va_list);
+};
+
+#ifdef LDB_MSVC_VTABLES
+static void LDB_THISCALL
+logger_delete(logger_object_t *self, int flag) {
+  (void)self;
+  (void)flag;
+  abort(); /* LCOV_EXCL_LINE */
+}
+#else
+static void LDB_THISCALL
+logger_destruct(logger_object_t *self) {
+  (void)self;
+  abort(); /* LCOV_EXCL_LINE */
+}
+
+static void LDB_THISCALL
+logger_delete(logger_object_t *self) {
+  (void)self;
+  abort(); /* LCOV_EXCL_LINE */
+}
+#endif
+
+static void LDB_THISCALL
+logger_logv(logger_object_t *self, const char *format, va_list ap) {
+  if (self->real_logv != NULL)
+    self->real_logv(self->state, format, ap);
+}
+
+static const logger_vtable_t logger_vtable = {
+#ifdef LDB_MSVC_VTABLES
+  logger_delete,
+#else
+  logger_destruct,
+  logger_delete,
+#endif
+  logger_logv
+};
+
+#endif /* !LDB_NEED_THUNKS */
+
 ldb_logger_t *
 ldb_logger_create(void (*logv)(void *, const char *, va_list), void *state) {
-  ldb_logger_t *result = safe_malloc(sizeof(ldb_logger_t));
+  ldb_logger_t *logger = safe_malloc(sizeof(ldb_logger_t));
+  logger_object_t *object = safe_malloc(sizeof(logger_object_t));
 
-  (void)logv;
-  (void)state;
+  memset(object, 0, sizeof(logger_object_t));
 
-  /* No way to instantiate. */
-  result->rep = NULL;
+  object->vtable = &logger_vtable;
+  object->state = state;
+  object->real_logv = logv;
 
-  return result;
+  logger->rep = object;
+
+  return logger;
 }
 
 void
 ldb_logger_destroy(ldb_logger_t *logger) {
-  safe_free(logger);
+  if (logger != NULL) {
+    safe_free(logger->rep);
+    safe_free(logger);
+  }
 }
 
 /*
