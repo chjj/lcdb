@@ -203,7 +203,7 @@ ldb_logger_create(void (*logv)(void *, const char *, va_list), void *state);
 LDB_EXTERN void
 ldb_logger_destroy(ldb_logger_t *logger);
 
-void
+LDB_EXTERN void
 ldb_log(ldb_logger_t *logger, const char *fmt, ...);
 
 ldb_logger_t *

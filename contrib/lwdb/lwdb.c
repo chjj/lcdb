@@ -373,6 +373,9 @@ ldb_logger_create(void (*logv)(void *, const char *, va_list), void *state);
 LDB_EXTERN void
 ldb_logger_destroy(ldb_logger_t *logger);
 
+LDB_EXTERN void
+ldb_log(ldb_logger_t *logger, const char *fmt, ...);
+
 /* Slice */
 LDB_EXTERN ldb_slice_t
 ldb_slice(const void *xp, size_t xn);
@@ -1527,6 +1530,21 @@ ldb_logger_destroy(ldb_logger_t *logger) {
     safe_free(logger->rep);
     safe_free(logger);
   }
+}
+
+void
+ldb_log(ldb_logger_t *logger, const char *fmt, ...) {
+  va_list ap;
+
+  va_start(ap, fmt);
+
+  if (logger != NULL) {
+    logger_object_t *self = logger->rep;
+    if (self->real_logv != NULL)
+      self->real_logv(self->state, fmt, ap);
+  }
+
+  va_end(ap);
 }
 
 /*

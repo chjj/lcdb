@@ -478,6 +478,9 @@ ldb_logger_create(void (*logv)(void *, const char *, va_list), void *state);
 void
 ldb_logger_destroy(ldb_logger_t *logger);
 
+void
+ldb_log(ldb_logger_t *logger, const char *fmt, ...);
+
 /*
  * Slice
  */
