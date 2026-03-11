@@ -45,8 +45,8 @@
 #    define LDB_ARMCC_ATOMICS
 #  endif
 #elif defined(__TINYC__)
-#  if (__TINYC__ + 0) > 927 /* 0.9.27 */
-#    define LDB_TINYC_ATOMICS
+#  if (__TINYC__ + 0) >= 928 /* 0.9.28 */
+#    define LDB_STD_ATOMICS
 #  elif defined(__i386__) || defined(__x86_64__)
 #    define LDB_ASM_ATOMICS
 #  endif
@@ -100,7 +100,6 @@
   || defined(LDB_GNUC_ATOMICS)    \
   || defined(LDB_SYNC_ATOMICS)    \
   || defined(LDB_ASM_ATOMICS)     \
-  || defined(LDB_TINYC_ATOMICS)   \
   || defined(LDB_CHIBICC_ATOMICS) \
   || defined(LDB_ARMCC_ATOMICS)   \
   || defined(LDB_SUN_ATOMICS)     \
@@ -130,7 +129,7 @@ typedef int ldb_word_t;
 typedef long ldb_word_t;
 #endif
 
-#if defined(LDB_STD_ATOMICS) || defined(LDB_TINYC_ATOMICS)
+#if defined(LDB_STD_ATOMICS)
 #  include <stdint.h>
 #  define ldb_atomic(type) _Atomic(intptr_t)
 #  define ldb_atomic_ptr(type) _Atomic(type *)
@@ -388,30 +387,6 @@ ldb_atomic__fetch_add(volatile ldb_word_t *object, ldb_word_t operand) {
 
 #define ldb_atomic_fetch_sub(object, operand, order) \
   ldb_atomic__fetch_add(object, -(ldb_word_t)(operand))
-
-#elif defined(LDB_TINYC_ATOMICS)
-
-/*
- * Tiny Atomics
- * https://github.com/TinyCC/tinycc/blob/48df89e/include/stdatomic.h
- */
-
-#define ldb_atomic_store __atomic_store
-#define ldb_atomic_store_ptr __atomic_store
-#define ldb_atomic_load __atomic_load
-#define ldb_atomic_load_ptr __atomic_load
-
-#define ldb_atomic_exchange(object, desired) \
-  __atomic_exchange(object, desired, 5)
-
-#define ldb_atomic_compare_exchange(object, expected, desired) ({ \
-  intptr_t _exp = (expected);                                     \
-  __atomic_compare_exchange(object, &_exp, desired, 0, 5, 5);     \
-  _exp;                                                           \
-})
-
-#define ldb_atomic_fetch_add __atomic_fetch_add
-#define ldb_atomic_fetch_sub __atomic_fetch_sub
 
 #elif defined(LDB_CHIBICC_ATOMICS)
 

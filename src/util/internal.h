@@ -63,7 +63,9 @@
 
 #undef STATIC_ASSERT
 
-#if LDB_STDC_VERSION >= 201112L && !defined(__chibicc__)
+#if LDB_STDC_VERSION >= 202311L
+#  define STATIC_ASSERT(expr) static_assert(expr)
+#elif LDB_STDC_VERSION >= 201112L && !defined(__chibicc__)
 #  define STATIC_ASSERT(expr) _Static_assert(expr, "check failed")
 #elif LDB_GNUC_PREREQ(2, 7) || defined(__clang__)
 #  define STATIC_ASSERT_2(x, y) \
@@ -90,7 +92,9 @@
 #  define LDB_INLINE
 #endif
 
-#if LDB_STDC_VERSION >= 201112L
+#if LDB_STDC_VERSION >= 202311L
+#  define LDB_NORETURN [[noreturn]]
+#elif LDB_STDC_VERSION >= 201112L
 #  define LDB_NORETURN _Noreturn
 #elif LDB_GNUC_PREREQ(2, 7)
 #  define LDB_NORETURN __attribute__((__noreturn__))
@@ -102,7 +106,7 @@
 #  define LDB_NORETURN
 #endif
 
-#if LDB_STDC_VERSION > 201710L
+#if LDB_STDC_VERSION >= 202311L
 #  define LDB_UNUSED [[maybe_unused]]
 #elif LDB_GNUC_PREREQ(2, 7) || defined(__clang__)
 #  define LDB_UNUSED __attribute__((__unused__))
