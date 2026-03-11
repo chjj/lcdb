@@ -2854,7 +2854,8 @@ test_db_randomized(test_t *t) {
     rb_map_t *map_snap = NULL;
     int i, p, step, num;
     rb_map_t map, tmp;
-    const char *k, *v;
+    const char *k = NULL;
+    const char *v;
     ldb_batch_t b;
 
     rb_map_init(&map, map_compare, NULL);

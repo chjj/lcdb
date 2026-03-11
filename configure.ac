@@ -275,6 +275,17 @@ AX_CHECK_COMPILE_FLAG([-Wstrict-prototypes],
                       [CFLAGS="$CFLAGS -Wstrict-prototypes"])
 AX_CHECK_COMPILE_FLAG([-Wundef], [CFLAGS="$CFLAGS -Wundef"])
 
+AX_CHECK_DEFINE([limits.h], [__GLIBC__], [
+  # glibc headers are pulling in macros that use
+  # _Generic among other c11/c23 features due to
+  # our use of _GNU_SOURCE. Only clang seems to
+  # complain about this (for now).
+  AC_CHECK_DEFINE([__clang__], [
+    AX_CHECK_COMPILE_FLAG([-Wno-c11-extensions],
+                          [CFLAGS="$CFLAGS -Wno-c11-extensions"])
+  ])
+])
+
 AS_IF([test x"$WATCOM" != x''], [
   AX_CHECK_COMPILE_FLAG([-Wno-n201], [CFLAGS="$CFLAGS -Wno-n201"])
   AX_CHECK_COMPILE_FLAG([-Wno-n202], [CFLAGS="$CFLAGS -Wno-n202"])

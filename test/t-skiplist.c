@@ -568,17 +568,14 @@ tstate_change(tstate_t *t, enum reader_state s) {
 static void
 concurrent_reader(void *arg) {
   tstate_t *state = (tstate_t *)arg;
-  int64_t reads = 0;
   ldb_rand_t rnd;
 
   ldb_rand_init(&rnd, state->seed);
 
   tstate_change(state, STATE_RUNNING);
 
-  while (!ldb_atomic_load(&state->quit_flag, ldb_order_acquire)) {
+  while (!ldb_atomic_load(&state->quit_flag, ldb_order_acquire))
     ctest_read_step(&state->test, &rnd);
-    ++reads;
-  }
 
   tstate_change(state, STATE_DONE);
 }

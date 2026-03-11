@@ -268,6 +268,14 @@ else()
                                     -Wshadow
                                     -Wstrict-prototypes
                                     -Wundef)
+
+  if(LDB_GLIBC AND CMAKE_C_COMPILER_ID STREQUAL "Clang")
+    # glibc headers are pulling in macros that use
+    # _Generic among other c11/c23 features due to
+    # our use of _GNU_SOURCE. Only clang seems to
+    # complain about this (for now).
+    append_c_compiler_flag(ldb_cflags -Wno-c11-extensions)
+  endif()
 endif()
 
 if(LDB_COVERAGE)
