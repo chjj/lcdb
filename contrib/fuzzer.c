@@ -27,6 +27,8 @@
  * Constants
  */
 
+#define MAX_INPUT (128 * 1024)
+
 /* We need to use keys and values both shorter and longer
    than 128 bytes in order to cover both fast and slow
    paths in decode_entry(). */
@@ -116,7 +118,7 @@ LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
   /* Reject too long inputs as they may cause non
      actionable timeouts issues. */
-  if (size > 128 * 1024)
+  if (size > MAX_INPUT)
     return 0;
 
   provider = ldb_slice(data, size);
@@ -124,6 +126,7 @@ LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   open_opts = *ldb_dbopt_default;
   open_opts.create_if_missing = 1;
   open_opts.paranoid_checks = consume_bool(&provider);
+  open_opts.compression = consume_bool(&provider);
   open_opts.reuse_logs = 0;
 
   read_opts = *ldb_readopt_default;
